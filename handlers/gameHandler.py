@@ -1,4 +1,5 @@
 from classes.types import GameState, Input, Action
+from handlers.config import SERVER_SETTINGS
 class GameHandler:
     def __init__(self) -> None:
         self.__inGame: bool = False
