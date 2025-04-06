@@ -2,9 +2,9 @@ from typing import Union, Any
 from config.contstants import MAX_HP, MAX_OVERHEALTH, MAX_SHIELD, MAX_REGEN_SHIELD, MAX_SPECIAL_BAR
 from enum import Enum
 
-class SpriteList:
+class SpriteSet:
     def __init__(self) -> None:
-        pass # TODO
+        pass # TODO 2
 
 class AbilityCategory(Enum):
     BASIC = 0
@@ -12,8 +12,16 @@ class AbilityCategory(Enum):
     SIGNATURE = 2
     ULTIMATE = 3
 
+class Effect:
+    def __init__(self) -> None:
+        pass # TODO 7
+
+class Gun:
+    def __init__(self) -> None:
+        pass # TODO 1
+
 class Ability:
-    def __init__(self, name: str, cost: int, category: AbilityCategory, maxCharges: int, maxCooldown: Union[None, int] = None, maxKills: Union[None, int] = None, effect: Any = None) -> None:
+    def __init__(self, name: str, cost: int, category: AbilityCategory, maxCharges: int, maxCooldown: Union[None, int] = None, maxKills: Union[None, int] = None, equippable: bool = False, effect: Any = None, description: str = "") -> None:
         self.__name = name
         self.__cost = cost
         self.__category = category
@@ -21,6 +29,8 @@ class Ability:
         self.__maxCooldown = maxCooldown
         self.__maxKills = maxKills
         self.__effect = effect
+        self.__equippable = equippable
+        self.__description = description
     # Getters
     def getName(self) -> str:
         return self.__name
@@ -34,13 +44,19 @@ class Ability:
         return self.__maxCooldown
     def getMaxKills(self) -> Union[None, int]:
         return self.__maxKills
+    def getEquippable(self) -> bool:
+        return self.__equippable
     def getEffect(self) -> Any:
         return self.__effect
+    def getDescription(self) -> str:
+        return self.__description
 
 class Agent:
-    def __init__(self, abilities: list[Ability, Ability, Ability, Ability], sprites: SpriteList) -> None:
+    def __init__(self, name: str, abilities: list[Ability, Ability, Ability, Ability], sprites: SpriteSet, description: str) -> None:
+        self.__name = name
         self.__abilities = abilities
         self.__sprites = sprites
+        self.__description = description
 
 class Position:
     def __init__(self, x: float = 0, y: float = 0, z: float = 0):
