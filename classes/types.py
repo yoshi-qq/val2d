@@ -1,6 +1,9 @@
 from typing import Union, Any
-from config.contstants import MAX_HP, MAX_OVERHEALTH, MAX_SHIELD, MAX_REGEN_SHIELD, MAX_SPECIAL_BAR
+from config.constants import MAX_HP, MAX_OVERHEALTH, MAX_SHIELD, MAX_REGEN_SHIELD, MAX_SPECIAL_BAR
 from enum import Enum
+
+# BASE
+JSONType = Union[dict[str, Any], list[Any], str, int, float, bool, None]
 
 # GRAPHICS
 class SpriteSet:
@@ -31,6 +34,9 @@ class PenetrationLevel(Enum):
 class Effect:
     def __init__(self) -> None:
         pass # TODO 7
+    # JSON
+    def collapseToDict(self) -> JSONType:
+        return {}
 
 # INFORMATION
 class Position:
@@ -50,6 +56,12 @@ class Position:
         return (self.__x, self.__y, self.__z)
     def __str__(self):
         return f"{self.__x}:{self.__y}:{self.__z}"
+    def collapseToDict(self) -> JSONType:
+        return {
+            "x": self.__x,
+            "y": self.__y,
+            "z": self.__z
+        }
     
 class Angle:
     def __init__(self, angle: float = 0):
@@ -82,6 +94,13 @@ class Pose:
     def __str__(self):
         return f"{self.__position}:{self.__orientation}"
 
+    # JSON
+    def collapseToDict(self) -> JSONType:
+        return {
+            "position": self.__position.collapseToDict(),
+            "orientation": self.getOrientation().getAngle()  
+        }
+    
 class Vitals:
     def __init__(self, hp: int = 100, overheal: int= 0, shield: int = 0, regenShield: int = 0, specialBar: int = 100) -> None:
         self.__hp = hp
@@ -111,19 +130,36 @@ class Vitals:
         self.__regenShield = newRegenShield
     def setSpecialBar(self, newSpecialBar: int) -> None:
         self.__specialBar = newSpecialBar
-    
+    # JSON
+    def collapseToDict(self) -> JSONType:
+        return {
+            "hp": self.__hp,
+            "overheal": self.__overheal,
+            "shield": self.__shield,
+            "regenShield": self.__regenShield,
+            "specialBar": self.__specialBar
+        }
+
 class Buff:
-    def __init__(self, name: str, effect: Any) -> None:
+    def __init__(self, name: str, effect: Effect) -> None:
         self.__name = name
         self.__effect = effect
     def getName(self) -> str:
         return self.__name
-    def getEffect(self) -> Any:
+    def getEffect(self) -> Effect:
         return self.__effect
+    # JSON
+    def collapseToDict(self) -> JSONType:
+        return {
+            "name": self.__name,
+            "effect": self.__effect.collapseToDict()
+        }
 
 class Status:
-    def __init__(self, basicCharges: int = 0, tacticalCharges: int = 0, signatureCharges: int = 1,  ultimateCharges: int = 0, ultimatePoints: int = 0, signatureCooldown: float = 45, signatureKills: int = 0) -> None:
+    def __init__(self, team: int, handItem: "Holdable", basicCharges: int = 0, tacticalCharges: int = 0, signatureCharges: int = 1,  ultimateCharges: int = 0, ultimatePoints: int = 0, signatureCooldown: float = 45, signatureKills: int = 0) -> None:
         # Ability
+        self.__team = team
+        self.__handItem = handItem
         self.__basicCharges = basicCharges
         self.__tacticalCharges = tacticalCharges
         self.__signatureCharges = signatureCharges
@@ -132,9 +168,13 @@ class Status:
         self.__signatureCooldown = signatureCooldown
         self.__signatureKills = signatureKills
 
-        self.__buffs = list[tuple[Buff, float]]
-        
+        self.__buffs: list[tuple[Buff, float]] = []
+    
     # Getters
+    def getTeam(self) -> int:
+        return self.__team
+    def getHandItem(self) -> "Holdable":
+        return self.__handItem
     def getBasicCharges(self) -> int:
         return self.__basicCharges
     def getTacticalCharges(self) -> int:
@@ -151,12 +191,33 @@ class Status:
         return self.__signatureKills
     def getBuffs(self) -> list[tuple[Buff, float]]:
         return self.__buffs
+    # JSON
+    def collapseToDict(self) -> JSONType:
+        return {
+            "team": self.__team,
+            "handItem": self.__handItem.collapseToDict(),
+            "basicCharges": self.__basicCharges,
+            "tacticalCharges": self.__tacticalCharges,
+            "signatureCharges": self.__signatureCharges,
+            "ultimateCharges": self.__ultimateCharges,
+            "ultimatePoints": self.__ultimatePoints,
+            "signatureCooldown": self.__signatureCooldown,
+            "signatureKills": self.__signatureKills,
+            "buffs": [(buff.collapseToDict(), duration) for buff, duration in self.__buffs]
+        }
     
 class Stats:
     def __init__(self, kills: int, deaths: int, assists: int) -> None:
         self.__kills = kills
         self.__deaths = deaths
         self.__assists = assists
+    # JSON
+    def collapseToDict(self) -> JSONType:
+        return {
+            "kills": self.__kills,
+            "deaths": self.__deaths,
+            "assists": self.__assists
+        }
     
 class DamageValues:
     def __init__(self, values1: tuple[int, int, int], range1: int, values2: Union[None, tuple[int, int, int]], range2: Union[None, int], values3: Union[None, tuple[int, int, int]], range3: Union[None, int]):
@@ -175,9 +236,30 @@ class DamageValues:
             return self.__damageValues3
         else:
             return self.__damageValues3 if self.__damageValues3 is not None else self.__damageValues2 if self.__damageValues2 is not None else self.__damageValues1
+    # JSON
+    def collapseToDict(self) -> JSONType:
+        return {
+            "values1": self.__damageValues1,
+            "range1": self.__range1,
+            "values2": self.__damageValues2,
+            "range2": self.__range2,
+            "values3": self.__damageValues3,
+            "range3": self.__range3
+        }
+# GAME
+class Map:
+    def __init__(self) -> None:
+        pass # TODO
+    def collapseToDict(self) -> JSONType:
+        return {}
 
+class Object:
+    def __init__(self):
+        pass # TODO
+    def collapseToDict(self) -> JSONType:
+        return {}
 
-# PLAYER
+# INVENTORY
 class Holdable:
     def __init__(self, category: int) -> None:
         self.__category = category
@@ -205,6 +287,12 @@ class Knife(Holdable):
         self.__sprites = sprites
         self.__damage = DamageValues((50, 50, 50), 1, None, None, None, None)
         self.__altDamage = DamageValues((75, 75, 75), 1, None, None, None, None)
+    # JSON
+    def collapseToDict(self) -> JSONType:
+        return {
+            "damage": self.__damage.collapseToDict(),
+            "altDamage": self.__altDamage.collapseToDict()
+        }
     
 class Gun(Holdable):
     def __init__(self, name: str, sprites: SpriteSet, category: GunCategory, automatic: bool = False, penetration: PenetrationLevel = PenetrationLevel.MEDIUM, runSpeed: int = 5.4, equipSpeed: int = 0.75, reloadSpeed: int = 2, magazine: int = 1, fireRate: int = 2, firstShotSpread: tuple[int, int] = (0, 0), damage: DamageValues = DamageValues(), scope: Union[None, Scope] = None, altFireEffect: Union[None, Effect] = None) -> None:
@@ -222,10 +310,28 @@ class Gun(Holdable):
         self.__damage = damage
         self.__scope = scope
         self.__altFireEffect = altFireEffect
-
+    # JSON
+    def collapseToDict(self) -> JSONType:
+        return {
+            "name": self.__name,
+            "category": self.__category,
+            "automatic": self.__automatic,
+            "penetration": self.__penetration,
+            "runSpeed": self.__runSpeed,
+            "equipSpeed": self.__equipSpeed,
+            "reloadSpeed": self.__reloadSpeed,
+            "magazine": self.__magazine,
+            "fireRate": self.__fireRate,
+            "firstShotSpread": self.__firstShotSpread,
+            "damage": self.__damage.collapseToDict(),
+            "scope": self.__scope.collapseToDict() if self.__scope is not None else None,
+            "altFireEffect": self.__altFireEffect.collapseToDict() if self.__altFireEffect is not None else None
+        }
+    
 class Ability(Holdable):
-    def __init__(self, name: str, cost: int, abilityCategory: AbilityCategory, maxCharges: int, maxCooldown: Union[None, int] = None, maxKills: Union[None, int] = None, equippable: bool = False, effect: Any = None, description: str = "") -> None:
+    def __init__(self, name: str, sprites: SpriteSet, cost: int, abilityCategory: AbilityCategory, maxCharges: int, maxCooldown: Union[None, int] = None, maxKills: Union[None, int] = None, equippable: bool = False, effect: Effect = None, description: str = "") -> None:
         self.__name = name
+        self.__sprites = sprites
         self.__cost = cost
         super().__init__(category=0)
         self.__abilityCategory = abilityCategory
@@ -250,31 +356,101 @@ class Ability(Holdable):
         return self.__maxKills
     def getEquippable(self) -> bool:
         return self.__equippable
-    def getEffect(self) -> Any:
+    def getEffect(self) -> Effect:
         return self.__effect
     def getDescription(self) -> str:
         return self.__description
+    # JSON
+    def collapseToDict(self) -> JSONType:
+        return {
+            "name": self.__name,
+            "cost": self.__cost,
+            "abilityCategory": self.__abilityCategory,
+            "maxCharges": self.__maxCharges,
+            "maxCooldown": self.__maxCooldown,
+            "maxKills": self.__maxKills,
+            "equippable": self.__equippable,
+            "effect": self.__effect.collapseToDict() if self.__effect is not None else None,
+            "description": self.__description
+        }
+        
+class Inventory:
+    def __init__(self, knife: Knife, secondary: Gun, primary: Gun):
+        self.__knife = knife
+        self.__secondary = secondary
+        self.__primary = primary
+    def getKnife(self) -> Knife:
+        return self.__knife
+    def getSecondary(self) -> Gun:
+        return self.__secondary
+    def getPrimary(self) -> Gun:   
+        return self.__primary
+    # JSON
+    def collapseToDict(self) -> JSONType:
+        return {
+            "knife": self.__knife.collapseToDict(),
+            "secondary": self.__secondary.collapseToDict(),
+            "primary": self.__primary.collapseToDict()
+        }
 
+# PLAYER
 class Agent:
     def __init__(self, name: str, abilities: list[Ability, Ability, Ability, Ability], sprites: SpriteSet, description: str) -> None:
         self.__name = name
         self.__abilities = abilities
         self.__sprites = sprites
         self.__description = description
+    # JSON
+    def collapseToDict(self) -> JSONType:
+        return {
+            "name": self.__name,
+            "abilities": [ability.collapseToDict() for ability in self.__abilities],
+            "description": self.__description
+        }
 
 class Player:
-    def __init__(self, pose: Pose, vitals: Vitals, status: Status, stats: Stats, agent: Agent) -> None:
+    def __init__(self, pose: Pose, vitals: Vitals, status: Status, inventory: Inventory, stats: Stats, agent: Agent) -> None:
         self.__pose = pose
         self.__vitals = vitals
         self.__status = status
+        self.__inventory = inventory
         self.__stats = stats
         self.__agent = agent
     
-
+    def collapseToDict(self) -> JSONType:
+        return {
+            "pose": self.__pose.collapseToDict(),
+            "vitals": self.__vitals.collapseToDict(),
+            "status": self.__status.collapseToDict(),
+            "inventory": self.__inventory.collapseToDict(),
+            "stats": self.__stats.collapseToDict(),
+            "agent": self.__agent.collapseToDict()
+        }
+    
 # BACKEND
 class GameState:
-    def __init__(self):
-        pass
+    def __init__(self, players: list[Player], time: float, round: int, score: tuple[int, int], map: Map, gameMode: str, roundTime: float, objects: list[Object]) -> None:
+        self.__players = players
+        self.__time = time
+        self.__round = round
+        self.__score = score
+        self.__map = map
+        self.__gameMode = gameMode
+        self.__roundTime = roundTime
+        self.__objects = objects
+    
+    def collapseToDict(self) -> JSONType:
+        return {
+            "players": [player.collapseToDict() for player in self.__players],
+            "time": self.__time,
+            "round": self.__round,
+            "score": self.__score,
+            "map": self.__map.collapseToDict(),
+            "gameMode": self.__gameMode,
+            "roundTime": self.__roundTime,
+            "objects": [obj.collapseToDict() for obj in self.__objects]
+        }
+    
     def __str__(self) -> str:
         return f"GameState[]"
 
