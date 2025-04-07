@@ -14,27 +14,177 @@ JSONType = Union[dict[str, Any], list[Any], str, int, float, bool, None]
 
 # KEYS
 class MapKey(Enum):
-    ASCENT = 0
+    BIND = 1
+    HAVEN = 2
+    SPLIT = 3
+    ASCENT = 4
+    ICEBOX = 5
+    BREEZE = 6
+    FRACTURE = 7
+    PEARL = 8
+    LOTUS = 9
+    SUNSET = 10
+    ABYSS = 11
 
 class EffectKey(Enum):
     pass # TODO
 
 class AbilityKey(Enum):
-    # Omen
-    SHROUDED_STEP = 0
-    PARANOIA = 1
-    DARK_COVER = 2
-    FROM_THE_SHADOWS = 3
+    # 01 Brimstone (1-4)
+    # 02 Viper (5-8)
+    # 03 Omen (9-12)
+    SHROUDED_STEP = 9
+    PARANOIA = 10
+    DARK_COVER = 11
+    FROM_THE_SHADOWS = 12
+    # 04 Killjoy (13-16)
+    # 05 Cypher (17-20)
+    # 06 Sova (21-24)
+    # 07 Sage (25-28)
+    # 08 - (29-32)
+    # 09 Phoenix (33-36)
+    # 10 Jett (37-40)
+    # 11 Reyna (41-44)
+    # 12 Raze (45-48)
+    # 13 Breach (49-52)
+    # 14 Skye (53-56)
+    # 15 Yoru (57-60)
+    # 16 Astra (61-64)
+    # 17 KAY/O (65-68)
+    # 18 Chamber (69-72)
+    # 19 Neon (73-76)
+    # 20 Fade (77-80)
+    # 21 Harbor (81-84)
+    # 22 Gekko (85-88)
+    # 23 Deadlock (89-92)
+    # 24 Iso (93-96)
+    # 25 Clove (97-100)
+    # 26 Vyse (101-104)
+    # 27 Tejo (105-108)
+    # 28 Waylay (109-112)
 
 class KnifeKey(Enum):
     DEFAULT = 0
 class SidearmKey(Enum):
-    CLASSIC = 0
+    CLASSIC = 1
+    SHORTY = 2
+    FRENZY = 3
+    GHOST = 4
+    SHERIFF = 5
+    GOLDEN_GUN = 6
+    SNOWBALL_LAUNCHER = 7
+    # 8-10 unused
 class GunKey(Enum):
-    SPECTRE = 0
+    # SMGs
+    STINGER = 11
+    SPECTRE = 12
+    # Shotguns
+    BUCKY = 13
+    JUDGE = 14
+    # Rifles
+    BULLDOG = 15
+    GUARDIAN = 16
+    PHANTOM = 17
+    VANDAL = 18
+    # Sniper Rifles
+    MARSHAL = 19
+    OUTLAW = 20
+    OP = 21
+    # Machine Guns
+    ARES = 22
+    ODIN = 23
 
 class SpriteSet(Enum):
-    AGENT_OMEN = 0
+    # AGENTS
+    AGENT_BRIMSTONE = 1
+    AGENT_VIPER = 2
+    AGENT_OMEN = 3
+    AGENT_KILLJOY = 4
+    AGENT_CYPHER = 5
+    AGENT_SOVA = 6
+    AGENT_SAGE = 7
+    AGENT_PHOENIX = 9
+    AGENT_JETT = 10
+    AGENT_REYNA = 11
+    AGENT_RAZE = 12
+    AGENT_BREACH = 13
+    AGENT_SKYE = 14
+    AGENT_YORU = 15
+    AGENT_ASTRA = 16
+    AGENT_KAYO = 17
+    AGENT_CHAMBER = 18
+    AGENT_NEON = 19
+    AGENT_FADE = 20
+    AGENT_HARBOR = 21
+    AGENT_GEKKO = 22
+    AGENT_DEADLOCK = 23
+    AGENT_ISO = 24
+    AGENT_CLOVE = 25
+    AGENT_VYSE = 26
+    AGENT_TEJO = 27
+    AGENT_WAYLAY = 28
+    
+    # WEAPONS
+    # Melee
+    WEAPON_KNIFE = 51
+    # Sidearms
+    WEAPON_CLASSIC = 52
+    WEAPON_SHORTY = 53
+    WEAPON_FRENZY = 54
+    WEAPON_GHOST = 55
+    WEAPON_SHERIFF = 56
+    WEAPON_GOLDEN_GUN = 57
+    WEAPON_SNOWBALL_LAUNCHER = 58
+    # Primaries
+    WEAPON_STINGER = 61
+    WEAPON_SPECTRE = 62
+    WEAPON_BUCKY = 63
+    WEAPON_JUDGE = 64
+    WEAPON_BULLDOG = 65
+    WEAPON_GUARDIAN = 66
+    WEAPON_PHANTOM = 67
+    WEAPON_VANDAL = 68
+    WEAPON_MARSHAL = 69
+    WEAPON_OUTLAW = 70
+    WEAPON_OP = 71
+    WEAPON_ARES = 72
+    WEAPON_ODIN = 73
+    
+    # Abilities
+    # 01 Brimstone (1-4)
+    # 02 Viper (5-8)
+    # 03 Omen (9-12)
+    SHROUDED_STEP = 9
+    PARANOIA = 10
+    DARK_COVER = 11
+    FROM_THE_SHADOWS = 12
+    # 04 Killjoy (13-16)
+    # 05 Cypher (17-20)
+    # 06 Sova (21-24)
+    # 07 Sage (25-28)
+    # 08 - (29-32)
+    # 09 Phoenix (33-36)
+    # 10 Jett (37-40)
+    # 11 Reyna (41-44)
+    # 12 Raze (45-48)
+    # 13 Breach (49-52)
+    # 14 Skye (53-56)
+    # 15 Yoru (57-60)
+    # 16 Astra (61-64)
+    # 17 KAY/O (65-68)
+    # 18 Chamber (69-72)
+    # 19 Neon (73-76)
+    # 20 Fade (77-80)
+    # 21 Harbor (81-84)
+    # 22 Gekko (85-88)
+    # 23 Deadlock (89-92)
+    # 24 Iso (93-96)
+    # 25 Clove (97-100)
+    # 26 Vyse (101-104)
+    # 27 Tejo (105-108)
+    # 28 Waylay (109-112)
+    
+    # OBJECTS
 
 # CATEGORIES
 class AbilityCategory(Enum):
