@@ -3,31 +3,31 @@ from config.contstants import MAX_HP, MAX_OVERHEALTH, MAX_SHIELD, MAX_REGEN_SHIE
 from enum import Enum
 
 # GRAPHICS
-
 class SpriteSet:
     def __init__(self) -> None:
         pass # TODO 2
 
 # CATEGORIES
-
 class AbilityCategory(Enum):
     BASIC = 0
     TACTICAL = 1
     SIGNATURE = 2
     ULTIMATE = 3
 
-class WeaponCategory(Enum):
-    ABILITY = 0
-    MELEE = 1
+class GunCategory(Enum):
     SIDEARM = 2
     SMG = 3
     SHOTGUN = 4
     RIFLE = 5
     SNIPER_RIFLE = 6
     MACHINE_GUN = 7
-    
-# EFFECTS
 
+class PenetrationLevel(Enum):
+    LOW = 0
+    MEDIUM = 1
+    HIGH = 2
+
+# EFFECTS
 class Effect:
     def __init__(self) -> None:
         pass # TODO 7
@@ -158,11 +158,61 @@ class Stats:
         self.__deaths = deaths
         self.__assists = assists
     
+class DamageValues:
+    def __init__(self, values1: tuple[int, int, int], range1: int, values2: Union[None, tuple[int, int, int]], range2: Union[None, int], values3: Union[None, tuple[int, int, int]], range3: Union[None, int]):
+        self.__damageValues1 = values1
+        self.__range1 = range1
+        self.__damageValues2 = values2
+        self.__range2 = range2
+        self.__damageValues3 = values3
+        self.__range3 = range3
+    def getDamage(self, range: int) -> tuple[int, int, int]:
+        if range <= self.__range1:
+            return self.__damageValues1
+        elif self.__range2 is not None and range <= self.__range2:
+            return self.__damageValues2
+        elif self.__range3 is not None and range <= self.__range3:
+            return self.__damageValues3
+        else:
+            return self.__damageValues3 if self.__damageValues3 is not None else self.__damageValues2 if self.__damageValues2 is not None else self.__damageValues1
+
 
 # PLAYER
-class Gun:
-    def __init__(self, name: str, category: WeaponCategory) -> None:
-        pass # TODO 1
+class Holdable:
+    def __init__(self, category: int) -> None:
+        self.__category = category
+
+class Scope:
+    def __init__(self, zoom: float, fireRateMultiplier: float, moveSpeedMultiplier: float, accuracy: float) -> None:
+        self.__zoom = zoom
+        self.__fireRateMultiplier = fireRateMultiplier
+        self.__moveSpeedMultiplier = moveSpeedMultiplier
+        self.__accuracy = accuracy
+    def getZoom(self) -> float:
+        return self.__zoom
+    def getFireRateMultiplier(self) -> float:
+        return self.__fireRateMultiplier
+    def getMoveSpeedMultiplier(self) -> float: 
+        return self.__moveSpeedMultiplier
+    def getAccuracy(self) -> float:
+        return self.__accuracy
+
+class Gun(Holdable):
+    def __init__(self, name: str, sprites: SpriteSet, category: GunCategory, automatic: bool = False, penetration: PenetrationLevel = PenetrationLevel.MEDIUM, runSpeed: int = 5.4, equipSpeed: int = 0.75, reloadSpeed: int = 2, magazine: int = 1, fireRate: int = 2, firstShotSpread: tuple[int, int] = (0, 0), damage: DamageValues = DamageValues(), scope: Union[None, Scope] = None, altFireEffect: Union[None, Effect] = None) -> None:
+        self.__name = name
+        self.__sprites = sprites
+        self.__category = category
+        self.__automatic = automatic
+        self.__penetration = penetration
+        self.__runSpeed = runSpeed
+        self.__equipSpeed = equipSpeed
+        self.__reloadSpeed = reloadSpeed
+        self.__magazine = magazine
+        self.__fireRate = fireRate
+        self.__firstShotSpread = firstShotSpread
+        self.__damage = damage
+        self.__scope = scope
+        self.__altFireEffect = altFireEffect
 
 class Ability:
     def __init__(self, name: str, cost: int, category: AbilityCategory, maxCharges: int, maxCooldown: Union[None, int] = None, maxKills: Union[None, int] = None, equippable: bool = False, effect: Any = None, description: str = "") -> None:
@@ -212,7 +262,6 @@ class Player:
     
 
 # BACKEND
- 
 class GameState:
     def __init__(self):
         pass
