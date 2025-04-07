@@ -2,9 +2,13 @@ from typing import Union, Any
 from config.contstants import MAX_HP, MAX_OVERHEALTH, MAX_SHIELD, MAX_REGEN_SHIELD, MAX_SPECIAL_BAR
 from enum import Enum
 
+# GRAPHICS
+
 class SpriteSet:
     def __init__(self) -> None:
         pass # TODO 2
+
+# CATEGORIES
 
 class AbilityCategory(Enum):
     BASIC = 0
@@ -12,52 +16,23 @@ class AbilityCategory(Enum):
     SIGNATURE = 2
     ULTIMATE = 3
 
+class WeaponCategory(Enum):
+    ABILITY = 0
+    MELEE = 1
+    SIDEARM = 2
+    SMG = 3
+    SHOTGUN = 4
+    RIFLE = 5
+    SNIPER_RIFLE = 6
+    MACHINE_GUN = 7
+    
+# EFFECTS
+
 class Effect:
     def __init__(self) -> None:
         pass # TODO 7
 
-class Gun:
-    def __init__(self) -> None:
-        pass # TODO 1
-
-class Ability:
-    def __init__(self, name: str, cost: int, category: AbilityCategory, maxCharges: int, maxCooldown: Union[None, int] = None, maxKills: Union[None, int] = None, equippable: bool = False, effect: Any = None, description: str = "") -> None:
-        self.__name = name
-        self.__cost = cost
-        self.__category = category
-        self.__maxCharges = maxCharges
-        self.__maxCooldown = maxCooldown
-        self.__maxKills = maxKills
-        self.__effect = effect
-        self.__equippable = equippable
-        self.__description = description
-    # Getters
-    def getName(self) -> str:
-        return self.__name
-    def getCost(self) -> int:
-        return self.__cost
-    def getCategory(self) -> AbilityCategory:
-        return self.__category
-    def getMaxCharges(self) -> int:
-        return self.__maxCharges
-    def getMaxCooldown(self) -> Union[None, int]:
-        return self.__maxCooldown
-    def getMaxKills(self) -> Union[None, int]:
-        return self.__maxKills
-    def getEquippable(self) -> bool:
-        return self.__equippable
-    def getEffect(self) -> Any:
-        return self.__effect
-    def getDescription(self) -> str:
-        return self.__description
-
-class Agent:
-    def __init__(self, name: str, abilities: list[Ability, Ability, Ability, Ability], sprites: SpriteSet, description: str) -> None:
-        self.__name = name
-        self.__abilities = abilities
-        self.__sprites = sprites
-        self.__description = description
-
+# INFORMATION
 class Position:
     def __init__(self, x: float = 0, y: float = 0, z: float = 0):
         self.__x = x
@@ -183,6 +158,50 @@ class Stats:
         self.__deaths = deaths
         self.__assists = assists
     
+
+# PLAYER
+class Gun:
+    def __init__(self, name: str, category: WeaponCategory) -> None:
+        pass # TODO 1
+
+class Ability:
+    def __init__(self, name: str, cost: int, category: AbilityCategory, maxCharges: int, maxCooldown: Union[None, int] = None, maxKills: Union[None, int] = None, equippable: bool = False, effect: Any = None, description: str = "") -> None:
+        self.__name = name
+        self.__cost = cost
+        self.__category = category
+        self.__maxCharges = maxCharges
+        self.__maxCooldown = maxCooldown
+        self.__maxKills = maxKills
+        self.__effect = effect
+        self.__equippable = equippable
+        self.__description = description
+    # Getters
+    def getName(self) -> str:
+        return self.__name
+    def getCost(self) -> int:
+        return self.__cost
+    def getCategory(self) -> AbilityCategory:
+        return self.__category
+    def getMaxCharges(self) -> int:
+        return self.__maxCharges
+    def getMaxCooldown(self) -> Union[None, int]:
+        return self.__maxCooldown
+    def getMaxKills(self) -> Union[None, int]:
+        return self.__maxKills
+    def getEquippable(self) -> bool:
+        return self.__equippable
+    def getEffect(self) -> Any:
+        return self.__effect
+    def getDescription(self) -> str:
+        return self.__description
+
+class Agent:
+    def __init__(self, name: str, abilities: list[Ability, Ability, Ability, Ability], sprites: SpriteSet, description: str) -> None:
+        self.__name = name
+        self.__abilities = abilities
+        self.__sprites = sprites
+        self.__description = description
+
 class Player:
     def __init__(self, pose: Pose, vitals: Vitals, status: Status, stats: Stats, agent: Agent) -> None:
         self.__pose = pose
@@ -190,7 +209,10 @@ class Player:
         self.__status = status
         self.__stats = stats
         self.__agent = agent
-     
+    
+
+# BACKEND
+ 
 class GameState:
     def __init__(self):
         pass
