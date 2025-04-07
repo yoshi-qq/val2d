@@ -3,3 +3,4 @@
 - game
 - join ip+port choosing
 - practice range
+- skins

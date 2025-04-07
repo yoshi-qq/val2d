@@ -181,7 +181,9 @@ class DamageValues:
 class Holdable:
     def __init__(self, category: int) -> None:
         self.__category = category
-
+    def getCategory(self) -> int:
+        return self.__category
+        
 class Scope:
     def __init__(self, zoom: float, fireRateMultiplier: float, moveSpeedMultiplier: float, accuracy: float) -> None:
         self.__zoom = zoom
@@ -197,11 +199,18 @@ class Scope:
     def getAccuracy(self) -> float:
         return self.__accuracy
 
+class Knife(Holdable):
+    def __init__(self, sprites: SpriteSet) -> None:
+        super().__init__(category=1)
+        self.__sprites = sprites
+        self.__damage = DamageValues((50, 50, 50), 1, None, None, None, None)
+        self.__altDamage = DamageValues((75, 75, 75), 1, None, None, None, None)
+    
 class Gun(Holdable):
     def __init__(self, name: str, sprites: SpriteSet, category: GunCategory, automatic: bool = False, penetration: PenetrationLevel = PenetrationLevel.MEDIUM, runSpeed: int = 5.4, equipSpeed: int = 0.75, reloadSpeed: int = 2, magazine: int = 1, fireRate: int = 2, firstShotSpread: tuple[int, int] = (0, 0), damage: DamageValues = DamageValues(), scope: Union[None, Scope] = None, altFireEffect: Union[None, Effect] = None) -> None:
         self.__name = name
         self.__sprites = sprites
-        self.__category = category
+        super().__init__(category=category)
         self.__automatic = automatic
         self.__penetration = penetration
         self.__runSpeed = runSpeed
@@ -214,11 +223,12 @@ class Gun(Holdable):
         self.__scope = scope
         self.__altFireEffect = altFireEffect
 
-class Ability:
-    def __init__(self, name: str, cost: int, category: AbilityCategory, maxCharges: int, maxCooldown: Union[None, int] = None, maxKills: Union[None, int] = None, equippable: bool = False, effect: Any = None, description: str = "") -> None:
+class Ability(Holdable):
+    def __init__(self, name: str, cost: int, abilityCategory: AbilityCategory, maxCharges: int, maxCooldown: Union[None, int] = None, maxKills: Union[None, int] = None, equippable: bool = False, effect: Any = None, description: str = "") -> None:
         self.__name = name
         self.__cost = cost
-        self.__category = category
+        super().__init__(category=0)
+        self.__abilityCategory = abilityCategory
         self.__maxCharges = maxCharges
         self.__maxCooldown = maxCooldown
         self.__maxKills = maxKills
@@ -230,8 +240,8 @@ class Ability:
         return self.__name
     def getCost(self) -> int:
         return self.__cost
-    def getCategory(self) -> AbilityCategory:
-        return self.__category
+    def getAbilityCategory(self) -> AbilityCategory:
+        return self.__AbilityCategory
     def getMaxCharges(self) -> int:
         return self.__maxCharges
     def getMaxCooldown(self) -> Union[None, int]:
