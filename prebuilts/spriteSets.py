@@ -1,8 +1,6 @@
-from classes.types import SpriteSet
+from classes.types import SpriteSetKey, SpriteSet
 
-class SpriteSets:
-    def __init__(self) -> None:
-        self.omen = SpriteSet() # TODO 6
-
-
-spriteSets = SpriteSets()
+k = SpriteSetKey
+spriteSets: dict[SpriteSetKey, SpriteSet] = {
+    k.AGENT_OMEN: SpriteSet() # TODO 6
+}

@@ -12,6 +12,11 @@ class NullType:
 Null = NullType()
 JSONType = Union[dict[str, Any], list[Any], str, int, float, bool, None]
 
+# GRAPHICS
+class SpriteSet:
+    def __init__(self) -> None:
+        pass # TODO 6
+
 # KEYS
 class MapKey(Enum):
     BIND = 1
@@ -63,7 +68,7 @@ class AbilityKey(Enum):
     # 27 Tejo (105-108)
     # 28 Waylay (109-112)
 
-class KnifeKey(Enum):
+class MeleeKey(Enum):
     DEFAULT = 0
 class SidearmKey(Enum):
     CLASSIC = 1
@@ -94,7 +99,7 @@ class GunKey(Enum):
     ARES = 22
     ODIN = 23
 
-class SpriteSet(Enum):
+class SpriteSetKey(Enum):
     # AGENTS
     AGENT_BRIMSTONE = 1
     AGENT_VIPER = 2
@@ -126,7 +131,7 @@ class SpriteSet(Enum):
     
     # WEAPONS
     # Melee
-    WEAPON_KNIFE = 51
+    WEAPON_MELEE = 51
     # Sidearms
     WEAPON_CLASSIC = 52
     WEAPON_SHORTY = 53
@@ -407,7 +412,7 @@ class Stats:
         }
     
 class DamageValues:
-    def __init__(self, values1: tuple[int, int, int], range1: int, values2: Union[None, tuple[int, int, int]], range2: Union[None, int], values3: Union[None, tuple[int, int, int]], range3: Union[None, int]):
+    def __init__(self, values1: tuple[int, int, int], range1: int, values2: Union[None, tuple[int, int, int]] = None, range2: Union[None, int] = None, values3: Union[None, tuple[int, int, int]] = None, range3: Union[None, int] = None):
         self.__damageValues1 = values1
         self.__range1 = range1
         self.__damageValues2 = values2
@@ -454,7 +459,7 @@ class Holdable:
         return self.__category
         
 class Scope:
-    def __init__(self, zoom: float, fireRateMultiplier: float, moveSpeedMultiplier: float, accuracy: float) -> None:
+    def __init__(self, zoom: float, fireRateMultiplier: float, moveSpeedMultiplier: float, accuracy: float = 1.2) -> None:
         self.__zoom = zoom
         self.__fireRateMultiplier = fireRateMultiplier
         self.__moveSpeedMultiplier = moveSpeedMultiplier
@@ -468,8 +473,9 @@ class Scope:
     def getAccuracy(self) -> float:
         return self.__accuracy
 
-class Knife(Holdable):
-    def __init__(self, sprites: SpriteSet) -> None:
+class Melee(Holdable):
+    def __init__(self, name: str, sprites: SpriteSetKey) -> None:
+        self.__name = name
         super().__init__(category=1)
         self.__sprites = sprites
         self.__damage = DamageValues((50, 50, 50), 1, None, None, None, None)
@@ -482,7 +488,7 @@ class Knife(Holdable):
         }
     
 class Gun(Holdable):
-    def __init__(self, name: str, sprites: SpriteSet, category: GunCategory, automatic: bool = False, penetration: PenetrationLevel = PenetrationLevel.MEDIUM, runSpeed: int = 5.4, equipSpeed: int = 0.75, reloadSpeed: int = 2, magazine: int = 1, fireRate: int = 2, firstShotSpread: tuple[int, int] = (0, 0), damage: DamageValues = DamageValues(), scope: Union[None, Scope] = None, altFireEffect: Union[None, Effect] = None) -> None:
+    def __init__(self, name: str, sprites: SpriteSetKey, category: GunCategory, automatic: bool = False, penetration: PenetrationLevel = PenetrationLevel.MEDIUM, runSpeed: int = 5.4, equipSpeed: int = 0.75, reloadSpeed: int = 2, magazine: int = 1, fireRate: int = 2, firstShotSpread: tuple[int, int] = (0, 0), damage: DamageValues = DamageValues(), scope: Union[None, Scope] = None, altFireEffect: Union[None, Effect] = None) -> None:
         self.__name = name
         self.__sprites = sprites
         super().__init__(category=category)
@@ -516,7 +522,7 @@ class Gun(Holdable):
         }
     
 class Ability(Holdable):
-    def __init__(self, name: str, sprites: SpriteSet, cost: int, abilityCategory: AbilityCategory, maxCharges: int, maxCooldown: Union[None, int] = None, maxKills: Union[None, int] = None, equippable: bool = False, effect: Effect = None, description: str = "") -> None:
+    def __init__(self, name: str, sprites: SpriteSetKey, cost: int, abilityCategory: AbilityCategory, maxCharges: int, maxCooldown: Union[None, int] = None, maxKills: Union[None, int] = None, equippable: bool = False, effect: Effect = None, description: str = "") -> None:
         self.__name = name
         self.__sprites = sprites
         self.__cost = cost
@@ -562,12 +568,12 @@ class Ability(Holdable):
         }
         
 class Inventory:
-    def __init__(self, knifeKey: KnifeKey, secondaryKey: SidearmKey, primaryKey: GunKey):
-        self.__knifeKey = knifeKey
+    def __init__(self, meleeKey: MeleeKey, secondaryKey: SidearmKey, primaryKey: GunKey):
+        self.__meleeKey = meleeKey
         self.__secondaryKey = secondaryKey
         self.__primaryKey = primaryKey
-    def getKnifeKey(self) -> Knife:
-        return self.__knifeKey
+    def getMeleeKey(self) -> Melee:
+        return self.__meleeKey
     def getSecondaryKey(self) -> Gun:
         return self.__secondaryKey
     def getPrimaryKey(self) -> Gun:   
@@ -575,14 +581,14 @@ class Inventory:
     # JSON
     def collapseToDict(self) -> JSONType:
         return {
-            "knifeKey": self.__knifeKey,
+            "meleeKey": self.__meleeKey,
             "secondaryKey": self.__secondaryKey,
             "primaryKey": self.__primaryKey
         }
 
 # PLAYER
 class Agent:
-    def __init__(self, name: str, abilityKeys: list[AbilityKey, AbilityKey, AbilityKey, AbilityKey], sprites: SpriteSet, description: str) -> None:
+    def __init__(self, name: str, abilityKeys: list[AbilityKey, AbilityKey, AbilityKey, AbilityKey], sprites: SpriteSetKey, description: str) -> None:
         self.__name = name
         self.__abilityKeys = abilityKeys
         self.__sprites = sprites
