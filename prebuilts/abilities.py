@@ -1,6 +1,6 @@
 from classes.types import Ability, AbilityCategory as Cat
 from prebuilts.effects import effects
-# TODO 3: descriptions
+# TODO 9: descriptions
 
 class Abilities:
     def __init__(self) -> None:

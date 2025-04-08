@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 from classes.types import DictLike, Effect
 
-# TODO 8: add real effects
+# TODO 6: add real effects
 
 class Effects:
     def __init__(self) -> None:

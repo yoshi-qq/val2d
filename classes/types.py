@@ -32,7 +32,7 @@ class MapKey(Enum):
     ABYSS = 11
 
 class EffectKey(Enum):
-    pass # TODO
+    pass # TODO 3
 
 class AbilityKey(Enum):
     # 01 Brimstone (1-4)
@@ -335,7 +335,7 @@ class Buff:
     def getName(self) -> str:
         return self.__name
     def getEffect(self) -> Effect:
-        pass # TODO
+        pass # TODO 4
     # JSON
     def collapseToDict(self) -> JSONType:
         return {
@@ -363,10 +363,8 @@ class Status:
         return self.__team
     def getHandItem(self) -> "Holdable":
         if self.__handItem is not Null:
-            return self.__handItem
-        else:
             pass
-            # TODO: load dynamically
+            # TODO 2: load dynamically
     def getBasicCharges(self) -> int:
         return self.__basicCharges
     def getTacticalCharges(self) -> int:
@@ -441,13 +439,13 @@ class DamageValues:
 # GAME
 class Map:
     def __init__(self) -> None:
-        pass # TODO
+        pass # TODO 5
     def collapseToDict(self) -> JSONType:
         return {}
 
 class Object:
     def __init__(self):
-        pass # TODO
+        pass # TODO 7
     def collapseToDict(self) -> JSONType:
         return {}
 
@@ -632,7 +630,7 @@ class GameState:
         self.__roundTime = roundTime
         self.__objects = objects
     def cutForPlayer(self, playerId: int) -> "GameState":
-        pass # TODO
+        pass # TODO 9
 
     def collapseToDict(self) -> JSONType:
         return {

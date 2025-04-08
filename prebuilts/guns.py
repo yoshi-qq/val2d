@@ -8,7 +8,7 @@ c = GunCategory
 p = PenetrationLevel
 
 melees: dict[MeleeKey, Melee] = {m.DEFAULT: Melee(name="Default", sprites=k.WEAPON_MELEE)}
-# TODO: finish
+# TODO  3: finish
 sidearms: dict[SidearmKey, Gun] = {
     s.CLASSIC: Gun(name="Classic", sprites=k.WEAPON_CLASSIC, category=c.SIDEARM, automatic=False, penetration=p.LOW, runSpeed=5.74, equipSpeed=0.75, reloadSpeed=1.75, magazine=12, fireRate=6.75, firstShotSpread=(0.4, 0.4), damage=DamageValues(values1=(78,26,22), range1=30, values2=(66,22,18), range2=50), scope=None, altFireEffect=None) 
     }
