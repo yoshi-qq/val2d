@@ -392,10 +392,8 @@ class Status:
     # Getters
     def getTeam(self) -> int:
         return self.__team
-    def getHandItem(self) -> "Holdable":
-        if self.__handItem is not Null:
-            pass
-            # TODO 2: load dynamically
+    def getHandItem(self) -> HandItem:
+        return self.__handItem
     def getBasicCharges(self) -> int:
         return self.__basicCharges
     def getTacticalCharges(self) -> int:
