@@ -1,4 +1,4 @@
-import os, json
+import os
 from handlers.graphicsHandler import GraphicsHandler
 from handlers.menuHandler import MenuHandler
 from handlers.inputHandler import InputHandler
