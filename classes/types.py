@@ -270,9 +270,13 @@ class SpriteSetKey(Enum):
 class GameModeKey(Enum):
     UNRATED = 0
     COMPETITIVE = 1
-    ESCALATION = 2
-    SPIKE_RUSH = 3
-    # TODO 3
+    DEATHMATCH = 2
+    ESCALATION = 3
+    SPIKE_RUSH = 4
+    SWIFT_PLAY = 5
+    TEAM_DEATHMATCH = 6
+    REPLICATION = 7
+    CUSTOM = 8
 
 # CATEGORIES
 class AbilityCategory(Enum):
@@ -697,6 +701,9 @@ class Player:
         self.__stats = stats
         self.__agent = agent
     
+    def setAgent(self, agentKey: AgentKey) -> None:
+        self.__agent = agents[AgentKey]
+    
     def collapseToDict(self) -> JSONType:
         return {
             "pose": self.__pose.collapseToDict(),
@@ -710,27 +717,27 @@ class Player:
 # BACKEND
 class GameState:
     def __init__(self, players: list[Player], time: float, roundNo: int, score: tuple[int, int], mapKey: MapKey, gameMode: GameModeKey, roundTime: float, objects: list[Object]) -> None:
-        self.__players = players
-        self.__time = time
-        self.__round = roundNo
-        self.__score = score
-        self.__mapKey = mapKey
-        self.__gameMode = gameMode
-        self.__roundTime = roundTime
-        self.__objects = objects
+        self.players = players
+        self.time = time
+        self.round = roundNo
+        self.score = score
+        self.mapKey = mapKey
+        self.gameMode = gameMode
+        self.roundTime = roundTime
+        self.objects = objects
     def cutForPlayer(self, playerId: int) -> "GameState":
         pass # TODO 9
 
     def collapseToDict(self) -> JSONType:
         return {
-            "players": [player.collapseToDict() for player in self.__players],
-            "time": self.__time,
-            "round": self.__round,
-            "score": self.__score,
-            "mapKey": self.__mapKey,
-            "gameMode": self.__gameMode,
-            "roundTime": self.__roundTime,
-            "objects": [obj.collapseToDict() for obj in self.__objects]
+            "players": [player.collapseToDict() for player in self.players],
+            "time": self.time,
+            "round": self.round,
+            "score": self.score,
+            "mapKey": self.mapKey,
+            "gameMode": self.gameMode,
+            "roundTime": self.roundTime,
+            "objects": [obj.collapseToDict() for obj in self.objects]
         }
     
     def __str__(self) -> str:

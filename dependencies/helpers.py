@@ -1,5 +1,9 @@
 import math
-def distributeObjects(objects, aspect_ratio):
+from typing import TypeVar
+
+T = TypeVar('T')
+
+def distributeObjects(objects: list[T], aspect_ratio) -> list[list[T]]:
     num_objects = len(objects);
     height = int(math.sqrt(num_objects / aspect_ratio));
     width = int(aspect_ratio * height);

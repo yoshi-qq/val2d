@@ -1,5 +1,5 @@
 from handlers.graphicsHandler import g
-from classes.types import Input, Action, agents
+from classes.types import Input, Action, AgentKey, agents
 from handlers.config import CONFIG
 from dependencies.helpers import distributeObjects
 
@@ -42,17 +42,17 @@ class MenuHandler:
         # AgentSelect
         agentSelectMenu: list[g.RenderObject] = []
         self.__menus["agentSelect"] = agentSelectMenu
-        agentLogos: list = []
-        for agent in agents.values():
-            agentLogos.append(agent.getSpriteSet().logo)
+        agentLogos: list[tuple[AgentKey, str]] = []
+        for key, agent in agents.items():
+            agentLogos.append((key, agent.getSpriteSet().logo))
         agentMatrix = distributeObjects(agentLogos, 4)
         xSpacing = g.displayResolution[0] / (len(agentMatrix[0]) + 3)
         ySpacing = g.middle[1]*0.75 / (len(agentMatrix) + 1)
         for y, row in enumerate(agentMatrix):
             yPos = y - 0.5*len(agentMatrix)
-            for x, agentLogo in enumerate(row):
+            for x, agent in enumerate(row):
                 xPos = x - 0.5*len(row)
-                agentSelectMenu.append(g.RenderButton(imageName=agentLogo, clickAction=self.__agentSelectButton, x=g.middle[0]+xPos*xSpacing, y=g.middle[1]+yPos*ySpacing, width=64, height=64, enabled=False, middle=True))
+                agentSelectMenu.append(g.RenderButton(imageName=agent[1], clickAction=self.__agentSelectButton, arguments=(agent[0],), x=g.middle[0]+xPos*xSpacing, y=g.middle[1]+yPos*ySpacing, width=64, height=64, enabled=False, middle=True))
             
         
     def __startButton(self) -> None:
@@ -65,8 +65,8 @@ class MenuHandler:
         self.__actionQueue.append(Action("Join", (CONFIG["ip"], CONFIG["port"])))
     def __hostButton(self) -> None:
         self.__actionQueue.append(Action("Host", None))
-    def __agentSelectButton(self) -> None:
-        pass # TODO 1
+    def __agentSelectButton(self, agentKey: AgentKey) -> None:
+        self.__actionQueue.append(Action("SelectAgent", agentKey))
     # Setters
     def setMenu(self, menu: str) -> None:
         if menu == self.__menu:

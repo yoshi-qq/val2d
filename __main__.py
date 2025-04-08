@@ -57,6 +57,9 @@ def handleMessage(message: Message) -> None:
             print("Connection lost")
         case "OpenAgentSelectMenu":
             menu.setMenu("agentSelect")
+        case "SelectAgentRequest":
+            if not server.isIngame():
+                server.setAgent(message.body[0], message.body[1])
             
 def handleMenuAction(action: Action) -> None:
     global server
@@ -73,6 +76,9 @@ def handleMenuAction(action: Action) -> None:
             server = ServerHandler()
         case "Start":
             server.start()
+        case "SelectAgent":
+            communication.selectAgent(action.content)
+        
 def handleGameAction(action: Action) -> None:
     if debug > 1: print(action)
     pass

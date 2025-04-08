@@ -1,5 +1,5 @@
 from typing import Union, Callable, Any
-from classes.types import Message
+from classes.types import Message, AgentKey
 from dependencies.communications import Request, Event, CommunicationsHandler as Comm, setOnDisconnect
 from handlers.config import CONFIG
 
@@ -44,6 +44,9 @@ class CommunicationHandler:
     
     def selectAgents(self) -> None:
         self.castEvent("StartAgentSelectionEvent", None)
+    def selectAgent(self, agent: AgentKey) -> None:
+        self.sendRequest("SelectAgent", agent)
+    
     # Local
     # Setters
     # Getters
@@ -88,5 +91,5 @@ class CommunicationHandler:
     
     def __handleRequest(self, request: Request):
         match request.head:
-            case -1:
-                pass
+            case "SelectAgent":
+                self.__addMessage("SelectAgentRequest", (request.signature, request.body))
