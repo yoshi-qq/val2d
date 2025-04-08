@@ -1,5 +1,5 @@
 from typing import Union, Any
-from config.constants import MAX_HP, MAX_OVERHEALTH, MAX_SHIELD, MAX_REGEN_SHIELD, MAX_SPECIAL_BAR
+from config.constants import MAX_HP, MAX_OVERHEAL, MAX_SHIELD, MAX_REGEN_SHIELD, MAX_SPECIAL_BAR
 from enum import Enum
 
 # Empty prebuilts
@@ -230,10 +230,10 @@ class SpriteSetKey(Enum):
     # 01 Brimstone (1-4)
     # 02 Viper (5-8)
     # 03 Omen (9-12)
-    SHROUDED_STEP = 9
-    PARANOIA = 10
-    DARK_COVER = 11
-    FROM_THE_SHADOWS = 12
+    ABILITY_SHROUDED_STEP = 9
+    ABILITY_PARANOIA = 10
+    ABILITY_DARK_COVER = 11
+    ABILITY_FROM_THE_SHADOWS = 12
     # 04 Killjoy (13-16)
     # 05 Cypher (17-20)
     # 06 Sova (21-24)
@@ -261,6 +261,13 @@ class SpriteSetKey(Enum):
     # 28 Waylay (109-112)
     
     # OBJECTS
+
+class GameModeKey(Enum):
+    UNRATED = 0
+    COMPETITIVE = 1
+    ESCALATION = 2
+    SPIKE_RUSH = 3
+    # TODO 3
 
 # CATEGORIES
 class AbilityCategory(Enum):
@@ -518,6 +525,11 @@ class Object:
     def collapseToDict(self) -> JSONType:
         return {}
 
+class GameMode:
+    def __init__(self, name: str):
+        self.__name = name
+        pass # TODO 6
+
 # INVENTORY
 class Holdable:
     def __init__(self, category: int) -> None:
@@ -555,7 +567,7 @@ class Melee(Holdable):
         }
     
 class Gun(Holdable):
-    def __init__(self, name: str, sprites: SpriteSetKey, category: GunCategory, automatic: bool = False, penetration: PenetrationLevel = PenetrationLevel.MEDIUM, runSpeed: int = 5.4, equipSpeed: int = 0.75, reloadSpeed: int = 2, magazine: int = 1, fireRate: int = 2, firstShotSpread: tuple[int, int] = (0, 0), damage: DamageValues = DamageValues(), scope: Union[None, Scope] = None, silenced: bool = False, altFireEffect: Union[None, Effect] = None) -> None:
+    def __init__(self, name: str, sprites: SpriteSetKey, category: GunCategory, automatic: bool = False, penetration: PenetrationLevel = PenetrationLevel.MEDIUM, runSpeed: int = 5.4, equipSpeed: int = 0.75, reloadSpeed: int = 2, magazine: int = 1, fireRate: int = 2, firstShotSpread: tuple[int, int] = (0, 0), damage: DamageValues = DamageValues(values1=(1,1,1), range1=50), scope: Union[None, Scope] = None, silenced: bool = False, altFireEffect: Union[None, Effect] = None) -> None:
         self.__name = name
         self.__sprites = sprites
         super().__init__(category=category)
@@ -690,7 +702,7 @@ class Player:
 
 # BACKEND
 class GameState:
-    def __init__(self, players: list[Player], time: float, roundNo: int, score: tuple[int, int], mapKey: MapKey, gameMode: str, roundTime: float, objects: list[Object]) -> None:
+    def __init__(self, players: list[Player], time: float, roundNo: int, score: tuple[int, int], mapKey: MapKey, gameMode: GameModeKey, roundTime: float, objects: list[Object]) -> None:
         self.__players = players
         self.__time = time
         self.__round = roundNo

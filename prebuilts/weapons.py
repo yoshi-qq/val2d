@@ -11,7 +11,7 @@ melees: dict[MeleeKey, Melee] = {m.DEFAULT: Melee(name="Default", sprites=k.WEAP
 # TODO  x4: finish
 sidearms: dict[SidearmKey, Gun] = {
     s.CLASSIC: Gun(name="Classic", sprites=k.WEAPON_CLASSIC, category=c.SIDEARM, automatic=False, penetration=p.LOW, runSpeed=5.74, equipSpeed=0.75, reloadSpeed=1.75, magazine=12, fireRate=6.75, firstShotSpread=(0.4, 0.4), damage=DamageValues(values1=(78,26,22), range1=30, values2=(66,22,18), range2=50), scope=None, silenced=False, altFireEffect=None), 
-    s.SHORTY: Gun(name="Shorty", sprites=k.WEAPON_SHORTYY, category=c.SIDEARM, automatic=False, penetration=p.LOW, runSpeed=5.4, equipSpeed=0.75, reloadSpeed=1.75, magazine=2, fireRate=3.33, firstShotSpread=(4, 4), damage=DamageValues(values1=(22,12,6), range1=7, values2=(12,6,3), range2=15, values3=(6,3,2), range3=50), scope=None, silenced=False, altFireEffect=None),
+    s.SHORTY: Gun(name="Shorty", sprites=k.WEAPON_SHORTY, category=c.SIDEARM, automatic=False, penetration=p.LOW, runSpeed=5.4, equipSpeed=0.75, reloadSpeed=1.75, magazine=2, fireRate=3.33, firstShotSpread=(4, 4), damage=DamageValues(values1=(22,12,6), range1=7, values2=(12,6,3), range2=15, values3=(6,3,2), range3=50), scope=None, silenced=False, altFireEffect=None),
     # Frenzy
     # Ghost
     s.SHERIFF: Gun(name="Sheriff", sprites=k.WEAPON_SHERIFF, category=c.SIDEARM, automatic=False, penetration=p.HIGH, runSpeed=5.4, equipSpeed=1, reloadSpeed=2.25, magazine=6, fireRate=4, firstShotSpread=(0.25, 0.25), damage=DamageValues(values1=(159,55,46), range1=30, values2=(145,50,42), range2=50), scope=None, silenced=False, altFireEffect=None), 

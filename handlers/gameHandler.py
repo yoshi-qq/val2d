@@ -1,4 +1,5 @@
-from classes.types import GameState, Input, Action
+from classes.types import GameState, Input, Action, abilities, agents, effects, melees, sidearms, guns, maps, spriteSets
+from classes.types import MapKey, GameModeKey
 from prebuilts.abilities import init as initAbilities
 from prebuilts.agents import init as initAgents
 from prebuilts.effects import init as initEffects
@@ -9,9 +10,10 @@ from prebuilts.weapons import init as initWeapons
 from handlers.config import SERVER_SETTINGS
 class GameHandler:
     def __init__(self) -> None:
+        self.setup()
         self.__inGame: bool = False
         self.__actionQueue: list[Action] = []
-        self.__gameState: GameState = GameState()
+        self.__gameState: GameState = GameState([], -1, 0, (0, 0), MapKey.ASCENT, GameModeKey.UNRATED, -1, [])
     
     # Global
     def tick(self) -> None:

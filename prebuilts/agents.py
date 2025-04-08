@@ -1,14 +1,11 @@
-from classes.types import Agent, agents as agents_
-from prebuilts.abilities import abilities as a
-from prebuilts.spriteSets import spriteSets as s
+from classes.types import AbilityKey as a, SpriteSetKey as s, AgentKey, Agent, agents as agents_
 
 # TODO 9: description
 
-class Agents:
-    def __init__(self) -> None:
-        self.omen = Agent(name="Omen", abilities=[a.shroudedSteps, a.paranoia, a.darkCover, a.fromTheShadows], sprites=s.omen)
-
-agents = Agents()
+k = AgentKey
+agents: dict[AgentKey, Agent] = {
+        k.OMEN: Agent(name="Omen", abilityKeys=[a.FROM_THE_SHADOWS, a.PARANOIA, a.DARK_COVER, a.FROM_THE_SHADOWS], sprites=s.AGENT_OMEN, description="")
+}
 
 def init() -> None:
     agents_.update(agents)
