@@ -32,7 +32,38 @@ class MapKey(Enum):
     ABYSS = 11
 
 class EffectKey(Enum):
-    pass # TODO 3
+    # 01 Brimstone (1-10)
+    # 02 Viper (11-20)
+    # 03 Omen (21-30)
+    SHROUDED_STEP_CAST = 21
+    PARANOIA_CAST = 22
+    DARK_COVER_CAST = 23
+    FROM_THE_SHADOWS_CAST = 24
+    # 04 Killjoy (31-40)
+    # 05 Cypher (41-50)
+    # 06 Sova (51-60)
+    # 07 Sage (61-70)
+    # 08 - (71-80)
+    # 09 Phoenix (81-90)
+    # 10 Jett (91-100)
+    # 11 Reyna (101-110)
+    # 12 Raze (111-120)
+    # 13 Breach (121-130)
+    # 14 Skye (131-140)
+    # 15 Yoru (141-150)
+    # 16 Astra (151-160)
+    # 17 KAY/O (161-170)
+    # 18 Chamber (171-180)
+    # 19 Neon (181-190)
+    # 20 Fade (191-200)
+    # 21 Harbor (201-210)
+    # 22 Gekko (211-220)
+    # 23 Deadlock (221-230)
+    # 24 Iso (231-240)
+    # 25 Clove (241-250)
+    # 26 Vyse (251-260)
+    # 27 Tejo (261-270)
+    # 28 Waylay (271-280)
 
 class AbilityKey(Enum):
     # 01 Brimstone (1-4)
@@ -438,7 +469,7 @@ class DamageValues:
         }
 # GAME
 class Map:
-    def __init__(self) -> None:
+    def __init__(self, name: str) -> None:
         pass # TODO 5
     def collapseToDict(self) -> JSONType:
         return {}

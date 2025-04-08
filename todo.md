@@ -1,4 +1,4 @@
-# TODO 0
+# TODO X
 - button hovering
 - game
 - join ip+port choosing
