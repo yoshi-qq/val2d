@@ -515,7 +515,7 @@ class Melee(Holdable):
         }
     
 class Gun(Holdable):
-    def __init__(self, name: str, sprites: SpriteSetKey, category: GunCategory, automatic: bool = False, penetration: PenetrationLevel = PenetrationLevel.MEDIUM, runSpeed: int = 5.4, equipSpeed: int = 0.75, reloadSpeed: int = 2, magazine: int = 1, fireRate: int = 2, firstShotSpread: tuple[int, int] = (0, 0), damage: DamageValues = DamageValues(), scope: Union[None, Scope] = None, altFireEffect: Union[None, Effect] = None) -> None:
+    def __init__(self, name: str, sprites: SpriteSetKey, category: GunCategory, automatic: bool = False, penetration: PenetrationLevel = PenetrationLevel.MEDIUM, runSpeed: int = 5.4, equipSpeed: int = 0.75, reloadSpeed: int = 2, magazine: int = 1, fireRate: int = 2, firstShotSpread: tuple[int, int] = (0, 0), damage: DamageValues = DamageValues(), scope: Union[None, Scope] = None, silenced: bool = False, altFireEffect: Union[None, Effect] = None) -> None:
         self.__name = name
         self.__sprites = sprites
         super().__init__(category=category)
@@ -529,6 +529,7 @@ class Gun(Holdable):
         self.__firstShotSpread = firstShotSpread
         self.__damage = damage
         self.__scope = scope
+        self.__silenced = silenced
         self.__altFireEffect = altFireEffect
     # JSON
     def collapseToDict(self) -> JSONType:
