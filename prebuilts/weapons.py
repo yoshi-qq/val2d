@@ -1,4 +1,4 @@
-from classes.types import GunKey, SidearmKey, MeleeKey, Gun, Melee, SpriteSetKey, GunCategory, PenetrationLevel, DamageValues, Scope
+from classes.types import GunKey, SidearmKey, MeleeKey, Gun, Melee, SpriteSetKey, GunCategory, PenetrationLevel, DamageValues, Scope, melees as melees_, sidearms as sidearms_, guns as guns_
 
 m = MeleeKey
 s = SidearmKey
@@ -20,3 +20,8 @@ guns: dict[GunKey, Gun] = {
     g.PHANTOM: Gun(name="Phantom", sprites=k.WEAPON_PHANTOM, category=c.RIFLE, automatic=True, penetration=p.MEDIUM, runSpeed=5.4, equipSpeed=1, reloadSpeed=2.5, magazine=30, fireRate=11, firstShotSpread=(0.2,0.11), damage=DamageValues(values1=(156, 39, 33), range1=30, values2=(140,35,29), range2=50), scope=Scope(zoom=1.25, fireRateMultiplier=0.9, moveSpeedMultiplier=0.76, accuracy=1.2), silenced=True, altFireEffect=None),
     g.VANDAL: Gun(name="Vandal", sprites=k.WEAPON_VANDAL, category=c.RIFLE, automatic=True, penetration=p.MEDIUM, runSpeed=5.4, equipSpeed=1, reloadSpeed=2.5, magazine=25, fireRate=9.75, firstShotSpread=(0.25,0.157), damage=DamageValues(values1=(160, 40, 32), range1=50), scope=Scope(zoom=1.25, fireRateMultiplier=0.9, moveSpeedMultiplier=0.76, accuracy=1.2), silenced=False, altFireEffect=None)
  }
+
+def init() -> None:
+    melees_.update(melees)
+    sidearms_.update(sidearms)
+    guns_.update(guns)

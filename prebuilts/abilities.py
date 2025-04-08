@@ -1,4 +1,4 @@
-from classes.types import Ability, AbilityCategory as Cat
+from classes.types import Ability, AbilityCategory as Cat, abilities as abilities_
 from prebuilts.effects import effects
 # TODO 9: descriptions
 
@@ -43,3 +43,6 @@ class Abilities:
             effect=effects.fromTheShadowsTeleport)
 
 abilities = Abilities()
+
+def init() -> None:
+    abilities_.update(abilities)

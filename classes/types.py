@@ -2,6 +2,16 @@ from typing import Union, Any
 from config.constants import MAX_HP, MAX_OVERHEALTH, MAX_SHIELD, MAX_REGEN_SHIELD, MAX_SPECIAL_BAR
 from enum import Enum
 
+# Empty prebuilts
+abilities: dict["AbilityKey", "Ability"] = {}
+agents: dict["AgentKey", "Agent"] = {}
+effects: dict["EffectKey", "Effect"] = {}
+melees: dict["MeleeKey", "Melee"] = {}
+sidearms: dict["SidearmKey", "Gun"] = {}
+guns: dict["GunKey", "Gun"] = {}
+maps: dict["MapKey", "Map"] = {}
+spriteSets: dict["SpriteSetKey", "SpriteSet"] = {}
+
 # BASE
 class NullType:
     def __repr__(self):
@@ -129,6 +139,36 @@ class GunKey(Enum):
     # Machine Guns
     ARES = 22
     ODIN = 23
+
+class AgentKey(Enum):
+    BRIMSTONE = 1
+    VIPER = 2
+    OMEN = 3
+    KILLJOY = 4
+    CYPHER = 5
+    SOVA = 6
+    SAGE = 7
+    # -- = 8
+    PHOENIX = 9
+    JETT = 10
+    REYNA = 11
+    RAZE = 12
+    BREACH = 13
+    SKYE = 14
+    YORU = 15
+    ASTRA = 16
+    KAYO = 17
+    CHAMBER = 18
+    NEON = 19
+    FADE = 20
+    HARBOR = 21
+    GEKKO = 22
+    DEADLOCK = 23
+    ISO = 24
+    CLOVE = 25
+    VYSE = 26
+    TEJO = 27
+    WAYLAY = 28
 
 class SpriteSetKey(Enum):
     # AGENTS
@@ -366,7 +406,7 @@ class Buff:
     def getName(self) -> str:
         return self.__name
     def getEffect(self) -> Effect:
-        pass # TODO 4
+        return 
     # JSON
     def collapseToDict(self) -> JSONType:
         return {
@@ -630,7 +670,7 @@ class Agent:
         }
 
 class Player:
-    def __init__(self, pose: Pose, vitals: Vitals, status: Status, inventory: Inventory, stats: Stats, agent: Agent) -> None:
+    def __init__(self, pose: Pose, vitals: Vitals, status: Status, inventory: Inventory, stats: Stats, agent: AgentKey) -> None:
         self.__pose = pose
         self.__vitals = vitals
         self.__status = status

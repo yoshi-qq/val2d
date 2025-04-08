@@ -1,4 +1,4 @@
-from types import SimpleNamespace
+from types import SimpleNamespace, effects as effects_
 from classes.types import DictLike, Effect
 
 # TODO 6: add real effects
@@ -11,3 +11,6 @@ class Effects:
         self.fromTheShadowsTeleport = Effect()
 
 effects = Effects()
+
+def init() -> None:
+    effects_.update(effects)
