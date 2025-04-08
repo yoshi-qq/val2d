@@ -13,13 +13,14 @@
 - [ ] Sneaking
 - [ ] Jumping
 - [ ] Skins
-### Game Modes
+### Game
+#### Game Modes
 - [ ] Range
 - [ ] Unrated
 - [ ] Competetive
 - [ ] Escalation
 - [ ] Spike Rush
-### Maps
+#### Maps
 - [ ] Bind
 - [ ] Haven
 - [ ] Split
@@ -31,7 +32,7 @@
 - [ ] Lotus
 - [ ] Sunset
 - [ ] Abyss
-### Agents
+#### Agents
 - [ ] Brimstone
 - [ ] Viper
 - [ ] Omen
@@ -59,16 +60,16 @@
 - [ ] Vyse
 - [ ] Tejo
 - [ ] Waylay
-### Weapons
-#### Melee
+#### Weapons
+##### Melee
 - [ ] Melee
-#### Sidearms
+##### Sidearms
 - [ ] Classic
 - [ ] Shorty
 - [ ] Frenzy
 - [ ] Ghost
 - [ ] Sheriff
-#### Primaries
+##### Primaries
 - [ ] Stinger
 - [ ] Spectre
 - [ ] Bucky
@@ -82,7 +83,14 @@
 - [ ] Operator
 - [ ] Ares
 - [ ] Odin
-### Shield
+#### Shield
 - [ ] Light Shield
 - [ ] Regen Shield
 - [ ] Heavy Shield
+
+### Menu
+- [ ] Button Hovering
+- [ ] Start
+- [ ] Choose Join IP and Port
+- [ ] Practice
+- [ ] Shop
