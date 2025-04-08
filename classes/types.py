@@ -27,6 +27,11 @@ class SpriteSet:
     def __init__(self) -> None:
         pass # TODO 6
 
+class AgentSpriteSet(SpriteSet):
+    def __init__(self, logo: str) -> None:
+        self.logo = logo
+        # TODO 6
+
 # KEYS
 class MapKey(Enum):
     BIND = 1
@@ -673,6 +678,8 @@ class Agent:
         self.__abilityKeys = abilityKeys
         self.__sprites = sprites
         self.__description = description
+    def getSpriteSet(self) -> SpriteSet:
+        return spriteSets[self.__sprites]
     # JSON
     def collapseToDict(self) -> JSONType:
         return {

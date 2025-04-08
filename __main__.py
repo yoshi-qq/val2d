@@ -1,15 +1,34 @@
 import os
+from typing import Union
+from classes.types import Message, Action
 from handlers.graphicsHandler import GraphicsHandler
 from handlers.menuHandler import MenuHandler
 from handlers.inputHandler import InputHandler
 from handlers.communicationHandler import CommunicationHandler
 from handlers.gameHandler import GameHandler
-from classes.types import Message, Action
+from handlers.serverHandler import ServerHandler
 from handlers.config import CONFIG
+
+from prebuilts.abilities import init as initAbilities
+from prebuilts.agents import init as initAgents
+from prebuilts.effects import init as initEffects
+from prebuilts.maps import init as initMaps
+from prebuilts.spriteSets import init as initSpriteSets
+from prebuilts.weapons import init as initWeapons
 
 debug = 3
 ROOT = os.path.dirname(__file__)
 
+# Setup
+def setup() -> None:
+    initAbilities()
+    initAgents()
+    initEffects()
+    initMaps()
+    initSpriteSets()
+    initWeapons()
+
+setup()
 localMessages: list[Message] = []
 graphics = GraphicsHandler(ROOT)
 menu = MenuHandler()
@@ -20,6 +39,7 @@ playerCommands = {
 hostCommands = {}
 communication = CommunicationHandler(playerCommands, hostCommands, debug)
 game = GameHandler()
+server: Union[None, ServerHandler] = None
 menu.setMenu("play")
 loop = True
 
@@ -35,20 +55,32 @@ def handleMessage(message: Message) -> None:
         case "ForceDisconnect":
             menu.setMenu("play")
             print("Connection lost")
+        case "OpenAgentSelectMenu":
+            menu.setMenu("agentSelect")
+            
 def handleMenuAction(action: Action) -> None:
+    global server
     if debug > 1: print(action)
     match action.type:
         case "Leave":
             communication.disconnect()
+            if server is not None:
+                server.close()
         case "Join":
             communication.connectToGame(*action.content)
         case "Host":
             communication.hostGame(CONFIG["port"])
+            server = ServerHandler()
         case "Start":
-            game.start()
+            server.start()
 def handleGameAction(action: Action) -> None:
     if debug > 1: print(action)
     pass
+def handleServerAction(action: Action) -> None:
+    if debug > 1: print(action)
+    match action.type:
+        case "StartAgentSelectionEvent":
+            communication.selectAgents()
 
 while loop:
     # Menu
@@ -68,7 +100,11 @@ while loop:
     localMessages = localMessages[len(extraMessages):]
     # Game
     game.tick()
-    for action in game.getActions():
-        handleGameAction(action)
+    if communication.getType() == "player":
+        for action in game.getActions():
+            handleGameAction(action)
+    if server is not None:
+        for action in server.getActions():
+            handleServerAction(action)
     # Graphics
     graphics.draw()

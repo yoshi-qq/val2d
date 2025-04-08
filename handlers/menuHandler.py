@@ -1,6 +1,7 @@
 from handlers.graphicsHandler import g
-from classes.types import Input, Action
+from classes.types import Input, Action, agents
 from handlers.config import CONFIG
+from dependencies.helpers import distributeObjects
 
 class MenuHandler:
     def __init__(self) -> None:
@@ -37,7 +38,23 @@ class MenuHandler:
         self.__menus["playerLobby"] = playerLobbyMenu
         playerLobbyMenu.append(g.RenderButton(imageName="practice", clickAction=self.__practiceButton, x=g.middle[0]-300, y=g.middle[1]*1.75, width=256, height=32, enabled=False, middle=True))
         playerLobbyMenu.append(g.RenderButton(imageName="leave", clickAction=self.__leaveButton, x=g.middle[0]+300, y=g.middle[1]*1.75, width=256, height=32, enabled=False, middle=True))
-    
+
+        # AgentSelect
+        agentSelectMenu: list[g.RenderObject] = []
+        self.__menus["agentSelect"] = agentSelectMenu
+        agentLogos: list = []
+        for agent in agents.values():
+            agentLogos.append(agent.getSpriteSet().logo)
+        agentMatrix = distributeObjects(agentLogos, 4)
+        xSpacing = g.displayResolution[0] / (len(agentMatrix[0]) + 3)
+        ySpacing = g.middle[1]*0.75 / (len(agentMatrix) + 1)
+        for y, row in enumerate(agentMatrix):
+            yPos = y - 0.5*len(agentMatrix)
+            for x, agentLogo in enumerate(row):
+                xPos = x - 0.5*len(row)
+                agentSelectMenu.append(g.RenderButton(imageName=agentLogo, clickAction=self.__agentSelectButton, x=g.middle[0]+xPos*xSpacing, y=g.middle[1]+yPos*ySpacing, width=64, height=64, enabled=False, middle=True))
+            
+        
     def __startButton(self) -> None:
         self.__actionQueue.append(Action("Start", None))
     def __practiceButton(self) -> None:
@@ -48,6 +65,8 @@ class MenuHandler:
         self.__actionQueue.append(Action("Join", (CONFIG["ip"], CONFIG["port"])))
     def __hostButton(self) -> None:
         self.__actionQueue.append(Action("Host", None))
+    def __agentSelectButton(self) -> None:
+        pass # TODO 1
     # Setters
     def setMenu(self, menu: str) -> None:
         if menu == self.__menu:

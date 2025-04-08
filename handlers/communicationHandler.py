@@ -3,6 +3,8 @@ from classes.types import Message
 from dependencies.communications import Request, Event, CommunicationsHandler as Comm, setOnDisconnect
 from handlers.config import CONFIG
 
+# TODO 3: host being a player as well
+
 class CommunicationHandler:
     def __init__(self, playerCommandList: dict[str, Callable], hostCommandList: dict[str, Callable], debugLevel: int = 0) -> None:
         self.__messageQueue: list[Message] = []
@@ -39,6 +41,9 @@ class CommunicationHandler:
                 self.__comm.quit()
                 self.__type = None
                 self.__addMessage("Disconnected", None)
+    
+    def selectAgents(self) -> None:
+        self.castEvent("StartAgentSelectionEvent", None)
     # Local
     # Setters
     # Getters
@@ -57,12 +62,18 @@ class CommunicationHandler:
                 if self.__debug > 2: print(event)
                 self.__handleEvent(event)
                 self.__comm.resolveEvent(event.id)
-        elif self.__type == "host":
+        if self.__type == "host":
             for request in self.__comm.getRequests():
                 if self.__debug > 2: print(request)
                 self.__handleRequest(request)
                 self.__comm.resolveRequest(request.id)
     
+    def castEvent(self, head: str, body: Any) -> None:
+        if self.__type == "host":
+            self.__comm.castEvent(Event(head, body))
+    def sendRequest(self, head: str, body: Any) -> None:
+        self.__comm.sendRequest(Request(head, body))
+
     def __addMessage(self, head: str, body: Any):
         self.__messageQueue.append(Message(head, body))
     
@@ -72,6 +83,8 @@ class CommunicationHandler:
                 self.__comm.quit()
                 self.__type = None
                 self.__addMessage("ForceDisconnect", None)
+            case "StartAgentSelectionEvent":
+                self.__addMessage("OpenAgentSelectMenu", None)
     
     def __handleRequest(self, request: Request):
         match request.head:
