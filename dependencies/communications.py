@@ -1,4 +1,5 @@
 # Version: 1.2
+import dependencies.networking as net
 from dependencies.networking import * 
 from typing import Union, Any, Callable
 from threading import Lock
@@ -98,8 +99,11 @@ class CommunicationsHandler:
     def quit(self: "CommunicationsHandler") -> None:
         self.__mainObject.close()
 
+def setOnClientJoin(func: Callable):
+    net.onClientJoin = func
+
 def setOnConnect(func: Callable):
-    onConnect = func
+    net.onConnect = func
 
 def setOnDisconnect(func: Callable):
-    onDisconnect = func
+    net.onDisconnect = func

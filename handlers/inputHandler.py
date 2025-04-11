@@ -11,3 +11,7 @@ class InputHandler:
         inputs = self.__inputQueue
         self.__inputQueue = self.__inputQueue[len(inputs):]
         return inputs
+
+    # Setters
+    def addInput(self, input: Input) -> None:
+        self.__inputQueue.append(input)
