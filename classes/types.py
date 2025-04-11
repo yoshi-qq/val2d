@@ -24,10 +24,10 @@ Null = NullType()
 JSONType = Union[dict[str, Any], list[Any], str, int, float, bool, None]
 
 # DEBUGGING
-class AutoMessage:
-    def __init__(self, triggerMessage: Message, responseMessage: Message) -> None:
+class AutoMessageAction:
+    def __init__(self, triggerMessage: Message, responseAction: "Action") -> None:
         self.triggerMessage = triggerMessage
-        self.responseMessage = responseMessage
+        self.responseAction = responseAction
 
 # GRAPHICS
 class SpriteSet:
@@ -767,5 +767,7 @@ class Message:
     def __init__(self, head: str, body: Any):
         self.head = head
         self.body = body
+    def __eq__(self, other: "Message") -> bool:
+        return self.head == other.head and self.body == other.body
     def __str__(self) -> str:
         return f"Message[head={self.head}, body={self.body}]"

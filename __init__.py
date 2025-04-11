@@ -1,6 +1,6 @@
 import os
 from typing import Union
-from classes.types import Message, Action, AutoMessage
+from classes.types import Message, Action, AutoMessageAction
 from handlers.graphicsHandler import GraphicsHandler
 from handlers.menuHandler import MenuHandler
 from handlers.inputHandler import InputHandler
@@ -43,9 +43,17 @@ server: Union[None, ServerHandler] = None
 menu.setMenu("play")
 loop = True
 
+def getLocalMessages() -> list[Message]:
+    global localMessages
+    messages = localMessages.copy()
+    localMessages = localMessages[len(messages):]
+    return messages
+
 def handleMessage(message: Message) -> None:
     if debug > 1: print(message)
     match message.head:
+        case "Initiated":
+            print("+++Initiated+++")
         case "Connected":
             menu.setMenu("playerLobby")
         case "Hosted":

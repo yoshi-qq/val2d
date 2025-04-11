@@ -1,10 +1,11 @@
 from typing import Union
-from classes.types import AutoMessage
+from classes.types import Message, AutoMessageAction
 import __init__ as core
 
-def main(autoMessages: Union[None, list[AutoMessage]] = None) -> None:
+core.localMessages.append(Message("Initiated", None))
+
+def main(autoMessageActions: Union[None, list[AutoMessageAction]] = None) -> None:
     global core
-    nextMessages = []
     while core.loop:
         # Menu
         for action in core.menu.getActions():
@@ -17,17 +18,16 @@ def main(autoMessages: Union[None, list[AutoMessage]] = None) -> None:
                 core.game.handleInput(input_)
         # Communication
         core.communication.runCycle()
-        extraMessages = core.localMessages.copy()
+        extraMessages = core.getLocalMessages()
         allMessages = core.communication.getMessages() + extraMessages
         # Automation BEGIN
-        if autoMessages is not None:
-            for aMessage in autoMessages:
+        if autoMessageActions is not None:
+            for aMessage in autoMessageActions:
                 if aMessage.triggerMessage in allMessages:
-                    core.localMessages.append(aMessage.responseMessage)
+                    core.menu.addAction(aMessage.responseAction)
         # Automation END
         for message in allMessages:
             core.handleMessage(message)
-        # core.localMessages = core.localMessages[len(extraMessages):]
         # Game
         core.game.tick()
         if core.communication.getType() == "player":

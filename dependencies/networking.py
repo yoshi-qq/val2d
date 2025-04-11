@@ -5,7 +5,7 @@ import json; # Kodierung von strings, integers
 import pickle; # Kodierung von komplexen Objekten und Datentypen
 import sys; # System zum Löschen von Zeilen in der Konsole
 
-onConnect = onDisconnect = lambda this: None
+onClientJoin = onConnect = onDisconnect = lambda this: None
 
 class Message(): # Nachrichten-Klasse bestehend aus Absender, Typ und Inhalt
     def __init__(self, sender, type, content):
@@ -37,6 +37,7 @@ class Server(): # Server-Klasse
             onConnect(self)
             message = Message("server", "setName", self.name); # Befehl an Client um Namen zu setzen
             self.parent.send(conn, message); # §
+            onClientJoin()
             while self.parent.on:
                 try:
                     message = self.parent.receive(conn, addr); # Nachrichten werden angenommen

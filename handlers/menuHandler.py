@@ -93,3 +93,7 @@ class MenuHandler:
         return actions
     def isEnabled(self) -> bool:
         return self.__enabled
+    
+    # Setters
+    def addAction(self, action: Action) -> None:
+        self.__actionQueue.append(action)
