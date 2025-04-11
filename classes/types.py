@@ -1,5 +1,5 @@
 from typing import Union, Any
-from dependencies.communications import Request, Event
+from dependencies.communications import Message
 from config.constants import MAX_HP, MAX_OVERHEAL, MAX_SHIELD, MAX_REGEN_SHIELD, MAX_SPECIAL_BAR
 from enum import Enum
 
@@ -24,15 +24,10 @@ Null = NullType()
 JSONType = Union[dict[str, Any], list[Any], str, int, float, bool, None]
 
 # DEBUGGING
-class AutoEvent:
-    def __init__(self, triggerRequest: Request, responseEvent: Event) -> None:
-        self.triggerRequest = triggerRequest
-        self.responseEvent = responseEvent
-
-class AutoRequest:
-    def __init__(self, triggerEvent: Event, responseRequest: Request) -> None:
-        self.triggerEvent = triggerEvent
-        self.responseRequest = responseRequest
+class AutoMessage:
+    def __init__(self, triggerMessage: Message, responseMessage: Message) -> None:
+        self.triggerMessage = triggerMessage
+        self.responseMessage = responseMessage
 
 # GRAPHICS
 class SpriteSet:

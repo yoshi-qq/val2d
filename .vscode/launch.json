@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Server",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/testServer.py",
+        "env": {
+        "ID": "0"
+      }
+      },
+      {
+        "name": "Player 1",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/testPlayer.py",
+        "env": {
+          "ID": "1"
+        }
+      }
+    ],
+    "compounds": [
+      {
+        "name": "Multiplayer Test",
+        "configurations": ["Server", "Player 1"]
+      }
+    ]
+  }  

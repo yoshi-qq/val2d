@@ -1,7 +1,15 @@
 # GENERAL
-VERSION = (0,4,6)
+VERSION = (0,4,7)
 STABLE = False
 VERSION_STRING = f"{VERSION[0]}.{VERSION[1]}.{VERSION[2]}"
+
+# TESTING
+TESTING_WINDOW_POSITIONS = [
+    (0, 0),
+    (960, 0),
+    (0, 540),
+    (960, 540)
+]
 
 # SERVER GAMEPLAY
 

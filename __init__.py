@@ -1,6 +1,6 @@
 import os
 from typing import Union
-from classes.types import Message, Action, AutoEvent, AutoRequest
+from classes.types import Message, Action, AutoMessage
 from handlers.graphicsHandler import GraphicsHandler
 from handlers.menuHandler import MenuHandler
 from handlers.inputHandler import InputHandler
