@@ -28,7 +28,7 @@ class CommunicationHandler:
             print("Already in a lobby")
             return
         setOnClientJoin(lambda: self.__addMessage("ClientConnected", None))
-        self.__comm = Comm(host=True, ip = "localhost", port=port, maxClients=4, commands = self.__hostCommandList)
+        self.__comm = Comm(host=True, ip = "0.0.0.0", port=port, maxClients=4, commands = self.__hostCommandList)
         self.__type = "host"
         self.__addMessage("Hosted", None)
     def disconnect(self) -> None:
