@@ -1,6 +1,6 @@
 import os
 from typing import Union
-from classes.types import Message, Action
+from classes.types import Message, Action, AutoEvent, AutoRequest
 from handlers.graphicsHandler import GraphicsHandler
 from handlers.menuHandler import MenuHandler
 from handlers.inputHandler import InputHandler
@@ -16,7 +16,7 @@ from prebuilts.maps import init as initMaps
 from prebuilts.spriteSets import init as initSpriteSets
 from prebuilts.weapons import init as initWeapons
 
-debug = 3
+debug = 4
 ROOT = os.path.dirname(__file__)
 # Setup
 def setup() -> None:
@@ -29,7 +29,7 @@ def setup() -> None:
 
 
 setup()
-localMessages: list[Message] = []
+localMessages = []
 graphics = GraphicsHandler(ROOT)
 menu = MenuHandler()
 inputs = InputHandler()
@@ -63,7 +63,7 @@ def handleMessage(message: Message) -> None:
             
 def handleMenuAction(action: Action) -> None:
     global server
-    if debug > 1: print(action)
+    if debug > 2: print(action)
     match action.type:
         case "Leave":
             communication.disconnect()
@@ -72,18 +72,19 @@ def handleMenuAction(action: Action) -> None:
         case "Join":
             communication.connectToGame(*action.content)
         case "Host":
-            communication.hostGame(CONFIG["port"])
-            server = ServerHandler()
+            if communication.getType() is None:
+                communication.hostGame(CONFIG["port"])
+                server = ServerHandler()
         case "Start":
             server.start()
         case "SelectAgent":
             communication.selectAgent(action.content)
         
 def handleGameAction(action: Action) -> None:
-    if debug > 1: print(action)
+    if debug > 3: print(action)
     pass
 def handleServerAction(action: Action) -> None:
-    if debug > 1: print(action)
+    if debug > 3: print(action)
     match action.type:
         case "StartAgentSelectionEvent":
             communication.selectAgents()

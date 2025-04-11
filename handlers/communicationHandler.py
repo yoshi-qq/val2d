@@ -58,7 +58,7 @@ class CommunicationHandler:
         messages = self.__messageQueue
         self.__messageQueue = self.__messageQueue[len(messages):]
         return messages
-    
+       
     def runCycle(self) -> None:
         if self.__type == "player":
             for event in self.__comm.getEvents():
