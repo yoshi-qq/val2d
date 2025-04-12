@@ -2,7 +2,7 @@ from time import time as now
 from typing import Union
 from threading import Thread
 from config.constants import AGENT_SELECT_TIME
-from classes.types import GameState, Input, Action, Player, AgentKey, MenuKey, Connection
+from classes.types import GameState, Input, Message, Player, AgentKey, MenuKey, Connection
 from classes.types import abilities, agents, effects, melees, sidearms, guns, maps, spriteSets
 from classes.types import MapKey, GameModeKey
 from prebuilts.abilities import init as initAbilities
@@ -14,7 +14,7 @@ from prebuilts.weapons import init as initWeapons
 
 class ServerHandler:
     def __init__(self) -> None:
-        self.__actionQueue: list[Action] = []
+        self.__messageQueue: list[Message] = []
         self.__inGame = False
         self.__gameState: GameState = GameState([], -1, 0, (0, 0), MapKey.ASCENT, GameModeKey.UNRATED, -1, [])
         self.__roundStartTime: int = -1
@@ -22,10 +22,10 @@ class ServerHandler:
         pass
     def tick(self, menu: MenuKey) -> None:
         if menu == MenuKey.HOST_AGENT_SELECT:
-            self.__actionQueue.append(Action("updateRemainingSelectTime", self.getRemainingSelectTime()))
+            self.__messageQueue.append(Message("updateRemainingSelectTime", self.getRemainingSelectTime()))
     
     def start(self, connections: list[Connection]) -> None:
-        self.__actionQueue.append(Action("StartAgentSelectionEvent", None))
+        self.__messageQueue.append(Message("StartAgentSelectionEvent", None))
         for connection in connections:
             self.addPlayer(Player(name = connection.getName()))
             
@@ -33,7 +33,7 @@ class ServerHandler:
         def endAgentSelectAtTime() -> None:
             while self.getRemainingSelectTime() > 0:
                 pass
-            self.__actionQueue.append(Action("EndAgentSelectAction", None))
+            self.__messageQueue.append(Message("EndAgentSelectMessage", None))
         thread = Thread(target=endAgentSelectAtTime)
         thread.start()
     
@@ -43,11 +43,12 @@ class ServerHandler:
                 player.setAgent(AgentKey.OMEN)
         self.__inGame = True
         self.__gameState.time = 0
-        self.__actionQueue.append(Action("serverGameStart", self.__gameState))
+        self.__messageQueue.append(Message("serverGameStart", self.__gameState))
         self.startRound()
 
-    def start_Round(self) -> None:
+    def startRound(self) -> None:
         self.__roundStartTime = now()
+        # TODO NEXT
     
     def isIngame(self) -> bool:
         return self.__inGame
@@ -66,10 +67,10 @@ class ServerHandler:
     def removePlayer(self, player: Player) -> None:
         self.__gameState.players.remove(player)
     # Getters
-    def getActions(self) -> list[Action]:
-        actions = self.__actionQueue
-        self.__actionQueue = self.__actionQueue[len(actions):]
-        return actions
+    def getMessages(self) -> list[Message]:
+        messages = self.__messageQueue
+        self.__messageQueue = self.__messageQueue[len(messages):]
+        return messages
     
     def getRemainingSelectTime(self) -> float:
         return AGENT_SELECT_TIME - now() + self.__selectStartTime

@@ -1,8 +1,9 @@
 from enum import Enum
+from typing import Any
 from handlers.graphicsHandler import g
 from handlers.clientHandler import ClientHandler
 from handlers.serverHandler import ServerHandler
-from classes.types import MenuKey, Input, Action, AgentKey, agents
+from classes.types import MenuKey, Input, Message, AgentKey, agents
 from handlers.config import CONFIG
 from dependencies.helpers import distributeObjects
 
@@ -12,7 +13,7 @@ class MenuHandler:
     def __init__(self) -> None:
         self.__enabled: bool = True
         self.__menu: MenuKey = K.EMPTY
-        self.__actionQueue: list[Action] = []
+        self.__messageQueue: list[Message] = []
         self.__menus: dict[MenuKey, list[g.RenderObject]] = {}
         self.__menuUpdaters: dict[MenuKey, callable] = {}
         self.__setupMenus()
@@ -23,6 +24,9 @@ class MenuHandler:
         if self.__menu in self.__menuUpdaters.keys():
             self.__menuUpdaters[self.__menu](client, server)
     # Local
+    def __addMessage(self, head: str, body: Any) -> None:
+        self.__messageQueue.append(Message(head, body))
+    
     def __setupMenus(self) -> None:
         # Empty
         self.__menus[K.EMPTY] = []
@@ -83,20 +87,28 @@ class MenuHandler:
         hostAgentSelect.append(self.__agentSelectTimer)
         self.__menuUpdaters[K.HOST_AGENT_SELECT] = lambda client, server: self.__agentSelectTimer.updateText(f"{server.getRemainingSelectTime():.0f}s") if f"{server.getRemainingSelectTime():.0f}s" != self.__agentSelectTimer.text else None
         
+        #inGamePlayer
+        inGamePlayer: list[g.RenderObject] = []
+        self.__menus[K.IN_GAME_PLAYER] = inGamePlayer
+        
+        #inGameHost
+        inGameHost: list[g.RenderObject] = []
+        self.__menus[K.IN_GAME_HOST] = inGameHost
+        
     def __startButton(self) -> None:
-        self.__actionQueue.append(Action("Start", None))
+        self.__addMessage("Start", None)
     def __practiceButton(self) -> None:
-        self.__actionQueue.append(Action("Practice", None))
+        self.__addMessage("Practice", None)
     def __leaveButton(self) -> None:
-        self.__actionQueue.append(Action("Leave", None))
+        self.__addMessage("Leave", None)
     def __joinButton(self) -> None:
-        self.__actionQueue.append(Action("Join", (CONFIG["ip"], CONFIG["port"])))
+        self.__addMessage("Join", (CONFIG["ip"], CONFIG["port"]))
     def __hostButton(self) -> None:
-        self.__actionQueue.append(Action("Host", None))
+        self.__addMessage("Host", None)
     def __agentSelectButton(self, agentKey: AgentKey) -> None:
-        self.__actionQueue.append(Action("SelectAgent", agentKey))
+        self.__addMessage("SelectAgent", agentKey)
     def __forceStartButton(self) -> None:
-        self.__actionQueue.append(Action("ForceStart", None))
+        self.__addMessage("ForceStart", None)
         
     # Setters
     def setMenu(self, menu: MenuKey) -> None:
@@ -118,13 +130,10 @@ class MenuHandler:
     # Getters
     def getMenu(self) -> MenuKey:
         return self.__menu
-    def getActions(self) -> list:
-        actions = self.__actionQueue
-        self.__actionQueue = self.__actionQueue[len(actions):]
-        return actions
+    def getMessages(self) -> list:
+        messages = self.__messageQueue
+        self.__messageQueue = self.__messageQueue[len(messages):]
+        return messages
+    
     def isEnabled(self) -> bool:
         return self.__enabled
-    
-    # Setters
-    def addAction(self, action: Action) -> None:
-        self.__actionQueue.append(action)

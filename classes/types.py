@@ -1,5 +1,5 @@
 from typing import Union, Any
-from dependencies.communications import Message
+from dependencies.communications import Message, Event, Request
 from config.constants import MAX_HP, MAX_OVERHEAL, MAX_SHIELD, MAX_REGEN_SHIELD, MAX_SPECIAL_BAR
 from enum import Enum
 
@@ -24,10 +24,10 @@ Null = NullType()
 JSONType = Union[dict[str, Any], list[Any], str, int, float, bool, None]
 
 # DEBUGGING
-class AutoMessageAction:
-    def __init__(self, triggerMessage: Message, responseAction: "Action") -> None:
-        self.triggerMessage = triggerMessage
-        self.responseAction = responseAction
+class AutoMessageTrigger:
+    def __init__(self, trigger: Message | Event | Request, responseMessage: Message) -> None:
+        self.trigger = trigger
+        self.responseMessage = responseMessage
 
 # MENUING
 class MenuKey(Enum):
@@ -37,6 +37,8 @@ class MenuKey(Enum):
     PLAYER_LOBBY = "playerLobby"
     AGENT_SELECT = "agentSelect"
     HOST_AGENT_SELECT = "hostAgentSelect"
+    IN_GAME_PLAYER = "inGamePlayer"
+    IN_GAME_HOST = "inGameHost"
 
 # GRAPHICS
 class SpriteSet:
@@ -486,7 +488,7 @@ class Status:
     def collapseToDict(self) -> JSONType:
         return {
             "team": self.__team,
-            "handItem": self.__handItem.collapseToDict(),
+            "handItem": self.__handItem,
             "basicCharges": self.__basicCharges,
             "tacticalCharges": self.__tacticalCharges,
             "signatureCharges": self.__signatureCharges,
@@ -835,13 +837,6 @@ class Input:
         self.type = type
     def __str__(self) -> str:
         return f"Input[type={self.type}]"
-
-class Action:
-    def __init__(self, type: str, content: Any):
-        self.type = type
-        self.content = content
-    def __str__(self) -> str:
-        return f"Action[type={self.type}, content={self.content}]"
 
 class Message:
     def __init__(self, head: str, body: Any):
