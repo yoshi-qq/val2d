@@ -29,6 +29,15 @@ class AutoMessageAction:
         self.triggerMessage = triggerMessage
         self.responseAction = responseAction
 
+# MENUING
+class MenuKey(Enum):
+    EMPTY = "empty"
+    PLAY = "play"
+    HOST_LOBBY = "hostLobby"
+    PLAYER_LOBBY = "playerLobby"
+    AGENT_SELECT = "agentSelect"
+    HOST_AGENT_SELECT = "hostAgentSelect"
+
 # GRAPHICS
 class SpriteSet:
     def __init__(self) -> None:

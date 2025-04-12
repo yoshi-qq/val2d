@@ -45,6 +45,8 @@ class CommunicationHandler:
     
     def selectAgents(self) -> None:
         self.castEvent("StartAgentSelectionEvent", None)
+    def updateRemainingSelectTime(self, time: float) -> None:
+        self.castEvent("updateRemainingSelectTimeEvent", time)
     def selectAgent(self, agent: AgentKey) -> None:
         self.sendRequest("SelectAgent", agent)
     
@@ -89,6 +91,8 @@ class CommunicationHandler:
                 self.__addMessage("ForceDisconnect", None)
             case "StartAgentSelectionEvent":
                 self.__addMessage("OpenAgentSelectMenu", None)
+            case "updateRemainingSelectTimeEvent":
+                self.__addMessage("updateClientRemainingSelectTime", event.body)
     
     def __handleRequest(self, request: Request):
         match request.head:

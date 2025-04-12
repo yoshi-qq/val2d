@@ -1,5 +1,8 @@
+from time import time as now
 from typing import Union
-from classes.types import GameState, Input, Action, Player, AgentKey
+from threading import Thread
+from config.constants import AGENT_SELECT_TIME
+from classes.types import GameState, Input, Action, Player, AgentKey, MenuKey
 from classes.types import abilities, agents, effects, melees, sidearms, guns, maps, spriteSets
 from classes.types import MapKey, GameModeKey
 from prebuilts.abilities import init as initAbilities
@@ -16,9 +19,24 @@ class ServerHandler:
         self.__gameState: GameState = GameState([], -1, 0, (0, 0), MapKey.ASCENT, GameModeKey.UNRATED, -1, [])
     def close(self) -> None:
         pass
+    def tick(self, menu: MenuKey) -> None:
+        if menu == MenuKey.HOST_AGENT_SELECT:
+            self.__actionQueue.append(Action("updateRemainingSelectTime", self.getRemainingSelectTime()))
+    
     def start(self) -> None:
         self.__actionQueue.append(Action("StartAgentSelectionEvent", None))
+        self.__selectStartTime = now()
+        def endAgentSelectAtTime() -> None:
+            while self.getRemainingSelectTime() > 0:
+                pass
+            self.__actionQueue.append(Action("EndAgentSelectAction", None))
+        thread = Thread(target=endAgentSelectAtTime)
+        thread.start()
     
+    def startGame(self) -> None:
+        self.__inGame = True
+        # TODO
+
     def isIngame(self) -> bool:
         return self.__inGame
     # Setters
@@ -40,3 +58,6 @@ class ServerHandler:
         actions = self.__actionQueue
         self.__actionQueue = self.__actionQueue[len(actions):]
         return actions
+    
+    def getRemainingSelectTime(self) -> float:
+        return AGENT_SELECT_TIME - now() + self.__selectStartTime

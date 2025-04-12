@@ -7,7 +7,11 @@ core.localMessages.append(Message("Initiated", None))
 def main(autoMessageActions: Union[None, list[AutoMessageAction]] = None) -> None:
     global core
     while core.loop:
+        # Server
+        if core.server is not None:
+            core.server.tick(core.menu.getMenu())
         # Menu
+        core.menu.update(core.client, core.server)
         for action in core.menu.getActions():
             core.handleMenuAction(action)
         # Input

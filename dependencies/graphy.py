@@ -475,6 +475,7 @@ def classes():
             except:
                 self.font = pygame.font.SysFont(defaultFont, size)
             self.text = text
+            self.color = color
             self.middle = middle
             self.renderSurface = self.font.render(text, True, color)
             self.height = self.renderSurface.get_height()
@@ -482,6 +483,12 @@ def classes():
             super().__init__(surface = surface, temporary = temporary, enabled = enabled, x = x, y = y, width = self.width, height = self.height, priority = priority, angle = angle, stretch = stretch)
             if type(self) is RenderText and gen:
                     renders.append(self)
+        
+        def updateText(self, newText: str) -> None:
+            self.text = newText
+            self.renderSurface = self.font.render(self.text, True, self.color)
+            self.height = self.renderSurface.get_height()
+            self.width = self.renderSurface.get_width()
         
         def draw(self):
             drawRotated(surface = self.surface, img = self.renderSurface, x = self.x + self.xOffset, y = self.y + self.yOffset, angle = self.angle, width = self.width * self.sizeMulti, height = self.height * self.sizeMulti, stretch = self.stretch, middle = self.middle)
