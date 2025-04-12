@@ -1,4 +1,5 @@
 from typing import Union
+from dependencies.communications import Request, Event
 from classes.types import Message, AutoMessageTrigger
 import __init__ as core
 
@@ -38,8 +39,16 @@ def main(autoMessageTriggers: Union[None, list[AutoMessageTrigger]] = None) -> N
         # Automation BEGIN
         if autoMessageTriggers is not None:
             for aMessage in autoMessageTriggers:
-                if aMessage.triggerMessage in allMessages:
-                    core.addLocalMessage(aMessage.responseMessage)
+                match aMessage.trigger:
+                    case Message():
+                        if aMessage.trigger in allMessages:
+                            core.addLocalMessage(aMessage.responseMessage)
+                    case Request():
+                        if aMessage.trigger in core.communication.spyRequests():
+                            core.addLocalMessage(aMessage.responseMessage)
+                    case Event():
+                        if aMessage.trigger in core.communication.spyEvents():
+                            core.addLocalMessage(aMessage.responseMessage)
         # Automation END
         
         for message in allMessages:

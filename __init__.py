@@ -69,9 +69,6 @@ def handleMessage(message: Message) -> None:
             menu.setMenu(MenuKey.PLAY)
         case "OpenServerAgentSelect":
             menu.setMenu(MenuKey.HOST_AGENT_SELECT)
-        case "EndAgentSelect":
-            if not server.isIngame():
-                server.startGame()
         # MENU
         case "Leave":
             communication.disconnect()
@@ -89,10 +86,13 @@ def handleMessage(message: Message) -> None:
         case "SelectAgent":
             communication.selectAgent(message.body)
         case "ForceStart":
-            localMessages.append(Message("EndAgentSelect", None))
-        
+            if not server.isIngame():
+                server.startGame()
+                menu.setMenu(MenuKey.IN_GAME_HOST)
+
 def handleEvent(event: Event) -> None:
     global server, client
+    if debug > 2: print(event)
     match event.head:
         case "EndSession":
             communication.getComm().quit()
@@ -110,6 +110,7 @@ def handleEvent(event: Event) -> None:
     
 def handleRequest(request: Request) -> None:
     global server, client
+    if debug > 2: print(request)
     match request.head:
         case "SelectAgent":
             if not server.isIngame():

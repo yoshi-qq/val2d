@@ -1,4 +1,5 @@
 import os
+from dependencies.communications import Event, Request
 from config.constants import TESTING_WINDOW_POSITIONS, DEFAULT_IP, DEFAULT_PORT
 
 # Positioning
@@ -9,15 +10,16 @@ os.environ['SDL_VIDEO_WINDOW_POS'] = f"{x},{y}"
 from main import main
 from classes.types import Message, Message, AutoMessageTrigger, AgentKey
 M = Message
-A = Message
+E = Event
+R = Request
 AMA = AutoMessageTrigger
-qAMA = lambda m, a: AutoMessageTrigger(M(m, None), A(a, None))
+qAMA = lambda m, a: AutoMessageTrigger(M(m, None), M(a, None))
 
 # Automation
 playerAutoMessageTriggersLists: list[list[AutoMessageTrigger]] = [
     [
-        AMA(M("Initiated", None), A("Join", (DEFAULT_IP, DEFAULT_PORT))),
-        AMA(M("OpenAgentSelectMenu", None), A("SelectAgent", AgentKey.OMEN))
+        AMA(M("Initiated", None), M("Join", (DEFAULT_IP, DEFAULT_PORT))),
+        AMA(E("StartAgentSelectionEvent", None), M("SelectAgent", AgentKey.OMEN))
     ]
 ]
 

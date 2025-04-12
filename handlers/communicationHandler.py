@@ -81,7 +81,7 @@ class CommunicationHandler:
     
     def __addRequest(self, request: Request):
         self.__requestQueue.append(request)
-                
+    
     # Setters
     def setType(self, newType: str) -> None:
         self.__type = newType
@@ -109,3 +109,9 @@ class CommunicationHandler:
         requests = self.__requestQueue
         self.__requestQueue = self.__requestQueue[len(requests):]
         return requests
+
+    def spyEvents(self) -> list[Event]:
+        return self.__eventQueue
+    
+    def spyRequests(self) -> list[Request]:
+        return self.__requestQueue

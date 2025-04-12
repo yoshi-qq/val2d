@@ -87,6 +87,14 @@ class MenuHandler:
         hostAgentSelect.append(self.__agentSelectTimer)
         self.__menuUpdaters[K.HOST_AGENT_SELECT] = lambda client, server: self.__agentSelectTimer.updateText(f"{server.getRemainingSelectTime():.0f}s") if f"{server.getRemainingSelectTime():.0f}s" != self.__agentSelectTimer.text else None
         
+        #inGamePlayer
+        inGamePlayer: list[g.RenderObject] = []
+        self.__menus[K.IN_GAME_PLAYER] = inGamePlayer
+        
+        #inGameHost
+        inGameHost: list[g.RenderObject] = []
+        self.__menus[K.IN_GAME_HOST] = inGameHost
+        
     def __startButton(self) -> None:
         self.__addMessage("Start", None)
     def __practiceButton(self) -> None:

@@ -1,5 +1,5 @@
 from typing import Union, Any
-from dependencies.communications import Message
+from dependencies.communications import Message, Event, Request
 from config.constants import MAX_HP, MAX_OVERHEAL, MAX_SHIELD, MAX_REGEN_SHIELD, MAX_SPECIAL_BAR
 from enum import Enum
 
@@ -25,8 +25,8 @@ JSONType = Union[dict[str, Any], list[Any], str, int, float, bool, None]
 
 # DEBUGGING
 class AutoMessageTrigger:
-    def __init__(self, triggerMessage: Message, responseMessage: Message) -> None:
-        self.triggerMessage = triggerMessage
+    def __init__(self, trigger: Message | Event | Request, responseMessage: Message) -> None:
+        self.trigger = trigger
         self.responseMessage = responseMessage
 
 # MENUING
@@ -37,6 +37,8 @@ class MenuKey(Enum):
     PLAYER_LOBBY = "playerLobby"
     AGENT_SELECT = "agentSelect"
     HOST_AGENT_SELECT = "hostAgentSelect"
+    IN_GAME_PLAYER = "inGamePlayer"
+    IN_GAME_HOST = "inGameHost"
 
 # GRAPHICS
 class SpriteSet:

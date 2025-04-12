@@ -13,11 +13,20 @@ class Request:
         self.head = head
         self.body = body
         self.id: Union[int, None] = None
+    def __eq__(self, other: "Request") -> bool:
+        return self.head == other.head and self.body == other.body
+    def __str__(self) -> str:
+        return f"Request[head={self.head}, body={self.body}]"
+    
 class Event:
     def __init__(self: "Event", head: str, body: Any):
         self.head = head
         self.body = body
         self.id: Union[int, None] = None
+    def __eq__(self, other: "Request") -> bool:
+        return self.head == other.head and self.body == other.body
+    def __str__(self) -> str:
+        return f"Event[head={self.head}, body={self.body}]"
 
 class CommunicationsHandler:
     def __init__(self: "CommunicationsHandler", host: bool = False, ip: str = "localhost", port: int = 54321, maxClients = 4, commands: dict[str, Callable] = None) -> None:
