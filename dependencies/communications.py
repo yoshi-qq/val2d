@@ -96,6 +96,9 @@ class CommunicationsHandler:
         self.resolveEvent = MethodType(resolveEvent, self)
         self.sendRequest = MethodType(sendRequest, self)
         
+    def getMainObject(self) -> Server | Client:
+        return self.__mainObject
+    
     def quit(self: "CommunicationsHandler") -> None:
         self.__mainObject.close()
 

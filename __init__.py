@@ -5,7 +5,6 @@ from handlers.graphicsHandler import GraphicsHandler
 from handlers.menuHandler import MenuHandler
 from handlers.inputHandler import InputHandler
 from handlers.communicationHandler import CommunicationHandler
-from handlers.gameHandler import GameHandler
 from handlers.serverHandler import ServerHandler
 from handlers.clientHandler import ClientHandler
 from handlers.config import CONFIG
@@ -41,7 +40,6 @@ playerCommands = {
 }
 hostCommands = {}
 communication = CommunicationHandler(playerCommands, hostCommands, debug)
-game = GameHandler()
 menu.setMenu(MenuKey.PLAY)
 loop = True
 
@@ -94,7 +92,7 @@ def handleMenuAction(action: Action) -> None:
                 communication.hostGame(CONFIG["port"])
                 server = ServerHandler()
         case "Start":
-            server.start()
+            server.start(communication.getConnections())
         case "SelectAgent":
             communication.selectAgent(action.content)
         case "ForceStart":
@@ -114,3 +112,5 @@ def handleServerAction(action: Action) -> None:
                 server.startGame()
         case "updateRemainingSelectTime":
             communication.updateRemainingSelectTime(action.content)
+        case "serverGameStart":
+            communication.gameStartEvent(action.content)

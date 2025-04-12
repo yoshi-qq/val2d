@@ -10,16 +10,23 @@ def main(autoMessageActions: Union[None, list[AutoMessageAction]] = None) -> Non
         # Server
         if core.server is not None:
             core.server.tick(core.menu.getMenu())
+            for action in core.server.getActions():
+                core.handleServerAction(action)
         # Menu
         core.menu.update(core.client, core.server)
         for action in core.menu.getActions():
             core.handleMenuAction(action)
-        # Input
-        for input_ in core.inputs.getInputs():
-            if core.menu.isEnabled():
-                core.menu.handleInput(input_)
-            elif core.game.inGame():
-                core.game.handleInput(input_)
+        # Client
+        if core.client is not None:
+            core.client.tick()
+            for input_ in core.inputs.getInputs():
+                if core.menu.isEnabled():
+                    core.menu.handleInput(input_)
+                elif core.client.inGame():
+                    core.client.handleInput(input_)
+            if core.client is not None:
+                for action in core.client.getActions():
+                    core.handleGameAction(action)
         # Communication
         core.communication.runCycle()
         extraMessages = core.getLocalMessages()
@@ -32,14 +39,6 @@ def main(autoMessageActions: Union[None, list[AutoMessageAction]] = None) -> Non
         # Automation END
         for message in allMessages:
             core.handleMessage(message)
-        # Game
-        core.game.tick()
-        if core.communication.getType() == "player":
-            for action in core.game.getActions():
-                core.handleGameAction(action)
-        if core.server is not None:
-            for action in core.server.getActions():
-                core.handleServerAction(action)
         # Graphics
         core.graphics.draw()
     # TODO 10: Close everything

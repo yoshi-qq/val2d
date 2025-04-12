@@ -365,7 +365,7 @@ class Angle:
         return f"{self.__angle}"
 
 class Pose:
-    def __init__(self, position: Position, orientation: Angle) -> None:
+    def __init__(self, position: Position = Position(), orientation: Angle = Angle()) -> None:
         self.__position = position
         self.__orientation = orientation
     # Setters
@@ -447,7 +447,7 @@ class Buff:
         }
 
 class Status:
-    def __init__(self, team: int, handItem: HandItem, basicCharges: int = 0, tacticalCharges: int = 0, signatureCharges: int = 1,  ultimateCharges: int = 0, ultimatePoints: int = 0, signatureCooldown: float = 45, signatureKills: int = 0) -> None:
+    def __init__(self, team: int = 0, handItem: HandItem = HandItem.SIDEARM, basicCharges: int = 0, tacticalCharges: int = 0, signatureCharges: int = 1,  ultimateCharges: int = 0, ultimatePoints: int = 0, signatureCooldown: float = 45, signatureKills: int = 0) -> None:
         # Ability
         self.__team = team
         self.__handItem: HandItem = handItem
@@ -498,7 +498,7 @@ class Status:
         }
     
 class Stats:
-    def __init__(self, kills: int, deaths: int, assists: int) -> None:
+    def __init__(self, kills: int = 0, deaths: int = 0, assists: int = 0) -> None:
         self.__kills = kills
         self.__deaths = deaths
         self.__assists = assists
@@ -537,23 +537,82 @@ class DamageValues:
             "values3": self.__damageValues3,
             "range3": self.__range3
         }
-# GAME
-class Map:
-    def __init__(self, name: str) -> None:
-        pass # TODO 5
-    def collapseToDict(self) -> JSONType:
-        return {}
 
+# OBJECTS
 class Object:
-    def __init__(self):
-        pass # TODO 7
+    def __init__(self, id: int, sprite: SpriteSetKey, position: Position = Position, orientation: Angle = Angle):
+        self.__id = id
+        self.__sprite = sprite
+        self.__position = position
+        self.__orientation = orientation
+    def getID(self) -> int:
+        return self.__id
     def collapseToDict(self) -> JSONType:
         return {}
 
+class Wall:
+    def __init__(self, size: Position, penetrationLevel: int) -> None:
+        self.size = size
+        self.penepenetrationLevel = penetrationLevel
+class Box:
+    def __init__(self, size: Position, penetrationLevel: int) -> None:
+        self.size = size
+        self.penepenetrationLevel = penetrationLevel
+class Cylinder:
+    def __init__(self, size: Position, penetrationLevel: int) -> None:
+        self.size = size
+        self.penepenetrationLevel = penetrationLevel
+class Stair:
+    def __init__(self, size: Position) -> None:
+        self.size = size
+class Decoration:
+    def __init__(self, size: Position) -> None:
+        self.size = size
+class BreakableDoor:
+    def __init__(self, size: Position, HP: int) -> None:
+        self.size = size
+        self.HP = HP
+class Switch:
+    def __init__(self, doorID: int) -> None:
+        self.doorID = doorID
+class Bike:
+    def __init__(self) -> None:
+        pass
+class UltOrb:
+    def __init__(self) -> None:
+        pass
+class Zipline:
+    def __init__(self, size: Position, direction: Position, force: bool = False) -> None:
+        self.size = size
+        self.direction = direction
+        self.force = force
+class Teleporter:
+    def __init__(self, teleportPosition: Position) -> None:
+        self.teleportPosition = teleportPosition
+class TPDoor:
+    def __init__(self) -> None:
+        pass
+class RotatingDoor:
+    def __init__(self) -> None:
+        pass
+class CrouchDoor:
+    def __init__(self) -> None:
+        pass
+class Abyss:
+    def __init__(self, size: Position) -> None:
+        self.size = size
+ 
+# GAME
 class GameMode:
     def __init__(self, name: str):
         self.__name = name
         pass # TODO 6
+
+class Map:
+    def __init__(self, name: str, objects: list[Object]) -> None:
+        self.__objects = objects
+    def collapseToDict(self) -> JSONType:
+        return {}
 
 # INVENTORY
 class Holdable:
@@ -673,7 +732,7 @@ class Ability(Holdable):
         }
         
 class Inventory:
-    def __init__(self, meleeKey: MeleeKey, secondaryKey: SidearmKey, primaryKey: GunKey):
+    def __init__(self, meleeKey: MeleeKey = MeleeKey.DEFAULT, secondaryKey: Union[SidearmKey, None] = SidearmKey.CLASSIC, primaryKey: Union[GunKey, None] = None):
         self.__meleeKey = meleeKey
         self.__secondaryKey = secondaryKey
         self.__primaryKey = primaryKey
@@ -709,16 +768,22 @@ class Agent:
         }
 
 class Player:
-    def __init__(self, pose: Pose, vitals: Vitals, status: Status, inventory: Inventory, stats: Stats, agent: AgentKey) -> None:
+    def __init__(self, name: str, pose: Pose = Pose(), vitals: Vitals = Vitals(), status: Status = Status(), inventory: Inventory = Inventory(), stats: Stats = Stats(), agent: Union[AgentKey, None] = None) -> None:
+        self.__name = name
         self.__pose = pose
         self.__vitals = vitals
         self.__status = status
         self.__inventory = inventory
         self.__stats = stats
         self.__agent = agent
-    
+        
+    def getAgent(self) -> AgentKey:
+        return self.__agent
     def setAgent(self, agentKey: AgentKey) -> None:
-        self.__agent = agents[AgentKey]
+        self.__agent = agents[agentKey]
+    
+    def getName(self) -> str:
+        return self.__name
     
     def collapseToDict(self) -> JSONType:
         return {
@@ -731,6 +796,12 @@ class Player:
         }
 
 # BACKEND
+class Connection:
+    def __init__(self, name: str):
+        self.__name = name
+    def getName(self) -> str:
+        return self.__name
+
 class GameState:
     def __init__(self, players: list[Player], time: float, roundNo: int, score: tuple[int, int], mapKey: MapKey, gameMode: GameModeKey, roundTime: float, objects: list[Object]) -> None:
         self.players = players

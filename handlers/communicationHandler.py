@@ -1,5 +1,5 @@
 from typing import Union, Callable, Any
-from classes.types import Message, AgentKey
+from classes.types import Message, AgentKey, Connection, GameState
 from dependencies.communications import Request, Event, CommunicationsHandler as Comm, setOnClientJoin, setOnDisconnect
 from handlers.config import CONFIG
 
@@ -49,7 +49,8 @@ class CommunicationHandler:
         self.castEvent("updateRemainingSelectTimeEvent", time)
     def selectAgent(self, agent: AgentKey) -> None:
         self.sendRequest("SelectAgent", agent)
-    
+    def gameStartEvent(self, gameState: GameState) -> None:
+        self.castEvent("gameStart", gameState)
     # Local
     # Setters
     # Getters
@@ -61,7 +62,10 @@ class CommunicationHandler:
         messages = self.__messageQueue
         self.__messageQueue = self.__messageQueue[len(messages):]
         return messages
-       
+    
+    def getConnections(self) -> list[Connection]:
+        return [Connection(client.name) for client in self.__comm.getMainObject().clients]
+    
     def runCycle(self) -> None:
         if self.__type == "player":
             for event in self.__comm.getEvents():
@@ -93,6 +97,8 @@ class CommunicationHandler:
                 self.__addMessage("OpenAgentSelectMenu", None)
             case "updateRemainingSelectTimeEvent":
                 self.__addMessage("updateClientRemainingSelectTime", event.body)
+            case "gameStart":
+                self.__addMessage("gameStart", event.body)
     
     def __handleRequest(self, request: Request):
         match request.head:
