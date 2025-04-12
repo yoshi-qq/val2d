@@ -24,10 +24,10 @@ Null = NullType()
 JSONType = Union[dict[str, Any], list[Any], str, int, float, bool, None]
 
 # DEBUGGING
-class AutoMessageAction:
-    def __init__(self, triggerMessage: Message, responseAction: "Action") -> None:
+class AutoMessageTrigger:
+    def __init__(self, triggerMessage: Message, responseMessage: Message) -> None:
         self.triggerMessage = triggerMessage
-        self.responseAction = responseAction
+        self.responseMessage = responseMessage
 
 # MENUING
 class MenuKey(Enum):
@@ -486,7 +486,7 @@ class Status:
     def collapseToDict(self) -> JSONType:
         return {
             "team": self.__team,
-            "handItem": self.__handItem.collapseToDict(),
+            "handItem": self.__handItem,
             "basicCharges": self.__basicCharges,
             "tacticalCharges": self.__tacticalCharges,
             "signatureCharges": self.__signatureCharges,
@@ -835,13 +835,6 @@ class Input:
         self.type = type
     def __str__(self) -> str:
         return f"Input[type={self.type}]"
-
-class Action:
-    def __init__(self, type: str, content: Any):
-        self.type = type
-        self.content = content
-    def __str__(self) -> str:
-        return f"Action[type={self.type}, content={self.content}]"
 
 class Message:
     def __init__(self, head: str, body: Any):

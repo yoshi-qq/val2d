@@ -7,21 +7,21 @@ x, y = TESTING_WINDOW_POSITIONS[ID]
 os.environ['SDL_VIDEO_WINDOW_POS'] = f"{x},{y}"
 
 from main import main
-from classes.types import Message, Action, AutoMessageAction
+from classes.types import Message, Message, AutoMessageTrigger
 M = Message
-A = Action
-AMA = AutoMessageAction
-qAMA = lambda m, a: AutoMessageAction(M(m, None), A(a, None))
+A = Message
+AMA = AutoMessageTrigger
+qAMA = lambda m, a: AutoMessageTrigger(M(m, None), A(a, None))
 
 # Automation
-serverAutoMessageActions: list[AutoMessageAction] = [
+serverAutoMessageTriggers: list[AutoMessageTrigger] = [
     qAMA("Initiated", "Host"),
     qAMA("ClientConnected", "Start")
 ]
 
 # Main Function
 def run() -> None:
-    main(serverAutoMessageActions)
+    main(serverAutoMessageTriggers)
 
 if __name__ == "__main__":
     run()

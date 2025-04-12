@@ -1,6 +1,7 @@
 import os
+from dependencies.communications import Event, Request
 from typing import Union
-from classes.types import Message, Action, MenuKey, AutoMessageAction
+from classes.types import Message, Message, MenuKey, AutoMessageTrigger
 from handlers.graphicsHandler import GraphicsHandler
 from handlers.menuHandler import MenuHandler
 from handlers.inputHandler import InputHandler
@@ -43,13 +44,19 @@ communication = CommunicationHandler(playerCommands, hostCommands, debug)
 menu.setMenu(MenuKey.PLAY)
 loop = True
 
+def addLocalMessage(message: Message) -> None:
+    global localMessages
+    localMessages.append(message)
+
 def getLocalMessages() -> list[Message]:
     global localMessages
     messages = localMessages.copy()
     localMessages = localMessages[len(messages):]
     return messages
 
+# HANDLING
 def handleMessage(message: Message) -> None:
+    global server, client
     if debug > 1: print(message)
     match message.head:
         case "Initiated":
@@ -60,32 +67,18 @@ def handleMessage(message: Message) -> None:
             menu.setMenu(MenuKey.HOST_LOBBY)
         case "Disconnected":
             menu.setMenu(MenuKey.PLAY)
-        case "ForceDisconnect":
-            menu.setMenu(MenuKey.PLAY)
-            print("Connection lost")
-        case "OpenAgentSelectMenu":
-            menu.setMenu(MenuKey.AGENT_SELECT)
-        case "SelectAgentRequest":
-            if not server.isIngame():
-                server.setAgent(message.body[0], message.body[1])
         case "OpenServerAgentSelect":
             menu.setMenu(MenuKey.HOST_AGENT_SELECT)
         case "EndAgentSelect":
             if not server.isIngame():
                 server.startGame()
-        case "updateClientRemainingSelectTime":
-            client.setRemainingSelectTime(message.body)
-            
-def handleMenuAction(action: Action) -> None:
-    global client, server
-    if debug > 2: print(action)
-    match action.type:
+        # MENU
         case "Leave":
             communication.disconnect()
             if server is not None:
                 server.close()
         case "Join":
-            communication.connectToGame(*action.content)
+            communication.connectToGame(*message.body)
             client = ClientHandler()
         case "Host":
             if communication.getType() is None:
@@ -94,23 +87,48 @@ def handleMenuAction(action: Action) -> None:
         case "Start":
             server.start(communication.getConnections())
         case "SelectAgent":
-            communication.selectAgent(action.content)
+            communication.selectAgent(message.body)
         case "ForceStart":
             localMessages.append(Message("EndAgentSelect", None))
         
-def handleGameAction(action: Action) -> None:
-    if debug > 3: print(action)
+def handleEvent(event: Event) -> None:
+    global server, client
+    match event.head:
+        case "EndSession":
+            communication.getComm().quit()
+            communication.setType(None)
+            menu.setMenu(MenuKey.PLAY)
+            if debug >= 0:
+                print("Connection lost")
+        case "StartAgentSelectionEvent":
+            menu.setMenu(MenuKey.AGENT_SELECT)
+        case "updateRemainingSelectTimeEvent":
+            client.setRemainingSelectTime(event.body)
+        case "gameStart":
+            pass
+            # TODO: event.body
+    
+def handleRequest(request: Request) -> None:
+    global server, client
+    match request.head:
+        case "SelectAgent":
+            if not server.isIngame():
+                server.setAgent(request.signature, request.body)
+
+def handleGameMessage(message: Message) -> None:
+    if debug > 3: print(message)
     pass
-def handleServerAction(action: Action) -> None:
-    if debug > 3: print(action)
-    match action.type:
+
+def handleServerMessage(message: Message) -> None:
+    if debug > 3: print(message)
+    match message.head:
         case "StartAgentSelectionEvent":
             localMessages.append(Message("OpenServerAgentSelect", None))
             communication.selectAgents()
-        case "EndAgentSelectAction":
+        case "EndAgentSelectMessage":
             if not server.isIngame():
                 server.startGame()
         case "updateRemainingSelectTime":
-            communication.updateRemainingSelectTime(action.content)
+            communication.updateRemainingSelectTime(message.body)
         case "serverGameStart":
-            communication.gameStartEvent(action.content)
+            communication.gameStartEvent(message.body)

@@ -1,10 +1,10 @@
 from config.constants import AGENT_SELECT_TIME
 from typing import Union
-from classes.types import Action, GameState, Input
+from classes.types import Message, GameState, Input
 class ClientHandler:
     def __init__(self) -> None:
         self.__remainingSelectTime = AGENT_SELECT_TIME
-        self.__actionQueue: list[Action] = []
+        self.__messageQueue: list[Message] = []
         self.__inGame = False
         self.__gameState: Union[None, GameState] = None
     
@@ -20,7 +20,7 @@ class ClientHandler:
         self.__remainingSelectTime = time
     def getRemainingSelectTime(self) -> float:
         return self.__remainingSelectTime
-    def getActions(self) -> list[Action]:
-        actions = self.__actionQueue
-        self.__actionQueue = self.__actionQueue[len(actions):]
-        return actions
+    def getMessages(self) -> list[Message]:
+        messages = self.__messageQueue
+        self.__messageQueue = self.__messageQueue[len(messages):]
+        return messages
