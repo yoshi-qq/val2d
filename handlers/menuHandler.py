@@ -1,8 +1,8 @@
 from enum import Enum
 from typing import Any
 from handlers.graphicsHandler import g
-from handlers.clientHandler import ClientHandler
-from handlers.serverHandler import ServerHandler
+from handlers.clientGameHandler import ClientGameHandler
+from handlers.serverGameHandler import ServerGameHandler
 from classes.types import MenuKey, Input, Message, AgentKey, agents
 from handlers.config import CONFIG
 from dependencies.helpers import distributeObjects
@@ -20,9 +20,9 @@ class MenuHandler:
     # Global
     def handleInput(self, input: Input) -> None:
         pass
-    def update(self, client: ClientHandler, server: ServerHandler) -> None:
-        if self.__menu in self.__menuUpdaters.keys():
-            self.__menuUpdaters[self.__menu](client, server)
+    def update(self, menu: MenuKey, *args) -> None:
+        if menu in self.__menuUpdaters.keys():
+            self.__menuUpdaters[self.__menu](*args)
     # Local
     def __addMessage(self, head: str, body: Any) -> None:
         self.__messageQueue.append(Message(head, body))
@@ -67,7 +67,7 @@ class MenuHandler:
                 agentSelectMenu.append(g.RenderButton(imageName=agent[1], clickAction=self.__agentSelectButton, arguments=(agent[0],), x=g.middle[0]+xPos*xSpacing, y=g.middle[1]+yPos*ySpacing, width=64, height=64, enabled=False, middle=True))
         self.__agentSelectTimer = g.RenderText(text="Loading", x=g.middle[0], y=g.middle[1]*0.5, size = 45, color=(255, 255, 255), middle=True, enabled=False) ###
         agentSelectMenu.append(self.__agentSelectTimer)
-        self.__menuUpdaters[K.AGENT_SELECT] = lambda client, server: self.__agentSelectTimer.updateText(f"{client.getRemainingSelectTime():.0f}s") if f"{client.getRemainingSelectTime():.0f}s" != self.__agentSelectTimer.text else None
+        self.__menuUpdaters[K.AGENT_SELECT] = lambda time: self.__agentSelectTimer.updateText(f"{time:.0f}s") if f"{time:.0f}s" != self.__agentSelectTimer.text else None
         
         # HostAgentSelect
         hostAgentSelect: list[g.RenderObject] = []
@@ -85,7 +85,7 @@ class MenuHandler:
                 hostAgentSelect.append(g.RenderImage(imageName=agent[1], x=g.middle[0]+xPos*xSpacing, y=g.middle[1]+yPos*ySpacing, width=64, height=64, enabled=False, middle=True))
         hostAgentSelect.append(g.RenderButton(imageName="start", clickAction=self.__forceStartButton, x=g.middle[0], y=g.middle[1]*1.75, width=256, height=64, enabled=False, middle=True))
         hostAgentSelect.append(self.__agentSelectTimer)
-        self.__menuUpdaters[K.HOST_AGENT_SELECT] = lambda client, server: self.__agentSelectTimer.updateText(f"{server.getRemainingSelectTime():.0f}s") if f"{server.getRemainingSelectTime():.0f}s" != self.__agentSelectTimer.text else None
+        self.__menuUpdaters[K.HOST_AGENT_SELECT] = lambda time: self.__agentSelectTimer.updateText(f"{time:.0f}s") if f"{time:.0f}s" != self.__agentSelectTimer.text else None
         
         #inGamePlayer
         inGamePlayer: list[g.RenderObject] = []

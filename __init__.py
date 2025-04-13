@@ -6,8 +6,8 @@ from handlers.graphicsHandler import GraphicsHandler
 from handlers.menuHandler import MenuHandler
 from handlers.inputHandler import InputHandler
 from handlers.communicationHandler import CommunicationHandler
-from handlers.serverHandler import ServerHandler
-from handlers.clientHandler import ClientHandler
+from handlers.serverGameHandler import ServerGameHandler
+from handlers.clientGameHandler import ClientGameHandler
 from handlers.config import CONFIG
 
 from prebuilts.abilities import init as initAbilities
@@ -31,8 +31,8 @@ def setup() -> None:
 
 setup()
 localMessages = []
-server: Union[None, ServerHandler] = None
-client: Union[None, ClientHandler] = None
+server: Union[None, ServerGameHandler] = None
+client: Union[None, ClientGameHandler] = None
 graphics = GraphicsHandler(ROOT)
 menu = MenuHandler()
 inputs = InputHandler()
@@ -76,11 +76,11 @@ def handleMessage(message: Message) -> None:
                 server.close()
         case "Join":
             communication.connectToGame(*message.body)
-            client = ClientHandler()
+            client = ClientGameHandler()
         case "Host":
             if communication.getType() is None:
                 communication.hostGame(CONFIG["port"])
-                server = ServerHandler()
+                server = ServerGameHandler()
         case "Start":
             server.start(communication.getConnections())
         case "SelectAgent":
@@ -89,6 +89,16 @@ def handleMessage(message: Message) -> None:
             if not server.isIngame():
                 server.startGame()
                 menu.setMenu(MenuKey.IN_GAME_HOST)
+        case "StartAgentSelectionEvent":
+            localMessages.append(Message("OpenServerAgentSelect", None))
+            communication.selectAgents()
+        case "EndAgentSelectMessage":
+            if not server.isIngame():
+                server.startGame()
+        case "updateRemainingSelectTime":
+            communication.updateRemainingSelectTime(message.body)
+        case "serverGameStart":
+            communication.gameStartEvent(message.body)
 
 def handleEvent(event: Event) -> None:
     global server, client
@@ -115,21 +125,3 @@ def handleRequest(request: Request) -> None:
         case "SelectAgent":
             if not server.isIngame():
                 server.setAgent(request.signature, request.body)
-
-def handleGameMessage(message: Message) -> None:
-    if debug > 3: print(message)
-    pass
-
-def handleServerMessage(message: Message) -> None:
-    if debug > 3: print(message)
-    match message.head:
-        case "StartAgentSelectionEvent":
-            localMessages.append(Message("OpenServerAgentSelect", None))
-            communication.selectAgents()
-        case "EndAgentSelectMessage":
-            if not server.isIngame():
-                server.startGame()
-        case "updateRemainingSelectTime":
-            communication.updateRemainingSelectTime(message.body)
-        case "serverGameStart":
-            communication.gameStartEvent(message.body)

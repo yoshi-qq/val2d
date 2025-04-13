@@ -153,6 +153,13 @@ def drawRotated(surface, img, x = 0, y = 0, angle = 180, width = 1, height = 1, 
 def getMouse():
     return (pygame.mouse.get_pos()[0]/xMultiplier, pygame.mouse.get_pos()[1]/yMultiplier)
 
+def getHeldKeys() -> set[int]:
+    '''
+    returns a set of key comparable to the pygame constants e.g. pygame.K_SPACE, pygame.K_a
+    '''
+    global keys
+    return keys
+
 def click():
     global clickEvent
     clickEvent = True
@@ -189,7 +196,13 @@ def draw():
             pygame.quit();
             return;
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            click();
+            keys.add(event.button)
+            click()
+        elif event.type == pygame.MOUSEBUTTONUP:
+            keys.discard(event.button)
+            try:
+                exeKeys.discard(event.button)
+            except: pass # EH?
         elif event.type == pygame.KEYDOWN:
             if activeInput is not None:
                 if (event.key == pygame.K_v) and (pygame.key.get_mods() & pygame.KMOD_CTRL):

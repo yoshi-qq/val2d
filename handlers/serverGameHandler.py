@@ -12,7 +12,7 @@ from prebuilts.maps import init as initMaps
 from prebuilts.spriteSets import init as initSpriteSets
 from prebuilts.weapons import init as initWeapons
 
-class ServerHandler:
+class ServerGameHandler:
     def __init__(self) -> None:
         self.__messageQueue: list[Message] = []
         self.__inGame = False
