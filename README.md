@@ -88,15 +88,15 @@
 ### Miscellaneous
 <details>
   <summary>toggle</summary>
-```markdown
-- [ ] Lobby
-- [ ] Multiplayer
-- [ ] Shooting
-- [ ] Planting
-- [ ] Scoping
-- [ ] Wall Penetration
-- [ ] Sneaking
-- [ ] Jumping
-- [ ] Skins
-```
+<ul>
+  <li><input type="checkbox"> Lobby</li>
+  <li><input type="checkbox"> Multiplayer</li>
+  <li><input type="checkbox"> Shooting</li>
+  <li><input type="checkbox"> Planting</li>
+  <li><input type="checkbox"> Scoping</li>
+  <li><input type="checkbox"> Wall Penetration</li>
+  <li><input type="checkbox"> Sneaking</li>
+  <li><input type="checkbox"> Jumping</li>
+  <li><input type="checkbox"> Skins</li>
+</ul>
 </details>
