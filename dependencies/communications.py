@@ -29,7 +29,8 @@ class Event:
         return f"Event[head={self.head}, body={self.body}]"
 
 class CommunicationsHandler:
-    def __init__(self: "CommunicationsHandler", host: bool = False, ip: str = "localhost", port: int = 54321, maxClients = 4, commands: dict[str, Callable] = None) -> None:
+    def __init__(self: "CommunicationsHandler", host: bool = False, ip: str = "localhost", port: int = 54321, maxClients = 4, dataSize: int = 1024, commands: dict[str, Callable] = None) -> None:
+        self.DATA_SIZE = dataSize
         if commands is None:
             self.__commands = {}
         else:
@@ -57,7 +58,7 @@ class CommunicationsHandler:
             with self.__queueLock:
                 self.__requestQueue.append(localRequest)
     def __initHost(self: "CommunicationsHandler") -> None:
-        self.__mainObject = Server(self._ip, self._port, 1024, "pickle", self._maxClients)
+        self.__mainObject = Server(self._ip, self._port, self.DATA_SIZE, "pickle", self._maxClients)
         self.__mainObject.messageFunctions = self.__mainObject.messageFunctions | self.__commands
         
         
@@ -85,7 +86,7 @@ class CommunicationsHandler:
                 self.__eventQueue.append(localEvent)
                 
     def __initClient(self: "CommunicationsHandler") -> None:
-        self.__mainObject = Client(self._ip, self._port, 1024, "pickle", False, debug = True)
+        self.__mainObject = Client(self._ip, self._port, self.DATA_SIZE, "pickle", False, debug = True)
         self.__mainObject.messageFunctions = self.__mainObject.messageFunctions | self.__commands
         
         

@@ -1,4 +1,5 @@
 from typing import Union, Callable, Any
+from config.constants import DATA_SIZE
 from classes.types import Message, AgentKey, Connection, GameState
 from dependencies.communications import Request, Event, CommunicationsHandler as Comm, setOnClientJoin, setOnDisconnect
 from handlers.config import CONFIG
@@ -33,7 +34,7 @@ class CommunicationHandler:
         if self.__type is not None:
             print("Already in a lobby")
             return
-        self.__comm = Comm(host=False, ip = ip, port=port, maxClients=4, commands = self.__playerCommandList)
+        self.__comm = Comm(host=False, ip = ip, port=port, maxClients=4, dataSize=DATA_SIZE, commands = self.__playerCommandList)
         setOnDisconnect(lambda: self.__addMessage("ForceDisconnect", None))
         self.__type = "player"
         self.__addMessage("Connected", None)
@@ -43,7 +44,7 @@ class CommunicationHandler:
             print("Already in a lobby")
             return
         setOnClientJoin(lambda: self.__addMessage("ClientConnected", None))
-        self.__comm = Comm(host=True, ip = "0.0.0.0", port=port, maxClients=4, commands = self.__hostCommandList)
+        self.__comm = Comm(host=True, ip = "0.0.0.0", port=port, maxClients=4, dataSize=DATA_SIZE, commands = self.__hostCommandList)
         self.__type = "host"
         self.__addMessage("Hosted", None)
     def disconnect(self) -> None:
@@ -58,14 +59,6 @@ class CommunicationHandler:
                 self.__type = None
                 self.__addMessage("Disconnected", None)
     
-    def selectAgents(self) -> None:
-        self.castEvent("StartAgentSelectionEvent", None)
-    def updateRemainingSelectTime(self, time: float) -> None:
-        self.castEvent("updateRemainingSelectTimeEvent", time)
-    def selectAgent(self, agent: AgentKey) -> None:
-        self.sendRequest("SelectAgent", agent)
-    def gameStartEvent(self, gameState: GameState) -> None:
-        self.castEvent("gameStart", gameState)
     def castEvent(self, head: str, body: Any) -> None:
         if self.__type == "host":
             self.__comm.castEvent(Event(head, body))

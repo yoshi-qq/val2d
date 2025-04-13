@@ -22,7 +22,7 @@ class ServerGameHandler:
         pass
     def tick(self, menu: MenuKey) -> None:
         if menu == MenuKey.HOST_AGENT_SELECT:
-            self.__messageQueue.append(Message("updateRemainingSelectTime", self.getRemainingSelectTime()))
+            self.__messageQueue.append(Message("UpdateRemainingSelectTime", self.getRemainingSelectTime()))
     
     def start(self, connections: list[Connection]) -> None:
         self.__messageQueue.append(Message("StartAgentSelectionEvent", None))
@@ -43,7 +43,7 @@ class ServerGameHandler:
                 player.setAgent(AgentKey.OMEN)
         self.__inGame = True
         self.__gameState.time = 0
-        self.__messageQueue.append(Message("serverGameStart", self.__gameState))
+        self.__messageQueue.append(Message("ServerGameStart", self.__gameState))
         self.startRound()
 
     def startRound(self) -> None:

@@ -19,7 +19,7 @@ qAMA = lambda m, a: AutoMessageTrigger(M(m, None), M(a, None))
 serverAutoMessageTriggers: list[AutoMessageTrigger] = [
     qAMA("Initiated", "Host"),
     qAMA("ClientConnected", "Start"),
-    AMA(R("SelectAgent", AgentKey.OMEN), M("ForceStart", None))
+    AMA(R("SelectAgentRequest", AgentKey.OMEN), M("ForceStart", None))
 ]
 
 # Main Function

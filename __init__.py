@@ -84,21 +84,21 @@ def handleMessage(message: Message) -> None:
         case "Start":
             server.start(communication.getConnections())
         case "SelectAgent":
-            communication.selectAgent(message.body)
+            communication.sendRequest("SelectAgentRequest", message.body) # agent
         case "ForceStart":
             if not server.isIngame():
                 server.startGame()
                 menu.setMenu(MenuKey.IN_GAME_HOST)
         case "StartAgentSelectionEvent":
             localMessages.append(Message("OpenServerAgentSelect", None))
-            communication.selectAgents()
+            communication.castEvent("StartAgentSelectionEvent", None)
         case "EndAgentSelectMessage":
             if not server.isIngame():
                 server.startGame()
-        case "updateRemainingSelectTime":
-            communication.updateRemainingSelectTime(message.body)
-        case "serverGameStart":
-            communication.gameStartEvent(message.body)
+        case "UpdateRemainingSelectTime":
+            communication.castEvent("UpdateRemainingSelectTimeEvent", message.body) # time
+        case "ServerGameStart":
+            communication.castEvent("GameStartEvent", message.body) # gameState
 
 def handleEvent(event: Event) -> None:
     global server, client
@@ -112,9 +112,9 @@ def handleEvent(event: Event) -> None:
                 print("Connection lost")
         case "StartAgentSelectionEvent":
             menu.setMenu(MenuKey.AGENT_SELECT)
-        case "updateRemainingSelectTimeEvent":
+        case "UpdateRemainingSelectTimeEvent":
             client.setRemainingSelectTime(event.body)
-        case "gameStart":
+        case "GameStartEvent":
             pass
             # TODO: event.body
     
@@ -122,6 +122,6 @@ def handleRequest(request: Request) -> None:
     global server, client
     if debug > 2: print(request)
     match request.head:
-        case "SelectAgent":
+        case "SelectAgentRequest":
             if not server.isIngame():
                 server.setAgent(request.signature, request.body)
