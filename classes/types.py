@@ -862,7 +862,7 @@ class GameState:
         self.roundTime = roundTime
         self.objects = objects
     def cutForPlayer(self, playerId: int) -> "GameState":
-        pass # TODO 8
+        pass # TODO L8
 
     def collapseToDict(self) -> JSONType:
         return {

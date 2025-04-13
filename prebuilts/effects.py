@@ -1,6 +1,6 @@
 from classes.types import EffectKey, Effect, effects as effects_
 
-# TODO 6: add real effects
+# TODO L6: add real effects
 l = lambda: None
 k = EffectKey
 effects: dict[EffectKey, Effect] = {

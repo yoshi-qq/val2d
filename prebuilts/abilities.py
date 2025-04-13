@@ -1,5 +1,4 @@
 from classes.types import EffectKey, AbilityKey, Ability, SpriteSetKey, AbilityCategory as Cat, abilities as abilities_
-# TODO 9: descriptions
 
 k = AbilityKey
 abilities: dict[AbilityKey, Ability] = {
@@ -13,7 +12,8 @@ abilities: dict[AbilityKey, Ability] = {
             maxKills=None, 
             equippable=True,
             heldUpdateEffect=None,  
-            castEffect=EffectKey.SHROUDED_STEP_CAST),
+            castEffect=EffectKey.SHROUDED_STEP_CAST, 
+            description="EQUIP a shrouded step ability and see its range indicator. FIRE to begin a brief channel, then teleport to the marked location."),
         k.PARANOIA: Ability(
             name="Paranoia", 
             sprites=SpriteSetKey.ABILITY_PARANOIA, 
@@ -24,7 +24,8 @@ abilities: dict[AbilityKey, Ability] = {
             maxKills=None, 
             equippable=True, 
             heldUpdateEffect=None,  
-            castEffect=EffectKey.PARANOIA_CAST),
+            castEffect=EffectKey.PARANOIA_CAST, 
+            description="EQUIP a blinding orb. FIRE to throw it forward, briefly Nearsighting and Deafening all players it touches. This projectile can pass straight through walls."),
         k.DARK_COVER: Ability(
             name="Dark Cover", 
             cost=150, 
@@ -35,7 +36,8 @@ abilities: dict[AbilityKey, Ability] = {
             maxKills=None, 
             equippable=True, 
             heldUpdateEffect=None,  
-            castEffect=EffectKey.DARK_COVER_CAST),
+            castEffect=EffectKey.DARK_COVER_CAST, 
+            description="EQUIP a shadow orb, entering a phased world to place and target the orbs. PRESS the ability key to throw the shadow orb to the marked location, creating a long-lasting shadow sphere that blocks vision. HOLD FIRE while targeting to move the marker further away. HOLD ALT FIRE while targeting to move the marker closer. PRESS RELOAD to toggle normal targeting view."),
         k.FROM_THE_SHADOWS: Ability(
             name="From the Shadows", 
             sprites=SpriteSetKey.ABILITY_FROM_THE_SHADOWS, 
@@ -46,7 +48,8 @@ abilities: dict[AbilityKey, Ability] = {
             maxKills=None, 
             equippable=True, 
             heldUpdateEffect=None,  
-            castEffect=EffectKey.FROM_THE_SHADOWS_CAST)
+            castEffect=EffectKey.FROM_THE_SHADOWS_CAST, 
+            description="EQUIP a tactical map. FIRE to begin teleporting to the selected location. While teleporting, Omen will appear as a Shade that can be destroyed by an enemy to cancel his teleport, or PRESS EQUIP for Omen to cancel his teleport.")
 }
 
 def init() -> None:
