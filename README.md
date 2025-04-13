@@ -3,16 +3,6 @@
 *An attempt at recreating all of VALORANT in 2 dimensions*
 
 ## Available Content at the time
-### Miscellaneous
-- [ ] Lobby
-- [ ] Multiplayer
-- [ ] Shooting
-- [ ] Planting
-- [ ] Scoping
-- [ ] Wall Penetration
-- [ ] Sneaking
-- [ ] Jumping
-- [ ] Skins
 ### Game
 #### Game Modes
 - [ ] Range
@@ -94,3 +84,17 @@
 - [ ] Choose Join IP and Port
 - [ ] Practice
 - [ ] Shop
+
+### Miscellaneous
+<details>
+  <summary>toggle</summary>
+- [ ] Lobby
+- [ ] Multiplayer
+- [ ] Shooting
+- [ ] Planting
+- [ ] Scoping
+- [ ] Wall Penetration
+- [ ] Sneaking
+- [ ] Jumping
+- [ ] Skins
+</details>
