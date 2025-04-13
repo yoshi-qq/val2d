@@ -1,4 +1,4 @@
-from typing import Union, Any
+from typing import Union, Any, Callable
 from dependencies.communications import Message, Event, Request
 from config.constants import MAX_HP, MAX_OVERHEAL, MAX_SHIELD, MAX_REGEN_SHIELD, MAX_SPECIAL_BAR
 from enum import Enum
@@ -42,13 +42,32 @@ class MenuKey(Enum):
 
 # GRAPHICS
 class SpriteSet:
-    def __init__(self) -> None:
-        pass # TODO 6
+    def __init__(self, name: str) -> None:
+        self.name = name
 
 class AgentSpriteSet(SpriteSet):
-    def __init__(self, logo: str) -> None:
+    def __init__(self, name: str, logo: str, idle: str, walk: str, crouch: str, jump: str, fall: str, land: str, dead: str, reload: str, holdMelee: str, holdSidearm: str, holdPrimary: str, holdBasic: Union[None, str], holdTactical: Union[None, str], holdSignature: Union[None, str], holdUltimate: Union[None, str], castBasic: Union[None, str], castTactical: Union[None, str], castSignature: Union[None, str], castUltimate: Union[None, str]) -> None:
+        super().__init__(name)
         self.logo = logo
-        # TODO 6
+        self.idle = idle
+        self.walk = walk #
+        self.crouch = crouch
+        self.jump = jump
+        self.fall = fall
+        self.land = land
+        self.dead = dead
+        self.reload = reload #
+        self.holdMelee = holdMelee #
+        self.holdSidearm = holdSidearm #
+        self.holdPrimary = holdPrimary #
+        self.holdBasic = holdBasic #
+        self.holdTactical = holdTactical #
+        self.holdSignature = holdSignature #
+        self.holdUltimate = holdUltimate #
+        self.castBasic = castBasic #
+        self.castTactical = castTactical #
+        self.castSignature = castSignature #
+        self.castUltimate = castUltimate #
 
 # KEYS
 class MapKey(Enum):
@@ -97,6 +116,11 @@ class EffectKey(Enum):
     # 26 Vyse (251-260)
     # 27 Tejo (261-270)
     # 28 Waylay (271-280)
+    
+    # GUNS (301-450)
+    BURST_FIRE_3 = 301
+    BURST_FIRE_4 = 302
+    AIR_BURST_CANISTER_SHOT = 303
 
 class AbilityKey(Enum):
     # 01 Brimstone (1-4)
@@ -328,8 +352,10 @@ class HandItem(Enum):
 
 # EFFECTS
 class Effect:
-    def __init__(self) -> None:
-        pass # TODO 7
+    def __init__(self, effectFunc: Callable) -> None:
+        self.__effectFunc = effectFunc
+    def activate(self, *args) -> None:
+        self.__effectFunc(*args)
 
 # INFORMATION
 class Position:
@@ -603,12 +629,29 @@ class CrouchDoor:
 class Abyss:
     def __init__(self, size: Position) -> None:
         self.size = size
- 
+
 # GAME
+class Objective(Enum):
+    SPIKE = 0
+    KILLS = 1
+
 class GameMode:
-    def __init__(self, name: str):
+    def __init__(self, name: str, objective: Objective = Objective.SPIKE, winThreshold: int = 13, roundTime: int = 100, overTime: bool = False) -> None:
         self.__name = name
-        pass # TODO 6
+        self.__objective = objective
+        self.__winThreshold = winThreshold
+        self.__roundTime = roundTime
+        self.__overTime = overTime
+    def getName(self) -> str:
+        return self.__name
+    def getObjective(self) -> Objective:
+        return self.__objective
+    def getWinThreshold(self) -> int:
+        return self.__winThreshold
+    def getRoundTime(self) -> int:
+        return self.__roundTime
+    def getOverTime(self) -> bool:
+        return self.__overTime
 
 class Map:
     def __init__(self, name: str, objects: list[Object]) -> None:
@@ -653,7 +696,7 @@ class Melee(Holdable):
         }
     
 class Gun(Holdable):
-    def __init__(self, name: str, sprites: SpriteSetKey, category: GunCategory, automatic: bool = False, penetration: PenetrationLevel = PenetrationLevel.MEDIUM, runSpeed: int = 5.4, equipSpeed: int = 0.75, reloadSpeed: int = 2, magazine: int = 1, fireRate: int = 2, firstShotSpread: tuple[int, int] = (0, 0), damage: DamageValues = DamageValues(values1=(1,1,1), range1=50), scope: Union[None, Scope] = None, silenced: bool = False, altFireEffect: Union[None, Effect] = None) -> None:
+    def __init__(self, name: str, sprites: SpriteSetKey, category: GunCategory, automatic: bool = False, penetration: PenetrationLevel = PenetrationLevel.MEDIUM, runSpeed: int = 5.4, equipSpeed: int = 0.75, reloadSpeed: int = 2, magazine: int = 1, reserveAmmo: int = 3, fireRate: int = 2, firstShotSpread: tuple[int, int] = (0, 0), damage: DamageValues = DamageValues(values1=(1,1,1), range1=50), scope: Union[None, Scope] = None, silenced: bool = False, altFireEffect: Union[None, EffectKey] = None) -> None:
         self.__name = name
         self.__sprites = sprites
         super().__init__(category=category)
@@ -663,6 +706,7 @@ class Gun(Holdable):
         self.__equipSpeed = equipSpeed
         self.__reloadSpeed = reloadSpeed
         self.__magazine = magazine
+        self.__reserveAmmo = reserveAmmo
         self.__fireRate = fireRate
         self.__firstShotSpread = firstShotSpread
         self.__damage = damage
@@ -680,15 +724,17 @@ class Gun(Holdable):
             "equipSpeed": self.__equipSpeed,
             "reloadSpeed": self.__reloadSpeed,
             "magazine": self.__magazine,
+            "reserveAmmo": self.__reserveAmmo,
             "fireRate": self.__fireRate,
             "firstShotSpread": self.__firstShotSpread,
             "damage": self.__damage.collapseToDict(),
             "scope": self.__scope.collapseToDict() if self.__scope is not None else None,
+            "silenced": self.__silenced,
             "altFireEffect": self.__altFireEffect.collapseToDict() if self.__altFireEffect is not None else None
         }
     
 class Ability(Holdable):
-    def __init__(self, name: str, sprites: SpriteSetKey, cost: int, abilityCategory: AbilityCategory, maxCharges: int, maxCooldown: Union[None, int] = None, maxKills: Union[None, int] = None, equippable: bool = False, effect: Effect = None, description: str = "") -> None:
+    def __init__(self, name: str, sprites: SpriteSetKey, cost: int, abilityCategory: AbilityCategory, maxCharges: int, maxCooldown: Union[None, int] = None, maxKills: Union[None, int] = None, equippable: bool = False, heldUpdateEffect: Effect = None, castEffect: Effect = None, description: str = "") -> None:
         self.__name = name
         self.__sprites = sprites
         self.__cost = cost
@@ -697,7 +743,8 @@ class Ability(Holdable):
         self.__maxCharges = maxCharges
         self.__maxCooldown = maxCooldown
         self.__maxKills = maxKills
-        self.__effect = effect
+        self.__heldUpdateEffect = heldUpdateEffect
+        self.__castEffect = castEffect
         self.__equippable = equippable
         self.__description = description
     # Getters
@@ -815,7 +862,7 @@ class GameState:
         self.roundTime = roundTime
         self.objects = objects
     def cutForPlayer(self, playerId: int) -> "GameState":
-        pass # TODO 9
+        pass # TODO 8
 
     def collapseToDict(self) -> JSONType:
         return {

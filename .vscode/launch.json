@@ -23,7 +23,8 @@
     "compounds": [
       {
         "name": "Multiplayer Test",
-        "configurations": ["Server", "Player 1"]
+        "configurations": ["Server", "Player 1"],
+        "stopAll": true
       }
     ]
   }  

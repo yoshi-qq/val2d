@@ -11,8 +11,9 @@ abilities: dict[AbilityKey, Ability] = {
             maxCharges=2,
             maxCooldown=None, 
             maxKills=None, 
-            equippable=True, 
-            effect=EffectKey.SHROUDED_STEP_CAST),
+            equippable=True,
+            heldUpdateEffect=None,  
+            castEffect=EffectKey.SHROUDED_STEP_CAST),
         k.PARANOIA: Ability(
             name="Paranoia", 
             sprites=SpriteSetKey.ABILITY_PARANOIA, 
@@ -22,7 +23,8 @@ abilities: dict[AbilityKey, Ability] = {
             maxCooldown=None, 
             maxKills=None, 
             equippable=True, 
-            effect=EffectKey.PARANOIA_CAST),
+            heldUpdateEffect=None,  
+            castEffect=EffectKey.PARANOIA_CAST),
         k.DARK_COVER: Ability(
             name="Dark Cover", 
             cost=150, 
@@ -32,7 +34,8 @@ abilities: dict[AbilityKey, Ability] = {
             maxCooldown=30, 
             maxKills=None, 
             equippable=True, 
-            effect=EffectKey.DARK_COVER_CAST),
+            heldUpdateEffect=None,  
+            castEffect=EffectKey.DARK_COVER_CAST),
         k.FROM_THE_SHADOWS: Ability(
             name="From the Shadows", 
             sprites=SpriteSetKey.ABILITY_FROM_THE_SHADOWS, 
@@ -42,7 +45,8 @@ abilities: dict[AbilityKey, Ability] = {
             maxCooldown=None, 
             maxKills=None, 
             equippable=True, 
-            effect=EffectKey.FROM_THE_SHADOWS_CAST)
+            heldUpdateEffect=None,  
+            castEffect=EffectKey.FROM_THE_SHADOWS_CAST)
 }
 
 def init() -> None:

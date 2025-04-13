@@ -3,7 +3,7 @@ from classes.types import Message, AgentKey, Connection, GameState
 from dependencies.communications import Request, Event, CommunicationsHandler as Comm, setOnClientJoin, setOnDisconnect
 from handlers.config import CONFIG
 
-# TODO 3: host being a player as well
+# TODO 7: host being a player as well
 
 class CommunicationHandler:
     def __init__(self, playerCommandList: dict[str, Callable], hostCommandList: dict[str, Callable], debugLevel: int = 0) -> None:
