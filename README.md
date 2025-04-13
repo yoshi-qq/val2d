@@ -25,7 +25,7 @@
 #### Agents
 - [ ] Brimstone
 - [ ] Viper
-- [ ] Omen
+- [ ] ![Logo](assets/agents/omen/omen_logo.png) Omen
 - [ ] Killjoy
 - [ ] Cypher
 - [ ] Sova
@@ -86,17 +86,12 @@
 - [ ] Shop
 
 ### Miscellaneous
-<details>
-  <summary>toggle</summary>
-<ul>
-  <li><input type="checkbox"> Lobby</li>
-  <li><input type="checkbox"> Multiplayer</li>
-  <li><input type="checkbox"> Shooting</li>
-  <li><input type="checkbox"> Planting</li>
-  <li><input type="checkbox"> Scoping</li>
-  <li><input type="checkbox"> Wall Penetration</li>
-  <li><input type="checkbox"> Sneaking</li>
-  <li><input type="checkbox"> Jumping</li>
-  <li><input type="checkbox"> Skins</li>
-</ul>
-</details>
+- [ ] Lobby
+- [ ] Multiplayer
+- [ ] Shooting
+- [ ] Planting
+- [ ] Scoping
+- [ ] Wall Penetration
+- [ ] Sneaking
+- [ ] Jumping
+- [ ] Skins
