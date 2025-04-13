@@ -88,7 +88,7 @@
 ### Miscellaneous
 <details>
   <summary>toggle</summary>
-<br>
+```markdown
 - [ ] Lobby
 - [ ] Multiplayer
 - [ ] Shooting
@@ -98,4 +98,5 @@
 - [ ] Sneaking
 - [ ] Jumping
 - [ ] Skins
+```
 </details>
