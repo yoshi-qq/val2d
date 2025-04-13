@@ -88,6 +88,7 @@
 ### Miscellaneous
 <details>
   <summary>toggle</summary>
+<br>
 - [ ] Lobby
 - [ ] Multiplayer
 - [ ] Shooting
