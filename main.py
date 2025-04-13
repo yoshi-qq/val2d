@@ -1,41 +1,63 @@
 from typing import Union
-from classes.types import Message, AutoMessageAction
+from dependencies.communications import Request, Event
+from classes.types import Message, AutoMessageTrigger
 import __init__ as core
 
 core.localMessages.append(Message("Initiated", None))
 
-def main(autoMessageActions: Union[None, list[AutoMessageAction]] = None) -> None:
+def main(autoMessageTriggers: Union[None, list[AutoMessageTrigger]] = None) -> None:
     global core
     while core.loop:
+        # Server
+        if core.server is not None:
+            core.server.tick(core.menu.getMenu())
+            for message in core.server.getMessages():
+                core.handleServerMessage(message)
+        
         # Menu
-        for action in core.menu.getActions():
-            core.handleMenuAction(action)
-        # Input
-        for input_ in core.inputs.getInputs():
-            if core.menu.isEnabled():
-                core.menu.handleInput(input_)
-            elif core.game.inGame():
-                core.game.handleInput(input_)
+        core.menu.update(core.client, core.server)
+        for message in core.menu.getMessages():
+            core.handleMessage(message)
+        
+        # Client
+        if core.client is not None:
+            core.client.tick()
+            for input_ in core.inputs.getInputs():
+                if core.menu.isEnabled():
+                    core.menu.handleInput(input_)
+                elif core.client.inGame():
+                    core.client.handleInput(input_)
+            if core.client is not None:
+                for message in core.client.getMessages():
+                    core.handleGameMessage(message)
+        
         # Communication
         core.communication.runCycle()
         extraMessages = core.getLocalMessages()
         allMessages = core.communication.getMessages() + extraMessages
+        
         # Automation BEGIN
-        if autoMessageActions is not None:
-            for aMessage in autoMessageActions:
-                if aMessage.triggerMessage in allMessages:
-                    core.menu.addAction(aMessage.responseAction)
+        if autoMessageTriggers is not None:
+            for aMessage in autoMessageTriggers:
+                match aMessage.trigger:
+                    case Message():
+                        if aMessage.trigger in allMessages:
+                            core.addLocalMessage(aMessage.responseMessage)
+                    case Request():
+                        if aMessage.trigger in core.communication.spyRequests():
+                            core.addLocalMessage(aMessage.responseMessage)
+                    case Event():
+                        if aMessage.trigger in core.communication.spyEvents():
+                            core.addLocalMessage(aMessage.responseMessage)
         # Automation END
+        
         for message in allMessages:
             core.handleMessage(message)
-        # Game
-        core.game.tick()
-        if core.communication.getType() == "player":
-            for action in core.game.getActions():
-                core.handleGameAction(action)
-        if core.server is not None:
-            for action in core.server.getActions():
-                core.handleServerAction(action)
+        for event in core.communication.getEvents():
+            core.handleEvent(event)
+        for request in core.communication.getRequests():
+            core.handleRequest(request)
+        
         # Graphics
         core.graphics.draw()
     # TODO 10: Close everything

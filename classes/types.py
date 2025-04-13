@@ -1,5 +1,5 @@
-from typing import Union, Any
-from dependencies.communications import Message
+from typing import Union, Any, Callable
+from dependencies.communications import Message, Event, Request
 from config.constants import MAX_HP, MAX_OVERHEAL, MAX_SHIELD, MAX_REGEN_SHIELD, MAX_SPECIAL_BAR
 from enum import Enum
 
@@ -24,20 +24,50 @@ Null = NullType()
 JSONType = Union[dict[str, Any], list[Any], str, int, float, bool, None]
 
 # DEBUGGING
-class AutoMessageAction:
-    def __init__(self, triggerMessage: Message, responseAction: "Action") -> None:
-        self.triggerMessage = triggerMessage
-        self.responseAction = responseAction
+class AutoMessageTrigger:
+    def __init__(self, trigger: Message | Event | Request, responseMessage: Message) -> None:
+        self.trigger = trigger
+        self.responseMessage = responseMessage
+
+# MENUING
+class MenuKey(Enum):
+    EMPTY = "empty"
+    PLAY = "play"
+    HOST_LOBBY = "hostLobby"
+    PLAYER_LOBBY = "playerLobby"
+    AGENT_SELECT = "agentSelect"
+    HOST_AGENT_SELECT = "hostAgentSelect"
+    IN_GAME_PLAYER = "inGamePlayer"
+    IN_GAME_HOST = "inGameHost"
 
 # GRAPHICS
 class SpriteSet:
-    def __init__(self) -> None:
-        pass # TODO 6
+    def __init__(self, name: str) -> None:
+        self.name = name
 
 class AgentSpriteSet(SpriteSet):
-    def __init__(self, logo: str) -> None:
+    def __init__(self, name: str, logo: str, idle: str, walk: str, crouch: str, jump: str, fall: str, land: str, dead: str, reload: str, holdMelee: str, holdSidearm: str, holdPrimary: str, holdBasic: Union[None, str], holdTactical: Union[None, str], holdSignature: Union[None, str], holdUltimate: Union[None, str], castBasic: Union[None, str], castTactical: Union[None, str], castSignature: Union[None, str], castUltimate: Union[None, str]) -> None:
+        super().__init__(name)
         self.logo = logo
-        # TODO 6
+        self.idle = idle
+        self.walk = walk #
+        self.crouch = crouch
+        self.jump = jump
+        self.fall = fall
+        self.land = land
+        self.dead = dead
+        self.reload = reload #
+        self.holdMelee = holdMelee #
+        self.holdSidearm = holdSidearm #
+        self.holdPrimary = holdPrimary #
+        self.holdBasic = holdBasic #
+        self.holdTactical = holdTactical #
+        self.holdSignature = holdSignature #
+        self.holdUltimate = holdUltimate #
+        self.castBasic = castBasic #
+        self.castTactical = castTactical #
+        self.castSignature = castSignature #
+        self.castUltimate = castUltimate #
 
 # KEYS
 class MapKey(Enum):
@@ -86,6 +116,11 @@ class EffectKey(Enum):
     # 26 Vyse (251-260)
     # 27 Tejo (261-270)
     # 28 Waylay (271-280)
+    
+    # GUNS (301-450)
+    BURST_FIRE_3 = 301
+    BURST_FIRE_4 = 302
+    AIR_BURST_CANISTER_SHOT = 303
 
 class AbilityKey(Enum):
     # 01 Brimstone (1-4)
@@ -317,8 +352,10 @@ class HandItem(Enum):
 
 # EFFECTS
 class Effect:
-    def __init__(self) -> None:
-        pass # TODO 7
+    def __init__(self, effectFunc: Callable) -> None:
+        self.__effectFunc = effectFunc
+    def activate(self, *args) -> None:
+        self.__effectFunc(*args)
 
 # INFORMATION
 class Position:
@@ -356,7 +393,7 @@ class Angle:
         return f"{self.__angle}"
 
 class Pose:
-    def __init__(self, position: Position, orientation: Angle) -> None:
+    def __init__(self, position: Position = Position(), orientation: Angle = Angle()) -> None:
         self.__position = position
         self.__orientation = orientation
     # Setters
@@ -438,7 +475,7 @@ class Buff:
         }
 
 class Status:
-    def __init__(self, team: int, handItem: HandItem, basicCharges: int = 0, tacticalCharges: int = 0, signatureCharges: int = 1,  ultimateCharges: int = 0, ultimatePoints: int = 0, signatureCooldown: float = 45, signatureKills: int = 0) -> None:
+    def __init__(self, team: int = 0, handItem: HandItem = HandItem.SIDEARM, basicCharges: int = 0, tacticalCharges: int = 0, signatureCharges: int = 1,  ultimateCharges: int = 0, ultimatePoints: int = 0, signatureCooldown: float = 45, signatureKills: int = 0) -> None:
         # Ability
         self.__team = team
         self.__handItem: HandItem = handItem
@@ -477,7 +514,7 @@ class Status:
     def collapseToDict(self) -> JSONType:
         return {
             "team": self.__team,
-            "handItem": self.__handItem.collapseToDict(),
+            "handItem": self.__handItem,
             "basicCharges": self.__basicCharges,
             "tacticalCharges": self.__tacticalCharges,
             "signatureCharges": self.__signatureCharges,
@@ -489,7 +526,7 @@ class Status:
         }
     
 class Stats:
-    def __init__(self, kills: int, deaths: int, assists: int) -> None:
+    def __init__(self, kills: int = 0, deaths: int = 0, assists: int = 0) -> None:
         self.__kills = kills
         self.__deaths = deaths
         self.__assists = assists
@@ -528,23 +565,99 @@ class DamageValues:
             "values3": self.__damageValues3,
             "range3": self.__range3
         }
-# GAME
-class Map:
-    def __init__(self, name: str) -> None:
-        pass # TODO 5
+
+# OBJECTS
+class Object:
+    def __init__(self, id: int, sprite: SpriteSetKey, position: Position = Position, orientation: Angle = Angle):
+        self.__id = id
+        self.__sprite = sprite
+        self.__position = position
+        self.__orientation = orientation
+    def getID(self) -> int:
+        return self.__id
     def collapseToDict(self) -> JSONType:
         return {}
 
-class Object:
-    def __init__(self):
-        pass # TODO 7
-    def collapseToDict(self) -> JSONType:
-        return {}
+class Wall:
+    def __init__(self, size: Position, penetrationLevel: int) -> None:
+        self.size = size
+        self.penepenetrationLevel = penetrationLevel
+class Box:
+    def __init__(self, size: Position, penetrationLevel: int) -> None:
+        self.size = size
+        self.penepenetrationLevel = penetrationLevel
+class Cylinder:
+    def __init__(self, size: Position, penetrationLevel: int) -> None:
+        self.size = size
+        self.penepenetrationLevel = penetrationLevel
+class Stair:
+    def __init__(self, size: Position) -> None:
+        self.size = size
+class Decoration:
+    def __init__(self, size: Position) -> None:
+        self.size = size
+class BreakableDoor:
+    def __init__(self, size: Position, HP: int) -> None:
+        self.size = size
+        self.HP = HP
+class Switch:
+    def __init__(self, doorID: int) -> None:
+        self.doorID = doorID
+class Bike:
+    def __init__(self) -> None:
+        pass
+class UltOrb:
+    def __init__(self) -> None:
+        pass
+class Zipline:
+    def __init__(self, size: Position, direction: Position, force: bool = False) -> None:
+        self.size = size
+        self.direction = direction
+        self.force = force
+class Teleporter:
+    def __init__(self, teleportPosition: Position) -> None:
+        self.teleportPosition = teleportPosition
+class TPDoor:
+    def __init__(self) -> None:
+        pass
+class RotatingDoor:
+    def __init__(self) -> None:
+        pass
+class CrouchDoor:
+    def __init__(self) -> None:
+        pass
+class Abyss:
+    def __init__(self, size: Position) -> None:
+        self.size = size
+
+# GAME
+class Objective(Enum):
+    SPIKE = 0
+    KILLS = 1
 
 class GameMode:
-    def __init__(self, name: str):
+    def __init__(self, name: str, objective: Objective = Objective.SPIKE, winThreshold: int = 13, roundTime: int = 100, overTime: bool = False) -> None:
         self.__name = name
-        pass # TODO 6
+        self.__objective = objective
+        self.__winThreshold = winThreshold
+        self.__roundTime = roundTime
+        self.__overTime = overTime
+    def getName(self) -> str:
+        return self.__name
+    def getObjective(self) -> Objective:
+        return self.__objective
+    def getWinThreshold(self) -> int:
+        return self.__winThreshold
+    def getRoundTime(self) -> int:
+        return self.__roundTime
+    def getOverTime(self) -> bool:
+        return self.__overTime
+
+class Map:
+    def __init__(self, name: str, objects: list[Object]) -> None:
+        self.__objects = objects
+    def collapseToDict(self) -> JSONType:
+        return {}
 
 # INVENTORY
 class Holdable:
@@ -583,7 +696,7 @@ class Melee(Holdable):
         }
     
 class Gun(Holdable):
-    def __init__(self, name: str, sprites: SpriteSetKey, category: GunCategory, automatic: bool = False, penetration: PenetrationLevel = PenetrationLevel.MEDIUM, runSpeed: int = 5.4, equipSpeed: int = 0.75, reloadSpeed: int = 2, magazine: int = 1, fireRate: int = 2, firstShotSpread: tuple[int, int] = (0, 0), damage: DamageValues = DamageValues(values1=(1,1,1), range1=50), scope: Union[None, Scope] = None, silenced: bool = False, altFireEffect: Union[None, Effect] = None) -> None:
+    def __init__(self, name: str, sprites: SpriteSetKey, category: GunCategory, automatic: bool = False, penetration: PenetrationLevel = PenetrationLevel.MEDIUM, runSpeed: int = 5.4, equipSpeed: int = 0.75, reloadSpeed: int = 2, magazine: int = 1, reserveAmmo: int = 3, fireRate: int = 2, firstShotSpread: tuple[int, int] = (0, 0), damage: DamageValues = DamageValues(values1=(1,1,1), range1=50), scope: Union[None, Scope] = None, silenced: bool = False, altFireEffect: Union[None, EffectKey] = None) -> None:
         self.__name = name
         self.__sprites = sprites
         super().__init__(category=category)
@@ -593,6 +706,7 @@ class Gun(Holdable):
         self.__equipSpeed = equipSpeed
         self.__reloadSpeed = reloadSpeed
         self.__magazine = magazine
+        self.__reserveAmmo = reserveAmmo
         self.__fireRate = fireRate
         self.__firstShotSpread = firstShotSpread
         self.__damage = damage
@@ -610,15 +724,17 @@ class Gun(Holdable):
             "equipSpeed": self.__equipSpeed,
             "reloadSpeed": self.__reloadSpeed,
             "magazine": self.__magazine,
+            "reserveAmmo": self.__reserveAmmo,
             "fireRate": self.__fireRate,
             "firstShotSpread": self.__firstShotSpread,
             "damage": self.__damage.collapseToDict(),
             "scope": self.__scope.collapseToDict() if self.__scope is not None else None,
+            "silenced": self.__silenced,
             "altFireEffect": self.__altFireEffect.collapseToDict() if self.__altFireEffect is not None else None
         }
     
 class Ability(Holdable):
-    def __init__(self, name: str, sprites: SpriteSetKey, cost: int, abilityCategory: AbilityCategory, maxCharges: int, maxCooldown: Union[None, int] = None, maxKills: Union[None, int] = None, equippable: bool = False, effect: Effect = None, description: str = "") -> None:
+    def __init__(self, name: str, sprites: SpriteSetKey, cost: int, abilityCategory: AbilityCategory, maxCharges: int, maxCooldown: Union[None, int] = None, maxKills: Union[None, int] = None, equippable: bool = False, heldUpdateEffect: Effect = None, castEffect: Effect = None, description: str = "") -> None:
         self.__name = name
         self.__sprites = sprites
         self.__cost = cost
@@ -627,7 +743,8 @@ class Ability(Holdable):
         self.__maxCharges = maxCharges
         self.__maxCooldown = maxCooldown
         self.__maxKills = maxKills
-        self.__effect = effect
+        self.__heldUpdateEffect = heldUpdateEffect
+        self.__castEffect = castEffect
         self.__equippable = equippable
         self.__description = description
     # Getters
@@ -664,7 +781,7 @@ class Ability(Holdable):
         }
         
 class Inventory:
-    def __init__(self, meleeKey: MeleeKey, secondaryKey: SidearmKey, primaryKey: GunKey):
+    def __init__(self, meleeKey: MeleeKey = MeleeKey.DEFAULT, secondaryKey: Union[SidearmKey, None] = SidearmKey.CLASSIC, primaryKey: Union[GunKey, None] = None):
         self.__meleeKey = meleeKey
         self.__secondaryKey = secondaryKey
         self.__primaryKey = primaryKey
@@ -700,16 +817,22 @@ class Agent:
         }
 
 class Player:
-    def __init__(self, pose: Pose, vitals: Vitals, status: Status, inventory: Inventory, stats: Stats, agent: AgentKey) -> None:
+    def __init__(self, name: str, pose: Pose = Pose(), vitals: Vitals = Vitals(), status: Status = Status(), inventory: Inventory = Inventory(), stats: Stats = Stats(), agent: Union[AgentKey, None] = None) -> None:
+        self.__name = name
         self.__pose = pose
         self.__vitals = vitals
         self.__status = status
         self.__inventory = inventory
         self.__stats = stats
         self.__agent = agent
-    
+        
+    def getAgent(self) -> AgentKey:
+        return self.__agent
     def setAgent(self, agentKey: AgentKey) -> None:
-        self.__agent = agents[AgentKey]
+        self.__agent = agents[agentKey]
+    
+    def getName(self) -> str:
+        return self.__name
     
     def collapseToDict(self) -> JSONType:
         return {
@@ -722,6 +845,12 @@ class Player:
         }
 
 # BACKEND
+class Connection:
+    def __init__(self, name: str):
+        self.__name = name
+    def getName(self) -> str:
+        return self.__name
+
 class GameState:
     def __init__(self, players: list[Player], time: float, roundNo: int, score: tuple[int, int], mapKey: MapKey, gameMode: GameModeKey, roundTime: float, objects: list[Object]) -> None:
         self.players = players
@@ -733,7 +862,7 @@ class GameState:
         self.roundTime = roundTime
         self.objects = objects
     def cutForPlayer(self, playerId: int) -> "GameState":
-        pass # TODO 9
+        pass # TODO L8
 
     def collapseToDict(self) -> JSONType:
         return {
@@ -755,13 +884,6 @@ class Input:
         self.type = type
     def __str__(self) -> str:
         return f"Input[type={self.type}]"
-
-class Action:
-    def __init__(self, type: str, content: Any):
-        self.type = type
-        self.content = content
-    def __str__(self) -> str:
-        return f"Action[type={self.type}, content={self.content}]"
 
 class Message:
     def __init__(self, head: str, body: Any):

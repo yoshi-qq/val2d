@@ -3,16 +3,6 @@
 *An attempt at recreating all of VALORANT in 2 dimensions*
 
 ## Available Content at the time
-### Miscellaneous
-- [ ] Lobby
-- [ ] Multiplayer
-- [ ] Shooting
-- [ ] Planting
-- [ ] Scoping
-- [ ] Wall Penetration
-- [ ] Sneaking
-- [ ] Jumping
-- [ ] Skins
 ### Game
 #### Game Modes
 - [ ] Range
@@ -33,38 +23,38 @@
 - [ ] Sunset
 - [ ] Abyss
 #### Agents
-- [ ] Brimstone
-- [ ] Viper
-- [ ] Omen
-- [ ] Killjoy
-- [ ] Cypher
-- [ ] Sova
-- [ ] Sage
-- [ ] Phoenix
-- [ ] Jett
-- [ ] Reyna
-- [ ] Raze
-- [ ] Breach
-- [ ] Skye
-- [ ] Yoru
-- [ ] Astra
-- [ ] Kayo
-- [ ] Chamber
-- [ ] Neon
-- [ ] Fade
-- [ ] Harbor
-- [ ] Gekko
-- [ ] Deadlock
-- [ ] Iso
-- [ ] Clove
-- [ ] Vyse
-- [ ] Tejo
-- [ ] Waylay
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Brimstone
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Viper
+- [ ] ![Logo](assets/agents/omen/omen_logo.png) Omen
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Killjoy
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Cypher
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Sova
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Sage
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Phoenix
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Jett
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Reyna
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Raze
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Breach
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Skye
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Yoru
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Astra
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Kayo
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Chamber
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Neon
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Fade
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Harbor
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Gekko
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Deadlock
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Iso
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Clove
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Vyse
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Tejo
+- [ ] ![Logo](assets/menu/agentSelect/agent_logo.png) Waylay
 #### Weapons
 ##### Melee
-- [ ] Melee
+- [ ] ![Logo](assets/weapons/melee/knife.png) Melee
 ##### Sidearms
-- [ ] Classic
+- [ ] ![Logo](assets/weapons/sidearms/classic.png) Classic
 - [ ] Shorty
 - [ ] Frenzy
 - [ ] Ghost
@@ -94,3 +84,14 @@
 - [ ] Choose Join IP and Port
 - [ ] Practice
 - [ ] Shop
+
+### Miscellaneous
+- [ ] Lobby
+- [ ] Multiplayer
+- [ ] Shooting
+- [ ] Planting
+- [ ] Scoping
+- [ ] Wall Penetration
+- [ ] Sneaking
+- [ ] Jumping
+- [ ] Skins
