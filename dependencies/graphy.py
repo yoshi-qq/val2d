@@ -372,7 +372,13 @@ def classes():
         def remove(self):
             global renders
             renders.remove(self)
-            
+        
+        def __str__(self) -> str:
+            if hasattr(self, "strName"):
+                name = self.strName
+            else: name = "-Unknown-"
+            return f"{self.__class__.__name__}({name}), x: {self.x}, y: {self.y}, width: {self.width}, height: {self.height}, angle: {self.angle}, stretch: {self.stretch}, priority: {self.priority + self.priorityOffset}"
+        
     class RenderImage(RenderObject):
         def __init__(self, strName = "image", surface = screen, temporary = False, enabled = True, imageName = None, x: float = 0, xOffset: float = 0, y: float = 0, yOffset: float = 0, width: float = 10, height: float = 10, middle = False, priority: float = 2, angle: float = 0, stretch: float = 1, mapPosition = (None, None), gen = True):
             self.strName = strName
@@ -417,6 +423,7 @@ def classes():
       
     class RenderAnimation(RenderImage):
         def __init__(self, continuous = True, slowdown = 1, rotation = 1, strName = "animation", surface = screen, temporary = False, enabled = True, imageNames: tuple = None, x = 0, xOffset = 0, y = 0, yOffset = 0, width = 10, height = 10, middle = False, priority = 2, angle = 0, stretch = 1, mapPosition = (None, None), gen = True):
+            self.strName = imageNames[0]
             self.rotation = rotation
             self.continuous = continuous
             self.slowdown = slowdown
@@ -443,6 +450,7 @@ def classes():
         
     class RenderButton(RenderImage):
         def __init__(self, imageName: Union[None, str] = None, strName: str = "button", clickAction: Union[Callable[[], None], Callable[[*T], None], Literal[False]] = False, hoverAction: Union[Callable[[], None], Callable[[*T2], None], Literal[False]] = False, unHoverAction: Union[Callable[[], None], Callable[[*T3], None], Literal[False]] = False, arguments: tuple[*T] = (), hoverArguments: tuple[*T2] = (), unHoverArguments: tuple[*T3] = (), surface: pygame.Surface = screen, temporary: bool = False, enabled: bool = True, hoverImageName: Union[Literal[False], str] = False, x: float = 0, xOffset: float = 0, y: float = 0, yOffset: float = 0, width: float = 10, height: float = 10, priority: float = 2, angle: float = 0, stretch: float = 1, middle: bool = False, gen: bool = True):
+            self.strName = imageName
             if isinstance(clickAction, str): # define click action
                 clickAction = eval(clickAction)  
             self.clickAction = clickAction
@@ -489,6 +497,7 @@ def classes():
         
     class RenderText(RenderObject):
         def __init__(self, surface: pygame.surface = screen, enabled = True, x: float = 0, y: float = 0, xOffset: float = 0, yOffset: float = 0, text: str = "example", font: pygame.font = defaultFont, size: float = 30, color: tuple = (0, 0, 0), temporary = False, angle = 0, stretch = 1, middle = False, priority: float = 2, gen: bool = True):
+            self.strName = text
             try:
                 self.font = pygame.font.Font(font, size)
             except:
@@ -514,6 +523,7 @@ def classes():
 
     class RenderTextButton(RenderButton):
         def __init__(self, surface: pygame.surface = screen, drawType = "rect", imageName = None, hoverImageName = None, strName = "textButton", enabled = True, x: float = 0, y: float = 0, width: float = 30, height: float = 10, xOffset: float = 0, yOffset: float = 0, clickAction = False, hoverAction = False, unHoverAction = False, arguments: tuple = (), hoverArguments: tuple = (), unHoverArguments: tuple = (),  text: str = "example", font: pygame.font = defaultFont, size: float = None, borderSize = 5, color: tuple = (0, 0, 0), activeColor: tuple = (100, 100, 100), textColor: tuple = (200, 200, 200), borderColor: tuple = (200, 200, 200), temporary = False, angle = 0, stretch = 1, middle = False, priority: float = 2, gen: bool = True):
+            self.strName = f"{{{imageName}}}{{{text}}}"
             self.borderSize = borderSize
             self.middle = middle
             self.text = text
@@ -569,6 +579,7 @@ def classes():
         
     class RenderInput(RenderObject):
         def __init__(self, surface: pygame.surface = screen, enabled = True, x: float = 0, y: float = 0, xOffset: float = 0, yOffset: float = 0, text: str = "example", font: pygame.font = defaultFont, size: float = 30, borderSize = 5, color: tuple = (0, 0, 0), activeColor = (100, 100, 100), textColor: tuple = (200, 200, 200), borderColor: tuple = (200, 200, 200), temporary = False, angle = 0, stretch = 1, middle = False, priority: float = 2, gen: bool = True):
+            self.strName = text
             self.borderSize = borderSize
             self.middle = middle
             self.text = text
@@ -637,7 +648,7 @@ def classes():
 
 
     class GameObject():
-        def __init__(self, strName = "image", x = 0, y = 0, renderObject = None, enabled = True, angle = 0, priority = 2):
+        def __init__(self, strName = None, x = 0, y = 0, renderObject = None, enabled = True, angle = 0, priority = 2):
             global renders
             self.strName = strName
             self.x = x
@@ -648,7 +659,10 @@ def classes():
             renderObject.x = self.x
             renderObject.y = self.y
             renderObject.angle = self.angle
-            renderObject.strName = self.strName
+            if self.strName:
+                renderObject.strName = self.strName
+            elif renderObject:
+                self.strName = renderObject.strName
             renderObject.priority = self.priority
             renderObject.enabled = self.enabled
             self.renderObject = renderObject
