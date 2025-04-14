@@ -18,7 +18,7 @@ defaultFont = None
 sprites = {}
 keys = set()
 exeKeys = set()
-
+middle: tuple[int, int] = (0, 0)
 
 
 def preload(file, nativeRes: tuple[int, int] = (1920, 1080), scale: float = 1, windowRes: Union[Literal[False], tuple[int, int]] = False):
@@ -26,7 +26,7 @@ def preload(file, nativeRes: tuple[int, int] = (1920, 1080), scale: float = 1, w
     root = os.path.dirname(os.path.abspath(file))
     nativeResolution = nativeRes
     displayResolution = nativeResolution
-    middle: tuple[int, int] = (displayResolution[0]/2, displayResolution[1]/2)
+    middle = (displayResolution[0]/2, displayResolution[1]/2)
     if windowRes == False:
         for monitor in get_monitors():
             if monitor.is_primary:
@@ -346,7 +346,7 @@ def classes():
             self.x = x
             self.y = y
             
-    class RenderObject():
+    class RenderObject:
         def __init__(self, surface = screen, temporary = False, enabled = True, x = 0, xOffset = 0, y = 0, yOffset = 0, width = 10, height = 10, priority = 2, angle = 0, stretch = 1):
             self.enabled = enabled
             self.temporary = temporary

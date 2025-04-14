@@ -29,7 +29,7 @@ class Message:
         self.head = head
         self.body = body
     def __eq__(self, other: object) -> bool:
-        if isinstance(other, "Message"):
+        if isinstance(other, Message):
             return self.head == other.head and self.body == other.body
         else: return False
     def __str__(self) -> str:

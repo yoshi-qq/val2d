@@ -107,7 +107,8 @@ class CommunicationsHandler:
         self.sendRequest = MethodType(sendRequest, self)
         
     def getName(self) -> str:
-        return self.__mainObject.name  
+        if isinstance(self.__mainObject, Client):
+            return self.__mainObject.name  
     
     def getMainObject(self) -> Server | Client:
         return self.__mainObject

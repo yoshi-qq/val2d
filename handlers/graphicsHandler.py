@@ -12,7 +12,7 @@ class GraphicsHandler:
     def draw(self) -> None:
         g.draw()
         
-    def getRendersFromPerspective(self) -> list[g.RenderObject]: # type: ignore
+    def getRendersFromPerspective(self) -> list["g.RenderObject"]: # type: ignore
         pass
     
     def drawGameState(self, clientName: str, gameState: GameState) -> None:
