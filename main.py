@@ -1,6 +1,6 @@
 from typing import Union, Callable
 from dependencies.communications import Request, Event
-from classes.types import MenuKey
+from classes.keys import MenuKey
 from classes.types import Message, Input, AutoMessageTrigger
 from handlers.inputHandler import InputHandler
 from handlers.serverGameHandler import ServerGameHandler
@@ -15,13 +15,13 @@ core.localMessages.append(Message("Initiated", None))
 def inputTick(inputHandler: InputHandler) -> list[Input]:
     return inputHandler.getInputs()
 
-def serverTick(server: ServerGameHandler, currentMenu: MenuKey, messageHandleFunction: Callable) -> None:
+def serverTick(server: Union[None, ServerGameHandler], currentMenu: MenuKey, messageHandleFunction: Callable[[Message], None]) -> None:
     if server is not None:
         server.tick(currentMenu)
         for message in server.getMessages():
             messageHandleFunction(message)
 
-def clientTick(client: ClientGameHandler, messageHandleFunction: Callable, inputs: list[Input]) -> None:
+def clientTick(client: Union[None, ClientGameHandler], messageHandleFunction: Callable[[Message], None], inputs: list[Input]) -> None:
     if client is not None:
         client.tick()
         for input_ in inputs:
@@ -29,24 +29,23 @@ def clientTick(client: ClientGameHandler, messageHandleFunction: Callable, input
                 core.menu.handleInput(input_)
             elif client.inGame():
                 client.handleInput(input_)
-        if client is not None:
-            for message in client.getMessages():
-                core.handleGameMessage(message)
+        for message in client.getMessages():
+            core.handleMessage(message)
 
-def menuTick(menuHandler: MenuHandler, messageHandleFunction: Callable, server: ServerGameHandler, client: ClientGameHandler) -> None:
+def menuTick(menuHandler: MenuHandler, messageHandleFunction: Callable[[Message], None], server: Union[None, ServerGameHandler], client: Union[None, ClientGameHandler]) -> None:
     menu = menuHandler.getMenu()
-    match menu:
-        case MenuKey.HOST_AGENT_SELECT:
-            args = (server.getRemainingSelectTime(),)
-        case MenuKey.AGENT_SELECT:
-            args = (client.getRemainingSelectTime(),)
-        case _:
-            args = ()
-    menuHandler.update(menu ,*args)
+    if menu == MenuKey.HOST_AGENT_SELECT and server is not None:
+        remainingTime = server.getRemainingSelectTime()
+    elif menu == MenuKey.AGENT_SELECT and client is not None:
+        remainingTime = client.getRemainingSelectTime()
+    else:
+        remainingTime = -1
+            
+    menuHandler.update(menu, remainingTime)
     for message in menuHandler.getMessages():
         messageHandleFunction(message)
 
-def communicationTick(communicationHandler: CommunicationHandler, localMessages: list[Message], addMessageFunction: Callable, autoMessageTriggers: list[AutoMessageTrigger], messageHandleFunction: Callable, eventHandleFunction: Callable, requestHandleFunction: Callable) -> None:
+def communicationTick(communicationHandler: CommunicationHandler, localMessages: list[Message], addMessageFunction: Callable[[Message], None], autoMessageTriggers: Union[None, list[AutoMessageTrigger]], messageHandleFunction: Callable[[Message], None], eventHandleFunction: Callable[[Event], None], requestHandleFunction: Callable[[Request], None]) -> None:
     communicationHandler.runCycle()
     extraMessages = localMessages
     allMessages = communicationHandler.getMessages() + extraMessages
@@ -73,7 +72,10 @@ def communicationTick(communicationHandler: CommunicationHandler, localMessages:
     for request in communicationHandler.getRequests():
        requestHandleFunction(request)
 
-def graphicsTick(graphicsHandler: GraphicsHandler) -> None:
+def graphicsTick(graphicsHandler: GraphicsHandler, client: Union[None, ClientGameHandler], clientName: Union[None, str]) -> None:
+    if client is not None and client.inGame() and clientName:
+        if gameState := client.getGameState():
+            graphicsHandler.drawGameState(clientName, gameState)
     core.graphics.draw()
 
 # +++MAIN+++
@@ -96,7 +98,7 @@ def main(autoMessageTriggers: Union[None, list[AutoMessageTrigger]] = None) -> N
         communicationTick(communicationHandler=core.communication, localMessages=core.getLocalMessages(), addMessageFunction=core.addLocalMessage, autoMessageTriggers=autoMessageTriggers, messageHandleFunction=core.handleMessage, eventHandleFunction=core.handleEvent, requestHandleFunction=core.handleRequest)
         
         # Graphics
-        graphicsTick(graphicsHandler=core.graphics)
+        graphicsTick(graphicsHandler=core.graphics, client=core.client, clientName=core.communication.getName())
         
     # TODO 10: Close everything
 

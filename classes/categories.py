@@ -1,3 +1,4 @@
+from typing import Union
 from enum import Enum
 
 class AbilityCategory(Enum):
@@ -6,13 +7,18 @@ class AbilityCategory(Enum):
     SIGNATURE = 2
     ULTIMATE = 3
 
+class MeleeCategory(Enum):
+    MELEE = 0
+
 class GunCategory(Enum):
-    SIDEARM = 2
-    SMG = 3
-    SHOTGUN = 4
-    RIFLE = 5
-    SNIPER_RIFLE = 6
-    MACHINE_GUN = 7
+    SIDEARM = 5
+    SMG = 6
+    SHOTGUN = 7
+    RIFLE = 8
+    SNIPER_RIFLE = 9
+    MACHINE_GUN = 10
+
+HoldableCategory = Union[AbilityCategory, MeleeCategory, GunCategory]
 
 class PenetrationLevel(Enum):
     LOW = 0

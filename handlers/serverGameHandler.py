@@ -1,23 +1,16 @@
 from time import time as now
-from typing import Union
 from threading import Thread
 from config.constants import AGENT_SELECT_TIME
-from classes.types import GameState, Input, Message, Player, AgentKey, MenuKey, Connection
-from classes.types import abilities, agents, effects, melees, sidearms, guns, maps, spriteSets
+from classes.types import GameState, Message, Player, AgentKey, Connection
 from classes.types import MapKey, GameModeKey
-from prebuilts.abilities import init as initAbilities
-from prebuilts.agents import init as initAgents
-from prebuilts.effects import init as initEffects
-from prebuilts.maps import init as initMaps
-from prebuilts.spriteSets import init as initSpriteSets
-from prebuilts.weapons import init as initWeapons
+from classes.keys import MenuKey
 
 class ServerGameHandler:
     def __init__(self) -> None:
         self.__messageQueue: list[Message] = []
         self.__inGame = False
         self.__gameState: GameState = GameState([], -1, 0, (0, 0), MapKey.ASCENT, GameModeKey.UNRATED, -1, [])
-        self.__roundStartTime: int = -1
+        self.__roundStartTime: int = -1 # type: ignore TODO LATER
     def close(self) -> None:
         pass
     def tick(self, menu: MenuKey) -> None:
@@ -39,7 +32,7 @@ class ServerGameHandler:
     
     def startGame(self) -> None:
         for player in self.__gameState.players:
-            if player.getAgent() is None:
+            if player.getAgentKey() is None:
                 player.setAgent(AgentKey.OMEN)
         self.__inGame = True
         self.__gameState.time = 0
@@ -47,16 +40,16 @@ class ServerGameHandler:
         self.startRound()
 
     def startRound(self) -> None:
-        self.__roundStartTime = now()
+        self.__roundStartTime: float = now()
         # TODO NEXT
     
     def isIngame(self) -> bool:
         return self.__inGame
     # Setters
     def setGamemode(self, mode: GameModeKey) -> None:
-        self.__gameState.mode = mode
-    def setMap(self, map: MapKey) -> None:
-        self.__gameState.map = map
+        self.__gameState.gameMode = mode
+    def setMap(self, mapKey: MapKey) -> None:
+        self.__gameState.mapKey = mapKey
     def setAgent(self, playerName: str, agent: AgentKey) -> None:
         for player in self.__gameState.players:
             if player.getName() == playerName:

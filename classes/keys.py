@@ -1,4 +1,5 @@
 import pygame as p
+from typing import Union, Literal
 from enum import Enum
 
 class HandItemKey(Enum):
@@ -32,6 +33,9 @@ class MapKey(Enum):
     LOTUS = 9
     SUNSET = 10
     ABYSS = 11
+
+class BuffKey(Enum):
+    pass
 
 class EffectKey(Enum):
     # 01 Brimstone (1-10)
@@ -258,6 +262,9 @@ class SpriteSetKey(Enum):
     # 28 Waylay (109-112)
     
     # OBJECTS
+
+_S = SpriteSetKey
+AgentSpriteSetKey = Union[Literal[_S.AGENT_ASTRA], Literal[_S.AGENT_BREACH], Literal[_S.AGENT_CHAMBER], Literal[_S.AGENT_GEKKO], Literal[_S.AGENT_HARBOR], Literal[_S.AGENT_ISO], Literal[_S.AGENT_JETT], Literal[_S.AGENT_KAYO], Literal[_S.AGENT_KILLJOY], Literal[_S.AGENT_NEON], Literal[_S.AGENT_OMEN], Literal[_S.AGENT_REYNA], Literal[_S.AGENT_RAZE], Literal[_S.AGENT_SAGE], Literal[_S.AGENT_SKYE], Literal[_S.AGENT_SOVA], Literal[_S.AGENT_VIPER], Literal[_S.AGENT_YORU], Literal[_S.AGENT_DEADLOCK], Literal[_S.AGENT_CLOVE], Literal[_S.AGENT_VYSE], Literal[_S.AGENT_TEJO], Literal[_S.AGENT_WAYLAY]]
 
 class GameModeKey(Enum):
     UNRATED = 0

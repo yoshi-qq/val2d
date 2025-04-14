@@ -1,9 +1,10 @@
 from classes.types import Input
-from classes.keys import KeyInputKey, InputKey
+from classes.keys import InputKey
 from dependencies import graphy as g
 class InputHandler:
     def __init__(self):
         self.__lastKeys: list[int] = []
+        self.__inputQueue: list[Input] = []
     
     # Global
     # Local
@@ -16,7 +17,7 @@ class InputHandler:
     # Getters
     def getInputs(self) -> list[Input]:
         inputs: list[Input] = []
-        heldKeys: list[int] = g.getHeldKeys()
+        heldKeys: list[int] = list(g.getHeldKeys())
         for key in heldKeys:
             inputs.append(self.toInput(key))
         self.__lastKeys = heldKeys

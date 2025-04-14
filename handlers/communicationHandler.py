@@ -1,24 +1,26 @@
-from typing import Union, Callable, Any
+from typing import Union, Callable, Any, Literal
 from config.constants import DATA_SIZE
-from classes.types import Message, AgentKey, Connection, GameState
+from classes.types import Message, Connection
 from dependencies.communications import Request, Event, CommunicationsHandler as Comm, setOnClientJoin, setOnDisconnect
 from handlers.config import CONFIG
 
 # TODO 7: host being a player as well
 
 class CommunicationHandler:
-    def __init__(self, playerCommandList: dict[str, Callable], hostCommandList: dict[str, Callable], debugLevel: int = 0) -> None:
+    def __init__(self, playerCommandList: dict[str, Callable[[], None]], hostCommandList: dict[str, Callable[[], None]], debugLevel: int = 0) -> None:
         self.__messageQueue: list[Message] = []
         self.__eventQueue: list[Event] = []
         self.__requestQueue: list[Request] = []
         self.__ip, self.__port = CONFIG["ip"], CONFIG["port"]
         self.__comm: Union[Comm, None] = None
-        self.__type: Union[str, None] = None
+        self.__type: Union[Literal["player", "host"], None] = None
         self.__playerCommandList = playerCommandList
         self.__hostCommandList = hostCommandList
         self.__debug = debugLevel
     # Global
     def runCycle(self) -> None:
+        if self.__comm is None:
+            return
         if self.__type == "player":
             for event in self.__comm.getEvents():
                 if self.__debug > 3: print(event)
@@ -48,6 +50,9 @@ class CommunicationHandler:
         self.__type = "host"
         self.__addMessage("Hosted", None)
     def disconnect(self) -> None:
+        if self.__comm is None: 
+            print("No Connection to disconnect")
+            return
         match self.__type:
             case "player":
                 self.__comm.quit()
@@ -58,12 +63,15 @@ class CommunicationHandler:
                 self.__comm.quit()
                 self.__type = None
                 self.__addMessage("Disconnected", None)
+            case None:
+                pass
     
     def castEvent(self, head: str, body: Any) -> None:
-        if self.__type == "host":
+        if self.__comm and self.__type == "host":
             self.__comm.castEvent(Event(head, body))
     def sendRequest(self, head: str, body: Any) -> None:
-        self.__comm.sendRequest(Request(head, body))
+        if self.__comm:
+            self.__comm.sendRequest(Request(head, body))
     
     # Local
     def __addMessage(self, head: str, body: Any):
@@ -76,14 +84,17 @@ class CommunicationHandler:
         self.__requestQueue.append(request)
     
     # Setters
-    def setType(self, newType: str) -> None:
+    def setType(self, newType: Union[Literal["player", "host"], None]) -> None:
         self.__type = newType
     # Getters
-    def getComm(self) -> Comm:
+    def getName(self) -> Union[str, None]:
+        if self.__comm:
+            return self.__comm.getName()
+    def getComm(self) -> Union[Comm, None]:
         return self.__comm
-    def getType(self) -> str:
+    def getType(self) -> Union[Literal["player", "host"], None]:
         return self.__type
-    def getIPPort(self) -> tuple[str, int]:
+    def getIPPort(self) -> tuple[str, int]: # type: ignore TODO
         pass
     def getMessages(self) -> list[Message]:
         messages = self.__messageQueue
@@ -91,7 +102,7 @@ class CommunicationHandler:
         return messages
     
     def getConnections(self) -> list[Connection]:
-        return [Connection(client.name) for client in self.__comm.getMainObject().clients]
+        return [Connection(client.name) for client in self.__comm.getMainObject().clients] # type: ignore
 
     def getEvents(self) -> list[Event]:
         events = self.__eventQueue

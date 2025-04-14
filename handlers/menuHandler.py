@@ -1,9 +1,7 @@
-from enum import Enum
-from typing import Any
+from typing import Any, Callable
 from handlers.graphicsHandler import g
-from handlers.clientGameHandler import ClientGameHandler
-from handlers.serverGameHandler import ServerGameHandler
-from classes.types import MenuKey, Input, Message, AgentKey, agents
+from classes.types import Input, Message, agents
+from classes.keys import MenuKey, AgentKey
 from handlers.config import CONFIG
 from dependencies.helpers import distributeObjects
 
@@ -15,14 +13,14 @@ class MenuHandler:
         self.__menu: MenuKey = K.EMPTY
         self.__messageQueue: list[Message] = []
         self.__menus: dict[MenuKey, list[g.RenderObject]] = {}
-        self.__menuUpdaters: dict[MenuKey, callable] = {}
+        self.__menuUpdaters: dict[MenuKey, Callable[[float], None]] = {}
         self.__setupMenus()
     # Global
     def handleInput(self, input: Input) -> None:
         pass
-    def update(self, menu: MenuKey, *args) -> None:
+    def update(self, menu: MenuKey, time: float) -> None:
         if menu in self.__menuUpdaters.keys():
-            self.__menuUpdaters[self.__menu](*args)
+            self.__menuUpdaters[self.__menu](time)
     # Local
     def __addMessage(self, head: str, body: Any) -> None:
         self.__messageQueue.append(Message(head, body))
@@ -34,7 +32,7 @@ class MenuHandler:
         # Play
         playMenu: list[g.RenderObject] = []
         self.__menus[K.PLAY] = playMenu
-        playMenu.append(g.RenderButton(imageName="practice", clickAction=self.__practiceButton, x=g.middle[0]-300, y=g.middle[1]*1.75, width=256, height=32, enabled=False, middle=True))
+        playMenu.append(g.RenderButton(imageName="practice", arguments=(), clickAction=self.__practiceButton, x=g.middle[0]-300, y=g.middle[1]*1.75, width=256, height=32, enabled=False, middle=True))
         playMenu.append(g.RenderButton(imageName="join", clickAction=self.__joinButton, x=g.middle[0]+150, y=g.middle[1]*0.5, width=256, height=32, enabled=False, middle=True))
         playMenu.append(g.RenderButton(imageName="host", clickAction=self.__hostButton, x=g.middle[0]-150, y=g.middle[1]*0.5, width=256, height=32, enabled=False, middle=True))
         
@@ -130,7 +128,7 @@ class MenuHandler:
     # Getters
     def getMenu(self) -> MenuKey:
         return self.__menu
-    def getMessages(self) -> list:
+    def getMessages(self) -> list[Message]:
         messages = self.__messageQueue
         self.__messageQueue = self.__messageQueue[len(messages):]
         return messages

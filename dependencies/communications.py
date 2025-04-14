@@ -106,17 +106,20 @@ class CommunicationsHandler:
         self.resolveEvent = MethodType(resolveEvent, self)
         self.sendRequest = MethodType(sendRequest, self)
         
+    def getName(self) -> str:
+        return self.__mainObject.name  
+    
     def getMainObject(self) -> Server | Client:
         return self.__mainObject
     
     def quit(self: "CommunicationsHandler") -> None:
         self.__mainObject.close()
 
-def setOnClientJoin(func: Callable):
+def setOnClientJoin(func: Callable[[], None]) -> None:
     net.onClientJoin = func
 
-def setOnConnect(func: Callable):
+def setOnConnect(func: Callable[[], None]) -> None:
     net.onConnect = func
 
-def setOnDisconnect(func: Callable):
+def setOnDisconnect(func: Callable[[], None]) -> None:
     net.onDisconnect = func
