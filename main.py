@@ -78,26 +78,26 @@ def graphicsTick(graphicsHandler: GraphicsHandler, client: Union[None, ClientGam
             graphicsHandler.drawGameState(clientName, gameState)
     core.graphics.draw()
 
-# +++MAIN+++
+#* +++MAIN+++
 def main(autoMessageTriggers: Union[None, list[AutoMessageTrigger]] = None) -> None:
     global core
     while core.loop:
-        # Input
+        #* Input
         inputs = inputTick(core.inputs)
         
-        # Server
+        #* Server
         serverTick(server=core.server, currentMenu=core.menu.getMenu(), messageHandleFunction=core.handleMessage)
         
-        # Client
+        #* Client
         clientTick(client=core.client, messageHandleFunction=core.handleMessage, inputs=inputs)
         
-        # Menu
+        #* Menu
         menuTick(menuHandler=core.menu, messageHandleFunction=core.handleMessage, server=core.server, client=core.client)
         
-        # Communication
+        #* Communication
         communicationTick(communicationHandler=core.communication, localMessages=core.getLocalMessages(), addMessageFunction=core.addLocalMessage, autoMessageTriggers=autoMessageTriggers, messageHandleFunction=core.handleMessage, eventHandleFunction=core.handleEvent, requestHandleFunction=core.handleRequest)
         
-        # Graphics
+        #* Graphics
         graphicsTick(graphicsHandler=core.graphics, client=core.client, clientName=core.communication.getName())
         
     # TODO 10: Close everything

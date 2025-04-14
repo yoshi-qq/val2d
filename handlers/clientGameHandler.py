@@ -11,8 +11,13 @@ class ClientGameHandler:
         self.__pingQueue: list[Ping] = []
         self.__lastPingTime: float = now()
     # Global
+    def setGameState(self, gameState: GameState) -> None:
+        self.__gameState = gameState
+        
     def setup(self, gameState: GameState) -> None:
-        pass
+        self.setGameState(gameState)
+        self.__inGame = True
+        
     def tick(self) -> None:
         pass
         # self.__pingTick()

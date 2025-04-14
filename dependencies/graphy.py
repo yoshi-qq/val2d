@@ -380,8 +380,8 @@ def classes():
             return f"{self.__class__.__name__}({name}), x: {self.x}, y: {self.y}, width: {self.width}, height: {self.height}, angle: {self.angle}, stretch: {self.stretch}, priority: {self.priority + self.priorityOffset}"
         
     class RenderImage(RenderObject):
-        def __init__(self, strName = "image", surface = screen, temporary = False, enabled = True, imageName = None, x: float = 0, xOffset: float = 0, y: float = 0, yOffset: float = 0, width: float = 10, height: float = 10, middle = False, priority: float = 2, angle: float = 0, stretch: float = 1, mapPosition = (None, None), gen = True):
-            self.strName = strName
+        def __init__(self, strName = None, surface = screen, temporary = False, enabled = True, imageName = None, x: float = 0, xOffset: float = 0, y: float = 0, yOffset: float = 0, width: float = 10, height: float = 10, middle = False, priority: float = 2, angle: float = 0, stretch: float = 1, mapPosition = (None, None), gen = True):
+            self.strName = strName if strName is not None else imageName
             self.name = imageName
             self.imageName = imageName
             self.xOffset = xOffset

@@ -1,5 +1,5 @@
 from typing import Union, Callable, Any, Literal
-from config.constants import DATA_SIZE
+from config.constants import DATA_SIZE, debug, D
 from classes.types import Message, Connection
 from dependencies.communications import Request, Event, CommunicationsHandler as Comm, setOnClientJoin, setOnDisconnect
 from handlers.config import CONFIG
@@ -7,7 +7,7 @@ from handlers.config import CONFIG
 # TODO 7: host being a player as well
 
 class CommunicationHandler:
-    def __init__(self, playerCommandList: dict[str, Callable[[], None]], hostCommandList: dict[str, Callable[[], None]], debugLevel: int = 0) -> None:
+    def __init__(self, playerCommandList: dict[str, Callable[[], None]], hostCommandList: dict[str, Callable[[], None]]) -> None:
         self.__messageQueue: list[Message] = []
         self.__eventQueue: list[Event] = []
         self.__requestQueue: list[Request] = []
@@ -16,19 +16,18 @@ class CommunicationHandler:
         self.__type: Union[Literal["player", "host"], None] = None
         self.__playerCommandList = playerCommandList
         self.__hostCommandList = hostCommandList
-        self.__debug = debugLevel
     # Global
     def runCycle(self) -> None:
         if self.__comm is None:
             return
         if self.__type == "player":
             for event in self.__comm.getEvents():
-                if self.__debug > 3: print(event)
+                debug(D.LOG_DETAILS, f"Received {event}")
                 self.__addEvent(event)
                 self.__comm.resolveEvent(event.id)
         if self.__type == "host":
             for request in self.__comm.getRequests():
-                if self.__debug > 3: print(request)
+                debug(D.LOG_DETAILS, f"Received {request}")
                 self.__addRequest(request)
                 self.__comm.resolveRequest(request.id)
                 

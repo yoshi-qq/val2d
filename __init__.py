@@ -1,4 +1,5 @@
 import os
+from config.constants import debug, D
 from dependencies.communications import Event, Request
 from typing import Union, Callable
 from classes.types import Message
@@ -18,7 +19,6 @@ from prebuilts.maps import init as initMaps
 from prebuilts.spriteSets import init as initSpriteSets
 from prebuilts.weapons import init as initWeapons
 
-debug = 4
 ROOT = os.path.dirname(__file__)
 # Setup
 def setup() -> None:
@@ -41,7 +41,7 @@ playerCommands: dict[str, Callable[[], None]] = {
     "ForceDisconnect": lambda: localMessages.append(Message("ForceDisconnect", None))
 }
 hostCommands: dict[str, Callable[[], None]] = {}
-communication = CommunicationHandler(playerCommands, hostCommands, debug)
+communication = CommunicationHandler(playerCommands, hostCommands)
 menu.setMenu(MenuKey.PLAY)
 loop = True
 
@@ -58,7 +58,7 @@ def getLocalMessages() -> list[Message]:
 # HANDLING
 def handleMessage(message: Message) -> None:
     global server, client
-    if debug > 1: print(message)
+    debug(D.LOG, f"Handling message: {message.head}", message.body)
     match message.head:
         case "Initiated":
             print("+++Initiated+++")
@@ -101,40 +101,42 @@ def handleMessage(message: Message) -> None:
             communication.castEvent("UpdateRemainingSelectTimeEvent", message.body) # time
         case "ServerGameStart":
             communication.castEvent("GameStartEvent", message.body) # gameState
+        case "CastUpdateGameStateEvent":
+            communication.castEvent("UpdateGameStateEvent", message.body) # gameState
         case _:
-            if debug > 1: print(f"Unhandled message: {message.head}")
-            if debug > 2: print(f"Unhandled message details: {message}")
+            debug(D.WARNING, f"Unhandled message: {message.head}", message.body)
 
 def handleEvent(event: Event) -> None:
     global server, client
-    if debug > 2: print(event)
+    debug(D.LOG, f"Handling event: {event.head}", event.body)
     match event.head:
         case "EndSession":
             if comm := communication.getComm(): 
                 comm.quit()
             communication.setType(None)
             menu.setMenu(MenuKey.PLAY)
-            if debug >= 0:
-                print("Connection lost")
+            debug(D.ERROR, "Connection lost")
         case "StartAgentSelectionEvent":
             menu.setMenu(MenuKey.AGENT_SELECT)
         case "UpdateRemainingSelectTimeEvent":
             if client:
                 client.setRemainingSelectTime(event.body)
         case "GameStartEvent":
-            pass
-            # TODO: event.body
+            menu.setMenu(MenuKey.IN_GAME_PLAYER)
+            if client:
+                client.setup(event.body)
+        case "UpdateGameStateEvent":
+            if client:
+                client.setGameState(event.body)
         case _:
-            if debug > 1: print(f"Unhandled event: {event.head}")
-            if debug > 2: print(f"Unhandled event details: {event}")
-    
+            debug(D.WARNING, f"Unhandled event: {event.head}", event.body)
+
 def handleRequest(request: Request) -> None:
     global server, client
-    if debug > 2: print(request)
+    debug(D.LOG, f"Handling request: {request.head}", request.body)
     match request.head:
         case "SelectAgentRequest":
             if server and not server.isIngame():
                 server.setAgent(request.signature, request.body)
         case _:
-            if debug > 1: print(f"Unhandled request: {request.head}")
-            if debug > 2: print(f"Unhandled request details: {request}")
+            debug(D.WARNING, f"Unhandled request: {request.head}", request)

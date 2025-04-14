@@ -16,7 +16,9 @@ class ServerGameHandler:
     def tick(self, menu: MenuKey) -> None:
         if menu == MenuKey.HOST_AGENT_SELECT:
             self.__messageQueue.append(Message("UpdateRemainingSelectTime", self.getRemainingSelectTime()))
-    
+        if menu == MenuKey.IN_GAME_HOST:
+            self.__messageQueue.append(Message("CastUpdateGameStateEvent", self.__gameState))
+            
     def start(self, connections: list[Connection]) -> None:
         self.__messageQueue.append(Message("StartAgentSelectionEvent", None))
         for connection in connections:

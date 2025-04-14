@@ -2,6 +2,7 @@ import pygame as p
 from typing import Union, Literal
 from enum import Enum
 
+
 class HandItemKey(Enum):
     MELEE = 0
     SIDEARM = 1
@@ -10,6 +11,8 @@ class HandItemKey(Enum):
     TACTICAL = 4
     SIGNATURE = 5
     ULTIMATE = 6
+    
+AbilitySlotKey = Literal[HandItemKey.BASIC, HandItemKey.TACTICAL, HandItemKey.SIGNATURE, HandItemKey.ULTIMATE]
 
 class MenuKey(Enum):
     EMPTY = "empty"
