@@ -18,12 +18,21 @@
         "env": {
           "ID": "1"
         }
+      },
+      {
+        "name": "Player 2",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/testPlayer.py",
+        "env": {
+          "ID": "2"
+        }
       }
     ],
     "compounds": [
       {
         "name": "Multiplayer Test",
-        "configurations": ["Server", "Player 1"],
+        "configurations": ["Server", "Player 1", "Player 2"],
         "stopAll": true
       }
     ]

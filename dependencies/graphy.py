@@ -19,7 +19,8 @@ sprites = {}
 keys = set()
 exeKeys = set()
 middle: tuple[int, int] = (0, 0)
-
+displayResolution: tuple[int, int] = (0, 0)
+natY: bool = False
 
 def preload(file, nativeRes: tuple[int, int] = (1920, 1080), scale: float = 1, windowRes: Union[Literal[False], tuple[int, int]] = False):
     global root, displayResolution, nativeResolution, middle, rx, ry, xMultiplier, yMultiplier
@@ -69,11 +70,12 @@ def paperclipInit():
             CloseClipboard()
         return text
 
-def init(file: Union[None, str] = None, fps: int = 30, fontPath: str = "Arial", fullscreen: bool = False, singleSizeOn: bool = False, windowName: str = "GRAPHY!", spriteFolder: str = "assets", spriteExtension: str = ".png", scale: float = 1, nativeRes: tuple[int, int] = (1920, 1080), windowIcon: str = "icon", windowRes: Union[bool, tuple[int, int]] = False):
-    global sprites, screen, realScreen, renders, clock, nativeResolution, singleSize, running, defaultFont, FPS
+def init(file: Union[None, str] = None, fps: int = 30, fontPath: str = "Arial", fullscreen: bool = False, naturalY: bool = False, singleSizeOn: bool = False, windowName: str = "GRAPHY!", spriteFolder: str = "assets", spriteExtension: str = ".png", scale: float = 1, nativeRes: tuple[int, int] = (1920, 1080), windowIcon: str = "icon", windowRes: Union[bool, tuple[int, int]] = False):
+    global natY, sprites, screen, realScreen, renders, clock, nativeResolution, singleSize, running, defaultFont, FPS
     if file is None:
         file = __file__
     FPS = fps
+    natY = naturalY
     nativeResolution = nativeRes
     singleSize = singleSizeOn
     defaultFont = fontPath
@@ -217,10 +219,10 @@ def draw():
                 elif activeInput is not None and event.unicode and event.key not in (pygame.K_BACKSPACE, pygame.K_SPACE, pygame.K_RETURN):
                     activeInput.text += event.unicode
                     activeInput.update()
-                else:
-                    keys.add(event.key)
-                    threading.Thread(target = pressDelay, args = (event.key, 0.25)).start()
-                    keyPress(event.key)
+            else:
+                keys.add(event.key)
+                threading.Thread(target = pressDelay, args = (event.key, 0.25)).start()
+                keyPress(event.key)
         elif event.type == pygame.KEYUP:
             keys.discard(event.key)
             try:
@@ -351,7 +353,10 @@ def classes():
             self.enabled = enabled
             self.temporary = temporary
             self.x = x
-            self.y = y
+            if natY:
+                self.y = 2*middle[1] - y
+            else:
+                self.y = y
             self.xOffset = xOffset
             self.yOffset = yOffset
             self.width = width

@@ -1,5 +1,6 @@
 # Version: 1.2
 import dependencies.networking as net
+from time import time as now
 from dependencies.networking import * 
 from typing import Union, Any, Callable
 from threading import Lock
@@ -13,6 +14,7 @@ class Request:
         self.head = head
         self.body = body
         self.id: Union[int, None] = None
+        self.sentTime = now()
     def __eq__(self, other: "Request") -> bool:
         return self.head == other.head and self.body == other.body
     def __str__(self) -> str:
@@ -23,6 +25,7 @@ class Event:
         self.head = head
         self.body = body
         self.id: Union[int, None] = None
+        self.sentTime: float = now()
     def __eq__(self, other: "Request") -> bool:
         return self.head == other.head and self.body == other.body
     def __str__(self) -> str:

@@ -1,4 +1,5 @@
-from classes.types import EffectKey, AbilityKey, Ability, SpriteSetKey, AbilityCategory as Cat, abilities as abilities_
+from classes.types import EffectKey, AbilityKey, Ability, SpriteSetKey, abilities as abilities_
+from classes.categories import AbilityCategory as Cat
 
 k = AbilityKey
 abilities: dict[AbilityKey, Ability] = {

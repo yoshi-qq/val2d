@@ -58,10 +58,13 @@ def getLocalMessages() -> list[Message]:
 # HANDLING
 def handleMessage(message: Message) -> None:
     global server, client
-    debug(D.LOG, f"Handling message: {message.head}", message.body)
+    if message.head not in ("CastUpdateGameStateEvent", "sendInputRequests", "UpdateRemainingSelectTime"):
+        debug(D.LOG, f"Handling Message 🛠️: {message.head}", message.body)
+    else:
+        debug(D.TRACE, f"Handling Message 🔄🛠️: {message.head}", message.body)
     match message.head:
         case "Initiated":
-            print("+++Initiated+++")
+            debug(D.LOG ,"+++Initiated+++")
         case "Connected":
             menu.setMenu(MenuKey.PLAYER_LOBBY)
         case "Hosted":
@@ -103,12 +106,18 @@ def handleMessage(message: Message) -> None:
             communication.castEvent("GameStartEvent", message.body) # gameState
         case "CastUpdateGameStateEvent":
             communication.castEvent("UpdateGameStateEvent", message.body) # gameState
+        case "sendInputRequests":
+            for request in message.body:
+                communication.sendRequest(request.head, request.body) # request details
         case _:
-            debug(D.WARNING, f"Unhandled message: {message.head}", message.body)
+            debug(D.WARNING, f"Unhandled message 🛠️: {message.head}", message.body)
 
 def handleEvent(event: Event) -> None:
     global server, client
-    debug(D.LOG, f"Handling event: {event.head}", event.body)
+    if event.head not in ("UpdateGameStateEvent", "Ping", "UpdateRemainingSelectTimeEvent"):
+        debug(D.LOG, f"Handling Event 📅: {event.head}", event.body)
+    else:
+        debug(D.TRACE, f"Handling Event 🔄📅: {event.head}", event.body)
     match event.head:
         case "EndSession":
             if comm := communication.getComm(): 
@@ -123,20 +132,27 @@ def handleEvent(event: Event) -> None:
                 client.setRemainingSelectTime(event.body)
         case "GameStartEvent":
             menu.setMenu(MenuKey.IN_GAME_PLAYER)
+            menu.disable()
             if client:
                 client.setup(event.body)
         case "UpdateGameStateEvent":
             if client:
-                client.setGameState(event.body)
+                client.setGameState(event.body, event.sentTime)
         case _:
-            debug(D.WARNING, f"Unhandled event: {event.head}", event.body)
+            debug(D.WARNING, f"Unhandled event 📅: {event.head}", event.body)
 
 def handleRequest(request: Request) -> None:
     global server, client
-    debug(D.LOG, f"Handling request: {request.head}", request.body)
+    if request.head not in ("Ping", "MovementRequest"):
+        debug(D.LOG, f"Handling Request 📡: {request.head}", request.body)
+    else:
+        debug(D.TRACE, f"Handling Request 🔄📡: {request.head}", request.body)
     match request.head:
         case "SelectAgentRequest":
             if server and not server.isIngame():
                 server.setAgent(request.signature, request.body)
+        case "MovementRequest":
+            if server:
+                server.tryMovement(request.signature, request.body)
         case _:
-            debug(D.WARNING, f"Unhandled request: {request.head}", request)
+            debug(D.WARNING, f"Unhandled request 📡: {request.head}", request)

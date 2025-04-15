@@ -1,6 +1,6 @@
 from enum import Enum
 # GENERAL
-VERSION = (0,8,3)
+VERSION = (0,9,0)
 STABLE = True
 VERSION_STRING = f"{VERSION[0]}.{VERSION[1]}.{VERSION[2]}"
 
@@ -19,6 +19,8 @@ class D(Enum):
     TRACE = 10
     TRACE_DETAILS = 11
     
+DEBUG_LEVEL: D = D.LOG
+
 DEBUG_SYMBOLS = {
     D.CRITICAL_ERROR: "🔥",
     D.CRITICAL_ERROR_DETAILS: "📋",
@@ -34,8 +36,6 @@ DEBUG_SYMBOLS = {
     D.TRACE_DETAILS: "📋"
 }
 
-DEBUG_LEVEL: D = D.LOG
-
 def debug(minimumLevel: D, message: object, details: object = None) -> None:
     symbol = DEBUG_SYMBOLS.get(minimumLevel, "❓")
     if details is not None and DEBUG_LEVEL.value >= minimumLevel.value + 1:
@@ -45,15 +45,17 @@ def debug(minimumLevel: D, message: object, details: object = None) -> None:
          print(f"{symbol} |{str(message)}")
 
 # GRAPHICS
+RESOLUTION = (1920, 1080)
 FONT = "font/fixed_sys.ttf"
-AGENT_SPRITE_DIMENSIONS = (16, 32)
-ZOOM_IN = 3
+AGENT_SPRITE_DIMENSIONS = (1, 2)
+ZOOM_IN = RESOLUTION[0] / 30
 
 # COMMUNICATION
 DATA_SIZE = 8192
 DEFAULT_IP = "localhost"
 DEFAULT_PORT = 9009
 PING_INTERVAL = 1
+SERVER_NAME = "SERVER"
 
 # TESTING
 TESTING_WINDOW_POSITIONS = [
@@ -63,12 +65,25 @@ TESTING_WINDOW_POSITIONS = [
     (960, 540)
 ]
 
-# SERVER GAMEPLAY
+# SERVER 
+TICK_RATE = 1/20
+
+# GAMEPLAY
 AGENT_SELECT_TIME = 30
 BUY_PHASE_TIME = 20
 
 # GAME CONSTANTS
 PLAYER_HEIGHT = 2
+DEFAULT_DECELERATION = 50 # TODO: find value
+# DEFAULT_JERK = 426.7
+# DEFAULT_MAX_ACCELERATION = 42.7 # TODO: ?make this dynamic
+DEFAULT_ACCELERATION = 32
+DEFAULT_KNIFE_SPEED = 6.75
+DEFAULT_SPEED = 5.4
+DEFAULT_ABILITY_SPEED = DEFAULT_SPEED
+WALK_SPEED_MOD = 0.7 # TODO: find value
+CROUCH_SPEED_MOD = 0.7 # TODO: find value
+AIRBORNE_SPEED_MOD = 0.7 # TODO: find value
 MAP_SKY = 10 # 20
 ABYSS_HEIGHT = -64
 

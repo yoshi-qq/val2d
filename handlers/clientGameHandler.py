@@ -1,9 +1,15 @@
 from time import time as now
-from config.constants import AGENT_SELECT_TIME, PING_INTERVAL
+from math import atan2, degrees
+from dependencies.communications import Request
+from config.constants import AGENT_SELECT_TIME, PING_INTERVAL, debug, D, DEFAULT_ACCELERATION
 from typing import Union, Any
-from classes.types import Message, GameState, Input, Ping
+from classes.types import Message, Input, Ping, Angle
+from classes.keys import InputKey
+from classes.gameTypes import GameState
+from prebuilts.base import getForwardPosition, getZeroPosition
 class ClientGameHandler:
     def __init__(self) -> None:
+        self.__accelerationDirection: Angle | None = None
         self.__remainingSelectTime = AGENT_SELECT_TIME
         self.__messageQueue: list[Message] = []
         self.__inGame = False
@@ -11,20 +17,68 @@ class ClientGameHandler:
         self.__pingQueue: list[Ping] = []
         self.__lastPingTime: float = now()
     # Global
-    def setGameState(self, gameState: GameState) -> None:
+    def setGameState(self, gameState: GameState, tickTime: float) -> None:
         self.__gameState = gameState
         
     def setup(self, gameState: GameState) -> None:
-        self.setGameState(gameState)
+        self.setGameState(gameState, now())
         self.__inGame = True
         
     def tick(self) -> None:
         pass
         # self.__pingTick()
-            
-    def handleInput(self, input: Input) -> None:
-        pass # TODO
     
+    def __doMovement(self, playerName: str, accelerationDirection: Angle | None) -> None:
+        if (not self.__inGame) or self.__gameState is None:
+            debug(D.WARNING, f"Local Player {playerName} tried to move while not in game")
+            return
+        if not (player := self.__gameState.getPlayer(playerName)):
+            debug(D.WARNING, f"Local Couldnt move Player {playerName}", f"Player {playerName} not found in game")
+            return
+        if not player.getStatus().isAlive():
+            debug(D.LOG, f"Local Player {playerName} tried to move while dead")
+            return
+        if accelerationDirection is None:
+            player.setAcceleration(getZeroPosition())
+            return
+        newAcceleration = getForwardPosition().rotate(accelerationDirection)*DEFAULT_ACCELERATION
+        player.setAcceleration(newAcceleration)
+    
+    def __tickMovement(self, passedTime: float) -> None:
+        if self.__gameState is None:
+            debug(D.WARNING, "Local GameState is None")
+            return
+        for player in self.__gameState.players:
+            if player.getStatus().isAlive():
+                player.tickMovement(passedTime)
+    
+    def selfUpdate(self, tickTime: float, name: str) -> None:
+        self.__doMovement(name, self.__accelerationDirection)
+        self.__tickMovement(tickTime)
+    
+    def handleInputs(self, inputs: list[Input]) -> None:
+        accelerationVector: tuple[int, int] = (0, 0)
+        serverRequests: list[Request] = []
+        for input in inputs:
+            match input.type:
+                case InputKey.UP:
+                    accelerationVector = (accelerationVector[0], accelerationVector[1]+1)
+                case InputKey.DOWN:
+                    accelerationVector = (accelerationVector[0], accelerationVector[1]-1)
+                case InputKey.RIGHT:
+                    accelerationVector = (accelerationVector[0]+1, accelerationVector[1])
+                case InputKey.LEFT:
+                    accelerationVector = (accelerationVector[0]-1, accelerationVector[1])
+                case _:
+                    if input.held:
+                        debug(D.TRACE, f"Unhandled held Input 🎮: {input}")
+                    else:
+                        debug(D.WARNING, f"Unhandled Input 🎮: {input}")
+        
+        self.__accelerationDirection: Angle | None = Angle(degrees(atan2(accelerationVector[0], accelerationVector[1]))) if accelerationVector != (0, 0) else None
+        serverRequests.append(Request("MovementRequest", self.__accelerationDirection))
+        self.__sendMessage("sendInputRequests", serverRequests) 
+        
     # Local
     def __sendMessage(self, head: str, body: Any) -> None:
         self.__messageQueue.append(Message(head, body))

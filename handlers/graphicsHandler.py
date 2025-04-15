@@ -1,10 +1,15 @@
 import os
-from math import sqrt, sin, cos, atan2
+from math import sqrt, sin, cos, atan2, radians
 from typing import Optional
 from copy import copy
-from config.constants import debug, D, PLAYER_HEIGHT, AGENT_SPRITE_DIMENSIONS, ZOOM_IN
+from config.constants import debug, D, PLAYER_HEIGHT, AGENT_SPRITE_DIMENSIONS, ZOOM_IN, SERVER_NAME, RESOLUTION
 from classes.keys import MapKey, HandItemKey
-from classes.types import Position, Angle, Pose, Player, Object, GameState, Status, Holdable, Agent
+from classes.types import Position, Angle, Pose
+from classes.playerTypes import Player, Status
+from classes.mapTypes import Object
+from classes.gameTypes import GameState
+from classes.agentTypes import Agent
+from classes.finalTypes import Holdable
 from prebuilts.agents import agents
 from prebuilts.weapons import melees, sidearms, guns
 from prebuilts.abilities import abilities
@@ -15,7 +20,7 @@ class GraphicsHandler:
         self.__perspective: Optional[Pose] = None
         self.__gameObjects: list[g.RenderObject] = []
         self.__menuObjects: list[g.RenderObject] = []
-        g.init(file=__file__, fps=60, fontPath="font/fixed_sys.ttf", fullscreen=False, windowName="Val2D", spriteFolder=ASSETS_FOLDER, spriteExtension="png", windowIcon="logo", windowRes=(960, 540))
+        g.init(file=__file__, fps=60, fontPath="font/fixed_sys.ttf", naturalY=True, fullscreen=False, windowName="Val2D", spriteFolder=ASSETS_FOLDER, spriteExtension="png", windowIcon="logo", windowRes=(960, 540), nativeRes = RESOLUTION)
         self.__gameObjectRenders: list[g.RenderObject] = []
     # Global
     def draw(self) -> None:
@@ -28,9 +33,9 @@ class GraphicsHandler:
         angle = perspective.getOrientation().getAngle()
         objAngle = objectPose.getOrientation().getAngle()
         newAngle = objAngle - angle
-        newX = sqrt(X**2 + Z**2) * cos(angle + atan2(Z, X))
+        newX = sqrt(X**2 + Z**2) * cos(radians(angle) + atan2(Z, X))
         newY = objY
-        newZ = sqrt(X**2 + Z**2) * sin(angle + atan2(Z, X))
+        newZ = sqrt(X**2 + Z**2) * sin(radians(angle) + atan2(Z, X))
         
         pose = Pose(Position(newX, newY, newZ), Angle(newAngle))
         size = (ownY - Y + PLAYER_HEIGHT) / PLAYER_HEIGHT * ZOOM_IN 
@@ -49,7 +54,7 @@ class GraphicsHandler:
                 assetName = agent.getSpriteSet().land
             elif status.isCrouched():
                 assetName = agent.getSpriteSet().crouch
-            elif status.isWalking():
+            elif status.isHorizontallyMoving():
                 assetName = agent.getSpriteSet().walk
             else:
                 assetName = agent.getSpriteSet().idle
@@ -129,12 +134,15 @@ class GraphicsHandler:
     # * GameState Rendering
     def __createRendersFromPerspective(self, name: str, gameState: GameState) -> list["g.RenderObject"] | None:
         localGameState = copy(gameState)
-        for player in localGameState.players:
-            if player.getName() == name:
-                self.__perspective = player.getPose()
-        if self.__perspective is None:
-            debug(D.ERROR, "Coudn't draw gameState", "Perspective is None")
-            return
+        if name == SERVER_NAME:
+            self.__perspective = Pose(Position(0, 0, 0), Angle(0))
+        else:
+            for player in localGameState.players:
+                if player.getName() == name:
+                    self.__perspective = player.getPose()
+            if self.__perspective is None:
+                debug(D.ERROR, "Coudn't draw gameState", "Perspective is None")
+                return
         renders: list["g.RenderObject"] = []
         # renders += self.__createMapRenders(self.__perspective, localGameState.mapKey)
         # renders += self.__createObjectRenders(self.__perspective, localGameState.objects)
@@ -143,8 +151,7 @@ class GraphicsHandler:
     
     def drawGameState(self, clientName: str, gameState: GameState) -> None:
         renders: list["g.RenderObject"] | None = self.__createRendersFromPerspective(clientName, gameState)
-        debug(D.LOG, renders)
-        debug(D.DEBUG, "Rendering GameState", f"Renders: {renders}")
+        debug(D.TRACE, "Rendering GameState", f"Renders: {renders}")
     # Local
     # Setters
     

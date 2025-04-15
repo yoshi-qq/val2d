@@ -206,7 +206,7 @@ class Client(): # Client-Klasse
         if self.debug > 1:
             print(message);
         return message;
-        
+
     def send(self, message): # Versand von Nachrichten
         self.client_socket.sendall(encode(message, self.encoding));
     

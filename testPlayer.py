@@ -17,7 +17,7 @@ AMA = AutoMessageTrigger
 qAMA: Callable[[str, str], AutoMessageTrigger] = lambda m, a: AutoMessageTrigger(M(m, None), M(a, None))
 
 # Automation
-playerAutoMessageTriggersLists: list[list[AutoMessageTrigger]] = [
+playerAutoMessageTriggersLists: list[list[AutoMessageTrigger]] = 4*[
     [
         AMA(M("Initiated", None), M("Join", (DEFAULT_IP, DEFAULT_PORT))),
         AMA(E("StartAgentSelectionEvent", None), M("SelectAgent", AgentKey.OMEN))

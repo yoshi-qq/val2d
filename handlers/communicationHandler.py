@@ -1,5 +1,5 @@
 from typing import Union, Callable, Any, Literal
-from config.constants import DATA_SIZE, debug, D
+from config.constants import DATA_SIZE
 from classes.types import Message, Connection
 from dependencies.communications import Request, Event, CommunicationsHandler as Comm, setOnClientJoin, setOnDisconnect
 from handlers.config import CONFIG
@@ -17,19 +17,29 @@ class CommunicationHandler:
         self.__playerCommandList = playerCommandList
         self.__hostCommandList = hostCommandList
     # Global
-    def runCycle(self) -> None:
+    def runCycle(self, inGame: bool) -> bool:
         if self.__comm is None:
-            return
+            return True
         if self.__type == "player":
+            updated = False
             for event in self.__comm.getEvents():
-                debug(D.LOG_DETAILS, f"Received {event}")
+                if event.head == "UpdateGameStateEvent": updated = True
                 self.__addEvent(event)
                 self.__comm.resolveEvent(event.id)
+            if inGame:
+                return updated
+            # while not updated:
+            #     for event in self.__comm.getEvents():
+            #         if event.head == "UpdateGameStateEvent": updated = True # TODO: also do this if the game ends
+            #         self.__addEvent(event)
+            #         self.__comm.resolveEvent(event.id)
+
         if self.__type == "host":
             for request in self.__comm.getRequests():
-                debug(D.LOG_DETAILS, f"Received {request}")
+                # debug(D.TRACE_DETAILS, f"Received {request}")
                 self.__addRequest(request)
                 self.__comm.resolveRequest(request.id)
+        return True
                 
     def connectToGame(self, ip: str, port: int) -> None:
         if self.__type is not None:
@@ -104,6 +114,18 @@ class CommunicationHandler:
         return [Connection(client.name) for client in self.__comm.getMainObject().clients] # type: ignore
 
     def getEvents(self) -> list[Event]:
+        newestTime = 0
+        for event in self.__eventQueue:
+            if event.head == "UpdateGameStateEvent":
+                if event.sentTime > newestTime:
+                    newestTime = event.sentTime
+                elif event.sentTime < newestTime:
+                    self.__eventQueue.remove(event)
+        for event in self.__eventQueue:
+            if event.head == "UpdateGameStateEvent":
+                if event.sentTime < newestTime:
+                    self.__eventQueue.remove(event)
+        
         events = self.__eventQueue
         self.__eventQueue = self.__eventQueue[len(events):]
         return events

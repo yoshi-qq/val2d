@@ -32,3 +32,5 @@ DEFAULT_KEY_BINDS: dict[KeyInputKey, InputKey] = {
     K.TAB: I.SCOREBOARD,
     K.RETURN: I.CHAT,
 }
+
+keybinds = DEFAULT_KEY_BINDS

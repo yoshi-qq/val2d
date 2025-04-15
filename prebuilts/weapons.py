@@ -1,4 +1,6 @@
-from classes.types import GunKey, SidearmKey, MeleeKey, Gun, Melee, SpriteSetKey, EffectKey, GunCategory, PenetrationLevel, DamageValues, Scope, melees as melees_, sidearms as sidearms_, guns as guns_
+from classes.types import GunKey, SidearmKey, MeleeKey, Gun, Melee, SpriteSetKey, EffectKey, melees as melees_, sidearms as sidearms_, guns as guns_
+from classes.categories import GunCategory, PenetrationLevel
+from classes.inventoryTypes import DamageValues, Scope
 
 m = MeleeKey
 s = SidearmKey
