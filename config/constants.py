@@ -1,6 +1,6 @@
 from enum import Enum
 # GENERAL
-VERSION = (0,8,2)
+VERSION = (0,8,3)
 STABLE = True
 VERSION_STRING = f"{VERSION[0]}.{VERSION[1]}.{VERSION[2]}"
 
@@ -17,14 +17,32 @@ class D(Enum):
     DEBUG = 8
     DEBUG_DETAILS = 9
     TRACE = 10
+    TRACE_DETAILS = 11
     
+DEBUG_SYMBOLS = {
+    D.CRITICAL_ERROR: "🔥",
+    D.CRITICAL_ERROR_DETAILS: "📋",
+    D.ERROR: "❌",
+    D.ERROR_DETAILS: "📋",
+    D.WARNING: "⚠️",
+    D.WARNING_DETAILS: "📋",
+    D.LOG: "📘",
+    D.LOG_DETAILS: "📋",
+    D.DEBUG: "🐞",
+    D.DEBUG_DETAILS: "📋",
+    D.TRACE: "🔍",
+    D.TRACE_DETAILS: "📋"
+}
+
 DEBUG_LEVEL: D = D.LOG
 
 def debug(minimumLevel: D, message: object, details: object = None) -> None:
+    symbol = DEBUG_SYMBOLS.get(minimumLevel, "❓")
     if details is not None and DEBUG_LEVEL.value >= minimumLevel.value + 1:
-        print(f"{str(message)} - {str(details)}")
+        detailsSymbol = DEBUG_SYMBOLS.get(D(minimumLevel.value + 1), "📋")
+        print(f"{symbol} |{str(message)} - {detailsSymbol}|{str(details)}")
     elif DEBUG_LEVEL.value >= minimumLevel.value:
-        print(str(message))
+         print(f"{symbol} |{str(message)}")
 
 # GRAPHICS
 FONT = "font/fixed_sys.ttf"

@@ -14,9 +14,14 @@ maps: dict[MapKey, "Map"] = {}
 spriteSets: dict[SpriteSetKey, "SpriteSet"] = {}
 
 # BASE
+class Printable:
+    def __str__(self):
+        attrs = ", ".join(f"{k}={v}" for k, v in self.__dict__.items())
+        return f"{self.__class__.__name__}[{attrs}]"
+
 class NullType:
     def __repr__(self):
-        return "null"
+        return "nullType"
     def __bool__(self):
         return False
 
@@ -49,16 +54,26 @@ class Ping:
 
 # DEBUGGING
 class AutoMessageTrigger:
-    def __init__(self, trigger: Message | Event | Request, responseMessage: Message) -> None:
+    def __init__(self, trigger: Message | Event | Request, responseMessage: Message, amountRequired: int = 1) -> None:
         self.trigger = trigger
         self.responseMessage = responseMessage
+        self.amountRequired = amountRequired
+        self.counter = {"value": 0}
+    def incrCheck(self) -> bool:
+        self.counter["value"] += 1
+        if self.counter["value"] >= self.amountRequired:
+            self.counter["value"] = 0
+            return True
+        return False
+    def __str__(self) -> str:
+        return f"AutoMessageTrigger[trigger={self.trigger}, response={self.responseMessage}, amountRequired={self.amountRequired}, counter={self.counter['value']}]"
 
 # GRAPHICS
-class SpriteSet:
+class SpriteSet(Printable):
     def __init__(self, name: str) -> None:
         self.name = name
 
-class AgentSpriteSet(SpriteSet):
+class AgentSpriteSet(SpriteSet, Printable):
     def __init__(self, name: str, logo: str, idle: str, walk: str, crouch: str, jump: str, fall: str, land: str, dead: str, reload: str, holdMelee: str, holdSidearm: str, holdPrimary: str, holdBasic: Union[None, str], holdTactical: Union[None, str], holdSignature: Union[None, str], holdUltimate: Union[None, str], castBasic: Union[None, str], castTactical: Union[None, str], castSignature: Union[None, str], castUltimate: Union[None, str]) -> None:
         super().__init__(name)
         self.logo = logo
@@ -83,7 +98,7 @@ class AgentSpriteSet(SpriteSet):
         self.castUltimate = castUltimate #
 
 # EFFECTS
-class Effect:
+class Effect(Printable):
     def __init__(self, effectFunc: Callable[[], None]) -> None:
         self.__effectFunc = effectFunc
     def activate(self) -> None:
@@ -162,7 +177,7 @@ class Pose:
             "orientation": self.getOrientation().getAngle()
         }
 
-class Vitals:
+class Vitals(Printable):
     def __init__(self, hp: int = 100, overheal: int= 0, shield: int = 0, regenShield: int = 0, specialBar: int = 100) -> None:
         self.__hp = hp
         self.__overheal = overheal
@@ -201,7 +216,7 @@ class Vitals:
             "specialBar": self.__specialBar
         }
 
-class Buff:
+class Buff(Printable):
     def __init__(self, name: str, effectKey: EffectKey) -> None:
         self.__name = name
         self.__effectKey = effectKey
@@ -216,7 +231,7 @@ class Buff:
             "effectKey": self.__effectKey
         }
 
-class Status:
+class Status(Printable):
     def __init__(self, alive: bool = True, grounded: bool = True, velocity: Position = Position(), crouched: bool = False, team: int = 0, handItem: HandItemKey = HandItemKey.SIDEARM, basicCharges: int = 0, tacticalCharges: int = 0, signatureCharges: int = 1,  ultimateCharges: int = 0, ultimatePoints: int = 0, signatureCooldown: float = 45, signatureKills: int = 0) -> None:
         # Ability
         self.__alive = alive
@@ -281,7 +296,7 @@ class Status:
             "buffs": [(buffKey, duration) for buffKey, duration in self.__buffs]
         }
 
-class Stats:
+class Stats(Printable):
     def __init__(self, kills: int = 0, deaths: int = 0, assists: int = 0) -> None:
         self.__kills = kills
         self.__deaths = deaths
@@ -294,7 +309,7 @@ class Stats:
             "assists": self.__assists
         }
 
-class DamageValues:
+class DamageValues(Printable):
     def __init__(self, values1: tuple[int, int, int], range1: int, values2: Union[None, tuple[int, int, int]] = None, range2: Union[None, int] = None, values3: Union[None, tuple[int, int, int]] = None, range3: Union[None, int] = None):
         self.__damageValues1 = values1
         self.__range1 = range1
@@ -323,13 +338,13 @@ class DamageValues:
         }
 
 # INVENTORY
-class Holdable:
+class Holdable(Printable):
     def __init__(self, category: HoldableCategory) -> None:
         self._category = category
     def getCategory(self) -> HoldableCategory:
         return self._category
 
-class Scope:
+class Scope(Printable):
     def __init__(self, zoom: float, fireRateMultiplier: float, moveSpeedMultiplier: float, accuracy: float = 1.2) -> None:
         self.__zoom = zoom
         self.__fireRateMultiplier = fireRateMultiplier
@@ -352,7 +367,7 @@ class Scope:
             "accuracy": self.__accuracy
         }
 
-class Melee(Holdable):
+class Melee(Holdable, Printable):
     def __init__(self, name: str, sprites: SpriteSetKey) -> None:
         self.__name = name
         super().__init__(category=MeleeCategory.MELEE)
@@ -366,7 +381,7 @@ class Melee(Holdable):
             "altDamage": self.__altDamage.collapseToDict()
         }
 
-class Gun(Holdable):
+class Gun(Holdable, Printable):
     def __init__(self, name: str, sprites: SpriteSetKey, category: GunCategory, automatic: bool = False, penetration: PenetrationLevel = PenetrationLevel.MEDIUM, runSpeed: float = 5.4, equipSpeed: float = 0.75, reloadSpeed: float = 2, magazine: int = 1, reserveAmmo: int = 3, fireRate: float = 2, firstShotSpread: tuple[float, float] = (0, 0), damage: DamageValues = DamageValues(values1=(1,1,1), range1=50), scope: Union[None, Scope] = None, silenced: bool = False, altFireEffectKey: Union[None, EffectKey] = None) -> None:
         self.__name = name
         self.__sprites = sprites
@@ -404,7 +419,7 @@ class Gun(Holdable):
             "altFireEffectKey": self.__altFireEffectKey
         }
 
-class Ability(Holdable):
+class Ability(Holdable, Printable):
     def __init__(self, name: str, sprites: SpriteSetKey, cost: int, abilityCategory: AbilityCategory, maxCharges: int, maxCooldown: Union[None, int] = None, maxKills: Union[None, int] = None, equippable: bool = False, heldUpdateEffectKey: Union[None, EffectKey] = None, castEffectKey: Union[None, EffectKey] = None, description: str = "") -> None:
         self.__name = name
         self.__sprites = sprites
@@ -451,7 +466,7 @@ class Ability(Holdable):
             "description": self.__description
         }
 
-class Inventory:
+class Inventory(Printable):
     def __init__(self, meleeKey: MeleeKey = MeleeKey.DEFAULT, sidearmKey: Union[SidearmKey, None] = SidearmKey.CLASSIC, primaryKey: Union[GunKey, None] = None):
         self.__meleeKey = meleeKey
         self.__sidearmKey = sidearmKey
@@ -471,7 +486,7 @@ class Inventory:
         }
 
 # PLAYER
-class Agent:
+class Agent(Printable):
     def __init__(self, name: str, abilityKeys: dict[AbilitySlotKey, AbilityKey], sprites: AgentSpriteSetKey, description: str) -> None:
         self.__name = name
         self.__abilityKeys = abilityKeys
@@ -489,7 +504,7 @@ class Agent:
             "description": self.__description
         }
 
-class Player:
+class Player(Printable):
     def __init__(self, name: str, pose: Pose = Pose(), vitals: Vitals = Vitals(), status: Status = Status(), inventory: Inventory = Inventory(), stats: Stats = Stats(), agentKey: Union[AgentKey, None] = None) -> None:
         self.__name = name
         self.__pose = pose
@@ -524,7 +539,7 @@ class Player:
         }
 
 # OBJECTS
-class Object:
+class Object(Printable):
     def __init__(self, id: int, sprite: SpriteSetKey, position: Position = Position(), orientation: Angle = Angle()):
         self.__id = id
         self.__sprite = sprite
@@ -535,60 +550,60 @@ class Object:
     def collapseToDict(self) -> JSONType:
         return {}
 
-class Wall:
+class Wall(Object):
     def __init__(self, size: Position, penetrationLevel: int) -> None:
         self.size = size
         self.penepenetrationLevel = penetrationLevel
-class Box:
+class Box(Object):
     def __init__(self, size: Position, penetrationLevel: int) -> None:
         self.size = size
         self.penepenetrationLevel = penetrationLevel
-class Cylinder:
+class Cylinder(Object):
     def __init__(self, size: Position, penetrationLevel: int) -> None:
         self.size = size
         self.penepenetrationLevel = penetrationLevel
-class Stair:
+class Stair(Object):
     def __init__(self, size: Position) -> None:
         self.size = size
-class Decoration:
+class Decoration(Object):
     def __init__(self, size: Position) -> None:
         self.size = size
-class BreakableDoor:
+class BreakableDoor(Object):
     def __init__(self, size: Position, HP: int) -> None:
         self.size = size
         self.HP = HP
-class Switch:
+class Switch(Object):
     def __init__(self, doorID: int) -> None:
         self.doorID = doorID
-class Bike:
+class Bike(Object):
     def __init__(self) -> None:
         pass
-class UltOrb:
+class UltOrb(Object):
     def __init__(self) -> None:
         pass
-class Zipline:
+class Zipline(Object):
     def __init__(self, size: Position, direction: Position, force: bool = False) -> None:
         self.size = size
         self.direction = direction
         self.force = force
-class Teleporter:
+class Teleporter(Object):
     def __init__(self, teleportPosition: Position) -> None:
         self.teleportPosition = teleportPosition
-class TPDoor:
+class TPDoor(Object):
     def __init__(self) -> None:
         pass
-class RotatingDoor:
+class RotatingDoor(Object):
     def __init__(self) -> None:
         pass
-class CrouchDoor:
+class CrouchDoor(Object):
     def __init__(self) -> None:
         pass
-class Abyss:
+class Abyss(Object):
     def __init__(self, size: Position) -> None:
         self.size = size
 
 # GAME
-class GameMode:
+class GameMode(Printable):
     def __init__(self, name: str, objective: ObjectiveKey = ObjectiveKey.SPIKE, winThreshold: int = 13, roundTime: int = 100, overTime: bool = False) -> None:
         self.__name = name
         self.__objective = objective
@@ -606,7 +621,7 @@ class GameMode:
     def getOverTime(self) -> bool:
         return self.__overTime
 
-class Map:
+class Map(Printable):
     def __init__(self, name: str, objects: list[Object]) -> None:
         self.__objects = objects
     def collapseToDict(self) -> JSONType:
@@ -614,7 +629,7 @@ class Map:
 
 
 # BACKEND
-class Connection:
+class Connection(Printable):
     def __init__(self, name: str):
         self.__name = name
     def getName(self) -> str:
