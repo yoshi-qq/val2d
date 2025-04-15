@@ -1,369 +1,134 @@
-from typing import Union, Any, Callable
-from dependencies.communications import Message, Event, Request
-from config.constants import MAX_HP, MAX_OVERHEAL, MAX_SHIELD, MAX_REGEN_SHIELD, MAX_SPECIAL_BAR
-from enum import Enum
+from typing import Union, Any, Callable, Optional
+from math import sqrt, degrees, radians, cos, sin, atan2
+from dependencies.communications import Event, Request
+from classes.keys import MapKey, EffectKey, AbilityKey, MeleeKey, SidearmKey, GunKey, AgentKey, SpriteSetKey, InputKey
+from classes.categories import HoldableCategory
 
 # Empty prebuilts
-abilities: dict["AbilityKey", "Ability"] = {}
-agents: dict["AgentKey", "Agent"] = {}
-effects: dict["EffectKey", "Effect"] = {}
-melees: dict["MeleeKey", "Melee"] = {}
-sidearms: dict["SidearmKey", "Gun"] = {}
-guns: dict["GunKey", "Gun"] = {}
-maps: dict["MapKey", "Map"] = {}
-spriteSets: dict["SpriteSetKey", "SpriteSet"] = {}
+abilities: dict[AbilityKey, "Ability"] = {}
+agents: dict[AgentKey, "Agent"] = {}
+effects: dict[EffectKey, "Effect"] = {}
+melees: dict[MeleeKey, "Melee"] = {}
+sidearms: dict[SidearmKey, "Gun"] = {}
+guns: dict[GunKey, "Gun"] = {}
+maps: dict[MapKey, "Map"] = {}
+spriteSets: dict[SpriteSetKey, "SpriteSet"] = {}
 
 # BASE
+class Printable:
+    def __str__(self) -> str:
+        attrs = ", ".join(f"{k}={v}" for k, v in self.__dict__.items())
+        return f"{self.__class__.__name__}[{attrs}]"
+    def __repr__(self) -> str:
+        return self.__str__()
+
 class NullType:
     def __repr__(self):
-        return "null"
+        return "nullType"
     def __bool__(self):
         return False
 
 Null = NullType()
 JSONType = Union[dict[str, Any], list[Any], str, int, float, bool, None]
 
+class BaseHoldable(Printable):
+    def __init__(self, category: HoldableCategory) -> None:
+        self._category = category
+    def getCategory(self) -> HoldableCategory:
+        return self._category
+
+# COMMUNICATION
+class Message:
+    def __init__(self, head: str, body: Any):
+        self.head = head
+        self.body = body
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Message):
+            return self.head == other.head and self.body == other.body
+        else: return False
+    def __str__(self) -> str:
+        return f"Message[head={self.head}, body={self.body}]"
+    def __repr__(self) -> str:
+        return self.__str__()
+
+class Ping:
+    _nextID = 1
+    def __init__(self, time: float) -> None:
+        self.id = self.__genID__()
+        self.time = time
+    def __genID__(self) -> int:
+        id = Ping._nextID
+        Ping._nextID += 1
+        return id
+    def __str__(self) -> str:
+        return f"Ping[id={self.id}, time={self.time}]"
+    def __repr__(self) -> str:
+        return self.__str__()
+
 # DEBUGGING
 class AutoMessageTrigger:
-    def __init__(self, trigger: Message | Event | Request, responseMessage: Message) -> None:
+    def __init__(self, trigger: Message | Event | Request, responseMessage: Message, amountRequired: int = 1, cooldownIterations: int = 2, cooldownTime: float = 0) -> None:
         self.trigger = trigger
         self.responseMessage = responseMessage
-
-# MENUING
-class MenuKey(Enum):
-    EMPTY = "empty"
-    PLAY = "play"
-    HOST_LOBBY = "hostLobby"
-    PLAYER_LOBBY = "playerLobby"
-    AGENT_SELECT = "agentSelect"
-    HOST_AGENT_SELECT = "hostAgentSelect"
-    IN_GAME_PLAYER = "inGamePlayer"
-    IN_GAME_HOST = "inGameHost"
-
-# GRAPHICS
-class SpriteSet:
-    def __init__(self, name: str) -> None:
-        self.name = name
-
-class AgentSpriteSet(SpriteSet):
-    def __init__(self, name: str, logo: str, idle: str, walk: str, crouch: str, jump: str, fall: str, land: str, dead: str, reload: str, holdMelee: str, holdSidearm: str, holdPrimary: str, holdBasic: Union[None, str], holdTactical: Union[None, str], holdSignature: Union[None, str], holdUltimate: Union[None, str], castBasic: Union[None, str], castTactical: Union[None, str], castSignature: Union[None, str], castUltimate: Union[None, str]) -> None:
-        super().__init__(name)
-        self.logo = logo
-        self.idle = idle
-        self.walk = walk #
-        self.crouch = crouch
-        self.jump = jump
-        self.fall = fall
-        self.land = land
-        self.dead = dead
-        self.reload = reload #
-        self.holdMelee = holdMelee #
-        self.holdSidearm = holdSidearm #
-        self.holdPrimary = holdPrimary #
-        self.holdBasic = holdBasic #
-        self.holdTactical = holdTactical #
-        self.holdSignature = holdSignature #
-        self.holdUltimate = holdUltimate #
-        self.castBasic = castBasic #
-        self.castTactical = castTactical #
-        self.castSignature = castSignature #
-        self.castUltimate = castUltimate #
-
-# KEYS
-class MapKey(Enum):
-    BIND = 1
-    HAVEN = 2
-    SPLIT = 3
-    ASCENT = 4
-    ICEBOX = 5
-    BREEZE = 6
-    FRACTURE = 7
-    PEARL = 8
-    LOTUS = 9
-    SUNSET = 10
-    ABYSS = 11
-
-class EffectKey(Enum):
-    # 01 Brimstone (1-10)
-    # 02 Viper (11-20)
-    # 03 Omen (21-30)
-    SHROUDED_STEP_CAST = 21
-    PARANOIA_CAST = 22
-    DARK_COVER_CAST = 23
-    FROM_THE_SHADOWS_CAST = 24
-    # 04 Killjoy (31-40)
-    # 05 Cypher (41-50)
-    # 06 Sova (51-60)
-    # 07 Sage (61-70)
-    # 08 - (71-80)
-    # 09 Phoenix (81-90)
-    # 10 Jett (91-100)
-    # 11 Reyna (101-110)
-    # 12 Raze (111-120)
-    # 13 Breach (121-130)
-    # 14 Skye (131-140)
-    # 15 Yoru (141-150)
-    # 16 Astra (151-160)
-    # 17 KAY/O (161-170)
-    # 18 Chamber (171-180)
-    # 19 Neon (181-190)
-    # 20 Fade (191-200)
-    # 21 Harbor (201-210)
-    # 22 Gekko (211-220)
-    # 23 Deadlock (221-230)
-    # 24 Iso (231-240)
-    # 25 Clove (241-250)
-    # 26 Vyse (251-260)
-    # 27 Tejo (261-270)
-    # 28 Waylay (271-280)
-    
-    # GUNS (301-450)
-    BURST_FIRE_3 = 301
-    BURST_FIRE_4 = 302
-    AIR_BURST_CANISTER_SHOT = 303
-
-class AbilityKey(Enum):
-    # 01 Brimstone (1-4)
-    # 02 Viper (5-8)
-    # 03 Omen (9-12)
-    SHROUDED_STEP = 9
-    PARANOIA = 10
-    DARK_COVER = 11
-    FROM_THE_SHADOWS = 12
-    # 04 Killjoy (13-16)
-    # 05 Cypher (17-20)
-    # 06 Sova (21-24)
-    # 07 Sage (25-28)
-    # 08 - (29-32)
-    # 09 Phoenix (33-36)
-    # 10 Jett (37-40)
-    # 11 Reyna (41-44)
-    # 12 Raze (45-48)
-    # 13 Breach (49-52)
-    # 14 Skye (53-56)
-    # 15 Yoru (57-60)
-    # 16 Astra (61-64)
-    # 17 KAY/O (65-68)
-    # 18 Chamber (69-72)
-    # 19 Neon (73-76)
-    # 20 Fade (77-80)
-    # 21 Harbor (81-84)
-    # 22 Gekko (85-88)
-    # 23 Deadlock (89-92)
-    # 24 Iso (93-96)
-    # 25 Clove (97-100)
-    # 26 Vyse (101-104)
-    # 27 Tejo (105-108)
-    # 28 Waylay (109-112)
-
-class MeleeKey(Enum):
-    DEFAULT = 0
-class SidearmKey(Enum):
-    CLASSIC = 1
-    SHORTY = 2
-    FRENZY = 3
-    GHOST = 4
-    SHERIFF = 5
-    GOLDEN_GUN = 6
-    SNOWBALL_LAUNCHER = 7
-    # 8-10 unused
-class GunKey(Enum):
-    # SMGs
-    STINGER = 11
-    SPECTRE = 12
-    # Shotguns
-    BUCKY = 13
-    JUDGE = 14
-    # Rifles
-    BULLDOG = 15
-    GUARDIAN = 16
-    PHANTOM = 17
-    VANDAL = 18
-    # Sniper Rifles
-    MARSHAL = 19
-    OUTLAW = 20
-    OP = 21
-    # Machine Guns
-    ARES = 22
-    ODIN = 23
-
-class AgentKey(Enum):
-    BRIMSTONE = 1
-    VIPER = 2
-    OMEN = 3
-    KILLJOY = 4
-    CYPHER = 5
-    SOVA = 6
-    SAGE = 7
-    # -- = 8
-    PHOENIX = 9
-    JETT = 10
-    REYNA = 11
-    RAZE = 12
-    BREACH = 13
-    SKYE = 14
-    YORU = 15
-    ASTRA = 16
-    KAYO = 17
-    CHAMBER = 18
-    NEON = 19
-    FADE = 20
-    HARBOR = 21
-    GEKKO = 22
-    DEADLOCK = 23
-    ISO = 24
-    CLOVE = 25
-    VYSE = 26
-    TEJO = 27
-    WAYLAY = 28
-
-class SpriteSetKey(Enum):
-    # AGENTS
-    AGENT_BRIMSTONE = 1
-    AGENT_VIPER = 2
-    AGENT_OMEN = 3
-    AGENT_KILLJOY = 4
-    AGENT_CYPHER = 5
-    AGENT_SOVA = 6
-    AGENT_SAGE = 7
-    AGENT_PHOENIX = 9
-    AGENT_JETT = 10
-    AGENT_REYNA = 11
-    AGENT_RAZE = 12
-    AGENT_BREACH = 13
-    AGENT_SKYE = 14
-    AGENT_YORU = 15
-    AGENT_ASTRA = 16
-    AGENT_KAYO = 17
-    AGENT_CHAMBER = 18
-    AGENT_NEON = 19
-    AGENT_FADE = 20
-    AGENT_HARBOR = 21
-    AGENT_GEKKO = 22
-    AGENT_DEADLOCK = 23
-    AGENT_ISO = 24
-    AGENT_CLOVE = 25
-    AGENT_VYSE = 26
-    AGENT_TEJO = 27
-    AGENT_WAYLAY = 28
-    
-    # WEAPONS
-    # Melee
-    WEAPON_MELEE = 51
-    # Sidearms
-    WEAPON_CLASSIC = 52
-    WEAPON_SHORTY = 53
-    WEAPON_FRENZY = 54
-    WEAPON_GHOST = 55
-    WEAPON_SHERIFF = 56
-    WEAPON_GOLDEN_GUN = 57
-    WEAPON_SNOWBALL_LAUNCHER = 58
-    # Primaries
-    WEAPON_STINGER = 61
-    WEAPON_SPECTRE = 62
-    WEAPON_BUCKY = 63
-    WEAPON_JUDGE = 64
-    WEAPON_BULLDOG = 65
-    WEAPON_GUARDIAN = 66
-    WEAPON_PHANTOM = 67
-    WEAPON_VANDAL = 68
-    WEAPON_MARSHAL = 69
-    WEAPON_OUTLAW = 70
-    WEAPON_OP = 71
-    WEAPON_ARES = 72
-    WEAPON_ODIN = 73
-    
-    # Abilities
-    # 01 Brimstone (1-4)
-    # 02 Viper (5-8)
-    # 03 Omen (9-12)
-    ABILITY_SHROUDED_STEP = 9
-    ABILITY_PARANOIA = 10
-    ABILITY_DARK_COVER = 11
-    ABILITY_FROM_THE_SHADOWS = 12
-    # 04 Killjoy (13-16)
-    # 05 Cypher (17-20)
-    # 06 Sova (21-24)
-    # 07 Sage (25-28)
-    # 08 - (29-32)
-    # 09 Phoenix (33-36)
-    # 10 Jett (37-40)
-    # 11 Reyna (41-44)
-    # 12 Raze (45-48)
-    # 13 Breach (49-52)
-    # 14 Skye (53-56)
-    # 15 Yoru (57-60)
-    # 16 Astra (61-64)
-    # 17 KAY/O (65-68)
-    # 18 Chamber (69-72)
-    # 19 Neon (73-76)
-    # 20 Fade (77-80)
-    # 21 Harbor (81-84)
-    # 22 Gekko (85-88)
-    # 23 Deadlock (89-92)
-    # 24 Iso (93-96)
-    # 25 Clove (97-100)
-    # 26 Vyse (101-104)
-    # 27 Tejo (105-108)
-    # 28 Waylay (109-112)
-    
-    # OBJECTS
-
-class GameModeKey(Enum):
-    UNRATED = 0
-    COMPETITIVE = 1
-    DEATHMATCH = 2
-    ESCALATION = 3
-    SPIKE_RUSH = 4
-    SWIFT_PLAY = 5
-    TEAM_DEATHMATCH = 6
-    REPLICATION = 7
-    CUSTOM = 8
-
-# CATEGORIES
-class AbilityCategory(Enum):
-    BASIC = 0
-    TACTICAL = 1
-    SIGNATURE = 2
-    ULTIMATE = 3
-
-class GunCategory(Enum):
-    SIDEARM = 2
-    SMG = 3
-    SHOTGUN = 4
-    RIFLE = 5
-    SNIPER_RIFLE = 6
-    MACHINE_GUN = 7
-
-class PenetrationLevel(Enum):
-    LOW = 0
-    MEDIUM = 1
-    HIGH = 2
-
-# SIMPLES
-class HandItem(Enum):
-    MELEE = 0
-    SIDEARM = 1
-    PRIMARY = 2
-    BASIC = 3
-    TACTICAL = 4
-    SIGNATURE = 5
-    ULTIMATE = 6
+        self.amountRequired = amountRequired
+        self.cooldownIterations = cooldownIterations
+        self.cooldownTime = cooldownTime
+        self.counter = {"value": 0}
+        self.lastUsedTime = -1
+        self.lastUsedTick = -1
+    def incrCheck(self, tickID: int, tickTime: float) -> bool:
+        if tickID < self.lastUsedTick + self.cooldownIterations:
+            return False
+        if tickTime < self.lastUsedTime + self.cooldownTime:
+            return False
+        self.lastUsedTick = tickID
+        self.lastUsedTime = tickTime
+        self.counter["value"] += 1
+        if self.counter["value"] >= self.amountRequired:
+            self.counter["value"] = 0
+            return True
+        return False
+    def __str__(self) -> str:
+        return f"AutoMessageTrigger[trigger={self.trigger}, response={self.responseMessage}, amountRequired={self.amountRequired}, counter={self.counter['value']}]"
+    def __repr__(self) -> str:
+        return self.__str__()
 
 # EFFECTS
-class Effect:
-    def __init__(self, effectFunc: Callable) -> None:
+class Effect(Printable):
+    def __init__(self, effectFunc: Callable[[], None]) -> None:
         self.__effectFunc = effectFunc
-    def activate(self, *args) -> None:
-        self.__effectFunc(*args)
+    def activate(self) -> None:
+        self.__effectFunc()
+    def collapseToDict(self) -> JSONType:
+        return {
+            "effectFunc": self.__effectFunc.__name__
+        }
 
 # INFORMATION
+class Angle:
+    def __init__(self, angle: float = 0):
+        self.__angle = angle
+    def changeAngle(self, angleMod: float = 0):
+        self.__angle += angleMod
+    def getAngle(self) -> float:
+        return self.__angle
+    # return the middle angle of two angles, returns None if they are perfectly antipodale
+    def getMiddle(self, secondAngle: "Angle") -> Optional["Angle"]:
+        angle1 = self.getAngle()
+        angle2 = secondAngle.getAngle()
+        diff = ((angle1 - angle2 + 180) % 360) - 180
+        return None if abs(diff) == 180 else Angle((angle1 + diff / 2) % 360)
+    def __str__(self):
+        return f"{self.__angle}"
+    def __repr__(self) -> str:
+        return self.__str__()
+
 class Position:
     def __init__(self, x: float = 0, y: float = 0, z: float = 0):
         self.__x = x
         self.__y = y
         self.__z = z
-    def changePosition(self, xMod, yMod, zMod):
+    def changePosition(self, xMod: float, yMod: float, zMod: float):
         self.__x += xMod
         self.__y += yMod
         self.__z += zMod
@@ -371,8 +136,64 @@ class Position:
         self.__x = newX
         self.__y = newY
         self.__z = newZ
+    def moveTo(self, newPosition: "Position") -> None:
+        self.setPosition(*newPosition.getPosition())
+    def move(self, relativePosition: "Position") -> None:
+        self.changePosition(*relativePosition.getPosition())
+    def multiplyInPlace(self, scaling: float) -> None:
+        self.__x *= scaling
+        self.__y *= scaling
+        self.__z *= scaling
+    def getX(self) -> float:
+        return self.__x
+    def getY(self) -> float:
+        return self.__y
+    def getZ(self) -> float:
+        return self.__z
     def getPosition(self) -> tuple[float, float, float]:
         return (self.__x, self.__y, self.__z)
+    def translateToAngle(self, angle: Angle) -> "Position":
+        angleRad = radians(angle.getAngle())
+        newX = self.__x * cos(angleRad) - self.__z * sin(angleRad)
+        newZ = self.__x * sin(angleRad) + self.__z * cos(angleRad)
+        return Position(newX, self.__y, newZ)
+    def translateFromAngle(self, angle: Angle) -> "Position":
+        return self.translateToAngle(Angle(-angle.getAngle()))
+    def rotate(self, angle: Angle) -> "Position":
+        return self.translateFromAngle(angle)
+    def getHorizontalPart(self) -> "Position":
+        return Position(self.__x, 0, self.__z)
+    def getMagnitude(self) -> float:
+        return sqrt(self.__x**2 + self.__y**2 + self.__z**2)
+    def getHorizontalMagnitude(self) -> float:
+        return sqrt(self.__x**2 + self.__z**2)
+    def getVerticalMagnitude(self) -> float:
+        return abs(self.__y)
+    def getDirectionUnit(self) -> "Position":
+        if magnitude := self.getMagnitude():
+            return self / magnitude
+        else: return Position(0,0,0)
+    def getHorizontalDirectionUnit(self) -> "Position":
+        if magnitude := self.getHorizontalMagnitude():
+            return self.getHorizontalPart() / magnitude
+        return Position(0,0,0)
+    def getHorizontalAngle(self) -> Angle:
+        return Angle(degrees(atan2(self.__x, self.__y)))
+    def cap(self, maximumMagnitude: float) -> None:
+        if self.getMagnitude() != 0 and (magnitude := self.getMagnitude()) > maximumMagnitude:
+            self.multiplyInPlace(maximumMagnitude / magnitude)
+    
+    def __mul__(self, scaling: float) -> "Position":
+        return Position(self.__x * scaling, self.__y * scaling, self.__z * scaling)
+    def __add__(self, other: "Position") -> "Position":
+        return Position(self.__x + other.getX(), self.__y + other.getY(), self.__z + other.getZ())
+    def __sub__(self, other: "Position") -> "Position":
+        return Position(self.__x - other.getX(), self.__y - other.getY(), self.__z - other.getZ())
+    def __truediv__(self, divisor: float) -> "Position":
+        return Position(self.__x / divisor, self.__y / divisor, self.__z / divisor)
+    def __lmul__(self, other: "float") -> "Position":
+        return self.__mul__(other)
+    
     def __str__(self):
         return f"{self.__x}:{self.__y}:{self.__z}"
     def collapseToDict(self) -> JSONType:
@@ -381,21 +202,13 @@ class Position:
             "y": self.__y,
             "z": self.__z
         }
-    
-class Angle:
-    def __init__(self, angle: float = 0):
-        self.__angle = angle
-    def changeAngle(self, angleMod: float = 0):
-        self.__angle += angleMod
-    def getAngle(self) -> float:
-        return self.__angle
-    def __str__(self):
-        return f"{self.__angle}"
+    def __repr__(self) -> str:
+        return self.__str__()
 
 class Pose:
-    def __init__(self, position: Position = Position(), orientation: Angle = Angle()) -> None:
-        self.__position = position
-        self.__orientation = orientation
+    def __init__(self, position: Position | None = None, orientation: Angle | None = None) -> None:
+        self.__position = position if position else Position()
+        self.__orientation = orientation if orientation else Angle()
     # Setters
     def moveTo(self, newPosition: Position) -> None:
         self.__position.setPosition(*newPosition.getPosition())
@@ -412,484 +225,33 @@ class Pose:
         return self.__orientation
     def __str__(self):
         return f"{self.__position}:{self.__orientation}"
-
+    def __repr__(self) -> str:
+        return self.__str__()
+    
     # JSON
     def collapseToDict(self) -> JSONType:
         return {
             "position": self.__position.collapseToDict(),
-            "orientation": self.getOrientation().getAngle()  
-        }
-    
-class Vitals:
-    def __init__(self, hp: int = 100, overheal: int= 0, shield: int = 0, regenShield: int = 0, specialBar: int = 100) -> None:
-        self.__hp = hp
-        self.__overheal = overheal
-        self.__shield = shield
-        self.__regenShield = regenShield
-        self.__specialBar = specialBar
-    # Getters
-    def getHP(self) -> int:
-        return self.__hp
-    def getOverheal(self) -> int:
-        return self.__overheal
-    def getShield(self) -> int:
-        return self.__shield
-    def getRegenShield(self) -> int:
-        return self.__regenShield
-    def getSpecialBar(self) -> int:
-        return self.__specialBar
-    # Setters
-    def setHP(self, newHP: int) -> None:
-        self.__hp = newHP
-    def setOverheal(self, newOverheal: int) -> None:
-        self.__overheal = newOverheal
-    def setShield(self, newShield: int) -> None:
-        self.__shield = newShield
-    def setRegenShield(self, newRegenShield: int) -> None:
-        self.__regenShield = newRegenShield
-    def setSpecialBar(self, newSpecialBar: int) -> None:
-        self.__specialBar = newSpecialBar
-    # JSON
-    def collapseToDict(self) -> JSONType:
-        return {
-            "hp": self.__hp,
-            "overheal": self.__overheal,
-            "shield": self.__shield,
-            "regenShield": self.__regenShield,
-            "specialBar": self.__specialBar
-        }
-
-class Buff:
-    def __init__(self, name: str, effectKey: EffectKey) -> None:
-        self.__name = name
-        self.__effectKey = effectKey
-    def getName(self) -> str:
-        return self.__name
-    def getEffect(self) -> Effect:
-        return 
-    # JSON
-    def collapseToDict(self) -> JSONType:
-        return {
-            "name": self.__name,
-            "effectKey": self.__effectKey
-        }
-
-class Status:
-    def __init__(self, team: int = 0, handItem: HandItem = HandItem.SIDEARM, basicCharges: int = 0, tacticalCharges: int = 0, signatureCharges: int = 1,  ultimateCharges: int = 0, ultimatePoints: int = 0, signatureCooldown: float = 45, signatureKills: int = 0) -> None:
-        # Ability
-        self.__team = team
-        self.__handItem: HandItem = handItem
-        self.__basicCharges = basicCharges
-        self.__tacticalCharges = tacticalCharges
-        self.__signatureCharges = signatureCharges
-        self.__ultimateCharges = ultimateCharges
-        self.__ultimatePoints = ultimatePoints
-        self.__signatureCooldown = signatureCooldown
-        self.__signatureKills = signatureKills
-
-        self.__buffs: list[tuple[Buff, float]] = []
-    
-    # Getters
-    def getTeam(self) -> int:
-        return self.__team
-    def getHandItem(self) -> HandItem:
-        return self.__handItem
-    def getBasicCharges(self) -> int:
-        return self.__basicCharges
-    def getTacticalCharges(self) -> int:
-        return self.__tacticalCharges
-    def getSignatureCharges(self) -> int:
-        return self.__signatureCharges
-    def getUltimateCharges(self) -> int:
-        return self.__ultimateCharges
-    def getUltimatePoints(self) -> int:
-        return self.__ultimatePoints
-    def getSignatureCooldown(self) -> float:
-        return self.__signatureCooldown
-    def getSignatureKills(self) -> int:
-        return self.__signatureKills
-    def getBuffs(self) -> list[tuple[Buff, float]]:
-        return self.__buffs
-    # JSON
-    def collapseToDict(self) -> JSONType:
-        return {
-            "team": self.__team,
-            "handItem": self.__handItem,
-            "basicCharges": self.__basicCharges,
-            "tacticalCharges": self.__tacticalCharges,
-            "signatureCharges": self.__signatureCharges,
-            "ultimateCharges": self.__ultimateCharges,
-            "ultimatePoints": self.__ultimatePoints,
-            "signatureCooldown": self.__signatureCooldown,
-            "signatureKills": self.__signatureKills,
-            "buffs": [(buff.collapseToDict(), duration) for buff, duration in self.__buffs]
-        }
-    
-class Stats:
-    def __init__(self, kills: int = 0, deaths: int = 0, assists: int = 0) -> None:
-        self.__kills = kills
-        self.__deaths = deaths
-        self.__assists = assists
-    # JSON
-    def collapseToDict(self) -> JSONType:
-        return {
-            "kills": self.__kills,
-            "deaths": self.__deaths,
-            "assists": self.__assists
-        }
-    
-class DamageValues:
-    def __init__(self, values1: tuple[int, int, int], range1: int, values2: Union[None, tuple[int, int, int]] = None, range2: Union[None, int] = None, values3: Union[None, tuple[int, int, int]] = None, range3: Union[None, int] = None):
-        self.__damageValues1 = values1
-        self.__range1 = range1
-        self.__damageValues2 = values2
-        self.__range2 = range2
-        self.__damageValues3 = values3
-        self.__range3 = range3
-    def getDamage(self, range: int) -> tuple[int, int, int]:
-        if range <= self.__range1:
-            return self.__damageValues1
-        elif self.__range2 is not None and range <= self.__range2:
-            return self.__damageValues2
-        elif self.__range3 is not None and range <= self.__range3:
-            return self.__damageValues3
-        else:
-            return self.__damageValues3 if self.__damageValues3 is not None else self.__damageValues2 if self.__damageValues2 is not None else self.__damageValues1
-    # JSON
-    def collapseToDict(self) -> JSONType:
-        return {
-            "values1": self.__damageValues1,
-            "range1": self.__range1,
-            "values2": self.__damageValues2,
-            "range2": self.__range2,
-            "values3": self.__damageValues3,
-            "range3": self.__range3
-        }
-
-# OBJECTS
-class Object:
-    def __init__(self, id: int, sprite: SpriteSetKey, position: Position = Position, orientation: Angle = Angle):
-        self.__id = id
-        self.__sprite = sprite
-        self.__position = position
-        self.__orientation = orientation
-    def getID(self) -> int:
-        return self.__id
-    def collapseToDict(self) -> JSONType:
-        return {}
-
-class Wall:
-    def __init__(self, size: Position, penetrationLevel: int) -> None:
-        self.size = size
-        self.penepenetrationLevel = penetrationLevel
-class Box:
-    def __init__(self, size: Position, penetrationLevel: int) -> None:
-        self.size = size
-        self.penepenetrationLevel = penetrationLevel
-class Cylinder:
-    def __init__(self, size: Position, penetrationLevel: int) -> None:
-        self.size = size
-        self.penepenetrationLevel = penetrationLevel
-class Stair:
-    def __init__(self, size: Position) -> None:
-        self.size = size
-class Decoration:
-    def __init__(self, size: Position) -> None:
-        self.size = size
-class BreakableDoor:
-    def __init__(self, size: Position, HP: int) -> None:
-        self.size = size
-        self.HP = HP
-class Switch:
-    def __init__(self, doorID: int) -> None:
-        self.doorID = doorID
-class Bike:
-    def __init__(self) -> None:
-        pass
-class UltOrb:
-    def __init__(self) -> None:
-        pass
-class Zipline:
-    def __init__(self, size: Position, direction: Position, force: bool = False) -> None:
-        self.size = size
-        self.direction = direction
-        self.force = force
-class Teleporter:
-    def __init__(self, teleportPosition: Position) -> None:
-        self.teleportPosition = teleportPosition
-class TPDoor:
-    def __init__(self) -> None:
-        pass
-class RotatingDoor:
-    def __init__(self) -> None:
-        pass
-class CrouchDoor:
-    def __init__(self) -> None:
-        pass
-class Abyss:
-    def __init__(self, size: Position) -> None:
-        self.size = size
-
-# GAME
-class Objective(Enum):
-    SPIKE = 0
-    KILLS = 1
-
-class GameMode:
-    def __init__(self, name: str, objective: Objective = Objective.SPIKE, winThreshold: int = 13, roundTime: int = 100, overTime: bool = False) -> None:
-        self.__name = name
-        self.__objective = objective
-        self.__winThreshold = winThreshold
-        self.__roundTime = roundTime
-        self.__overTime = overTime
-    def getName(self) -> str:
-        return self.__name
-    def getObjective(self) -> Objective:
-        return self.__objective
-    def getWinThreshold(self) -> int:
-        return self.__winThreshold
-    def getRoundTime(self) -> int:
-        return self.__roundTime
-    def getOverTime(self) -> bool:
-        return self.__overTime
-
-class Map:
-    def __init__(self, name: str, objects: list[Object]) -> None:
-        self.__objects = objects
-    def collapseToDict(self) -> JSONType:
-        return {}
-
-# INVENTORY
-class Holdable:
-    def __init__(self, category: int) -> None:
-        self.__category = category
-    def getCategory(self) -> int:
-        return self.__category
-        
-class Scope:
-    def __init__(self, zoom: float, fireRateMultiplier: float, moveSpeedMultiplier: float, accuracy: float = 1.2) -> None:
-        self.__zoom = zoom
-        self.__fireRateMultiplier = fireRateMultiplier
-        self.__moveSpeedMultiplier = moveSpeedMultiplier
-        self.__accuracy = accuracy
-    def getZoom(self) -> float:
-        return self.__zoom
-    def getFireRateMultiplier(self) -> float:
-        return self.__fireRateMultiplier
-    def getMoveSpeedMultiplier(self) -> float: 
-        return self.__moveSpeedMultiplier
-    def getAccuracy(self) -> float:
-        return self.__accuracy
-
-class Melee(Holdable):
-    def __init__(self, name: str, sprites: SpriteSetKey) -> None:
-        self.__name = name
-        super().__init__(category=1)
-        self.__sprites = sprites
-        self.__damage = DamageValues((50, 50, 50), 1, None, None, None, None)
-        self.__altDamage = DamageValues((75, 75, 75), 1, None, None, None, None)
-    # JSON
-    def collapseToDict(self) -> JSONType:
-        return {
-            "damage": self.__damage.collapseToDict(),
-            "altDamage": self.__altDamage.collapseToDict()
-        }
-    
-class Gun(Holdable):
-    def __init__(self, name: str, sprites: SpriteSetKey, category: GunCategory, automatic: bool = False, penetration: PenetrationLevel = PenetrationLevel.MEDIUM, runSpeed: int = 5.4, equipSpeed: int = 0.75, reloadSpeed: int = 2, magazine: int = 1, reserveAmmo: int = 3, fireRate: int = 2, firstShotSpread: tuple[int, int] = (0, 0), damage: DamageValues = DamageValues(values1=(1,1,1), range1=50), scope: Union[None, Scope] = None, silenced: bool = False, altFireEffect: Union[None, EffectKey] = None) -> None:
-        self.__name = name
-        self.__sprites = sprites
-        super().__init__(category=category)
-        self.__automatic = automatic
-        self.__penetration = penetration
-        self.__runSpeed = runSpeed
-        self.__equipSpeed = equipSpeed
-        self.__reloadSpeed = reloadSpeed
-        self.__magazine = magazine
-        self.__reserveAmmo = reserveAmmo
-        self.__fireRate = fireRate
-        self.__firstShotSpread = firstShotSpread
-        self.__damage = damage
-        self.__scope = scope
-        self.__silenced = silenced
-        self.__altFireEffect = altFireEffect
-    # JSON
-    def collapseToDict(self) -> JSONType:
-        return {
-            "name": self.__name,
-            "category": self.__category,
-            "automatic": self.__automatic,
-            "penetration": self.__penetration,
-            "runSpeed": self.__runSpeed,
-            "equipSpeed": self.__equipSpeed,
-            "reloadSpeed": self.__reloadSpeed,
-            "magazine": self.__magazine,
-            "reserveAmmo": self.__reserveAmmo,
-            "fireRate": self.__fireRate,
-            "firstShotSpread": self.__firstShotSpread,
-            "damage": self.__damage.collapseToDict(),
-            "scope": self.__scope.collapseToDict() if self.__scope is not None else None,
-            "silenced": self.__silenced,
-            "altFireEffect": self.__altFireEffect.collapseToDict() if self.__altFireEffect is not None else None
-        }
-    
-class Ability(Holdable):
-    def __init__(self, name: str, sprites: SpriteSetKey, cost: int, abilityCategory: AbilityCategory, maxCharges: int, maxCooldown: Union[None, int] = None, maxKills: Union[None, int] = None, equippable: bool = False, heldUpdateEffect: Effect = None, castEffect: Effect = None, description: str = "") -> None:
-        self.__name = name
-        self.__sprites = sprites
-        self.__cost = cost
-        super().__init__(category=0)
-        self.__abilityCategory = abilityCategory
-        self.__maxCharges = maxCharges
-        self.__maxCooldown = maxCooldown
-        self.__maxKills = maxKills
-        self.__heldUpdateEffect = heldUpdateEffect
-        self.__castEffect = castEffect
-        self.__equippable = equippable
-        self.__description = description
-    # Getters
-    def getName(self) -> str:
-        return self.__name
-    def getCost(self) -> int:
-        return self.__cost
-    def getAbilityCategory(self) -> AbilityCategory:
-        return self.__AbilityCategory
-    def getMaxCharges(self) -> int:
-        return self.__maxCharges
-    def getMaxCooldown(self) -> Union[None, int]:
-        return self.__maxCooldown
-    def getMaxKills(self) -> Union[None, int]:
-        return self.__maxKills
-    def getEquippable(self) -> bool:
-        return self.__equippable
-    def getEffect(self) -> Effect:
-        return self.__effect
-    def getDescription(self) -> str:
-        return self.__description
-    # JSON
-    def collapseToDict(self) -> JSONType:
-        return {
-            "name": self.__name,
-            "cost": self.__cost,
-            "abilityCategory": self.__abilityCategory,
-            "maxCharges": self.__maxCharges,
-            "maxCooldown": self.__maxCooldown,
-            "maxKills": self.__maxKills,
-            "equippable": self.__equippable,
-            "effect": self.__effect.collapseToDict() if self.__effect is not None else None,
-            "description": self.__description
-        }
-        
-class Inventory:
-    def __init__(self, meleeKey: MeleeKey = MeleeKey.DEFAULT, secondaryKey: Union[SidearmKey, None] = SidearmKey.CLASSIC, primaryKey: Union[GunKey, None] = None):
-        self.__meleeKey = meleeKey
-        self.__secondaryKey = secondaryKey
-        self.__primaryKey = primaryKey
-    def getMeleeKey(self) -> Melee:
-        return self.__meleeKey
-    def getSecondaryKey(self) -> Gun:
-        return self.__secondaryKey
-    def getPrimaryKey(self) -> Gun:   
-        return self.__primaryKey
-    # JSON
-    def collapseToDict(self) -> JSONType:
-        return {
-            "meleeKey": self.__meleeKey,
-            "secondaryKey": self.__secondaryKey,
-            "primaryKey": self.__primaryKey
-        }
-
-# PLAYER
-class Agent:
-    def __init__(self, name: str, abilityKeys: list[AbilityKey, AbilityKey, AbilityKey, AbilityKey], sprites: SpriteSetKey, description: str) -> None:
-        self.__name = name
-        self.__abilityKeys = abilityKeys
-        self.__sprites = sprites
-        self.__description = description
-    def getSpriteSet(self) -> SpriteSet:
-        return spriteSets[self.__sprites]
-    # JSON
-    def collapseToDict(self) -> JSONType:
-        return {
-            "name": self.__name,
-            "abilityKeys": [abilityKey for abilityKey in self.__abilityKeys],
-            "description": self.__description
-        }
-
-class Player:
-    def __init__(self, name: str, pose: Pose = Pose(), vitals: Vitals = Vitals(), status: Status = Status(), inventory: Inventory = Inventory(), stats: Stats = Stats(), agent: Union[AgentKey, None] = None) -> None:
-        self.__name = name
-        self.__pose = pose
-        self.__vitals = vitals
-        self.__status = status
-        self.__inventory = inventory
-        self.__stats = stats
-        self.__agent = agent
-        
-    def getAgent(self) -> AgentKey:
-        return self.__agent
-    def setAgent(self, agentKey: AgentKey) -> None:
-        self.__agent = agents[agentKey]
-    
-    def getName(self) -> str:
-        return self.__name
-    
-    def collapseToDict(self) -> JSONType:
-        return {
-            "pose": self.__pose.collapseToDict(),
-            "vitals": self.__vitals.collapseToDict(),
-            "status": self.__status.collapseToDict(),
-            "inventory": self.__inventory.collapseToDict(),
-            "stats": self.__stats.collapseToDict(),
-            "agent": self.__agent.collapseToDict()
+            "orientation": self.getOrientation().getAngle()
         }
 
 # BACKEND
-class Connection:
+class Connection(Printable):
     def __init__(self, name: str):
         self.__name = name
     def getName(self) -> str:
         return self.__name
 
-class GameState:
-    def __init__(self, players: list[Player], time: float, roundNo: int, score: tuple[int, int], mapKey: MapKey, gameMode: GameModeKey, roundTime: float, objects: list[Object]) -> None:
-        self.players = players
-        self.time = time
-        self.round = roundNo
-        self.score = score
-        self.mapKey = mapKey
-        self.gameMode = gameMode
-        self.roundTime = roundTime
-        self.objects = objects
-    def cutForPlayer(self, playerId: int) -> "GameState":
-        pass # TODO L8
-
-    def collapseToDict(self) -> JSONType:
-        return {
-            "players": [player.collapseToDict() for player in self.players],
-            "time": self.time,
-            "round": self.round,
-            "score": self.score,
-            "mapKey": self.mapKey,
-            "gameMode": self.gameMode,
-            "roundTime": self.roundTime,
-            "objects": [obj.collapseToDict() for obj in self.objects]
-        }
-    
-    def __str__(self) -> str:
-        return str(self.collapseToDict())
-
 class Input:
-    def __init__(self, type: str):
+    def __init__(self, type: InputKey, held: bool = False) -> None:
         self.type = type
+        self.held = held
     def __str__(self) -> str:
-        return f"Input[type={self.type}]"
+        return f"Input[type={self.type}, {'held' if self.held else 'pressed'}]"
+    def __repr__(self) -> str:
+        return self.__str__()
 
-class Message:
-    def __init__(self, head: str, body: Any):
-        self.head = head
-        self.body = body
-    def __eq__(self, other: "Message") -> bool:
-        return self.head == other.head and self.body == other.body
-    def __str__(self) -> str:
-        return f"Message[head={self.head}, body={self.body}]"
+from classes.agentTypes import Ability, Agent
+from classes.inventoryTypes import Melee, Gun
+from classes.mapTypes import Map
+from classes.graphicTypes import SpriteSet

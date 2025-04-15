@@ -1,5 +1,6 @@
 # Version: 1.2
 import dependencies.networking as net
+from time import time as now
 from dependencies.networking import * 
 from typing import Union, Any, Callable
 from threading import Lock
@@ -13,6 +14,7 @@ class Request:
         self.head = head
         self.body = body
         self.id: Union[int, None] = None
+        self.sentTime = now()
     def __eq__(self, other: "Request") -> bool:
         return self.head == other.head and self.body == other.body
     def __str__(self) -> str:
@@ -23,13 +25,15 @@ class Event:
         self.head = head
         self.body = body
         self.id: Union[int, None] = None
+        self.sentTime: float = now()
     def __eq__(self, other: "Request") -> bool:
         return self.head == other.head and self.body == other.body
     def __str__(self) -> str:
         return f"Event[head={self.head}, body={self.body}]"
 
 class CommunicationsHandler:
-    def __init__(self: "CommunicationsHandler", host: bool = False, ip: str = "localhost", port: int = 54321, maxClients = 4, commands: dict[str, Callable] = None) -> None:
+    def __init__(self: "CommunicationsHandler", host: bool = False, ip: str = "localhost", port: int = 54321, maxClients = 4, dataSize: int = 1024, commands: dict[str, Callable] = None) -> None:
+        self.DATA_SIZE = dataSize
         if commands is None:
             self.__commands = {}
         else:
@@ -57,7 +61,7 @@ class CommunicationsHandler:
             with self.__queueLock:
                 self.__requestQueue.append(localRequest)
     def __initHost(self: "CommunicationsHandler") -> None:
-        self.__mainObject = Server(self._ip, self._port, 1024, "pickle", self._maxClients)
+        self.__mainObject = Server(self._ip, self._port, self.DATA_SIZE, "pickle", self._maxClients)
         self.__mainObject.messageFunctions = self.__mainObject.messageFunctions | self.__commands
         
         
@@ -85,7 +89,7 @@ class CommunicationsHandler:
                 self.__eventQueue.append(localEvent)
                 
     def __initClient(self: "CommunicationsHandler") -> None:
-        self.__mainObject = Client(self._ip, self._port, 1024, "pickle", False, debug = True)
+        self.__mainObject = Client(self._ip, self._port, self.DATA_SIZE, "pickle", False, debug = True)
         self.__mainObject.messageFunctions = self.__mainObject.messageFunctions | self.__commands
         
         
@@ -105,17 +109,21 @@ class CommunicationsHandler:
         self.resolveEvent = MethodType(resolveEvent, self)
         self.sendRequest = MethodType(sendRequest, self)
         
+    def getName(self) -> str:
+        if isinstance(self.__mainObject, Client):
+            return self.__mainObject.name  
+    
     def getMainObject(self) -> Server | Client:
         return self.__mainObject
     
     def quit(self: "CommunicationsHandler") -> None:
         self.__mainObject.close()
 
-def setOnClientJoin(func: Callable):
+def setOnClientJoin(func: Callable[[], None]) -> None:
     net.onClientJoin = func
 
-def setOnConnect(func: Callable):
+def setOnConnect(func: Callable[[], None]) -> None:
     net.onConnect = func
 
-def setOnDisconnect(func: Callable):
+def setOnDisconnect(func: Callable[[], None]) -> None:
     net.onDisconnect = func

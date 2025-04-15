@@ -1,0 +1,10 @@
+{
+    "typeCheckingMode": "strict",
+    "reportMissingTypeStubs": true,
+    "exclude": ["dependencies", "**/__pycache__"],
+    "ignore": ["dependencies"],
+    "python.analysis.exclude": [
+    "dependencies",
+    "**/__pycache__",
+  ]
+}

@@ -1,13 +1,15 @@
 import os
+from config.constants import debug, D
 from dependencies.communications import Event, Request
-from typing import Union
-from classes.types import Message, Message, MenuKey, AutoMessageTrigger
+from typing import Union, Callable
+from classes.types import Message
+from classes.keys import MenuKey
 from handlers.graphicsHandler import GraphicsHandler
 from handlers.menuHandler import MenuHandler
 from handlers.inputHandler import InputHandler
 from handlers.communicationHandler import CommunicationHandler
-from handlers.serverHandler import ServerHandler
-from handlers.clientHandler import ClientHandler
+from handlers.serverGameHandler import ServerGameHandler
+from handlers.clientGameHandler import ClientGameHandler
 from handlers.config import CONFIG
 
 from prebuilts.abilities import init as initAbilities
@@ -17,7 +19,6 @@ from prebuilts.maps import init as initMaps
 from prebuilts.spriteSets import init as initSpriteSets
 from prebuilts.weapons import init as initWeapons
 
-debug = 4
 ROOT = os.path.dirname(__file__)
 # Setup
 def setup() -> None:
@@ -30,17 +31,17 @@ def setup() -> None:
 
 
 setup()
-localMessages = []
-server: Union[None, ServerHandler] = None
-client: Union[None, ClientHandler] = None
+localMessages: list[Message] = []
+server: Union[None, ServerGameHandler] = None
+client: Union[None, ClientGameHandler] = None
 graphics = GraphicsHandler(ROOT)
 menu = MenuHandler()
 inputs = InputHandler()
-playerCommands = {
+playerCommands: dict[str, Callable[[], None]] = {
     "ForceDisconnect": lambda: localMessages.append(Message("ForceDisconnect", None))
 }
-hostCommands = {}
-communication = CommunicationHandler(playerCommands, hostCommands, debug)
+hostCommands: dict[str, Callable[[], None]] = {}
+communication = CommunicationHandler(playerCommands, hostCommands)
 menu.setMenu(MenuKey.PLAY)
 loop = True
 
@@ -57,10 +58,13 @@ def getLocalMessages() -> list[Message]:
 # HANDLING
 def handleMessage(message: Message) -> None:
     global server, client
-    if debug > 1: print(message)
+    if message.head not in ("CastUpdateGameStateEvent", "sendInputRequests", "UpdateRemainingSelectTime"):
+        debug(D.LOG, f"Handling Message 🛠️: {message.head}", message.body)
+    else:
+        debug(D.TRACE, f"Handling Message 🔄🛠️: {message.head}", message.body)
     match message.head:
         case "Initiated":
-            print("+++Initiated+++")
+            debug(D.LOG ,"+++Initiated+++")
         case "Connected":
             menu.setMenu(MenuKey.PLAYER_LOBBY)
         case "Hosted":
@@ -76,60 +80,79 @@ def handleMessage(message: Message) -> None:
                 server.close()
         case "Join":
             communication.connectToGame(*message.body)
-            client = ClientHandler()
+            client = ClientGameHandler()
         case "Host":
             if communication.getType() is None:
                 communication.hostGame(CONFIG["port"])
-                server = ServerHandler()
+                server = ServerGameHandler()
         case "Start":
-            server.start(communication.getConnections())
+            if server:
+                server.start(communication.getConnections())
         case "SelectAgent":
-            communication.selectAgent(message.body)
+            communication.sendRequest("SelectAgentRequest", message.body) # agent
         case "ForceStart":
-            if not server.isIngame():
+            if server and not server.isIngame():
                 server.startGame()
                 menu.setMenu(MenuKey.IN_GAME_HOST)
+        case "StartAgentSelectionEvent":
+            localMessages.append(Message("OpenServerAgentSelect", None))
+            communication.castEvent("StartAgentSelectionEvent", None)
+        case "EndAgentSelectMessage":
+            if server and not server.isIngame():
+                server.startGame()
+        case "UpdateRemainingSelectTime":
+            communication.castEvent("UpdateRemainingSelectTimeEvent", message.body) # time
+        case "ServerGameStart":
+            communication.castEvent("GameStartEvent", message.body) # gameState
+        case "CastUpdateGameStateEvent":
+            communication.castEvent("UpdateGameStateEvent", message.body) # gameState
+        case "sendInputRequests":
+            for request in message.body:
+                communication.sendRequest(request.head, request.body) # request details
+        case _:
+            debug(D.WARNING, f"Unhandled message 🛠️: {message.head}", message.body)
 
 def handleEvent(event: Event) -> None:
     global server, client
-    if debug > 2: print(event)
+    if event.head not in ("UpdateGameStateEvent", "Ping", "UpdateRemainingSelectTimeEvent"):
+        debug(D.LOG, f"Handling Event 📅: {event.head}", event.body)
+    else:
+        debug(D.TRACE, f"Handling Event 🔄📅: {event.head}", event.body)
     match event.head:
         case "EndSession":
-            communication.getComm().quit()
+            if comm := communication.getComm(): 
+                comm.quit()
             communication.setType(None)
             menu.setMenu(MenuKey.PLAY)
-            if debug >= 0:
-                print("Connection lost")
+            debug(D.ERROR, "Connection lost")
         case "StartAgentSelectionEvent":
             menu.setMenu(MenuKey.AGENT_SELECT)
-        case "updateRemainingSelectTimeEvent":
-            client.setRemainingSelectTime(event.body)
-        case "gameStart":
-            pass
-            # TODO: event.body
-    
+        case "UpdateRemainingSelectTimeEvent":
+            if client:
+                client.setRemainingSelectTime(event.body)
+        case "GameStartEvent":
+            menu.setMenu(MenuKey.IN_GAME_PLAYER)
+            menu.disable()
+            if client:
+                client.setup(event.body)
+        case "UpdateGameStateEvent":
+            if client:
+                client.setGameState(event.body, event.sentTime)
+        case _:
+            debug(D.WARNING, f"Unhandled event 📅: {event.head}", event.body)
+
 def handleRequest(request: Request) -> None:
     global server, client
-    if debug > 2: print(request)
+    if request.head not in ("Ping", "MovementRequest"):
+        debug(D.LOG, f"Handling Request 📡: {request.head}", request.body)
+    else:
+        debug(D.TRACE, f"Handling Request 🔄📡: {request.head}", request.body)
     match request.head:
-        case "SelectAgent":
-            if not server.isIngame():
+        case "SelectAgentRequest":
+            if server and not server.isIngame():
                 server.setAgent(request.signature, request.body)
-
-def handleGameMessage(message: Message) -> None:
-    if debug > 3: print(message)
-    pass
-
-def handleServerMessage(message: Message) -> None:
-    if debug > 3: print(message)
-    match message.head:
-        case "StartAgentSelectionEvent":
-            localMessages.append(Message("OpenServerAgentSelect", None))
-            communication.selectAgents()
-        case "EndAgentSelectMessage":
-            if not server.isIngame():
-                server.startGame()
-        case "updateRemainingSelectTime":
-            communication.updateRemainingSelectTime(message.body)
-        case "serverGameStart":
-            communication.gameStartEvent(message.body)
+        case "MovementRequest":
+            if server:
+                server.tryMovement(request.signature, request.body)
+        case _:
+            debug(D.WARNING, f"Unhandled request 📡: {request.head}", request)

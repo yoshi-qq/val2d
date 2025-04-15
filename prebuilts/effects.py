@@ -1,4 +1,5 @@
-from classes.types import EffectKey, Effect, effects as effects_
+from classes.types import Effect, effects as effects_
+from classes.keys import EffectKey
 
 # TODO L6: add real effects
 l = lambda: None

@@ -1,4 +1,8 @@
 import pygame, os, time, math, threading, ctypes
+from typing import Union, Callable, Literal, TypeVarTuple
+T = TypeVarTuple("T")
+T2 = TypeVarTuple("T2")
+T3 = TypeVarTuple("T3")
 from screeninfo import get_monitors
 from pygame.locals import HWSURFACE, DOUBLEBUF, FULLSCREEN
 from ctypes.wintypes import HWND, HANDLE, UINT, HGLOBAL, LPVOID
@@ -14,10 +18,11 @@ defaultFont = None
 sprites = {}
 keys = set()
 exeKeys = set()
+middle: tuple[int, int] = (0, 0)
+displayResolution: tuple[int, int] = (0, 0)
+natY: bool = False
 
-
-
-def preload(file, nativeRes = (1920, 1080), scale = 1, windowRes = False):
+def preload(file, nativeRes: tuple[int, int] = (1920, 1080), scale: float = 1, windowRes: Union[Literal[False], tuple[int, int]] = False):
     global root, displayResolution, nativeResolution, middle, rx, ry, xMultiplier, yMultiplier
     root = os.path.dirname(os.path.abspath(file))
     nativeResolution = nativeRes
@@ -65,9 +70,12 @@ def paperclipInit():
             CloseClipboard()
         return text
 
-def init(file = __file__, fps: int = 30, fontPath = "Arial", fullscreen = False, singleSizeOn = False, windowName = "GRAPHY!", spriteFolder = "assets", spriteExtension = ".png", scale = 1, nativeRes = (1920, 1080), windowIcon = "icon", windowRes = False):
-    global sprites, screen, realScreen, renders, clock, nativeResolution, singleSize, running, defaultFont, FPS
+def init(file: Union[None, str] = None, fps: int = 30, fontPath: str = "Arial", fullscreen: bool = False, naturalY: bool = False, singleSizeOn: bool = False, windowName: str = "GRAPHY!", spriteFolder: str = "assets", spriteExtension: str = ".png", scale: float = 1, nativeRes: tuple[int, int] = (1920, 1080), windowIcon: str = "icon", windowRes: Union[bool, tuple[int, int]] = False):
+    global natY, sprites, screen, realScreen, renders, clock, nativeResolution, singleSize, running, defaultFont, FPS
+    if file is None:
+        file = __file__
     FPS = fps
+    natY = naturalY
     nativeResolution = nativeRes
     singleSize = singleSizeOn
     defaultFont = fontPath
@@ -153,6 +161,13 @@ def drawRotated(surface, img, x = 0, y = 0, angle = 180, width = 1, height = 1, 
 def getMouse():
     return (pygame.mouse.get_pos()[0]/xMultiplier, pygame.mouse.get_pos()[1]/yMultiplier)
 
+def getHeldKeys() -> set[int]:
+    '''
+    returns a set of key comparable to the pygame constants e.g. pygame.K_SPACE, pygame.K_a
+    '''
+    global keys
+    return keys
+
 def click():
     global clickEvent
     clickEvent = True
@@ -189,7 +204,13 @@ def draw():
             pygame.quit();
             return;
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            click();
+            keys.add(event.button)
+            click()
+        elif event.type == pygame.MOUSEBUTTONUP:
+            keys.discard(event.button)
+            try:
+                exeKeys.discard(event.button)
+            except: pass # EH?
         elif event.type == pygame.KEYDOWN:
             if activeInput is not None:
                 if (event.key == pygame.K_v) and (pygame.key.get_mods() & pygame.KMOD_CTRL):
@@ -198,10 +219,10 @@ def draw():
                 elif activeInput is not None and event.unicode and event.key not in (pygame.K_BACKSPACE, pygame.K_SPACE, pygame.K_RETURN):
                     activeInput.text += event.unicode
                     activeInput.update()
-                else:
-                    keys.add(event.key)
-                    threading.Thread(target = pressDelay, args = (event.key, 0.25)).start()
-                    keyPress(event.key)
+            else:
+                keys.add(event.key)
+                threading.Thread(target = pressDelay, args = (event.key, 0.25)).start()
+                keyPress(event.key)
         elif event.type == pygame.KEYUP:
             keys.discard(event.key)
             try:
@@ -327,12 +348,15 @@ def classes():
             self.x = x
             self.y = y
             
-    class RenderObject():
+    class RenderObject:
         def __init__(self, surface = screen, temporary = False, enabled = True, x = 0, xOffset = 0, y = 0, yOffset = 0, width = 10, height = 10, priority = 2, angle = 0, stretch = 1):
             self.enabled = enabled
             self.temporary = temporary
             self.x = x
-            self.y = y
+            if natY:
+                self.y = 2*middle[1] - y
+            else:
+                self.y = y
             self.xOffset = xOffset
             self.yOffset = yOffset
             self.width = width
@@ -353,10 +377,16 @@ def classes():
         def remove(self):
             global renders
             renders.remove(self)
-            
+        
+        def __str__(self) -> str:
+            if hasattr(self, "strName"):
+                name = self.strName
+            else: name = "-Unknown-"
+            return f"{self.__class__.__name__}({name}), x: {self.x}, y: {self.y}, width: {self.width}, height: {self.height}, angle: {self.angle}, stretch: {self.stretch}, priority: {self.priority + self.priorityOffset}"
+        
     class RenderImage(RenderObject):
-        def __init__(self, strName = "image", surface = screen, temporary = False, enabled = True, imageName = None, x = 0, xOffset = 0, y = 0, yOffset = 0, width = 10, height = 10, middle = False, priority = 2, angle = 0, stretch = 1, mapPosition = (None, None), gen = True):
-            self.strName = strName
+        def __init__(self, strName = None, surface = screen, temporary = False, enabled = True, imageName = None, x: float = 0, xOffset: float = 0, y: float = 0, yOffset: float = 0, width: float = 10, height: float = 10, middle = False, priority: float = 2, angle: float = 0, stretch: float = 1, mapPosition = (None, None), gen = True):
+            self.strName = strName if strName is not None else imageName
             self.name = imageName
             self.imageName = imageName
             self.xOffset = xOffset
@@ -398,6 +428,7 @@ def classes():
       
     class RenderAnimation(RenderImage):
         def __init__(self, continuous = True, slowdown = 1, rotation = 1, strName = "animation", surface = screen, temporary = False, enabled = True, imageNames: tuple = None, x = 0, xOffset = 0, y = 0, yOffset = 0, width = 10, height = 10, middle = False, priority = 2, angle = 0, stretch = 1, mapPosition = (None, None), gen = True):
+            self.strName = imageNames[0]
             self.rotation = rotation
             self.continuous = continuous
             self.slowdown = slowdown
@@ -423,7 +454,8 @@ def classes():
             self.frame += self.slowdown**-1
         
     class RenderButton(RenderImage):
-        def __init__(self, imageName: str = None, strName = "button", clickAction = False, hoverAction = False, unHoverAction = False, arguments: tuple = (), hoverArguments: tuple = (), unHoverArguments: tuple = (), surface = screen, temporary = False, enabled = True, hoverImageName = False, x = 0, xOffset = 0, y = 0, yOffset = 0, width = 10, height = 10, priority = 2, angle = 0, stretch = 1, middle = False, gen = True):
+        def __init__(self, imageName: Union[None, str] = None, strName: str = "button", clickAction: Union[Callable[[], None], Callable[[*T], None], Literal[False]] = False, hoverAction: Union[Callable[[], None], Callable[[*T2], None], Literal[False]] = False, unHoverAction: Union[Callable[[], None], Callable[[*T3], None], Literal[False]] = False, arguments: tuple[*T] = (), hoverArguments: tuple[*T2] = (), unHoverArguments: tuple[*T3] = (), surface: pygame.Surface = screen, temporary: bool = False, enabled: bool = True, hoverImageName: Union[Literal[False], str] = False, x: float = 0, xOffset: float = 0, y: float = 0, yOffset: float = 0, width: float = 10, height: float = 10, priority: float = 2, angle: float = 0, stretch: float = 1, middle: bool = False, gen: bool = True):
+            self.strName = imageName
             if isinstance(clickAction, str): # define click action
                 clickAction = eval(clickAction)  
             self.clickAction = clickAction
@@ -469,7 +501,8 @@ def classes():
             return super().draw()
         
     class RenderText(RenderObject):
-        def __init__(self, surface: pygame.surface = screen, enabled = True, x: int = 0, y: int = 0, xOffset: int = 0, yOffset: int = 0, text: str = "example", font: pygame.font = defaultFont, size: int = 30, color: tuple = (0, 0, 0), temporary = False, angle = 0, stretch = 1, middle = False, priority: float = 2, gen: bool = True):
+        def __init__(self, surface: pygame.surface = screen, enabled = True, x: float = 0, y: float = 0, xOffset: float = 0, yOffset: float = 0, text: str = "example", font: pygame.font = defaultFont, size: float = 30, color: tuple = (0, 0, 0), temporary = False, angle = 0, stretch = 1, middle = False, priority: float = 2, gen: bool = True):
+            self.strName = text
             try:
                 self.font = pygame.font.Font(font, size)
             except:
@@ -494,7 +527,8 @@ def classes():
             drawRotated(surface = self.surface, img = self.renderSurface, x = self.x + self.xOffset, y = self.y + self.yOffset, angle = self.angle, width = self.width * self.sizeMulti, height = self.height * self.sizeMulti, stretch = self.stretch, middle = self.middle)
 
     class RenderTextButton(RenderButton):
-        def __init__(self, surface: pygame.surface = screen, drawType = "rect", imageName = None, hoverImageName = None, strName = "textButton", enabled = True, x: int = 0, y: int = 0, width: int = 30, height: int = 10, xOffset: int = 0, yOffset: int = 0, clickAction = False, hoverAction = False, unHoverAction = False, arguments: tuple = (), hoverArguments: tuple = (), unHoverArguments: tuple = (),  text: str = "example", font: pygame.font = defaultFont, size: int = None, borderSize = 5, color: tuple = (0, 0, 0), activeColor: tuple = (100, 100, 100), textColor: tuple = (200, 200, 200), borderColor: tuple = (200, 200, 200), temporary = False, angle = 0, stretch = 1, middle = False, priority: float = 2, gen: bool = True):
+        def __init__(self, surface: pygame.surface = screen, drawType = "rect", imageName = None, hoverImageName = None, strName = "textButton", enabled = True, x: float = 0, y: float = 0, width: float = 30, height: float = 10, xOffset: float = 0, yOffset: float = 0, clickAction = False, hoverAction = False, unHoverAction = False, arguments: tuple = (), hoverArguments: tuple = (), unHoverArguments: tuple = (),  text: str = "example", font: pygame.font = defaultFont, size: float = None, borderSize = 5, color: tuple = (0, 0, 0), activeColor: tuple = (100, 100, 100), textColor: tuple = (200, 200, 200), borderColor: tuple = (200, 200, 200), temporary = False, angle = 0, stretch = 1, middle = False, priority: float = 2, gen: bool = True):
+            self.strName = f"{{{imageName}}}{{{text}}}"
             self.borderSize = borderSize
             self.middle = middle
             self.text = text
@@ -549,7 +583,8 @@ def classes():
             self.textSurface.draw()
         
     class RenderInput(RenderObject):
-        def __init__(self, surface: pygame.surface = screen, enabled = True, x: int = 0, y: int = 0, xOffset: int = 0, yOffset: int = 0, text: str = "example", font: pygame.font = defaultFont, size: int = 30, borderSize = 5, color: tuple = (0, 0, 0), activeColor = (100, 100, 100), textColor: tuple = (200, 200, 200), borderColor: tuple = (200, 200, 200), temporary = False, angle = 0, stretch = 1, middle = False, priority: float = 2, gen: bool = True):
+        def __init__(self, surface: pygame.surface = screen, enabled = True, x: float = 0, y: float = 0, xOffset: float = 0, yOffset: float = 0, text: str = "example", font: pygame.font = defaultFont, size: float = 30, borderSize = 5, color: tuple = (0, 0, 0), activeColor = (100, 100, 100), textColor: tuple = (200, 200, 200), borderColor: tuple = (200, 200, 200), temporary = False, angle = 0, stretch = 1, middle = False, priority: float = 2, gen: bool = True):
+            self.strName = text
             self.borderSize = borderSize
             self.middle = middle
             self.text = text
@@ -618,7 +653,7 @@ def classes():
 
 
     class GameObject():
-        def __init__(self, strName = "image", x = 0, y = 0, renderObject = None, enabled = True, angle = 0, priority = 2):
+        def __init__(self, strName = None, x = 0, y = 0, renderObject = None, enabled = True, angle = 0, priority = 2):
             global renders
             self.strName = strName
             self.x = x
@@ -629,7 +664,10 @@ def classes():
             renderObject.x = self.x
             renderObject.y = self.y
             renderObject.angle = self.angle
-            renderObject.strName = self.strName
+            if self.strName:
+                renderObject.strName = self.strName
+            elif renderObject:
+                self.strName = renderObject.strName
             renderObject.priority = self.priority
             renderObject.enabled = self.enabled
             self.renderObject = renderObject

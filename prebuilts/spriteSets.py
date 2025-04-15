@@ -1,4 +1,6 @@
-from classes.types import SpriteSetKey, SpriteSet, AgentSpriteSet, spriteSets as spriteSets_
+from classes.types import  SpriteSet, spriteSets as spriteSets_
+from classes.keys import SpriteSetKey
+from classes.graphicTypes import AgentSpriteSet
 
 k = SpriteSetKey
 spriteSets: dict[SpriteSetKey, SpriteSet] = {
