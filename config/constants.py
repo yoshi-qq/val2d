@@ -1,6 +1,6 @@
 from enum import Enum
 # GENERAL
-VERSION = (0,9,1)
+VERSION = (0,9,2)
 STABLE = False
 VERSION_STRING = f"{VERSION[0]}.{VERSION[1]}.{VERSION[2]}"
 
