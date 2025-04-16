@@ -5,3 +5,4 @@
 - ping request for round trip display with last trip time for host
 - worlds (standing in smoke -> only seeing inside smoke, standing outside -> only see outside)
 - client waiting for server response
+- replace all DEFAULTS with settings, config, etc.

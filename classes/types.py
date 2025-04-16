@@ -108,8 +108,10 @@ class Effect(Printable):
 class Angle:
     def __init__(self, angle: float = 0):
         self.__angle = angle
+    def setAngle(self, newAngle: float = 0):
+        self.__angle = newAngle % 360
     def changeAngle(self, angleMod: float = 0):
-        self.__angle += angleMod
+        self.__angle = (self.__angle + angleMod) % 360
     def getAngle(self) -> float:
         return self.__angle
     # return the middle angle of two angles, returns None if they are perfectly antipodale
@@ -118,6 +120,14 @@ class Angle:
         angle2 = secondAngle.getAngle()
         diff = ((angle1 - angle2 + 180) % 360) - 180
         return None if abs(diff) == 180 else Angle((angle1 + diff / 2) % 360)
+    def __add__(self, other: "Angle") -> "Angle":
+        return Angle((self.__angle + other.getAngle()) % 360)
+    def __sub__(self, other: "Angle") -> "Angle":
+        return Angle((self.__angle - other.getAngle()) % 360)
+    def __mul__(self, scaling: float) -> "Angle":
+        return Angle(self.__angle * scaling)
+    def __truediv__(self, divisor: float) -> "Angle":
+        return Angle(self.__angle / divisor)
     def __str__(self):
         return f"{self.__angle}"
     def __repr__(self) -> str:
@@ -215,9 +225,10 @@ class Pose:
     def move(self, relativePosition: Position) -> None:
         self.__position.changePosition(*relativePosition.getPosition())
     def turnTo(self, newOrientation: Angle) -> None:
-        self.__orientation.changeAngle(newOrientation.getAngle())
-    def turn(self, relativeOrientation: Angle) -> None:
+        self.__orientation.setAngle(newOrientation.getAngle())
+    def turn(self, relativeOrientation: Angle) -> Angle:
         self.__orientation.changeAngle(relativeOrientation.getAngle())
+        return self.__orientation
     # Getters
     def getPosition(self) -> Position:
         return self.__position

@@ -21,6 +21,8 @@ exeKeys = set()
 middle: tuple[int, int] = (0, 0)
 displayResolution: tuple[int, int] = (0, 0)
 natY: bool = False
+mousePos: tuple[int, int] = (0, 0)
+mouseMovement: tuple[int, int] = (0, 0)
 
 def preload(file, nativeRes: tuple[int, int] = (1920, 1080), scale: float = 1, windowRes: Union[Literal[False], tuple[int, int]] = False):
     global root, displayResolution, nativeResolution, middle, rx, ry, xMultiplier, yMultiplier
@@ -70,11 +72,12 @@ def paperclipInit():
             CloseClipboard()
         return text
 
-def init(file: Union[None, str] = None, fps: int = 30, fontPath: str = "Arial", fullscreen: bool = False, naturalY: bool = False, singleSizeOn: bool = False, windowName: str = "GRAPHY!", spriteFolder: str = "assets", spriteExtension: str = ".png", scale: float = 1, nativeRes: tuple[int, int] = (1920, 1080), windowIcon: str = "icon", windowRes: Union[bool, tuple[int, int]] = False):
-    global natY, sprites, screen, realScreen, renders, clock, nativeResolution, singleSize, running, defaultFont, FPS
+def init(file: Union[None, str] = None, fps: int = 30, fontPath: str = "Arial", fullscreen: bool = False, captureCursor: bool = False, naturalY: bool = False, singleSizeOn: bool = False, windowName: str = "GRAPHY!", spriteFolder: str = "assets", spriteExtension: str = ".png", scale: float = 1, nativeRes: tuple[int, int] = (1920, 1080), windowIcon: str = "icon", windowRes: Union[bool, tuple[int, int]] = False):
+    global natY, sprites, screen, realScreen, renders, clock, nativeResolution, singleSize, running, defaultFont, FPS, cursorCaptured
     if file is None:
         file = __file__
     FPS = fps
+    cursorCaptured = captureCursor
     natY = naturalY
     nativeResolution = nativeRes
     singleSize = singleSizeOn
@@ -130,7 +133,7 @@ def drawNormal(surface, img, x = 0, y = 0, width = 1, height = 1, middle = False
         topleft = (x - img.get_width()/2, y - img.get_height()/2)
     surface.blit(img, topleft)
 
-def drawRotated(surface, img, x = 0, y = 0, angle = 180, width = 1, height = 1, stretch = 1, middle = False):
+def drawRotated(surface, img, x = 0, y = 0, angle = 180, width = 1, height = 1, stretch = 1, middle = False, flipped = False):
     width, height = width*rx, height*ry
     if abs(img.get_height() - height/stretch) > 1 or abs(img.get_width() - width*stretch) > 1:
         img = pygame.transform.scale(img, (width*stretch, height/stretch))
@@ -138,7 +141,7 @@ def drawRotated(surface, img, x = 0, y = 0, angle = 180, width = 1, height = 1, 
         drawNormal(surface, img, x, y, width, height, middle)
         return
     elif angle == "flip":
-        img = pygame.transform.flip(img, False, True)
+        img = pygame.transform.flip(img, False, True) # ! legacy
     elif angle == 180:
         img = pygame.transform.flip(img, True, True)
     else:
@@ -152,6 +155,8 @@ def drawRotated(surface, img, x = 0, y = 0, angle = 180, width = 1, height = 1, 
         offset_y = rotated_rect.y - surface.get_rect().y
         x += offset_x*0.75
         y += offset_y*0.75
+    if flipped:
+        img = pygame.transform.flip(img, False, True)
     x, y = round(x*rx), round(y*ry)
     topleft = (x, y)
     if middle:
@@ -167,6 +172,19 @@ def getHeldKeys() -> set[int]:
     '''
     global keys
     return keys
+
+def getMousePosition() -> tuple[int, int]:
+    '''
+    returns the mouse position in the format (x, y)
+    '''
+    global mousePos
+    return mousePos
+def getMouseMovement() -> tuple[int, int]:
+    '''
+    returns the mouse movement in the format (x, y)
+    '''
+    global mouseMovement
+    return mouseMovement
 
 def click():
     global clickEvent
@@ -195,10 +213,24 @@ def postDraw():
     pass
 
 def draw():
-    global clickEvent, renders, running, keys, FPS
+    global clickEvent, renders, running, keys, FPS, mouseMovement, mousePos, cursorCaptured
     if not running:
         raise Exception ("Pygame not initialized\nPlease call graphy.init() before graphy.draw()")
+    mouseMoved = False
     for event in pygame.event.get():
+        if event.type == pygame.ACTIVEEVENT:
+            if event.gain == 0:
+                pygame.event.set_grab(False)
+                pygame.mouse.set_visible(True)
+            else:
+                pygame.event.set_grab(True)
+                pygame.mouse.set_visible(False)
+        elif event.type == pygame.MOUSEMOTION:
+            mouseMoved = True
+            mousePos = event.pos
+            mouseMovement = event.rel
+            if cursorCaptured:
+                pygame.mouse.set_pos((middle[0], middle[1]))
         if event.type == pygame.QUIT:
             running = False
             pygame.quit();
@@ -230,7 +262,9 @@ def draw():
             except: pass
         elif event.type == pygame.KEYDOWN:
             keyPress(event.key)
-            
+    
+    if not mouseMoved:
+        mouseMovement = (0, 0) 
     for key in exeKeys:
         keyPress(key)
                 
@@ -385,7 +419,7 @@ def classes():
             return f"{self.__class__.__name__}({name}), x: {self.x}, y: {self.y}, width: {self.width}, height: {self.height}, angle: {self.angle}, stretch: {self.stretch}, priority: {self.priority + self.priorityOffset}"
         
     class RenderImage(RenderObject):
-        def __init__(self, strName = None, surface = screen, temporary = False, enabled = True, imageName = None, x: float = 0, xOffset: float = 0, y: float = 0, yOffset: float = 0, width: float = 10, height: float = 10, middle = False, priority: float = 2, angle: float = 0, stretch: float = 1, mapPosition = (None, None), gen = True):
+        def __init__(self, strName = None, surface = screen, temporary = False, enabled = True, imageName = None, x: float = 0, xOffset: float = 0, y: float = 0, yOffset: float = 0, width: float = 10, height: float = 10, middle = False, priority: float = 2, angle: float = 0, flipped = False, stretch: float = 1, mapPosition = (None, None), gen = True):
             self.strName = strName if strName is not None else imageName
             self.name = imageName
             self.imageName = imageName
@@ -393,6 +427,7 @@ def classes():
             self.yOffset = yOffset
             self.middle = middle
             self.sizeMulti = 1
+            self.flipped = flipped
             self.mapPosition = mapPosition
             if self.imageName is None:
                 self.imageName = pygame.surface.Surface((width, height))
@@ -418,7 +453,7 @@ def classes():
             except KeyError:
                 self.image = self.image
         def draw(self):
-            drawRotated(surface = self.surface, img = self.image, x = self.x + self.xOffset, y = self.y + self.yOffset, angle = self.angle, width = self.width * self.sizeMulti, height = self.height * self.sizeMulti, stretch = self.stretch, middle = self.middle)
+            drawRotated(surface = self.surface, img = self.image, x = self.x + self.xOffset, y = self.y + self.yOffset, angle = self.angle, width = self.width * self.sizeMulti, height = self.height * self.sizeMulti, stretch = self.stretch, middle = self.middle, flipped = self.flipped)
 
         def changeImage(self, image):
             try:

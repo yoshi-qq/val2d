@@ -1,7 +1,7 @@
 from enum import Enum
 # GENERAL
-VERSION = (0,9,0)
-STABLE = True
+VERSION = (0,9,1)
+STABLE = False
 VERSION_STRING = f"{VERSION[0]}.{VERSION[1]}.{VERSION[2]}"
 
 # DEBUG
@@ -43,6 +43,9 @@ def debug(minimumLevel: D, message: object, details: object = None) -> None:
         print(f"{symbol} |{str(message)} - {detailsSymbol}|{str(details)}")
     elif DEBUG_LEVEL.value >= minimumLevel.value:
          print(f"{symbol} |{str(message)}")
+
+#? FUTURE SETTINGS
+DEFAULT_SENSITIVITY = 0.2
 
 # GRAPHICS
 RESOLUTION = (1920, 1080)

@@ -20,23 +20,24 @@ class GraphicsHandler:
         self.__perspective: Optional[Pose] = None
         self.__gameObjects: list[g.RenderObject] = []
         self.__menuObjects: list[g.RenderObject] = []
-        g.init(file=__file__, fps=60, fontPath="font/fixed_sys.ttf", naturalY=True, fullscreen=False, windowName="Val2D", spriteFolder=ASSETS_FOLDER, spriteExtension="png", windowIcon="logo", windowRes=(960, 540), nativeRes = RESOLUTION)
+        g.init(file=__file__, fps=60, fontPath="font/fixed_sys.ttf", captureCursor=True, naturalY=True, fullscreen=False, windowName="Val2D", spriteFolder=ASSETS_FOLDER, spriteExtension="png", windowIcon="logo", windowRes=(960, 540), nativeRes = RESOLUTION)
         self.__gameObjectRenders: list[g.RenderObject] = []
     # Global
     def draw(self) -> None:
         g.draw()
     
-    def __getPoseAndSizeFromPerspective(self, perspective: Pose, objectPose: Pose) -> tuple[Pose, float]:
+    def __getPoseAndSizeFromPerspective(self, perspective: Pose, objectPose: Pose, turnable: bool) -> tuple[Pose, float]:
         ownX, ownY, ownZ = perspective.getPosition().getX(), perspective.getPosition().getY(), perspective.getPosition().getZ()
         objX, objY, objZ = objectPose.getPosition().getX(), objectPose.getPosition().getY(), objectPose.getPosition().getZ()
         X, Y, Z = objX - ownX, objY - ownY, objZ - ownZ
         angle = perspective.getOrientation().getAngle()
         objAngle = objectPose.getOrientation().getAngle()
-        newAngle = objAngle - angle
         newX = sqrt(X**2 + Z**2) * cos(radians(angle) + atan2(Z, X))
         newY = objY
         newZ = sqrt(X**2 + Z**2) * sin(radians(angle) + atan2(Z, X))
-        
+        if turnable:
+            newAngle = objAngle - angle
+        else: newAngle = 0
         pose = Pose(Position(newX, newY, newZ), Angle(newAngle))
         size = (ownY - Y + PLAYER_HEIGHT) / PLAYER_HEIGHT * ZOOM_IN 
         return pose, size
@@ -46,6 +47,12 @@ class GraphicsHandler:
         pass
     
     # * Player Rendering
+    def __isFlipped(self, perspective: Pose, pose: Pose) -> bool:
+        ownAngle = perspective.getOrientation()
+        objAngle = pose.getOrientation()
+        displayAngle = objAngle - ownAngle
+        return displayAngle.getAngle() < 180
+        
     def __createAgentRender(self, perspective: Pose, playerPose: Pose, agent: Agent, status: Status) -> "g.RenderObject":
         if not status.isAlive():
             assetName = agent.getSpriteSet().dead
@@ -62,8 +69,8 @@ class GraphicsHandler:
             assetName = agent.getSpriteSet().jump
         else:
             assetName = agent.getSpriteSet().fall
-        
-        pose, size = self.__getPoseAndSizeFromPerspective(perspective, playerPose)
+        flipped = self.__isFlipped(perspective, playerPose)
+        pose, size = self.__getPoseAndSizeFromPerspective(perspective, playerPose, False)
         x, y, z = pose.getPosition().getX(), pose.getPosition().getY(), pose.getPosition().getZ()
         angle = pose.getOrientation().getAngle()
         
@@ -71,7 +78,7 @@ class GraphicsHandler:
         z = z*ZOOM_IN + g.middle[1]
         
         # TODO: fix rotation being around middle, not bottom middle
-        return g.RenderImage(temporary=True, imageName=assetName, x=x, y=z, width=AGENT_SPRITE_DIMENSIONS[0]*size, height=AGENT_SPRITE_DIMENSIONS[1]*size, middle=False, priority=y, angle=angle)
+        return g.RenderImage(temporary=True, imageName=assetName, x=x, y=z, width=AGENT_SPRITE_DIMENSIONS[0]*size, height=AGENT_SPRITE_DIMENSIONS[1]*size, middle=False, priority=y, angle=angle, flipped=flipped)
         
     
     # TODO: create this method

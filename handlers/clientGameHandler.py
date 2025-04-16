@@ -1,7 +1,7 @@
 from time import time as now
 from math import atan2, degrees
 from dependencies.communications import Request
-from config.constants import AGENT_SELECT_TIME, PING_INTERVAL, debug, D, DEFAULT_ACCELERATION
+from config.constants import AGENT_SELECT_TIME, PING_INTERVAL, debug, D, DEFAULT_ACCELERATION, DEFAULT_SENSITIVITY
 from typing import Union, Any
 from classes.types import Message, Input, Ping, Angle
 from classes.keys import InputKey
@@ -10,12 +10,14 @@ from prebuilts.base import getForwardPosition, getZeroPosition
 class ClientGameHandler:
     def __init__(self) -> None:
         self.__accelerationDirection: Angle | None = None
+        self.__ownAngle: Angle | None = None
         self.__remainingSelectTime = AGENT_SELECT_TIME
         self.__messageQueue: list[Message] = []
         self.__inGame = False
         self.__gameState: Union[None, GameState] = None
         self.__pingQueue: list[Ping] = []
         self.__lastPingTime: float = now()
+        self.__name: str | None = None
     # Global
     def setGameState(self, gameState: GameState, tickTime: float) -> None:
         self.__gameState = gameState
@@ -29,7 +31,10 @@ class ClientGameHandler:
         # self.__pingTick()
     
     def __doMovement(self, playerName: str, accelerationDirection: Angle | None) -> None:
-        if (not self.__inGame) or self.__gameState is None:
+        if self.__gameState is None:
+            debug(D.ERROR, "Local GameState is None")
+            return
+        if not self.__inGame:
             debug(D.WARNING, f"Local Player {playerName} tried to move while not in game")
             return
         if not (player := self.__gameState.getPlayer(playerName)):
@@ -53,8 +58,21 @@ class ClientGameHandler:
                 player.tickMovement(passedTime)
     
     def selfUpdate(self, tickTime: float, name: str) -> None:
-        self.__doMovement(name, self.__accelerationDirection)
+        self.__name = name
+        self.__doMovement(self.__name, self.__accelerationDirection)
         self.__tickMovement(tickTime)
+    
+    def handleMouseMovement(self, name: str, mouseMovement: tuple[int, int]) -> None:
+        if self.__gameState is None:
+            debug(D.ERROR, "Local GameState is None")
+            return
+        if (player := self.__gameState.getPlayer(name)) is None:
+            debug(D.ERROR, f"Couldn't turn Player {name}", f"Player {name} not found in local game")
+            return
+        turnAmount = mouseMovement[0] * DEFAULT_SENSITIVITY
+        turnAngle = Angle(turnAmount)
+        self.__ownAngle = player.getPose().turn(turnAngle)
+        self.__sendMessage("sendTurnToRequest", self.__ownAngle)
     
     def handleInputs(self, inputs: list[Input]) -> None:
         accelerationVector: tuple[int, int] = (0, 0)
@@ -105,5 +123,16 @@ class ClientGameHandler:
     # Setters
     def updateGameState(self, newGameState: GameState) -> None:
         self.__gameState = newGameState
+        if not self.__name:
+            debug(D.WARNING, "Local name is None")
+            return
+        if (player := self.__gameState.getPlayer(self.__name)) is None:
+            debug(D.WARNING, f"Couldn't realign Player turn {self.__name}", f"Player {self.__name} not found in local game")
+            return
+        if self.__ownAngle is None:
+            debug(D.WARNING, "Local ownAngle is None")
+            return
+        player.getPose().turnTo(self.__ownAngle)
+
     def setRemainingSelectTime(self, time: float) -> None:
         self.__remainingSelectTime = time

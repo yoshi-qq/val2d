@@ -109,6 +109,8 @@ def handleMessage(message: Message) -> None:
         case "sendInputRequests":
             for request in message.body:
                 communication.sendRequest(request.head, request.body) # request details
+        case "sendTurnToRequest":
+            communication.sendRequest("TurnToRequest", message.body) # new angle
         case _:
             debug(D.WARNING, f"Unhandled message 🛠️: {message.head}", message.body)
 
@@ -137,7 +139,7 @@ def handleEvent(event: Event) -> None:
                 client.setup(event.body)
         case "UpdateGameStateEvent":
             if client:
-                client.setGameState(event.body, event.sentTime)
+                client.updateGameState(event.body)
         case _:
             debug(D.WARNING, f"Unhandled event 📅: {event.head}", event.body)
 
@@ -154,5 +156,8 @@ def handleRequest(request: Request) -> None:
         case "MovementRequest":
             if server:
                 server.tryMovement(request.signature, request.body)
+        case "TurnToRequest":
+            if server:
+                server.tryTurnTo(request.signature, request.body)
         case _:
             debug(D.WARNING, f"Unhandled request 📡: {request.head}", request)

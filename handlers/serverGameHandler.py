@@ -54,6 +54,18 @@ class ServerGameHandler:
             if player.getStatus().isAlive():
                 player.tickMovement(passedTime)
     
+    def tryTurnTo(self, playerName: str, newAngle: Angle) -> None:
+        if not self.__inGame:
+            debug(D.WARNING, f"Player {playerName} tried to turn while not in game")
+            return
+        if not (player := self.__gameState.getPlayer(playerName)):
+            debug(D.WARNING, f"Couldnt turn Player {playerName}", f"Player {playerName} not found in game")
+            return
+        if not player.getStatus().isAlive():
+            debug(D.LOG, f"Player {playerName} tried to turn while dead")
+            return
+        player.getPose().turnTo(newAngle)
+    
     def tryMovement(self, playerName: str, accelerationDirection: Angle | None) -> None:
         if not self.__inGame:
             debug(D.WARNING, f"Player {playerName} tried to move while not in game")
@@ -67,7 +79,7 @@ class ServerGameHandler:
         if accelerationDirection is None:
             player.setAcceleration(getZeroPosition())
             return
-        newAcceleration = getForwardPosition().rotate(accelerationDirection)*DEFAULT_ACCELERATION
+        newAcceleration = getForwardPosition().rotate(accelerationDirection).rotate(player.getPose().getOrientation())*DEFAULT_ACCELERATION
         player.setAcceleration(newAcceleration)
 
     # Setters

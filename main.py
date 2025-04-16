@@ -14,7 +14,7 @@ import __init__ as core
 
 core.localMessages.append(Message("Initiated", None))
 
-def inputTick(inputHandler: InputHandler) -> list[Input]:
+def inputTick(inputHandler: InputHandler) -> tuple[list[Input], tuple[int, int]]:
     return inputHandler.getInputs()
 
 def serverTick(passedTime: float, server: Union[None, ServerGameHandler], currentMenu: MenuKey, messageHandleFunction: Callable[[Message], None]) -> None:
@@ -23,14 +23,17 @@ def serverTick(passedTime: float, server: Union[None, ServerGameHandler], curren
         for message in server.getMessages():
             messageHandleFunction(message)
 
-def clientTick(tickTime: float, client: Union[None, ClientGameHandler], messageHandleFunction: Callable[[Message], None], inputs: list[Input]) -> None:
-    if client is not None:
+def clientTick(name: str | None, tickTime: float, client: Union[None, ClientGameHandler], messageHandleFunction: Callable[[Message], None], inputs: list[Input], mouseMovement: tuple[int, int]) -> None:
+    if client is not None and name is not None:
         client.tick()
         if core.menu.isEnabled():
             for input_ in inputs:
                 core.menu.handleInput(input_)
         elif client.inGame():
             client.handleInputs(inputs)
+
+        if mouseMovement[0] != 0 or mouseMovement[1] != 0:
+            client.handleMouseMovement(name, mouseMovement)
         for message in client.getMessages():
             messageHandleFunction(message)
 
@@ -104,13 +107,13 @@ def main(autoMessageTriggers: Union[None, list[AutoMessageTrigger]] = None) -> N
             else:
                 debug(D.WARNING, f"Tick too slow", f"Speed: {1/tickDifference:.2f}t/s < {1/TICK_RATE:.2f}t/s")
         #* Input
-        inputs = inputTick(core.inputs)
+        inputs, mouseMovement = inputTick(core.inputs)
         
         #* Server
         serverTick(passedTime=tickDifference, server=core.server, currentMenu=core.menu.getMenu(), messageHandleFunction=core.handleMessage)
         
         #* Client
-        clientTick(tickTime=tickStart, client=core.client, messageHandleFunction=core.handleMessage, inputs=inputs)
+        clientTick(name = core.communication.getName(), tickTime=tickStart, client=core.client, messageHandleFunction=core.handleMessage, inputs=inputs, mouseMovement=mouseMovement)
         
         #* Menu
         menuTick(tickTime=tickStart, menuHandler=core.menu, messageHandleFunction=core.handleMessage, server=core.server, client=core.client)

@@ -12,7 +12,11 @@ class InputHandler:
     # Global
     # Local
     def toInput(self, keyNumber: int) -> Optional[Input]:
-        inputKey = keybinds.get(KeyInputKey(keyNumber))
+        try:
+            inputKey = keybinds.get(KeyInputKey(keyNumber))
+        except ValueError:
+            debug(D.WARNING, "Unhandled Input", f"key: {keyNumber}")
+            return None
         if inputKey is None:
             debug(D.WARNING, "Unhandled Input", f"key: {keyNumber}")
             return None
@@ -21,7 +25,8 @@ class InputHandler:
     
     # Setters
     # Getters
-    def getInputs(self) -> list[Input]:
+    def getInputs(self) -> tuple[list[Input], tuple[int, int]]:
+        mouseMovement = g.getMouseMovement()
         inputs: list[Input] = []
         heldKeys: list[int] = list(g.getHeldKeys())
         for key in heldKeys:
@@ -34,7 +39,7 @@ class InputHandler:
                 if not input.held:
                     debug(D.DEBUG, [input for input in inputs if not input.held])
                     break
-        return inputs
+        return inputs, mouseMovement
 
     # Setters
     def addInput(self, input: Input) -> None:
