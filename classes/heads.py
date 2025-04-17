@@ -37,3 +37,44 @@ class MessageHead(Enum):
     SEND_INPUT_REQUESTS = 218
     SEND_TURN_REQUEST = 219
     FORCE_DISCONNECT = 220
+
+# 🔄 🛠️ 📅
+
+class DebugProblem(Enum):
+    UNHANDLED_MESSAGE = 1
+    UNHANDLED_EVENT = 2
+    UNHANDLED_REQUEST = 3
+    HANDLING_MESSAGE = 4
+    HANDLING_EVENT = 5
+    HANDLING_REQUEST = 6
+    INITIATED = 7
+    CLIENT_CONNECTED = 8
+    CONNECTION_LOST = 9
+class DebugReason(Enum):
+    INVALID_MESSAGE_HEAD = 1
+    INVALID_EVENT_HEAD = 2
+    INVALID_REQUEST_HEAD = 3
+    NO_MATCHING_MESSAGE_HEAD = 4
+    NO_MATCHING_EVENT_HEAD = 5
+    NO_MATCHING_REQUEST_HEAD = 6
+    EXPECTED = 7
+    CYCLE = 8
+    COMM_IS_NONE = 9
+    COMM_NOT_INITIALIZED = 10
+    SESSION_ENDED = 11
+class DebugDetails(Enum):
+    EMPTY = 0
+    MESSAGE_HEAD = 1
+    EVENT_HEAD = 2
+    REQUEST_HEAD = 3
+    FULL_MESSAGE = 4
+    FULL_EVENT = 5
+    FULL_REQUEST = 6
+    CLIENT_NAME = 7
+    CLIENT_NAME_IS_NONE = 8
+
+debugProblems: dict[DebugProblem, str] = {}
+
+debugReasons: dict[DebugReason, str] = {}
+
+debugDetails: dict[DebugDetails, str] = {}
