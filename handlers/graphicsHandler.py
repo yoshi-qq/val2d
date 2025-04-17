@@ -1,6 +1,6 @@
 import os
 from math import sqrt, sin, cos, atan2, radians
-from typing import Optional
+from typing import Optional, Literal
 from copy import copy
 from config.constants import debug, D, PLAYER_HEIGHT, AGENT_SPRITE_DIMENSIONS, ZOOM_IN, SERVER_NAME, RESOLUTION
 from classes.keys import MapKey, HandItemKey
@@ -23,8 +23,8 @@ class GraphicsHandler:
         g.init(file=__file__, fps=60, fontPath="font/fixed_sys.ttf", captureCursor=True, naturalY=True, fullscreen=False, windowName="Val2D", spriteFolder=ASSETS_FOLDER, spriteExtension="png", windowIcon="logo", windowRes=(960, 540), nativeRes = RESOLUTION)
         self.__gameObjectRenders: list[g.RenderObject] = []
     # Global
-    def draw(self) -> None:
-        g.draw()
+    def draw(self) -> bool | Literal["quit"]:
+        return g.draw()
     
     def __getPoseAndSizeFromPerspective(self, perspective: Pose, objectPose: Pose, turnable: bool) -> tuple[Pose, float]:
         ownX, ownY, ownZ = perspective.getPosition().getX(), perspective.getPosition().getY(), perspective.getPosition().getZ()

@@ -234,7 +234,7 @@ def draw():
         if event.type == pygame.QUIT:
             running = False
             pygame.quit();
-            return;
+            return "quit";
         elif event.type == pygame.MOUSEBUTTONDOWN:
             keys.add(event.button)
             click()

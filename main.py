@@ -54,47 +54,70 @@ def communicationTick(tickID: int, tickTime: float, inGame: bool, communicationH
     updated = communicationHandler.runCycle(inGame)
     extraMessages = localMessages
     allMessages = communicationHandler.getMessages() + extraMessages
-    
     # Automation BEGIN
+    currentEvents = communicationHandler.getEvents()
+    currentRequests = communicationHandler.getRequests()
     if autoMessageTriggers is not None:
+        messageHeadCounts: dict[str, int] = {}
+        eventHeadCounts: dict[str, int] = {}
+        requestHeadCounts: dict[str, int] = {}
+        for message in allMessages:
+            messageHeadCounts[message.head] = messageHeadCounts.get(message.head, 0) + 1
+        for request in currentRequests:
+            requestHeadCounts[request.head] = requestHeadCounts.get(request.head, 0) + 1
+        for event in currentEvents:
+            eventHeadCounts[event.head] = eventHeadCounts.get(event.head, 0) + 1
+        
+        
         for aMessage in autoMessageTriggers:
             match aMessage.trigger:
                 case Message():
                     if aMessage.trigger.body is not Null:
-                        if aMessage.trigger in allMessages and aMessage.incrCheck(tickID, tickTime):
-                            addMessageFunction(aMessage.responseMessage)
-                    elif any(message.head == aMessage.trigger.head for message in allMessages):
-                        addMessageFunction(aMessage.responseMessage)
+                        for _ in range(allMessages.count(aMessage.trigger)):
+                            if aMessage.incrCheck(tickID, tickTime):
+                                addMessageFunction(aMessage.responseMessage)
+                    else:
+                        for _ in range(messageHeadCounts.get(aMessage.trigger.head, 0)):
+                            if aMessage.incrCheck(tickID, tickTime):
+                                addMessageFunction(aMessage.responseMessage)
                 case Request():
                     if aMessage.trigger.body is not Null:
-                        if aMessage.trigger in communicationHandler.spyRequests() and aMessage.incrCheck(tickID, tickTime):
-                            addMessageFunction(aMessage.responseMessage)
-                    elif any(request.head == aMessage.trigger.head for request in communicationHandler.spyRequests()):
-                        addMessageFunction(aMessage.responseMessage)
+                        for _ in range(currentRequests.count(aMessage.trigger)):
+                            if aMessage.incrCheck(tickID, tickTime):
+                                addMessageFunction(aMessage.responseMessage)
+                    else:
+                        for _ in range(requestHeadCounts.get(aMessage.trigger.head, 0)):
+                            if aMessage.incrCheck(tickID, tickTime):
+                                addMessageFunction(aMessage.responseMessage)
                 case Event():
                     if aMessage.trigger.body is not Null:
-                        if aMessage.trigger in communicationHandler.spyEvents() and aMessage.incrCheck(tickID, tickTime):
-                            addMessageFunction(aMessage.responseMessage)
-                    elif any(event.head == aMessage.trigger.head for event in communicationHandler.spyEvents()):
-                        addMessageFunction(aMessage.responseMessage)
+                        for _ in range(currentEvents.count(aMessage.trigger)):
+                            if aMessage.incrCheck(tickID, tickTime):
+                                addMessageFunction(aMessage.responseMessage)
+                    else:
+                        for _ in range(eventHeadCounts.get(aMessage.trigger.head, 0)):
+                            if aMessage.incrCheck(tickID, tickTime):
+                                addMessageFunction(aMessage.responseMessage)
     # Automation END
     
     for message in allMessages:
         messageHandleFunction(message)
-    for event in communicationHandler.getEvents():
+    for event in currentEvents:
         eventHandleFunction(event)
-    for request in communicationHandler.getRequests():
+    for request in currentRequests:
        requestHandleFunction(request)
     return updated
     
-def graphicsTick(graphicsHandler: GraphicsHandler, server: Union[None, ServerGameHandler],client: Union[None, ClientGameHandler], clientName: Union[None, str]) -> None:
+def graphicsTick(graphicsHandler: GraphicsHandler, server: Union[None, ServerGameHandler],client: Union[None, ClientGameHandler], clientName: Union[None, str]) -> bool:
     if client and client.inGame() and clientName:
         if gameState := client.getGameState():
             graphicsHandler.drawGameState(clientName, gameState)
     elif server and server.isIngame():
         if gameState := server.getGameState():
             graphicsHandler.drawGameState(SERVER_NAME, gameState)
-    core.graphics.draw()
+    if core.graphics.draw() == "quit":
+        return True
+    return False
 
 #* +++MAIN+++
 def main(autoMessageTriggers: Union[None, list[AutoMessageTrigger]] = None) -> None:
@@ -132,13 +155,15 @@ def main(autoMessageTriggers: Union[None, list[AutoMessageTrigger]] = None) -> N
         
         #* Local Computation
         if (not updated) and core.client and (name := core.communication.getName()):
-            debug(D.LOG, f"Server didn't respond in time, {name} is self updating")
+            debug(D.TRACE, f"Server didn't respond in time, {name} is self updating")
             core.client.selfUpdate(tickDifference, name)
         #* Graphics
-        graphicsTick(graphicsHandler=core.graphics, server=core.server, client=core.client, clientName=core.communication.getName())
+        if graphicsTick(graphicsHandler=core.graphics, server=core.server, client=core.client, clientName=core.communication.getName()):
+            debug(D.LOG, "Graphics quit")
+            core.loop = False
+            core.communication.disconnect()
 
         lastTickStart = tickStart
-    # TODO 10: Close everything
 
 if __name__ == "__main__":
     main()

@@ -1,6 +1,7 @@
 from enum import Enum
+from dependencies.console import Console
 # GENERAL
-VERSION = (0,9,3)
+VERSION = (0,9,4)
 STABLE = False
 VERSION_STRING = f"{VERSION[0]}.{VERSION[1]}.{VERSION[2]}"
 
@@ -36,13 +37,15 @@ DEBUG_SYMBOLS = {
     D.TRACE_DETAILS: "📋"
 }
 
+CONSOLE = Console()
+
 def debug(minimumLevel: D, message: object, details: object = None) -> None:
     symbol = DEBUG_SYMBOLS.get(minimumLevel, "❓")
     if details is not None and DEBUG_LEVEL.value >= minimumLevel.value + 1:
         detailsSymbol = DEBUG_SYMBOLS.get(D(minimumLevel.value + 1), "📋")
-        print(f"{symbol} |{str(message)} - {detailsSymbol}|{str(details)}")
+        CONSOLE.log(f"{symbol} |{str(message)} - ", f"{detailsSymbol}|{str(details)}")
     elif DEBUG_LEVEL.value >= minimumLevel.value:
-         print(f"{symbol} |{str(message)}")
+        CONSOLE.log(f"{symbol} |{str(message)}")
 
 #? FUTURE SETTINGS
 DEFAULT_SENSITIVITY = 0.2

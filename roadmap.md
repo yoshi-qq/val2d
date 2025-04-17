@@ -1,7 +1,6 @@
 # Roadmap
 ## Bugs
-- [ ] menu doesn't dissapear when starting game automatically (game doesn't get drawn, logic still applies)
-- [ ] Alt + F4 leads to unexpected errors
+
 ## Next
 - [x] Lobby
 - [x] Agent Select
@@ -29,6 +28,7 @@
 - [ ] Ping request for round trip display with last trip time for host
 
 ## Extras
+- [x] better console (stacking messages with counts)
 - [ ] replace ALL Strings with Enums (debug messages included, split into: problem, reason, details)
 - [ ] Dev-Tools (noclip, speed, in-game coordinate display, etc.)
 - [ ] Main Menu
