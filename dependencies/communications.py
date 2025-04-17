@@ -1,4 +1,5 @@
 # Version: 1.2
+from enum import Enum
 import dependencies.networking as net
 from time import time as now
 from dependencies.networking import * 
@@ -6,10 +7,10 @@ from typing import Union, Any, Callable
 from threading import Lock
 from types import MethodType
 
-HOSTNAME = "Host"
+HOSTNAME = "HOST"
 
 class Request:
-    def __init__(self: "Request", head: str, body: Any):
+    def __init__(self: "Request", head: str | Enum, body: Any):
         self.signature: str = "unsigned"
         self.head = head
         self.body = body
@@ -21,7 +22,7 @@ class Request:
         return f"Request[head={self.head}, body={self.body}]"
     
 class Event:
-    def __init__(self: "Event", head: str, body: Any):
+    def __init__(self: "Event", head: str | Enum, body: Any):
         self.head = head
         self.body = body
         self.id: Union[int, None] = None
@@ -75,7 +76,7 @@ class CommunicationsHandler:
             with self.__queueLock:
                 self.__requestQueue[:] = [request for request in self.__requestQueue if request.id != requestId]
         def castEvent(self: "CommunicationsHandler", event: Event) -> None:
-            self.__mainObject.sendAll(Message(sender="Host", type="Event", content=event))
+            self.__mainObject.sendAll(Message(sender=HOSTNAME, type="Event", content=event))
         
         self.getRequests = MethodType(getRequests, self)
         self.resolveRequest = MethodType(resolveRequest, self)

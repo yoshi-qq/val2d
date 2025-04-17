@@ -1,5 +1,6 @@
 from typing import Union, Callable, Any, Literal
 from config.constants import DATA_SIZE
+from classes.heads import EventHead, RequestHead, MessageHead
 from classes.types import Message, Connection
 from dependencies.communications import Request, Event, CommunicationsHandler as Comm, setOnConnect, setOnDisconnect
 from handlers.config import CONFIG
@@ -23,14 +24,14 @@ class CommunicationHandler:
         if self.__type == "player":
             updated = False
             for event in self.__comm.getEvents():
-                if event.head == "UpdateGameStateEvent": updated = True
+                if event.head == EventHead.UPDATE_GAMESTATE_EVENT: updated = True
                 self.__addEvent(event)
                 self.__comm.resolveEvent(event.id)
             if inGame:
                 return updated
             # while not updated:
             #     for event in self.__comm.getEvents():
-            #         if event.head == "UpdateGameStateEvent": updated = True # TODO: also do this if the game ends
+            #         if event.head == EventHead.UPDATE_GAMESTATE_EVENT: updated = True # TODO: also do this if the game ends
             #         self.__addEvent(event)
             #         self.__comm.resolveEvent(event.id)
 
@@ -46,18 +47,18 @@ class CommunicationHandler:
             print("Already in a lobby")
             return
         self.__comm = Comm(host=False, ip = ip, port=port, maxClients=4, dataSize=DATA_SIZE, commands = self.__playerCommandList)
-        setOnDisconnect(lambda this: self.__addMessage("ForceDisconnect", None))
+        setOnDisconnect(lambda this: self.__addMessage(MessageHead.FORCE_DISCONNECT, None))
         self.__type = "player"
-        self.__addMessage("Connected", None)
+        self.__addMessage(MessageHead.CONNECTED, None)
     
     def hostGame(self, port: int) -> None:
         if self.__type is not None:
             print("Already in a lobby")
             return
-        setOnConnect(lambda this: self.__addMessage("ClientConnected", this))
+        setOnConnect(lambda this: self.__addMessage(MessageHead.CLIENT_CONNECTED, this))
         self.__comm = Comm(host=True, ip = "0.0.0.0", port=port, maxClients=4, dataSize=DATA_SIZE, commands = self.__hostCommandList)
         self.__type = "host"
-        self.__addMessage("Hosted", None)
+        self.__addMessage(MessageHead.HOSTED, None)
     def disconnect(self) -> None:
         if self.__comm is None: 
             print("No Connection to disconnect")
@@ -66,24 +67,24 @@ class CommunicationHandler:
             case "player":
                 self.__comm.quit()
                 self.__type = None
-                self.__addMessage("Disconnected", None)
+                self.__addMessage(MessageHead.DISCONNECTED, None)
             case "host":
-                self.__comm.castEvent(Event("EndSession", None))
+                self.__comm.castEvent(Event(EventHead.END_SESSION, None))
                 self.__comm.quit()
                 self.__type = None
-                self.__addMessage("Disconnected", None)
+                self.__addMessage(MessageHead.DISCONNECTED, None)
             case None:
                 pass
     
-    def castEvent(self, head: str, body: Any) -> None:
+    def castEvent(self, head: EventHead, body: Any) -> None:
         if self.__comm and self.__type == "host":
             self.__comm.castEvent(Event(head, body))
-    def sendRequest(self, head: str, body: Any) -> None:
+    def sendRequest(self, head: RequestHead, body: Any) -> None:
         if self.__comm:
             self.__comm.sendRequest(Request(head, body))
     
     # Local
-    def __addMessage(self, head: str, body: Any):
+    def __addMessage(self, head: MessageHead, body: Any):
         self.__messageQueue.append(Message(head, body))
     
     def __addEvent(self, event: Event):
@@ -116,13 +117,13 @@ class CommunicationHandler:
     def getEvents(self) -> list[Event]:
         newestTime = 0
         for event in self.__eventQueue:
-            if event.head == "UpdateGameStateEvent":
+            if event.head == EventHead.UPDATE_GAMESTATE_EVENT:
                 if event.sentTime > newestTime:
                     newestTime = event.sentTime
                 elif event.sentTime < newestTime:
                     self.__eventQueue.remove(event)
         for event in self.__eventQueue:
-            if event.head == "UpdateGameStateEvent":
+            if event.head == EventHead.UPDATE_GAMESTATE_EVENT:
                 if event.sentTime < newestTime:
                     self.__eventQueue.remove(event)
         

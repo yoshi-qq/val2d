@@ -2,6 +2,7 @@ from typing import Union, Callable
 from time import sleep, time as now
 from config.constants import TICK_RATE, debug, D, SERVER_NAME
 from dependencies.communications import Request, Event
+from classes.heads import EventHead, RequestHead, MessageHead
 from classes.keys import MenuKey
 from classes.types import Null, Message, Input, AutoMessageTrigger
 from handlers.inputHandler import InputHandler
@@ -12,7 +13,7 @@ from handlers.communicationHandler import CommunicationHandler
 from handlers.graphicsHandler import GraphicsHandler
 import __init__ as core
 
-core.localMessages.append(Message("Initiated", None))
+core.localMessages.append(Message(MessageHead.INITIATED, None))
 
 def inputTick(inputHandler: InputHandler) -> tuple[list[Input], tuple[int, int]]:
     return inputHandler.getInputs()
@@ -58,44 +59,68 @@ def communicationTick(tickID: int, tickTime: float, inGame: bool, communicationH
     currentEvents = communicationHandler.getEvents()
     currentRequests = communicationHandler.getRequests()
     if autoMessageTriggers is not None:
-        messageHeadCounts: dict[str, int] = {}
-        eventHeadCounts: dict[str, int] = {}
-        requestHeadCounts: dict[str, int] = {}
+        messageHeadCounts: dict[MessageHead, int] = {}
+        eventHeadCounts: dict[EventHead, int] = {}
+        requestHeadCounts: dict[RequestHead, int] = {}
         for message in allMessages:
-            messageHeadCounts[message.head] = messageHeadCounts.get(message.head, 0) + 1
+            try: trueHead = MessageHead(message.head)
+            except ValueError:
+                debug(D.WARNING, f"Message with unknown head encountered", f"Message: {message}")
+                continue
+            messageHeadCounts[trueHead] = messageHeadCounts.get(message.head, 0) + 1
         for request in currentRequests:
-            requestHeadCounts[request.head] = requestHeadCounts.get(request.head, 0) + 1
+            try: trueHead = RequestHead(request.head)
+            except ValueError:
+                debug(D.WARNING, f"Request with unknown head encountered", f"Request: {request}")
+                continue
+            requestHeadCounts[trueHead] = requestHeadCounts.get(trueHead, 0) + 1
         for event in currentEvents:
-            eventHeadCounts[event.head] = eventHeadCounts.get(event.head, 0) + 1
+            try: trueHead = EventHead(event.head)
+            except ValueError:
+                debug(D.WARNING, f"Event with unknown head encountered", f"Event: {event}")
+                continue
+            eventHeadCounts[trueHead] = eventHeadCounts.get(trueHead, 0) + 1
         
         
         for aMessage in autoMessageTriggers:
             match aMessage.trigger:
                 case Message():
+                    try: trueHead = MessageHead(aMessage.trigger.head)
+                    except ValueError:
+                        debug(D.WARNING, f"Message with unknown head encountered", f"Message: {aMessage.trigger}")
+                        continue
                     if aMessage.trigger.body is not Null:
                         for _ in range(allMessages.count(aMessage.trigger)):
                             if aMessage.incrCheck(tickID, tickTime):
                                 addMessageFunction(aMessage.responseMessage)
                     else:
-                        for _ in range(messageHeadCounts.get(aMessage.trigger.head, 0)):
+                        for _ in range(messageHeadCounts.get(trueHead, 0)):
                             if aMessage.incrCheck(tickID, tickTime):
                                 addMessageFunction(aMessage.responseMessage)
                 case Request():
+                    try: trueHead = RequestHead(aMessage.trigger.head)
+                    except ValueError:
+                        debug(D.WARNING, f"Request with unknown head encountered", f"Request: {aMessage.trigger}")
+                        continue
                     if aMessage.trigger.body is not Null:
                         for _ in range(currentRequests.count(aMessage.trigger)):
                             if aMessage.incrCheck(tickID, tickTime):
                                 addMessageFunction(aMessage.responseMessage)
                     else:
-                        for _ in range(requestHeadCounts.get(aMessage.trigger.head, 0)):
+                        for _ in range(requestHeadCounts.get(trueHead, 0)):
                             if aMessage.incrCheck(tickID, tickTime):
                                 addMessageFunction(aMessage.responseMessage)
                 case Event():
+                    try: trueHead = EventHead(aMessage.trigger.head)
+                    except ValueError:
+                        debug(D.WARNING, f"Event with unknown head encountered", f"Event: {aMessage.trigger}")
+                        continue
                     if aMessage.trigger.body is not Null:
                         for _ in range(currentEvents.count(aMessage.trigger)):
                             if aMessage.incrCheck(tickID, tickTime):
                                 addMessageFunction(aMessage.responseMessage)
                     else:
-                        for _ in range(eventHeadCounts.get(aMessage.trigger.head, 0)):
+                        for _ in range(eventHeadCounts.get(trueHead, 0)):
                             if aMessage.incrCheck(tickID, tickTime):
                                 addMessageFunction(aMessage.responseMessage)
     # Automation END

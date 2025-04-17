@@ -2,6 +2,7 @@ import os
 from config.constants import debug, D
 from dependencies.communications import Event, Request
 from typing import Union, Callable
+from classes.heads import EventHead, RequestHead, MessageHead
 from classes.types import Message
 from classes.keys import MenuKey
 from handlers.graphicsHandler import GraphicsHandler
@@ -38,7 +39,7 @@ graphics = GraphicsHandler(ROOT)
 menu = MenuHandler()
 inputs = InputHandler()
 playerCommands: dict[str, Callable[[], None]] = {
-    "ForceDisconnect": lambda: localMessages.append(Message("ForceDisconnect", None))
+    "ForceDisconnect": lambda: localMessages.append(Message(MessageHead.FORCE_DISCONNECT, None))
 }
 hostCommands: dict[str, Callable[[], None]] = {}
 communication = CommunicationHandler(playerCommands, hostCommands)
@@ -58,91 +59,95 @@ def getLocalMessages() -> list[Message]:
 # HANDLING
 def handleMessage(message: Message) -> None:
     global server, client
-    if message.head not in ("CastUpdateGameStateEvent", "sendInputRequests", "UpdateRemainingSelectTime"):
-        debug(D.LOG, f"Handling Message 🛠️: {message.head}", message.body)
+    try: head = MessageHead(message.head)
+    except ValueError:
+        debug(D.ERROR, f"Invalid message head", {message.head})
+        return
+    if head not in (MessageHead.CAST_UPDATE_GAMESTATE_EVENT, MessageHead.SEND_INPUT_REQUESTS, MessageHead.UPDATE_REMAINING_SELECT_TIME):
+        debug(D.LOG, f"Handling Message 🛠️: {head}", message.body)
     else:
-        debug(D.TRACE, f"Handling Message 🔄🛠️: {message.head}", message.body)
-    match message.head:
-        case "Initiated":
+        debug(D.TRACE, f"Handling Message 🔄🛠️: {head}", message.body)
+    match head:
+        case MessageHead.INITIATED:
             debug(D.LOG ,"+++Initiated+++")
-        case "Connected":
+        case MessageHead.CONNECTED:
             menu.setMenu(MenuKey.PLAYER_LOBBY)
-        case "Hosted":
+        case MessageHead.HOSTED:
             menu.setMenu(MenuKey.HOST_LOBBY)
-        case "ClientConnected":
+        case MessageHead.CLIENT_CONNECTED:
             debug(D.LOG, "Client connected", f"Name: {message.body.name}") # Server.Client Object from networking
-        case "Disconnected":
+        case MessageHead.DISCONNECTED:
             menu.setMenu(MenuKey.PLAY)
-        case "OpenServerAgentSelect":
+        case MessageHead.OPEN_SERVER_AGENT_SELECT:
             menu.setMenu(MenuKey.HOST_AGENT_SELECT)
         # MENU
-        case "Leave":
+        case MessageHead.LEAVE:
             communication.disconnect()
             if server is not None:
                 server.close()
-        case "Join":
+        case MessageHead.JOIN:
             communication.connectToGame(*message.body)
             client = ClientGameHandler()
-        case "Host":
+        case MessageHead.HOST:
             if communication.getType() is None:
                 communication.hostGame(CONFIG["port"])
                 server = ServerGameHandler()
-        case "Start":
+        case MessageHead.START:
             if server and not server.isInLoading():
                 server.start(communication.getConnections())
-        case "SelectAgent":
-            communication.sendRequest("SelectAgentRequest", message.body) # agent
-        case "ForceStart":
+        case MessageHead.SELECT_AGENT:
+            communication.sendRequest(RequestHead.SELECT_AGENT, message.body) # agent
+        case MessageHead.FORCE_START:
             if server and not server.isIngame():
                 server.endAgentSelect()
-        case "StartAgentSelectionEvent":
-            localMessages.append(Message("OpenServerAgentSelect", None))
-            communication.castEvent("StartAgentSelectionEvent", None)
-        case "EndAgentSelectMessage":
+        case MessageHead.START_AGENT_SELECT:
+            localMessages.append(Message(MessageHead.OPEN_SERVER_AGENT_SELECT, None))
+            communication.castEvent(EventHead.START_AGENT_SELECT_EVENT, None)
+        case MessageHead.END_AGENT_SELECT:
             if server and not server.isIngame():
                 menu.setMenu(MenuKey.IN_GAME_HOST)
                 server.startGame()
-        case "UpdateRemainingSelectTime":
-            communication.castEvent("UpdateRemainingSelectTimeEvent", message.body) # time
-        case "ServerGameStart":
-            communication.castEvent("GameStartEvent", message.body) # gameState
-        case "CastUpdateGameStateEvent":
-            communication.castEvent("UpdateGameStateEvent", message.body) # gameState
-        case "sendInputRequests":
+        case MessageHead.UPDATE_REMAINING_SELECT_TIME:
+            communication.castEvent(EventHead.UPDATE_REMAINING_SELECT_TIME_EVENT, message.body) # time
+        case MessageHead.SERVER_GAME_START:
+            communication.castEvent(EventHead.GAME_START_EVENT, message.body) # gameState
+        case MessageHead.CAST_UPDATE_GAMESTATE_EVENT:
+            communication.castEvent(EventHead.UPDATE_GAMESTATE_EVENT, message.body) # gameState
+        case MessageHead.SEND_INPUT_REQUESTS:
             for request in message.body:
                 communication.sendRequest(request.head, request.body) # request details
-        case "sendTurnToRequest":
-            communication.sendRequest("TurnToRequest", message.body) # new angle
+        case MessageHead.SEND_TURN_REQUEST:
+            communication.sendRequest(RequestHead.TURN_TO_REQUEST, message.body) # new angle
         case _:
-            debug(D.WARNING, f"Unhandled message 🛠️: {message.head}", message.body)
+            debug(D.WARNING, f"Unhandled message 🛠️: {head}", message.body)
 
 def handleEvent(event: Event) -> None:
     if (name := communication.getName()) is None:
         debug(D.ERROR, "Couldn't handle Event. Communication not correctly initialised", "Client name is None")
         return
     global server, client
-    if event.head not in ("UpdateGameStateEvent", "Ping", "UpdateRemainingSelectTimeEvent"):
+    if event.head not in (EventHead.UPDATE_GAMESTATE_EVENT, "Ping", EventHead.UPDATE_REMAINING_SELECT_TIME_EVENT):
         debug(D.LOG, f"Handling Event 📅: {event.head}", event.body)
     else:
         debug(D.TRACE, f"Handling Event 🔄📅: {event.head}", event.body)
     match event.head:
-        case "EndSession":
+        case EventHead.END_SESSION:
             if comm := communication.getComm(): 
                 comm.quit()
             communication.setType(None)
             menu.setMenu(MenuKey.PLAY)
             debug(D.ERROR, "Connection lost")
-        case "StartAgentSelectionEvent":
+        case MessageHead.START_AGENT_SELECT:
             menu.setMenu(MenuKey.AGENT_SELECT)
-        case "UpdateRemainingSelectTimeEvent":
+        case EventHead.UPDATE_REMAINING_SELECT_TIME_EVENT:
             if client:
                 client.setRemainingSelectTime(event.body)
-        case "GameStartEvent":
+        case EventHead.GAME_START_EVENT:
             menu.setMenu(MenuKey.IN_GAME_PLAYER)
             menu.disable()
             if client:
                 client.setup(event.body, name)
-        case "UpdateGameStateEvent":
+        case EventHead.UPDATE_GAMESTATE_EVENT:
             if client:
                 client.updateGameState(event.body)
         case _:
@@ -150,24 +155,24 @@ def handleEvent(event: Event) -> None:
 
 def handleRequest(request: Request) -> None:
     global server, client
-    if request.head not in ("Ping", "MovementRequest"):
+    if request.head not in ("Ping", RequestHead.MOVEMENT_REQUEST):
         debug(D.LOG, f"Handling Request 📡: {request.head}", request.body)
     else:
         debug(D.TRACE, f"Handling Request 🔄📡: {request.head}", request.body)
     match request.head:
-        case "SelectAgentRequest":
+        case RequestHead.SELECT_AGENT:
             if server and not server.isIngame():
                 server.setAgent(request.signature, request.body)
-        case "MovementRequest":
+        case RequestHead.MOVEMENT_REQUEST:
             if server:
                 server.tryMovement(request.signature, request.body)
-        case "TurnToRequest":
+        case RequestHead.TURN_TO_REQUEST:
             if server:
                 server.tryTurnTo(request.signature, request.body)
-        case "SetWalkStatusRequest":
+        case RequestHead.SET_WALK_REQUEST:
             if server:
                 server.trySetWalkStatus(request.signature, request.body)
-        case "SetCrouchStatusRequest":
+        case RequestHead.SET_CROUCH_REQUEST:
             if server:
                 server.trySetCrouchStatus(request.signature, request.body)
         case _:

@@ -1,8 +1,9 @@
+from typing import Union, Any
 from time import time as now
 from math import atan2, degrees
 from dependencies.communications import Request
 from config.constants import AGENT_SELECT_TIME, PING_INTERVAL, debug, D, DEFAULT_ACCELERATION, DEFAULT_SENSITIVITY
-from typing import Union, Any
+from classes.heads import MessageHead, RequestHead
 from classes.types import Message, Input, Ping, Angle
 from classes.keys import InputKey
 from classes.gameTypes import GameState
@@ -80,7 +81,7 @@ class ClientGameHandler:
         turnAmount = mouseMovement[0] * DEFAULT_SENSITIVITY
         turnAngle = Angle(turnAmount)
         self.__ownAngle = player.getPose().turn(turnAngle)
-        self.__sendMessage("sendTurnToRequest", self.__ownAngle)
+        self.__sendMessage(MessageHead.SEND_TURN_REQUEST, self.__ownAngle)
     
     def handleInputs(self, inputs: list[Input]) -> None:
         accelerationVector: tuple[int, int] = (0, 0)
@@ -115,10 +116,10 @@ class ClientGameHandler:
         elif self.__walking != player.getStatus().isWalking():    
             if self.__walking:
                 player.getStatus().setWalk(True)
-                serverRequests.append(Request("SetWalkStatusRequest", True))
+                serverRequests.append(Request(RequestHead.SET_WALK_REQUEST, True))
             else:
                 player.getStatus().setWalk(False)
-                serverRequests.append(Request("SetWalkStatusRequest", False))
+                serverRequests.append(Request(RequestHead.SET_WALK_REQUEST, False))
         
         # Crouching
         if (player := self.getOwnPlayer()) is None:
@@ -126,17 +127,17 @@ class ClientGameHandler:
         elif self.__crouching != player.getStatus().isCrouched():    
             if self.__crouching:
                 player.getStatus().setCrouch(True)
-                serverRequests.append(Request("SetCrouchStatusRequest", True))
+                serverRequests.append(Request(RequestHead.SET_CROUCH_REQUEST, True))
             else:
                 player.getStatus().setCrouch(False)
-                serverRequests.append(Request("SetCrouchStatusRequest", False))
+                serverRequests.append(Request(RequestHead.SET_CROUCH_REQUEST, False))
         
         self.__accelerationDirection: Angle | None = Angle(degrees(atan2(accelerationVector[0], accelerationVector[1]))) if accelerationVector != (0, 0) else None
-        serverRequests.append(Request("MovementRequest", self.__accelerationDirection))
-        self.__sendMessage("sendInputRequests", serverRequests) 
+        serverRequests.append(Request(RequestHead.MOVEMENT_REQUEST, self.__accelerationDirection))
+        self.__sendMessage(MessageHead.SEND_INPUT_REQUESTS, serverRequests) 
         
     # Local
-    def __sendMessage(self, head: str, body: Any) -> None:
+    def __sendMessage(self, head: MessageHead, body: Any) -> None:
         self.__messageQueue.append(Message(head, body))
     
     def __pingTick(self) -> None: # type: ignore TODO
@@ -144,7 +145,7 @@ class ClientGameHandler:
             newPing = Ping(now())
             self.__pingQueue.append(newPing)
             self.__lastPingTime = newPing.time
-            self.__sendMessage("Ping", newPing)
+            self.__sendMessage(MessageHead.PING, newPing)
         
     # Getters
     def inGame(self) -> bool:

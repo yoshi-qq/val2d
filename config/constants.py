@@ -1,7 +1,7 @@
 from enum import Enum
 from dependencies.console import Console
 # GENERAL
-VERSION = (0,9,4)
+VERSION = (0,9,5)
 STABLE = False
 VERSION_STRING = f"{VERSION[0]}.{VERSION[1]}.{VERSION[2]}"
 

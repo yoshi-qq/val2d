@@ -94,19 +94,19 @@ class MenuHandler:
         self.__menus[K.IN_GAME_HOST] = inGameHost
         
     def __startButton(self) -> None:
-        self.__addMessage("Start", None)
+        self.__addMessage(MessageHead.START, None)
     def __practiceButton(self) -> None:
         self.__addMessage("Practice", None)
     def __leaveButton(self) -> None:
-        self.__addMessage("Leave", None)
+        self.__addMessage(MessageHead.LEAVE, None)
     def __joinButton(self) -> None:
-        self.__addMessage("Join", (CONFIG["ip"], CONFIG["port"]))
+        self.__addMessage(MessageHead.JOIN, (CONFIG["ip"], CONFIG["port"]))
     def __hostButton(self) -> None:
-        self.__addMessage("Host", None)
+        self.__addMessage(MessageHead.HOST, None)
     def __agentSelectButton(self, agentKey: AgentKey) -> None:
-        self.__addMessage("SelectAgent", agentKey)
+        self.__addMessage(MessageHead.SELECT_AGENT, agentKey)
     def __forceStartButton(self) -> None:
-        self.__addMessage("ForceStart", None)
+        self.__addMessage(MessageHead.FORCE_START, None)
         
     # Setters
     def setMenu(self, menu: MenuKey) -> None:

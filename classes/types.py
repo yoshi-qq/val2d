@@ -1,6 +1,7 @@
 from typing import Union, Any, Callable, Optional
 from math import sqrt, degrees, radians, cos, sin, atan2
 from dependencies.communications import Event, Request
+from classes.heads import MessageHead
 from classes.keys import MapKey, EffectKey, AbilityKey, MeleeKey, SidearmKey, GunKey, AgentKey, SpriteSetKey, InputKey
 from classes.categories import HoldableCategory
 
@@ -39,7 +40,7 @@ class BaseHoldable(Printable):
 
 # COMMUNICATION
 class Message:
-    def __init__(self, head: str, body: Any):
+    def __init__(self, head: MessageHead, body: Any):
         self.head = head
         self.body = body
     def __eq__(self, other: object) -> bool:

@@ -1,6 +1,7 @@
 from time import time as now
 from threading import Thread
 from config.constants import AGENT_SELECT_TIME, debug, D, DEFAULT_ACCELERATION
+from classes.heads import MessageHead
 from classes.types import Message, AgentKey, Connection, Angle, Pose, Position
 from classes.gameTypes import GameState
 from classes.playerTypes import Player
@@ -19,14 +20,14 @@ class ServerGameHandler:
         pass
     def tick(self, passedTime: float, menu: MenuKey) -> None:
         if menu == MenuKey.HOST_AGENT_SELECT:
-            self.__messageQueue.append(Message("UpdateRemainingSelectTime", self.getRemainingSelectTime()))
+            self.__messageQueue.append(Message(MessageHead.UPDATE_REMAINING_SELECT_TIME, self.getRemainingSelectTime()))
         if menu == MenuKey.IN_GAME_HOST:
-            self.__messageQueue.append(Message("CastUpdateGameStateEvent", self.__gameState))
+            self.__messageQueue.append(Message(MessageHead.CAST_UPDATE_GAMESTATE_EVENT, self.__gameState))
         self.tickMovement(passedTime)
             
     def start(self, connections: list[Connection]) -> None:
         self.__inLoading = True
-        self.__messageQueue.append(Message("StartAgentSelectionEvent", None))
+        self.__messageQueue.append(Message(MessageHead.START_AGENT_SELECT, None))
         self.__gameState.players = []
         for i, connection in enumerate(connections):
             self.addPlayer(Player(name = connection.getName(), pose=Pose(Position((i%3-1)*10, 0, (i//3-1)*10), Angle(0))))
@@ -35,7 +36,7 @@ class ServerGameHandler:
         def endAgentSelectAtTime() -> None:
             while self.getRemainingSelectTime() > 0:
                 pass
-            self.__messageQueue.append(Message("EndAgentSelectMessage", None))
+            self.__messageQueue.append(Message(MessageHead.END_AGENT_SELECT, None))
         thread = Thread(target=endAgentSelectAtTime)
         thread.start()
     def endAgentSelect(self) -> None:
@@ -46,7 +47,7 @@ class ServerGameHandler:
                 player.setAgent(AgentKey.OMEN)
         self.__inGame = True
         self.__gameState.time = 0
-        self.__messageQueue.append(Message("ServerGameStart", self.__gameState))
+        self.__messageQueue.append(Message(MessageHead.SERVER_GAME_START, self.__gameState))
         self.startRound()
 
     def startRound(self) -> None:
