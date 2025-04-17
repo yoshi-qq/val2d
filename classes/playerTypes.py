@@ -129,6 +129,10 @@ class Status(Printable):
         self.__parent = parent
     def setAcceleration(self, acceleration: Position) -> None:
         self.__acceleration = acceleration
+    def setWalk(self, walking: bool) -> None:
+        self.__walking = walking
+    def setCrouch(self, crouched: bool) -> None:
+        self.__crouched = crouched
     # Ticking
     def applyAcceleration(self, passedTime: float, maxSpeed: float) -> None:
         if self.__acceleration.getHorizontalMagnitude() != 0:

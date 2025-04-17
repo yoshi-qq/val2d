@@ -3,7 +3,7 @@ from time import sleep, time as now
 from config.constants import TICK_RATE, debug, D, SERVER_NAME
 from dependencies.communications import Request, Event
 from classes.keys import MenuKey
-from classes.types import Message, Input, AutoMessageTrigger
+from classes.types import Null, Message, Input, AutoMessageTrigger
 from handlers.inputHandler import InputHandler
 from handlers.serverGameHandler import ServerGameHandler
 from handlers.clientGameHandler import ClientGameHandler
@@ -33,7 +33,7 @@ def clientTick(name: str | None, tickTime: float, client: Union[None, ClientGame
             client.handleInputs(inputs)
 
         if mouseMovement[0] != 0 or mouseMovement[1] != 0:
-            client.handleMouseMovement(name, mouseMovement)
+            client.handleMouseMovement(mouseMovement)
         for message in client.getMessages():
             messageHandleFunction(message)
 
@@ -60,13 +60,22 @@ def communicationTick(tickID: int, tickTime: float, inGame: bool, communicationH
         for aMessage in autoMessageTriggers:
             match aMessage.trigger:
                 case Message():
-                    if aMessage.trigger in allMessages and aMessage.incrCheck(tickID, tickTime):
+                    if aMessage.trigger.body is not Null:
+                        if aMessage.trigger in allMessages and aMessage.incrCheck(tickID, tickTime):
+                            addMessageFunction(aMessage.responseMessage)
+                    elif any(message.head == aMessage.trigger.head for message in allMessages):
                         addMessageFunction(aMessage.responseMessage)
                 case Request():
-                    if aMessage.trigger in communicationHandler.spyRequests() and aMessage.incrCheck(tickID, tickTime):
+                    if aMessage.trigger.body is not Null:
+                        if aMessage.trigger in communicationHandler.spyRequests() and aMessage.incrCheck(tickID, tickTime):
+                            addMessageFunction(aMessage.responseMessage)
+                    elif any(request.head == aMessage.trigger.head for request in communicationHandler.spyRequests()):
                         addMessageFunction(aMessage.responseMessage)
                 case Event():
-                    if aMessage.trigger in communicationHandler.spyEvents() and aMessage.incrCheck(tickID, tickTime):
+                    if aMessage.trigger.body is not Null:
+                        if aMessage.trigger in communicationHandler.spyEvents() and aMessage.incrCheck(tickID, tickTime):
+                            addMessageFunction(aMessage.responseMessage)
+                    elif any(event.head == aMessage.trigger.head for event in communicationHandler.spyEvents()):
                         addMessageFunction(aMessage.responseMessage)
     # Automation END
     
@@ -123,6 +132,7 @@ def main(autoMessageTriggers: Union[None, list[AutoMessageTrigger]] = None) -> N
         
         #* Local Computation
         if (not updated) and core.client and (name := core.communication.getName()):
+            debug(D.LOG, f"Server didn't respond in time, {name} is self updating")
             core.client.selfUpdate(tickDifference, name)
         #* Graphics
         graphicsTick(graphicsHandler=core.graphics, server=core.server, client=core.client, clientName=core.communication.getName())

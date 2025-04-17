@@ -119,11 +119,8 @@ class CommunicationsHandler:
     def quit(self: "CommunicationsHandler") -> None:
         self.__mainObject.close()
 
-def setOnClientJoin(func: Callable[[], None]) -> None:
-    net.onClientJoin = func
-
-def setOnConnect(func: Callable[[], None]) -> None:
+def setOnConnect(func: Callable[[net.Server.Client], None]) -> None:
     net.onConnect = func
 
-def setOnDisconnect(func: Callable[[], None]) -> None:
+def setOnDisconnect(func: Callable[[net.Server.Client], None]) -> None:
     net.onDisconnect = func

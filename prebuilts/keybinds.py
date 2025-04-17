@@ -11,6 +11,7 @@ DEFAULT_KEY_BINDS: dict[KeyInputKey, InputKey] = {
     K.D: I.RIGHT,
     K.SPACE: I.JUMP,
     K.CTRL: I.CROUCH,
+    K.SHIFT: I.WALK,
     # Interaction
     K.MOUSE_LEFT: I.FIRE,
     K.MOUSE_RIGHT: I.ALT_FIRE,

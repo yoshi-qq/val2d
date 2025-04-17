@@ -1,11 +1,17 @@
 # Roadmap
+## Bugs
+- [ ] menu doesn't dissapear when starting game automatically (game doesn't get drawn, logic still applies)
+- [ ] Alt + F4 leads to unexpected errors
 ## Next
 - [x] Lobby
 - [x] Agent Select
 - [x] Moving (Running)
-- [x] Turning
-- [ ] Walking
-- [ ] Crouching
+- [x] Turning 
+- [x] Walking
+- [x] Crouching
+- [x] local calculation for Walk & Crouch
+- [ ] small adjustments from local to server tolerance
+- [ ] correct Speed from Game
 - [ ] Jumping
 - [ ] Map
     - [ ] objects
@@ -23,6 +29,7 @@
 - [ ] Ping request for round trip display with last trip time for host
 
 ## Extras
+- [ ] replace ALL Strings with Enums (debug messages included, split into: problem, reason, details)
 - [ ] Dev-Tools (noclip, speed, in-game coordinate display, etc.)
 - [ ] Main Menu
 - [ ] Animations (graphy: add support for asesprite SpriteSheet export)

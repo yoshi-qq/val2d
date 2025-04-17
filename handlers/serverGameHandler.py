@@ -11,6 +11,7 @@ from prebuilts.base import getForwardPosition, getZeroPosition
 class ServerGameHandler:
     def __init__(self) -> None:
         self.__messageQueue: list[Message] = []
+        self.__inLoading = False
         self.__inGame = False
         self.__gameState: GameState = GameState([], -1, 0, (0, 0), MapKey.ASCENT, GameModeKey.UNRATED, -1, [])
         self.__roundStartTime: int = -1 # type: ignore TODO LATER
@@ -24,7 +25,9 @@ class ServerGameHandler:
         self.tickMovement(passedTime)
             
     def start(self, connections: list[Connection]) -> None:
+        self.__inLoading = True
         self.__messageQueue.append(Message("StartAgentSelectionEvent", None))
+        self.__gameState.players = []
         for i, connection in enumerate(connections):
             self.addPlayer(Player(name = connection.getName(), pose=Pose(Position((i%3-1)*10, 0, (i//3-1)*10), Angle(0))))
         
@@ -35,7 +38,8 @@ class ServerGameHandler:
             self.__messageQueue.append(Message("EndAgentSelectMessage", None))
         thread = Thread(target=endAgentSelectAtTime)
         thread.start()
-    
+    def endAgentSelect(self) -> None:
+        self.__selectStartTime = -1
     def startGame(self) -> None:
         for player in self.__gameState.players:
             if player.getAgentKey() is None:
@@ -54,6 +58,30 @@ class ServerGameHandler:
             if player.getStatus().isAlive():
                 player.tickMovement(passedTime)
     
+    def trySetWalkStatus(self, playerName: str, walk: bool) -> None:
+        if not self.__inGame:
+            debug(D.WARNING, f"Player {playerName} tried to walk while not in game")
+            return
+        if not (player := self.__gameState.getPlayer(playerName)):
+            debug(D.WARNING, f"Couldnt set walk status Player {playerName}", f"Player {playerName} not found in game")
+            return
+        if not player.getStatus().isAlive():
+            debug(D.LOG, f"Player {playerName} tried to set walk status while dead")
+            return
+        player.getStatus().setWalk(walk)
+    
+    def trySetCrouchStatus(self, playerName: str, crouch: bool) -> None:
+        if not self.__inGame:
+            debug(D.WARNING, f"Player {playerName} tried to crouch while not in game")
+            return
+        if not (player := self.__gameState.getPlayer(playerName)):
+            debug(D.WARNING, f"Couldnt set crouch status Player {playerName}", f"Player {playerName} not found in game")
+            return
+        if not player.getStatus().isAlive():
+            debug(D.LOG, f"Player {playerName} tried to set crouch status while dead")
+            return
+        player.getStatus().setCrouch(crouch)
+        
     def tryTurnTo(self, playerName: str, newAngle: Angle) -> None:
         if not self.__inGame:
             debug(D.WARNING, f"Player {playerName} tried to turn while not in game")
@@ -99,6 +127,8 @@ class ServerGameHandler:
     # Getters
     def isIngame(self) -> bool:
         return self.__inGame
+    def isInLoading(self) -> bool:
+        return self.__inLoading
     def getMessages(self) -> list[Message]:
         messages = self.__messageQueue
         self.__messageQueue = self.__messageQueue[len(messages):]

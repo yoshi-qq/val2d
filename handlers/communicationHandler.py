@@ -1,7 +1,7 @@
 from typing import Union, Callable, Any, Literal
 from config.constants import DATA_SIZE
 from classes.types import Message, Connection
-from dependencies.communications import Request, Event, CommunicationsHandler as Comm, setOnClientJoin, setOnDisconnect
+from dependencies.communications import Request, Event, CommunicationsHandler as Comm, setOnConnect, setOnDisconnect
 from handlers.config import CONFIG
 
 # TODO 7: host being a player as well
@@ -40,13 +40,13 @@ class CommunicationHandler:
                 self.__addRequest(request)
                 self.__comm.resolveRequest(request.id)
         return True
-                
+
     def connectToGame(self, ip: str, port: int) -> None:
         if self.__type is not None:
             print("Already in a lobby")
             return
         self.__comm = Comm(host=False, ip = ip, port=port, maxClients=4, dataSize=DATA_SIZE, commands = self.__playerCommandList)
-        setOnDisconnect(lambda: self.__addMessage("ForceDisconnect", None))
+        setOnDisconnect(lambda this: self.__addMessage("ForceDisconnect", None))
         self.__type = "player"
         self.__addMessage("Connected", None)
     
@@ -54,7 +54,7 @@ class CommunicationHandler:
         if self.__type is not None:
             print("Already in a lobby")
             return
-        setOnClientJoin(lambda: self.__addMessage("ClientConnected", None))
+        setOnConnect(lambda this: self.__addMessage("ClientConnected", this))
         self.__comm = Comm(host=True, ip = "0.0.0.0", port=port, maxClients=4, dataSize=DATA_SIZE, commands = self.__hostCommandList)
         self.__type = "host"
         self.__addMessage("Hosted", None)

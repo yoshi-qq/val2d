@@ -15,10 +15,10 @@ class InputHandler:
         try:
             inputKey = keybinds.get(KeyInputKey(keyNumber))
         except ValueError:
-            debug(D.WARNING, "Unhandled Input", f"key: {keyNumber}")
+            debug(D.LOG, f"Unhandled Input key: {keyNumber}", "key number doesnt correspond to a KeyInputKey")
             return None
         if inputKey is None:
-            debug(D.WARNING, "Unhandled Input", f"key: {keyNumber}")
+            debug(D.LOG, f"Unhandled Input key: {keyNumber}", "key not in keybinds")
             return None
         held = keyNumber in self.__lastKeys
         return Input(type=inputKey, held=held)

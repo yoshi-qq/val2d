@@ -6,11 +6,14 @@ from typing import Union, Any
 from classes.types import Message, Input, Ping, Angle
 from classes.keys import InputKey
 from classes.gameTypes import GameState
+from classes.playerTypes import Player
 from prebuilts.base import getForwardPosition, getZeroPosition
 class ClientGameHandler:
     def __init__(self) -> None:
         self.__accelerationDirection: Angle | None = None
         self.__ownAngle: Angle | None = None
+        self.__walking: bool = False
+        self.__crouching: bool = False
         self.__remainingSelectTime = AGENT_SELECT_TIME
         self.__messageQueue: list[Message] = []
         self.__inGame = False
@@ -21,9 +24,14 @@ class ClientGameHandler:
     # Global
     def setGameState(self, gameState: GameState, tickTime: float) -> None:
         self.__gameState = gameState
-        
-    def setup(self, gameState: GameState) -> None:
+    
+    def getOwnPlayer(self) -> Player | None:
+        if self.__name and self.__gameState:
+            return self.__gameState.getPlayer(self.__name)
+    
+    def setup(self, gameState: GameState, ownName: str) -> None:
         self.setGameState(gameState, now())
+        self.__name = ownName
         self.__inGame = True
         
     def tick(self) -> None:
@@ -62,12 +70,12 @@ class ClientGameHandler:
         self.__doMovement(self.__name, self.__accelerationDirection)
         self.__tickMovement(tickTime)
     
-    def handleMouseMovement(self, name: str, mouseMovement: tuple[int, int]) -> None:
+    def handleMouseMovement(self, mouseMovement: tuple[int, int]) -> None:
         if self.__gameState is None:
             debug(D.ERROR, "Local GameState is None")
             return
-        if (player := self.__gameState.getPlayer(name)) is None:
-            debug(D.ERROR, f"Couldn't turn Player {name}", f"Player {name} not found in local game")
+        if (player := self.getOwnPlayer()) is None:
+            debug(D.ERROR, f"Couldn't turn Player {self.__name}", f"Player {self.__name} not found in local game")
             return
         turnAmount = mouseMovement[0] * DEFAULT_SENSITIVITY
         turnAngle = Angle(turnAmount)
@@ -77,6 +85,8 @@ class ClientGameHandler:
     def handleInputs(self, inputs: list[Input]) -> None:
         accelerationVector: tuple[int, int] = (0, 0)
         serverRequests: list[Request] = []
+        walk = False
+        crouch = False
         for input in inputs:
             match input.type:
                 case InputKey.UP:
@@ -87,11 +97,39 @@ class ClientGameHandler:
                     accelerationVector = (accelerationVector[0]+1, accelerationVector[1])
                 case InputKey.LEFT:
                     accelerationVector = (accelerationVector[0]-1, accelerationVector[1])
+                case InputKey.WALK: # TODO: toggle sneak implementation
+                    walk = True
+                case InputKey.CROUCH:
+                    crouch = True
+                    
                 case _:
                     if input.held:
-                        debug(D.TRACE, f"Unhandled held Input 🎮: {input}")
+                        debug(D.TRACE, f"Unhandled held Input 🎮: {input}", "couldnt case match input.type")
                     else:
-                        debug(D.WARNING, f"Unhandled Input 🎮: {input}")
+                        debug(D.WARNING, f"Unhandled Input 🎮: {input}", "couldnt case match input.type")
+        self.__walking = walk
+        self.__crouching = crouch
+        # Walking
+        if (player := self.getOwnPlayer()) is None:
+                debug(D.WARNING, "Couldn't walk, Local Player is None")
+        elif self.__walking != player.getStatus().isWalking():    
+            if self.__walking:
+                player.getStatus().setWalk(True)
+                serverRequests.append(Request("SetWalkStatusRequest", True))
+            else:
+                player.getStatus().setWalk(False)
+                serverRequests.append(Request("SetWalkStatusRequest", False))
+        
+        # Crouching
+        if (player := self.getOwnPlayer()) is None:
+                debug(D.WARNING, "Couldn't crouch, Local Player is None")
+        elif self.__crouching != player.getStatus().isCrouched():    
+            if self.__crouching:
+                player.getStatus().setCrouch(True)
+                serverRequests.append(Request("SetCrouchStatusRequest", True))
+            else:
+                player.getStatus().setCrouch(False)
+                serverRequests.append(Request("SetCrouchStatusRequest", False))
         
         self.__accelerationDirection: Angle | None = Angle(degrees(atan2(accelerationVector[0], accelerationVector[1]))) if accelerationVector != (0, 0) else None
         serverRequests.append(Request("MovementRequest", self.__accelerationDirection))
@@ -126,13 +164,16 @@ class ClientGameHandler:
         if not self.__name:
             debug(D.WARNING, "Local name is None")
             return
-        if (player := self.__gameState.getPlayer(self.__name)) is None:
+        if (player := self.getOwnPlayer()) is None:
             debug(D.WARNING, f"Couldn't realign Player turn {self.__name}", f"Player {self.__name} not found in local game")
             return
         if self.__ownAngle is None:
-            debug(D.WARNING, "Local ownAngle is None")
+            debug(D.WARNING, "Local ownAngle is None, setting to server side angle")
+            self.__ownAngle = player.getPose().getOrientation()
             return
         player.getPose().turnTo(self.__ownAngle)
+        player.getStatus().setWalk(self.__walking)
+        player.getStatus().setCrouch(self.__crouching)
 
     def setRemainingSelectTime(self, time: float) -> None:
         self.__remainingSelectTime = time

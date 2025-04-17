@@ -340,6 +340,7 @@ class KeyInputKey(Enum):
     SHIFT = p.K_LSHIFT
     CTRL = p.K_LCTRL
     ALT = p.K_LALT
+    WINDOWS = p.K_LSUPER
 
 class InputKey(Enum):
     # Movement
@@ -348,24 +349,25 @@ class InputKey(Enum):
     LEFT = 2
     RIGHT = 3
     JUMP = 4
-    CROUCH = 5
+    WALK = 5
+    CROUCH = 6
     # Interaction
-    FIRE = 6
-    ALT_FIRE = 7
-    RELOAD = 8
-    INTERACT = 9
-    INSPECT = 10
+    FIRE = 7
+    ALT_FIRE = 8
+    RELOAD = 9
+    INTERACT = 10
+    INSPECT = 11
     # Inventory
-    SPIKE = 11
-    MELEE = 12
-    SIDEARM = 13
-    PRIMARY = 14
-    BASIC = 15
-    TACTICAL = 16
-    SIGNATURE = 17
-    ULTIMATE = 18
+    SPIKE = 12
+    MELEE = 13
+    SIDEARM = 14
+    PRIMARY = 15
+    BASIC = 16
+    TACTICAL = 17
+    SIGNATURE = 18
+    ULTIMATE = 19
     # UI
     MENU = 20
-    MAP = 19
-    SCOREBOARD = 21
-    CHAT = 22
+    MAP = 21
+    SCOREBOARD = 22
+    CHAT = 23

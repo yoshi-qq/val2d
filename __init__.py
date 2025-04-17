@@ -69,6 +69,8 @@ def handleMessage(message: Message) -> None:
             menu.setMenu(MenuKey.PLAYER_LOBBY)
         case "Hosted":
             menu.setMenu(MenuKey.HOST_LOBBY)
+        case "ClientConnected":
+            debug(D.LOG, "Client connected", f"Name: {message.body.name}") # Server.Client Object from networking
         case "Disconnected":
             menu.setMenu(MenuKey.PLAY)
         case "OpenServerAgentSelect":
@@ -86,19 +88,19 @@ def handleMessage(message: Message) -> None:
                 communication.hostGame(CONFIG["port"])
                 server = ServerGameHandler()
         case "Start":
-            if server:
+            if server and not server.isInLoading():
                 server.start(communication.getConnections())
         case "SelectAgent":
             communication.sendRequest("SelectAgentRequest", message.body) # agent
         case "ForceStart":
             if server and not server.isIngame():
-                server.startGame()
-                menu.setMenu(MenuKey.IN_GAME_HOST)
+                server.endAgentSelect()
         case "StartAgentSelectionEvent":
             localMessages.append(Message("OpenServerAgentSelect", None))
             communication.castEvent("StartAgentSelectionEvent", None)
         case "EndAgentSelectMessage":
             if server and not server.isIngame():
+                menu.setMenu(MenuKey.IN_GAME_HOST)
                 server.startGame()
         case "UpdateRemainingSelectTime":
             communication.castEvent("UpdateRemainingSelectTimeEvent", message.body) # time
@@ -115,6 +117,9 @@ def handleMessage(message: Message) -> None:
             debug(D.WARNING, f"Unhandled message 🛠️: {message.head}", message.body)
 
 def handleEvent(event: Event) -> None:
+    if (name := communication.getName()) is None:
+        debug(D.ERROR, "Couldn't handle Event. Communication not correctly initialised", "Client name is None")
+        return
     global server, client
     if event.head not in ("UpdateGameStateEvent", "Ping", "UpdateRemainingSelectTimeEvent"):
         debug(D.LOG, f"Handling Event 📅: {event.head}", event.body)
@@ -136,7 +141,7 @@ def handleEvent(event: Event) -> None:
             menu.setMenu(MenuKey.IN_GAME_PLAYER)
             menu.disable()
             if client:
-                client.setup(event.body)
+                client.setup(event.body, name)
         case "UpdateGameStateEvent":
             if client:
                 client.updateGameState(event.body)
@@ -159,5 +164,11 @@ def handleRequest(request: Request) -> None:
         case "TurnToRequest":
             if server:
                 server.tryTurnTo(request.signature, request.body)
+        case "SetWalkStatusRequest":
+            if server:
+                server.trySetWalkStatus(request.signature, request.body)
+        case "SetCrouchStatusRequest":
+            if server:
+                server.trySetCrouchStatus(request.signature, request.body)
         case _:
             debug(D.WARNING, f"Unhandled request 📡: {request.head}", request)

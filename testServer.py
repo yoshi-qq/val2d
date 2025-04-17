@@ -9,17 +9,17 @@ x, y = TESTING_WINDOW_POSITIONS[ID]
 os.environ['SDL_VIDEO_WINDOW_POS'] = f"{x},{y}"
 
 from main import main
-from classes.types import Message, AutoMessageTrigger, AgentKey
+from classes.types import Null, Message, AutoMessageTrigger, AgentKey
 M = Message
 E = Event
 R = Request
 AMA = AutoMessageTrigger
-qAMA: Callable[[str, str], AutoMessageTrigger] = lambda m, a: AutoMessageTrigger(M(m, None), M(a, None))
+qAMA: Callable[[str, str], AutoMessageTrigger] = lambda m, a: AutoMessageTrigger(M(m, Null), M(a, None))
 
 # Automation
 serverAutoMessageTriggers: list[AutoMessageTrigger] = [
     qAMA("Initiated", "Host"),
-    AMA(M("ClientConnected", None), M("Start", None), 2, 0),
+    AMA(M("ClientConnected", Null), M("Start", None), 2, 0),
     AMA(R("SelectAgentRequest", AgentKey.OMEN), M("ForceStart", None), 2, 0)
 ]
 
