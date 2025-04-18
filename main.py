@@ -1,6 +1,6 @@
 from typing import Union, Callable
 from time import sleep, time as now
-from config.constants import TICK_RATE, debug, D, SERVER_NAME
+from config.constants import TICK_RATE, debug, D, SERVER_NAME, DebugProblem as P, DebugReason as R, DebugDetails as DD
 from dependencies.communications import Request, Event
 from classes.heads import EventHead, RequestHead, MessageHead
 from classes.keys import MenuKey
@@ -65,19 +65,19 @@ def communicationTick(tickID: int, tickTime: float, inGame: bool, communicationH
         for message in allMessages:
             try: trueHead = MessageHead(message.head)
             except ValueError:
-                debug(D.WARNING, f"Message with unknown head encountered", f"Message: {message}")
+                debug(D.WARNING, P.UNCOUNTED_MESSAGE, R.INVALID_MESSAGE_HEAD, DD.FULL_MESSAGE, message)
                 continue
             messageHeadCounts[trueHead] = messageHeadCounts.get(message.head, 0) + 1
         for request in currentRequests:
             try: trueHead = RequestHead(request.head)
             except ValueError:
-                debug(D.WARNING, f"Request with unknown head encountered", f"Request: {request}")
+                debug(D.WARNING, P.UNCOUNTED_REQUEST, R.INVALID_REQUEST_HEAD, DD.FULL_REQUEST, request)
                 continue
             requestHeadCounts[trueHead] = requestHeadCounts.get(trueHead, 0) + 1
         for event in currentEvents:
             try: trueHead = EventHead(event.head)
             except ValueError:
-                debug(D.WARNING, f"Event with unknown head encountered", f"Event: {event}")
+                debug(D.WARNING, P.UNCOUNTED_EVENT, R.INVALID_EVENT_HEAD, DD.FULL_EVENT, event)
                 continue
             eventHeadCounts[trueHead] = eventHeadCounts.get(trueHead, 0) + 1
         
@@ -87,7 +87,7 @@ def communicationTick(tickID: int, tickTime: float, inGame: bool, communicationH
                 case Message():
                     try: trueHead = MessageHead(aMessage.trigger.head)
                     except ValueError:
-                        debug(D.WARNING, f"Message with unknown head encountered", f"Message: {aMessage.trigger}")
+                        debug(D.WARNING, P.AUTOMATION_UNSUCCESSFUL, R.INVALID_MESSAGE_HEAD, DD.FULL_MESSAGE, aMessage.trigger)
                         continue
                     if aMessage.trigger.body is not Null:
                         for _ in range(allMessages.count(aMessage.trigger)):
@@ -100,7 +100,7 @@ def communicationTick(tickID: int, tickTime: float, inGame: bool, communicationH
                 case Request():
                     try: trueHead = RequestHead(aMessage.trigger.head)
                     except ValueError:
-                        debug(D.WARNING, f"Request with unknown head encountered", f"Request: {aMessage.trigger}")
+                        debug(D.WARNING, P.AUTOMATION_UNSUCCESSFUL, R.INVALID_REQUEST_HEAD, DD.FULL_REQUEST, aMessage.trigger)
                         continue
                     if aMessage.trigger.body is not Null:
                         for _ in range(currentRequests.count(aMessage.trigger)):
@@ -113,7 +113,7 @@ def communicationTick(tickID: int, tickTime: float, inGame: bool, communicationH
                 case Event():
                     try: trueHead = EventHead(aMessage.trigger.head)
                     except ValueError:
-                        debug(D.WARNING, f"Event with unknown head encountered", f"Event: {aMessage.trigger}")
+                        debug(D.WARNING, P.AUTOMATION_UNSUCCESSFUL, R.INVALID_EVENT_HEAD, DD.FULL_EVENT, aMessage.trigger)
                         continue
                     if aMessage.trigger.body is not Null:
                         for _ in range(currentEvents.count(aMessage.trigger)):
@@ -157,12 +157,12 @@ def main(autoMessageTriggers: Union[None, list[AutoMessageTrigger]] = None) -> N
             tickDifference = 1 / TICK_RATE
         if core.server:
             if tickDifference < TICK_RATE:
-                debug(D.TRACE, f"Tick fast enough", f"Speed: {1/tickDifference:.2f}t/s > {1/TICK_RATE:.2f}t/s")
+                debug(D.TRACE, P.FAST_TICK, R.EMPTY, DD.TICK_SPEED, f"{1/tickDifference:.2f}t/s > {1/TICK_RATE:.2f}t/s")
                 sleep(TICK_RATE - tickDifference)
                 tickStart: float = now()
                 tickDifference: float = tickStart - lastTickStart
             else:
-                debug(D.WARNING, f"Tick too slow", f"Speed: {1/tickDifference:.2f}t/s < {1/TICK_RATE:.2f}t/s")
+                debug(D.WARNING, P.SLOW_TICK, R.EMPTY, DD.TICK_SPEED, f"{1/tickDifference:.2f}t/s < {1/TICK_RATE:.2f}t/s")
         #* Input
         inputs, mouseMovement = inputTick(core.inputs)
         
@@ -180,11 +180,11 @@ def main(autoMessageTriggers: Union[None, list[AutoMessageTrigger]] = None) -> N
         
         #* Local Computation
         if (not updated) and core.client and (name := core.communication.getName()):
-            debug(D.TRACE, f"Server didn't respond in time, {name} is self updating")
+            debug(D.TRACE, P.SELF_UPDATE, R.SERVER_TOO_SLOW, DD.PLAYER_NAME, name)
             core.client.selfUpdate(tickDifference, name)
         #* Graphics
         if graphicsTick(graphicsHandler=core.graphics, server=core.server, client=core.client, clientName=core.communication.getName()):
-            debug(D.LOG, "Graphics quit")
+            debug(D.LOG, P.QUITTING, R.INPUT)
             core.loop = False
             core.communication.disconnect()
 

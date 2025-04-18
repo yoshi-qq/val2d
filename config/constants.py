@@ -2,7 +2,7 @@ from enum import Enum
 from classes.heads import DebugProblem, DebugReason, DebugDetails, debugProblems, debugReasons, debugDetails
 from dependencies.console import Console
 # GENERAL
-VERSION = (0,9,-5)
+VERSION = (0,9,6)
 STABLE = False
 VERSION_STRING = f"{VERSION[0]}.{VERSION[1]}.{VERSION[2]}"
 
@@ -52,15 +52,18 @@ DEBUG_SYMBOLS = {
 
 CONSOLE = Console()
 
+def unpack(tup: tuple[str, str]) -> str:
+    return f"{tup[0]} {tup[1]}".strip()
+
 def debug(minimumLevel: D, problem: DebugProblem, reason: DebugReason = DebugReason.EXPECTED, details: DebugDetails = DebugDetails.EMPTY, detailsObject: object = None) -> None:
     symbol = DEBUG_SYMBOLS.get(minimumLevel, "❓")
     if ((details is not DebugDetails.EMPTY) or (detailsObject is not None)) and DEBUG_LEVEL.value >= minimumLevel.value + 2:
         detailsSymbol = DEBUG_SYMBOLS.get(D(minimumLevel.value + 1), "📋")
-        CONSOLE.log(f"{symbol} |{debugProblems[problem]} <- {debugReasons[reason]} - ", f"{detailsSymbol}|{debugDetails[details]}")
+        CONSOLE.log(f"{symbol} |{unpack(debugProblems[problem])} <- {unpack(debugReasons[reason])} - ", f"{detailsSymbol}|{unpack(debugDetails[details])}")
     elif DEBUG_LEVEL.value >= minimumLevel.value + 1:
-        CONSOLE.log(f"{symbol} |{debugProblems[problem]} <- {debugReasons[reason]}")
+        CONSOLE.log(f"{symbol} |{unpack(debugProblems[problem])} <- {unpack(debugReasons[reason])}")
     elif DEBUG_LEVEL.value >= minimumLevel.value:
-        CONSOLE.log(f"{symbol} |{debugProblems[problem]}")
+        CONSOLE.log(f"{symbol} |{unpack(debugProblems[problem])}")
 
 #? FUTURE SETTINGS
 DEFAULT_SENSITIVITY = 0.2

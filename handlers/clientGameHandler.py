@@ -2,7 +2,7 @@ from typing import Union, Any
 from time import time as now
 from math import atan2, degrees
 from dependencies.communications import Request
-from config.constants import AGENT_SELECT_TIME, PING_INTERVAL, debug, D, DEFAULT_ACCELERATION, DEFAULT_SENSITIVITY
+from config.constants import AGENT_SELECT_TIME, PING_INTERVAL, debug, D, DEFAULT_ACCELERATION, DEFAULT_SENSITIVITY, DebugProblem as P, DebugReason as R, DebugDetails as DD
 from classes.heads import MessageHead, RequestHead
 from classes.types import Message, Input, Ping, Angle
 from classes.keys import InputKey
@@ -41,16 +41,16 @@ class ClientGameHandler:
     
     def __doMovement(self, playerName: str, accelerationDirection: Angle | None) -> None:
         if self.__gameState is None:
-            debug(D.ERROR, "Local GameState is None")
+            debug(D.ERROR, P.COULDNT_MOVE_PLAYER_LOCALLY, R.LOCAL_GAMESTATE_IS_NONE)
             return
         if not self.__inGame:
-            debug(D.WARNING, f"Local Player {playerName} tried to move while not in game")
+            debug(D.WARNING, P.COULDNT_MOVE_PLAYER_LOCALLY, R.NOT_INGAME, DD.PLAYER_NAME, playerName)
             return
         if not (player := self.__gameState.getPlayer(playerName)):
-            debug(D.WARNING, f"Local Couldnt move Player {playerName}", f"Player {playerName} not found in game")
+            debug(D.WARNING, P.COULDNT_MOVE_PLAYER_LOCALLY, R.PLAYER_NOT_FOUND_LOCALLY, DD.PLAYER_NAME, playerName)
             return
         if not player.getStatus().isAlive():
-            debug(D.LOG, f"Local Player {playerName} tried to move while dead")
+            debug(D.LOG, P.COULDNT_MOVE_PLAYER_LOCALLY, R.PLAYER_IS_DEAD, DD.PLAYER_OBJECT, player)
             return
         if accelerationDirection is None:
             player.setAcceleration(getZeroPosition())
@@ -60,7 +60,7 @@ class ClientGameHandler:
     
     def __tickMovement(self, passedTime: float) -> None:
         if self.__gameState is None:
-            debug(D.WARNING, "Local GameState is None")
+            debug(D.WARNING, P.NO_MOVEMENT_TICK, R.LOCAL_GAMESTATE_IS_NONE)
             return
         for player in self.__gameState.players:
             if player.getStatus().isAlive():
@@ -73,10 +73,10 @@ class ClientGameHandler:
     
     def handleMouseMovement(self, mouseMovement: tuple[int, int]) -> None:
         if self.__gameState is None:
-            debug(D.ERROR, "Local GameState is None")
+            debug(D.ERROR, P.NO_MOUSE_HANDLING, R.LOCAL_GAMESTATE_IS_NONE)
             return
-        if (player := self.getOwnPlayer()) is None:
-            debug(D.ERROR, f"Couldn't turn Player {self.__name}", f"Player {self.__name} not found in local game")
+        if (player := self.getOwnPlayer()) is None: # TODO: Proper Error Handling (Case Differentation)
+            debug(D.ERROR, P.NO_MOUSE_HANDLING, R.PLAYER_NOT_FOUND_LOCALLY, DD.PLAYER_NAME, self.__name)
             return
         turnAmount = mouseMovement[0] * DEFAULT_SENSITIVITY
         turnAngle = Angle(turnAmount)
@@ -105,14 +105,14 @@ class ClientGameHandler:
                     
                 case _:
                     if input.held:
-                        debug(D.TRACE, f"Unhandled held Input 🎮: {input}", "couldnt case match input.type")
+                        debug(D.TRACE, P.UNHANDLED_HELD_INPUT, R.NO_INPUTTYPE_MATCH, DD.INPUTTYPE, input.type)
                     else:
-                        debug(D.WARNING, f"Unhandled Input 🎮: {input}", "couldnt case match input.type")
+                        debug(D.TRACE, P.UNHANDLED_INPUT, R.NO_INPUTTYPE_MATCH, DD.INPUTTYPE, input.type)
         self.__walking = walk
         self.__crouching = crouch
         # Walking
         if (player := self.getOwnPlayer()) is None:
-                debug(D.WARNING, "Couldn't walk, Local Player is None")
+            debug(D.WARNING, P.WALK_STATUS_UNCHANGED, R.LOCAL_PLAYER_IS_NONE)
         elif self.__walking != player.getStatus().isWalking():    
             if self.__walking:
                 player.getStatus().setWalk(True)
@@ -123,7 +123,7 @@ class ClientGameHandler:
         
         # Crouching
         if (player := self.getOwnPlayer()) is None:
-                debug(D.WARNING, "Couldn't crouch, Local Player is None")
+            debug(D.WARNING, P.CROUCH_STATUS_UNCHANGED, R.LOCAL_PLAYER_IS_NONE)
         elif self.__crouching != player.getStatus().isCrouched():    
             if self.__crouching:
                 player.getStatus().setCrouch(True)
@@ -162,19 +162,16 @@ class ClientGameHandler:
     # Setters
     def updateGameState(self, newGameState: GameState) -> None:
         self.__gameState = newGameState
-        if not self.__name:
-            debug(D.WARNING, "Local name is None")
-            return
         if (player := self.getOwnPlayer()) is None:
-            debug(D.WARNING, f"Couldn't realign Player turn {self.__name}", f"Player {self.__name} not found in local game")
+            debug(D.WARNING, P.NO_PLAYER_RESET_TO_LOCAL_VALUES, R.PLAYER_NOT_FOUND_LOCALLY) # TODO: Detaills for getOwnPlayer Failure
             return
+        player.getStatus().setWalk(self.__walking)
+        player.getStatus().setCrouch(self.__crouching)
         if self.__ownAngle is None:
-            debug(D.WARNING, "Local ownAngle is None, setting to server side angle")
+            debug(D.WARNING, P.NO_PLAYER_RESET_TO_LOCAL_ORIENTATION, R.LOCAL_ANGLE_IS_NONE)
             self.__ownAngle = player.getPose().getOrientation()
             return
         player.getPose().turnTo(self.__ownAngle)
-        player.getStatus().setWalk(self.__walking)
-        player.getStatus().setCrouch(self.__crouching)
 
     def setRemainingSelectTime(self, time: float) -> None:
         self.__remainingSelectTime = time

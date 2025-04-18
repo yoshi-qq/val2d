@@ -1,5 +1,5 @@
 from typing import Optional
-from config.constants import debug, D
+from config.constants import debug, D, DebugProblem as P, DebugReason as R, DebugDetails as DD
 from classes.types import Input
 from classes.keys import KeyInputKey
 from prebuilts.keybinds import keybinds
@@ -15,10 +15,10 @@ class InputHandler:
         try:
             inputKey = keybinds.get(KeyInputKey(keyNumber))
         except ValueError:
-            debug(D.LOG, f"Unhandled Input key: {keyNumber}", "key number doesnt correspond to a KeyInputKey")
+            debug(D.LOG, P.UNHANDLED_INPUT, R.INVALID_INPUT_NUM, DD.KEY_NUM, keyNumber)
             return None
         if inputKey is None:
-            debug(D.LOG, f"Unhandled Input key: {keyNumber}", "key not in keybinds")
+            debug(D.LOG, P.UNHANDLED_INPUT, R.NO_INPUTTYPE_MATCH, DD.KEY_NUM, keyNumber)
             return None
         held = keyNumber in self.__lastKeys
         return Input(type=inputKey, held=held)
@@ -34,10 +34,8 @@ class InputHandler:
                 inputs.append(input)
         self.__lastKeys = heldKeys
         if inputs:
-            debug(D.TRACE, [input for input in inputs if input.held])
             for input in inputs:
                 if not input.held:
-                    debug(D.DEBUG, [input for input in inputs if not input.held])
                     break
         return inputs, mouseMovement
 
