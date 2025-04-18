@@ -2,7 +2,7 @@ import os
 from config.constants import debug, D
 from dependencies.communications import Event, Request
 from typing import Union, Callable
-from classes.heads import EventHead, RequestHead, MessageHead
+from classes.heads import EventHead, RequestHead, MessageHead, DebugProblem as P, DebugReason as R, DebugDetails as DD
 from classes.types import Message
 from classes.keys import MenuKey
 from handlers.graphicsHandler import GraphicsHandler
@@ -61,21 +61,21 @@ def handleMessage(message: Message) -> None:
     global server, client
     try: head = MessageHead(message.head)
     except ValueError:
-        debug(D.ERROR, f"Invalid message head", {message.head})
+        debug(D.ERROR, P.UNHANDLED_MESSAGE, R.INVALID_MESSAGE_HEAD, DD.MESSAGE_HEAD, {message.head})
         return
     if head not in (MessageHead.CAST_UPDATE_GAMESTATE_EVENT, MessageHead.SEND_INPUT_REQUESTS, MessageHead.UPDATE_REMAINING_SELECT_TIME):
-        debug(D.LOG, f"Handling Message 🛠️: {head}", message.body)
+        debug(D.LOG, P.HANDLING_MESSAGE, R.EXPECTED, DD.FULL_MESSAGE, message)
     else:
-        debug(D.TRACE, f"Handling Message 🔄🛠️: {head}", message.body)
+        debug(D.LOG, P.HANDLING_MESSAGE, R.CYCLE, DD.FULL_MESSAGE, message)
     match head:
         case MessageHead.INITIATED:
-            debug(D.LOG ,"+++Initiated+++")
+            debug(D.LOG , P.INITIATED)
         case MessageHead.CONNECTED:
             menu.setMenu(MenuKey.PLAYER_LOBBY)
         case MessageHead.HOSTED:
             menu.setMenu(MenuKey.HOST_LOBBY)
         case MessageHead.CLIENT_CONNECTED:
-            debug(D.LOG, "Client connected", f"Name: {message.body.name}") # Server.Client Object from networking
+            debug(D.LOG, P.CLIENT_CONNECTED, R.EXPECTED, DD.CLIENT_NAME, message.body.name) # Server.Client Object from networking
         case MessageHead.DISCONNECTED:
             menu.setMenu(MenuKey.PLAY)
         case MessageHead.OPEN_SERVER_AGENT_SELECT:
@@ -119,24 +119,24 @@ def handleMessage(message: Message) -> None:
         case MessageHead.SEND_TURN_REQUEST:
             communication.sendRequest(RequestHead.TURN_TO_REQUEST, message.body) # new angle
         case _:
-            debug(D.WARNING, f"Unhandled message 🛠️: {head}", message.body)
+            debug(D.WARNING, P.UNHANDLED_MESSAGE, R.NO_MATCHING_MESSAGE_HEAD, DD.FULL_MESSAGE, message)
 
 def handleEvent(event: Event) -> None:
     if (name := communication.getName()) is None:
-        debug(D.ERROR, "Couldn't handle Event. Communication not correctly initialised", "Client name is None")
+        debug(D.ERROR, P.UNHANDLED_EVENT, R.COMM_NOT_INITIALIZED, DD.CLIENT_NAME_IS_NONE)
         return
     global server, client
     if event.head not in (EventHead.UPDATE_GAMESTATE_EVENT, "Ping", EventHead.UPDATE_REMAINING_SELECT_TIME_EVENT):
-        debug(D.LOG, f"Handling Event 📅: {event.head}", event.body)
+        debug(D.LOG, P.HANDLING_EVENT, R.EXPECTED, DD.FULL_EVENT, event)
     else:
-        debug(D.TRACE, f"Handling Event 🔄📅: {event.head}", event.body)
+        debug(D.TRACE, P.HANDLING_EVENT, R.CYCLE, DD.FULL_EVENT, event)
     match event.head:
         case EventHead.END_SESSION:
             if comm := communication.getComm(): 
                 comm.quit()
             communication.setType(None)
             menu.setMenu(MenuKey.PLAY)
-            debug(D.ERROR, "Connection lost")
+            debug(D.ERROR, P.CONNECTION_LOST, R.SESSION_ENDED)
         case MessageHead.START_AGENT_SELECT:
             menu.setMenu(MenuKey.AGENT_SELECT)
         case EventHead.UPDATE_REMAINING_SELECT_TIME_EVENT:
@@ -151,14 +151,14 @@ def handleEvent(event: Event) -> None:
             if client:
                 client.updateGameState(event.body)
         case _:
-            debug(D.WARNING, f"Unhandled event 📅: {event.head}", event.body)
+            debug(D.WARNING, P.UNHANDLED_EVENT, R.NO_MATCHING_EVENT_HEAD, DD.FULL_EVENT, event)
 
 def handleRequest(request: Request) -> None:
     global server, client
     if request.head not in ("Ping", RequestHead.MOVEMENT_REQUEST):
-        debug(D.LOG, f"Handling Request 📡: {request.head}", request.body)
+        debug(D.LOG, P.HANDLING_REQUEST, R.EXPECTED, DD.FULL_REQUEST, request)
     else:
-        debug(D.TRACE, f"Handling Request 🔄📡: {request.head}", request.body)
+        debug(D.LOG, P.HANDLING_REQUEST, R.CYCLE, DD.FULL_REQUEST, request)
     match request.head:
         case RequestHead.SELECT_AGENT:
             if server and not server.isIngame():
@@ -176,4 +176,4 @@ def handleRequest(request: Request) -> None:
             if server:
                 server.trySetCrouchStatus(request.signature, request.body)
         case _:
-            debug(D.WARNING, f"Unhandled request 📡: {request.head}", request)
+            debug(D.WARNING, P.UNHANDLED_REQUEST, R.NO_MATCHING_REQUEST_HEAD, DD.FULL_REQUEST, request)
