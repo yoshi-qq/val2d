@@ -1,6 +1,6 @@
 from time import time as now
 from threading import Thread
-from config.constants import AGENT_SELECT_TIME, debug, D, DEFAULT_ACCELERATION
+from config.constants import AGENT_SELECT_TIME, debug, D, DEFAULT_ACCELERATION, DebugProblem as P, DebugReason as R, DebugDetails as DD
 from classes.heads import MessageHead
 from classes.types import Message, AgentKey, Connection, Angle, Pose, Position
 from classes.gameTypes import GameState
@@ -61,49 +61,49 @@ class ServerGameHandler:
     
     def trySetWalkStatus(self, playerName: str, walk: bool) -> None:
         if not self.__inGame:
-            debug(D.WARNING, f"Player {playerName} tried to walk while not in game")
+            debug(D.WARNING, P.WALK_STATUS_UNCHANGED, R.NOT_INGAME, DD.PLAYER_NAME, playerName)
             return
         if not (player := self.__gameState.getPlayer(playerName)):
-            debug(D.WARNING, f"Couldnt set walk status Player {playerName}", f"Player {playerName} not found in game")
+            debug(D.WARNING, P.WALK_STATUS_UNCHANGED, R.PLAYER_NOT_FOUND, DD.PLAYER_NAME, playerName)
             return
         if not player.getStatus().isAlive():
-            debug(D.LOG, f"Player {playerName} tried to set walk status while dead")
+            debug(D.WARNING, P.WALK_STATUS_UNCHANGED, R.PLAYER_IS_DEAD, DD.PLAYER_NAME, playerName)
             return
         player.getStatus().setWalk(walk)
     
     def trySetCrouchStatus(self, playerName: str, crouch: bool) -> None:
         if not self.__inGame:
-            debug(D.WARNING, f"Player {playerName} tried to crouch while not in game")
+            debug(D.WARNING, P.CROUCH_STATUS_UNCHANGED, R.NOT_INGAME, DD.PLAYER_NAME, playerName)
             return
         if not (player := self.__gameState.getPlayer(playerName)):
-            debug(D.WARNING, f"Couldnt set crouch status Player {playerName}", f"Player {playerName} not found in game")
+            debug(D.WARNING, P.CROUCH_STATUS_UNCHANGED, R.PLAYER_NOT_FOUND, DD.PLAYER_NAME, playerName)
             return
         if not player.getStatus().isAlive():
-            debug(D.LOG, f"Player {playerName} tried to set crouch status while dead")
+            debug(D.WARNING, P.CROUCH_STATUS_UNCHANGED, R.PLAYER_IS_DEAD, DD.PLAYER_NAME, playerName)
             return
         player.getStatus().setCrouch(crouch)
         
     def tryTurnTo(self, playerName: str, newAngle: Angle) -> None:
         if not self.__inGame:
-            debug(D.WARNING, f"Player {playerName} tried to turn while not in game")
+            debug(D.WARNING, P.COULDNT_TURN_PLAYER, R.NOT_INGAME, DD.PLAYER_NAME, playerName)
             return
         if not (player := self.__gameState.getPlayer(playerName)):
-            debug(D.WARNING, f"Couldnt turn Player {playerName}", f"Player {playerName} not found in game")
+            debug(D.WARNING, P.COULDNT_TURN_PLAYER, R.PLAYER_NOT_FOUND, DD.PLAYER_NAME, playerName)
             return
         if not player.getStatus().isAlive():
-            debug(D.LOG, f"Player {playerName} tried to turn while dead")
+            debug(D.WARNING, P.COULDNT_TURN_PLAYER, R.PLAYER_IS_DEAD, DD.PLAYER_NAME, playerName)
             return
         player.getPose().turnTo(newAngle)
     
     def tryMovement(self, playerName: str, accelerationDirection: Angle | None) -> None:
         if not self.__inGame:
-            debug(D.WARNING, f"Player {playerName} tried to move while not in game")
+            debug(D.WARNING, P.COULDNT_MOVE_PLAYER, R.NOT_INGAME, DD.PLAYER_NAME, playerName)
             return
         if not (player := self.__gameState.getPlayer(playerName)):
-            debug(D.WARNING, f"Couldnt move Player {playerName}", f"Player {playerName} not found in game")
+            debug(D.WARNING, P.COULDNT_MOVE_PLAYER, R.PLAYER_NOT_FOUND, DD.PLAYER_NAME, playerName)
             return
         if not player.getStatus().isAlive():
-            debug(D.LOG, f"Player {playerName} tried to move while dead")
+            debug(D.WARNING, P.COULDNT_MOVE_PLAYER, R.PLAYER_IS_DEAD, DD.PLAYER_NAME, playerName)
             return
         if accelerationDirection is None:
             player.setAcceleration(getZeroPosition())

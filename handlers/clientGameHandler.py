@@ -112,7 +112,7 @@ class ClientGameHandler:
         self.__crouching = crouch
         # Walking
         if (player := self.getOwnPlayer()) is None:
-            debug(D.WARNING, P.WALK_STATUS_UNCHANGED, R.LOCAL_PLAYER_IS_NONE)
+            debug(D.WARNING, P.WALK_STATUS_UNREQUESTED, R.LOCAL_PLAYER_IS_NONE)
         elif self.__walking != player.getStatus().isWalking():    
             if self.__walking:
                 player.getStatus().setWalk(True)
@@ -123,7 +123,7 @@ class ClientGameHandler:
         
         # Crouching
         if (player := self.getOwnPlayer()) is None:
-            debug(D.WARNING, P.CROUCH_STATUS_UNCHANGED, R.LOCAL_PLAYER_IS_NONE)
+            debug(D.WARNING, P.CROUCH_STATUS_UNREQUESTED, R.LOCAL_PLAYER_IS_NONE)
         elif self.__crouching != player.getStatus().isCrouched():    
             if self.__crouching:
                 player.getStatus().setCrouch(True)

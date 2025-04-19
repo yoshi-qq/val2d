@@ -9,7 +9,6 @@
 - [x] Walking
 - [x] Crouching
 - [x] local calculation for Walk & Crouch
-- [ ] small adjustments from local to server tolerance
 - [ ] correct Speed from Game
 - [ ] Jumping
 - [ ] Map
@@ -33,6 +32,7 @@
 - [ ] Dev-Tools (noclip, speed, in-game coordinate display, etc.)
 - [ ] Main Menu
 - [ ] Animations (graphy: add support for asesprite SpriteSheet export)
+- [ ] small adjustments from local to server tolerance
 - [ ] AFKing and Rejoins
 - [ ] Replay System :>
 

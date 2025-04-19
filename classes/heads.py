@@ -68,6 +68,10 @@ class DebugProblem(Enum):
     SLOW_TICK = 26
     SELF_UPDATE = 27
     QUITTING = 28
+    WALK_STATUS_UNREQUESTED = 29
+    CROUCH_STATUS_UNREQUESTED = 30
+    COULDNT_TURN_PLAYER = 31
+    MOVEMENT_STATUS_UNCHANGED = 32
 class DebugReason(Enum):
     EMPTY = 0
     INVALID_MESSAGE_HEAD = 1
@@ -91,6 +95,7 @@ class DebugReason(Enum):
     SERVER_TOO_SLOW = 19
     INPUT = 20
     INVALID_INPUT_NUM = 21
+    PLAYER_NOT_FOUND = 22
 class DebugDetails(Enum):
     EMPTY = 0
     MESSAGE_HEAD = 1
@@ -137,6 +142,9 @@ debugProblems: dict[DebugProblem, tuple[str, str]] = {
     P.SLOW_TICK: ("Tick too slow", ""),
     P.SELF_UPDATE: ("Self Updating", ""),
     P.QUITTING: ("Quitting Process", ""),
+    P.WALK_STATUS_UNREQUESTED: ("Walk Status Change not requested", ""),
+    P.CROUCH_STATUS_UNREQUESTED: ("Crouch Status Change not requested", ""),
+    P.COULDNT_TURN_PLAYER: ("Couldn't turn player", ""),
 }
 
 R = DebugReason
