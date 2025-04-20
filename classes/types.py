@@ -106,6 +106,21 @@ class Effect(Printable):
         }
 
 # INFORMATION
+class Rect:
+    def __init__(self, x1: float, y1: float, x2: float, y2: float) -> None:
+        self.x1 = x1
+        self.y1 = y1
+        self.x2 = x2
+        self.y2 = y2
+    def getX1(self) -> float:
+        return self.x1
+    def getY1(self) -> float:
+        return self.y1
+    def getX2(self) -> float:
+        return self.x2
+    def getY2(self) -> float:
+        return self.y2
+
 class Angle:
     def __init__(self, angle: float = 0):
         self.__angle = angle

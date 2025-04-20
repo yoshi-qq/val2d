@@ -2,7 +2,7 @@ from enum import Enum
 from classes.heads import DebugProblem, DebugReason, DebugDetails, debugProblems, debugReasons, debugDetails
 from dependencies.console import Console
 # GENERAL
-VERSION = (0,9,8)
+VERSION = (0,9,9)
 STABLE = False
 VERSION_STRING = f"{VERSION[0]}.{VERSION[1]}.{VERSION[2]}"
 
@@ -113,6 +113,8 @@ PLAYER_HEIGHT = 2
 DEFAULT_DECELERATION = 50 # TODO: find value
 MAP_SKY = 10 # 20
 ABYSS_HEIGHT = -64
+BIKE_SIZE = (1, 1, 0.25)
+TP_DOOR_SIZE = (6, 4, 0.25)
 
 # *Movement
 # DEFAULT_JERK = 426.7
