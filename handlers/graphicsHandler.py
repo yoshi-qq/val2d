@@ -10,6 +10,7 @@ from classes.mapTypes import Object
 from classes.gameTypes import GameState
 from classes.agentTypes import Agent
 from classes.finalTypes import Holdable
+from handlers.mapHandler import createObjectRenders
 from prebuilts.agents import agents
 from prebuilts.weapons import melees, sidearms, guns
 from prebuilts.abilities import abilities
@@ -147,7 +148,7 @@ class GraphicsHandler:
         return renders
     # * Object Rendering
     def __createObjectRenders(self, perspective: Pose, objects: list[Object]) -> list["g.RenderObject"]: # type: ignore TODO
-        pass
+        return createObjectRenders(objects, perspective, False)
     
     # * GameState Rendering
     def __createRendersFromPerspective(self, name: str, gameState: GameState) -> list["g.RenderObject"] | None:
