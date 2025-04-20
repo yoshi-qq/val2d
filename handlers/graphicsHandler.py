@@ -1,8 +1,7 @@
 import os
-from math import sqrt, sin, cos, tan, atan2, radians
 from typing import Optional, Literal
 from copy import copy
-from config.constants import debug, D, PLAYER_HEIGHT, AGENT_SPRITE_DIMENSIONS, ZOOM_IN, SERVER_NAME, RESOLUTION, DebugProblem as P, DebugReason as R, DebugDetails as DD, VIEW_WIDTH, VIEW_ANGLE, HEIGHT_TO_Z_OFFSET
+from config.constants import debug, D, AGENT_SPRITE_DIMENSIONS, ZOOM_IN, SERVER_NAME, RESOLUTION, DebugProblem as P, DebugReason as R, DebugDetails as DD
 from classes.keys import MapKey, HandItemKey
 from classes.types import Position, Angle, Pose
 from classes.playerTypes import Player, Status
@@ -10,6 +9,7 @@ from classes.mapTypes import Object
 from classes.gameTypes import GameState
 from classes.agentTypes import Agent
 from classes.finalTypes import Holdable
+from helpers.graphicsHelper import getPoseAndSizeFromPerspective
 from handlers.mapHandler import createObjectRenders
 from prebuilts.agents import agents
 from prebuilts.weapons import melees, sidearms, guns
@@ -27,25 +27,7 @@ class GraphicsHandler:
     def draw(self) -> bool | Literal["quit"]:
         return g.draw()
     
-    def __getSizeFromY(self, y: float) -> float:
-        y = y - PLAYER_HEIGHT
-        return (1+y/(VIEW_WIDTH/(2*tan(radians(VIEW_ANGLE)/2))-y)) * ZOOM_IN
     
-    def __getPoseAndSizeFromPerspective(self, perspective: Pose, objectPose: Pose, turnable: bool) -> tuple[Pose, float]:
-        ownX, ownY, ownZ = perspective.getPosition().getX(), perspective.getPosition().getY(), perspective.getPosition().getZ()
-        objX, objY, objZ = objectPose.getPosition().getX(), objectPose.getPosition().getY(), objectPose.getPosition().getZ()
-        X, Y, Z = objX - ownX, objY - ownY, objZ - ownZ
-        angle = perspective.getOrientation().getAngle()
-        objAngle = objectPose.getOrientation().getAngle()
-        newX = sqrt(X**2 + Z**2) * cos(radians(angle) + atan2(Z, X))
-        newY = Y
-        newZ = sqrt(X**2 + Z**2) * sin(radians(angle) + atan2(Z, X)) + Y*HEIGHT_TO_Z_OFFSET
-        if turnable:
-            newAngle = objAngle - angle
-        else: newAngle = 0
-        pose = Pose(Position(newX, newY, newZ), Angle(newAngle))
-        size = self.__getSizeFromY(newY)
-        return pose, size
     
     # * Map Rendering
     def __createMapRenders(self, perspective: Pose, mapKey: MapKey) -> list["g.RenderObject"]: # type: ignore TODO
@@ -76,7 +58,7 @@ class GraphicsHandler:
             assetName = agent.getSpriteSet().idle
         
         flipped = self.__isFlipped(perspective, playerPose)
-        pose, size = self.__getPoseAndSizeFromPerspective(perspective, playerPose, False)
+        pose, size = getPoseAndSizeFromPerspective(perspective, playerPose, False)
         x, _, z = pose.getPosition().getX(), pose.getPosition().getY(), pose.getPosition().getZ()
         angle = pose.getOrientation().getAngle()
         
