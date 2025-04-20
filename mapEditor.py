@@ -9,7 +9,9 @@ from handlers.mapHandler import createObjectRenders
 
 objects: list[Object] = [
     Box(id=0, sprite="box1", callout=C.MID, position=Pos(0, 0, 0), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW),
-    Box(id=1, sprite="box2", callout=C.MID, position=Pos(2, 0, 0), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW)
+    Box(id=1, sprite="box2", callout=C.MID, position=Pos(0, 0, 2), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW),
+    Box(id=1, sprite="box1", callout=C.MID, position=Pos(-2, 0, 0), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW),
+    Box(id=1, sprite="box3", callout=C.MID, position=Pos(0, 2, 0), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW)
 ]
 testMap = Map("Test Map", objects, Rect(-100, -100, 100, 100), "mapBackground")
 currentPose: Pose = Pose(Pos(0, 0, 0), Angle(0))

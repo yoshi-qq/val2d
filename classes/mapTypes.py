@@ -1,6 +1,6 @@
 from typing import Literal, Optional
 from enum import Enum
-from classes.types import Printable, JSONType, Position, Angle, Rect
+from classes.types import Printable, JSONType, Position, Angle, Rect, Pose
 from classes.categories import PenetrationLevel
 
 # OBJECTS
@@ -75,6 +75,14 @@ class Object(Printable):
         return self.__id
     def getCallout(self) -> Callout:
         return self.__callout
+    def getSprite(self) -> Optional[str]:
+        return self.__sprite
+    def getPose(self) -> Pose:
+        return Pose(self.__position, self.__orientation)
+    def getPosition(self) -> Position:
+        return self.__position
+    def getOrientation(self) -> Angle:
+        return self.__orientation
     def collapseToDict(self) -> JSONType:
         return {}
 
@@ -83,16 +91,22 @@ class Wall(Object):
         super().__init__(id, sprite, callout, position, orientation)
         self.size = size
         self.penetrationLevel = penetrationLevel
+    def getSize(self) -> Position:
+        return self.size
 class Box(Object):
     def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1), penetrationLevel: PenetrationLevel = PenetrationLevel.MEDIUM) -> None:
         super().__init__(id, sprite, callout, position, orientation)
         self.size = size
         self.penetrationLevel = penetrationLevel
+    def getSize(self) -> Position:
+        return self.size
 class Cylinder(Object):
     def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1), penetrationLevel: PenetrationLevel = PenetrationLevel.MEDIUM) -> None:
         super().__init__(id, sprite, callout, position, orientation)
         self.size = size
         self.penetrationLevel = penetrationLevel
+    def getSize(self) -> Position:
+        return self.size
 class Stair(Object):
     def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1)) -> None:
         self.size = size
