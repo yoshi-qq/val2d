@@ -147,6 +147,12 @@ class Position:
         self.__x = newX
         self.__y = newY
         self.__z = newZ
+    def setY(self, newY: float = 0):
+        self.__y = newY
+    def setX(self, newX: float = 0):
+        self.__x = newX
+    def setZ(self, newZ: float = 0):
+        self.__z = newZ
     def moveTo(self, newPosition: "Position") -> None:
         self.setPosition(*newPosition.getPosition())
     def move(self, relativePosition: "Position") -> None:
@@ -155,6 +161,11 @@ class Position:
         self.__x *= scaling
         self.__y *= scaling
         self.__z *= scaling
+    def multiplyHorizontalInPlace(self, scaling: float) -> None:
+        self.__x *= scaling
+        self.__z *= scaling
+    def multiplyYInPlace(self, scaling: float) -> None:
+        self.__y *= scaling
     def getX(self) -> float:
         return self.__x
     def getY(self) -> float:
@@ -193,7 +204,12 @@ class Position:
     def cap(self, maximumMagnitude: float) -> None:
         if self.getMagnitude() != 0 and (magnitude := self.getMagnitude()) > maximumMagnitude:
             self.multiplyInPlace(maximumMagnitude / magnitude)
-    
+    def horizontalCap(self, maximumMagnitude: float) -> None:
+        if self.getHorizontalMagnitude() != 0 and (magnitude := self.getHorizontalMagnitude()) > maximumMagnitude:
+            self.multiplyHorizontalInPlace(maximumMagnitude / magnitude)
+    def verticalCap(self, maximumMagnitude: float) -> None:
+        if self.getVerticalMagnitude() != 0 and (magnitude := self.getVerticalMagnitude()) > maximumMagnitude:
+            self.multiplyYInPlace(maximumMagnitude / magnitude)
     def __mul__(self, scaling: float) -> "Position":
         return Position(self.__x * scaling, self.__y * scaling, self.__z * scaling)
     def __add__(self, other: "Position") -> "Position":

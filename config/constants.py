@@ -2,11 +2,11 @@ from enum import Enum
 from classes.heads import DebugProblem, DebugReason, DebugDetails, debugProblems, debugReasons, debugDetails
 from dependencies.console import Console
 # GENERAL
-VERSION = (0,9,7)
+VERSION = (0,9,8)
 STABLE = False
 VERSION_STRING = f"{VERSION[0]}.{VERSION[1]}.{VERSION[2]}"
 
-# DEBUG
+# region DEBUG
 class D(Enum):
     CRITICAL_ERROR = 0
     CRITICAL_ERROR_REASONED = 1
@@ -64,56 +64,78 @@ def debug(minimumLevel: D, problem: DebugProblem, reason: DebugReason = DebugRea
         CONSOLE.log(f"{symbol} |{unpack(debugProblems[problem])} <- {unpack(debugReasons[reason])}")
     elif DEBUG_LEVEL.value >= minimumLevel.value:
         CONSOLE.log(f"{symbol} |{unpack(debugProblems[problem])}")
+# endregion DEBUG
 
+# region CLIENT GAMEPLAY
 #? FUTURE SETTINGS
 DEFAULT_SENSITIVITY = 0.2
+# endregion CLIENT GAMEPLAY
 
-# GRAPHICS
+# region GRAPHICS
 RESOLUTION = (1920, 1080)
 FONT = "font/fixed_sys.ttf"
 AGENT_SPRITE_DIMENSIONS = (1, 2)
-ZOOM_IN = RESOLUTION[0] / 30
+VIEW_ANGLE = 60
+VIEW_WIDTH = 30
+ZOOM_IN = RESOLUTION[0] / VIEW_WIDTH
+HEIGHT_TO_Z_OFFSET = 0.5
+# endregion GRAPHICS
 
-# COMMUNICATION
+# region COMMUNICATION
 DATA_SIZE = 8192
 DEFAULT_IP = "localhost"
 DEFAULT_PORT = 9009
 PING_INTERVAL = 1
 SERVER_NAME = "SERVER"
+# endregion COMMUNICATION
 
-# TESTING
+# region TESTING
 TESTING_WINDOW_POSITIONS = [
     (0, 0),
     (960, 0),
     (0, 540),
     (960, 540)
 ]
+# endregion TESTING
 
-# SERVER 
+# region SERVER
 TICK_RATE = 1/20
+# endregion SERVER
 
-# GAMEPLAY
+# region SERVER GAMEPLAY
 AGENT_SELECT_TIME = 30
 BUY_PHASE_TIME = 20
+# endregion SERVER GAMEPLAY
 
-# GAME CONSTANTS
+# region GAME CONSTANTS
+# *Geometry
 PLAYER_HEIGHT = 2
 DEFAULT_DECELERATION = 50 # TODO: find value
-# DEFAULT_JERK = 426.7
-# DEFAULT_MAX_ACCELERATION = 42.7 # TODO: ?make this dynamic
-DEFAULT_ACCELERATION = 32
-DEFAULT_KNIFE_SPEED = 6.75
-DEFAULT_SPEED = 5.4
-DEFAULT_ABILITY_SPEED = DEFAULT_SPEED
-WALK_SPEED_MOD = 0.7 # TODO: find value
-CROUCH_SPEED_MOD = 0.7 # TODO: find value
-AIRBORNE_SPEED_MOD = 0.7 # TODO: find value
 MAP_SKY = 10 # 20
 ABYSS_HEIGHT = -64
 
+# *Movement
+# DEFAULT_JERK = 426.7
+# DEFAULT_MAX_ACCELERATION = 42.7 # TODO: ?make this dynamic
+JUMP_AIR_TIME = 0.75 # TODO: fact-check
+JUMP_HEIGHT = 1.8 # TODO: fact-check
+GRAVITY_ACCELERATION = 8*JUMP_HEIGHT/JUMP_AIR_TIME**2 # TODO: fact-check
+DEFAULT_JUMP_VELOCITY = 4*JUMP_HEIGHT/JUMP_AIR_TIME # TODO: fact-check
+DEFAULT_ACCELERATION = 32
+DEFAULT_KNIFE_SPEED = 6.4
+DEFAULT_SPEED = 5.4
+DEFAULT_ABILITY_SPEED = DEFAULT_SPEED
+WALK_SPEED_MOD = 0.6
+CROUCH_SPEED_MOD = 0.36
+AIRBORNE_SPEED_MOD = 0.7 # TODO: find value
+MAX_VERTICAL_SPEED = 40
 # MAX_SPEED = 6.75
+
+# *Vitals and Status
 MAX_HP = 100
 MAX_OVERHEAL = 50
 MAX_SHIELD = 50
 MAX_REGEN_SHIELD = 75
 MAX_SPECIAL_BAR = 100
+
+# endregion GAME CONSTANTS

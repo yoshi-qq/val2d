@@ -23,6 +23,8 @@ displayResolution: tuple[int, int] = (0, 0)
 natY: bool = False
 mousePos: tuple[int, int] = (0, 0)
 mouseMovement: tuple[int, int] = (0, 0)
+cursorCaptured: bool = False
+tabbedIn: bool = False
 
 def preload(file, nativeRes: tuple[int, int] = (1920, 1080), scale: float = 1, windowRes: Union[Literal[False], tuple[int, int]] = False):
     global root, displayResolution, nativeResolution, middle, rx, ry, xMultiplier, yMultiplier
@@ -213,23 +215,25 @@ def postDraw():
     pass
 
 def draw():
-    global clickEvent, renders, running, keys, FPS, mouseMovement, mousePos, cursorCaptured
+    global clickEvent, renders, running, keys, FPS, mouseMovement, mousePos, cursorCaptured, tabbedIn
     if not running:
         raise Exception ("Pygame not initialized\nPlease call graphy.init() before graphy.draw()")
     mouseMoved = False
     for event in pygame.event.get():
         if event.type == pygame.ACTIVEEVENT:
-            if event.gain == 0:
+            if event.gain == 0 and cursorCaptured:
                 pygame.event.set_grab(False)
                 pygame.mouse.set_visible(True)
+                tabbedIn = False
             else:
                 pygame.event.set_grab(True)
                 pygame.mouse.set_visible(False)
+                tabbedIn = True
         elif event.type == pygame.MOUSEMOTION:
             mouseMoved = True
             mousePos = event.pos
             mouseMovement = event.rel
-            if cursorCaptured:
+            if cursorCaptured and tabbedIn:
                 pygame.mouse.set_pos((middle[0], middle[1]))
         if event.type == pygame.QUIT:
             running = False
@@ -304,6 +308,18 @@ def draw():
 
 def renderThis(renderObject):
     pass
+
+def setMouseCapture(capture: bool):
+    global cursorCaptured
+    if capture:
+        cursorCaptured = True
+        pygame.event.set_grab(True)
+        pygame.mouse.set_visible(False)
+    else:
+        cursorCaptured = False
+        pygame.event.set_grab(False)
+        pygame.mouse.set_visible(True)
+        
 
 #future use
 def rectOverlap(rect1, rect2):

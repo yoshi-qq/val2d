@@ -2,9 +2,9 @@ from typing import Union, Any
 from time import time as now
 from math import atan2, degrees
 from dependencies.communications import Request
-from config.constants import AGENT_SELECT_TIME, PING_INTERVAL, debug, D, DEFAULT_ACCELERATION, DEFAULT_SENSITIVITY, DebugProblem as P, DebugReason as R, DebugDetails as DD
+from config.constants import AGENT_SELECT_TIME, PING_INTERVAL, debug, D, DEFAULT_ACCELERATION, DEFAULT_SENSITIVITY, DebugProblem as P, DebugReason as R, DebugDetails as DD, DEFAULT_JUMP_VELOCITY
 from classes.heads import MessageHead, RequestHead
-from classes.types import Message, Input, Ping, Angle
+from classes.types import Message, Input, Ping, Angle, Position
 from classes.keys import InputKey
 from classes.gameTypes import GameState
 from classes.playerTypes import Player
@@ -12,6 +12,7 @@ from prebuilts.base import getForwardPosition, getZeroPosition
 class ClientGameHandler:
     def __init__(self) -> None:
         self.__accelerationDirection: Angle | None = None
+        self.__jumped: bool = False
         self.__ownAngle: Angle | None = None
         self.__walking: bool = False
         self.__crouching: bool = False
@@ -38,7 +39,7 @@ class ClientGameHandler:
     def tick(self) -> None:
         pass
         # self.__pingTick()
-    
+      
     def __doMovement(self, playerName: str, accelerationDirection: Angle | None) -> None:
         if self.__gameState is None:
             debug(D.ERROR, P.COULDNT_MOVE_PLAYER_LOCALLY, R.LOCAL_GAMESTATE_IS_NONE)
@@ -53,10 +54,14 @@ class ClientGameHandler:
             debug(D.LOG, P.COULDNT_MOVE_PLAYER_LOCALLY, R.PLAYER_IS_DEAD, DD.PLAYER_OBJECT, player)
             return
         if accelerationDirection is None:
-            player.setAcceleration(getZeroPosition())
+            player.setOwnAcceleration(getZeroPosition())
             return
         newAcceleration = getForwardPosition().rotate(accelerationDirection)*DEFAULT_ACCELERATION
-        player.setAcceleration(newAcceleration)
+        if self.__jumped:
+            self.__jumped = False
+            if player.getStatus().isGrounded():
+                player.getStatus().getVelocity().move(Position(0, DEFAULT_JUMP_VELOCITY, 0))
+        player.setOwnAcceleration(newAcceleration)
     
     def __tickMovement(self, passedTime: float) -> None:
         if self.__gameState is None:
@@ -70,6 +75,7 @@ class ClientGameHandler:
         self.__name = name
         self.__doMovement(self.__name, self.__accelerationDirection)
         self.__tickMovement(tickTime)
+        
     
     def handleMouseMovement(self, mouseMovement: tuple[int, int]) -> None:
         if self.__gameState is None:
@@ -88,6 +94,7 @@ class ClientGameHandler:
         serverRequests: list[Request] = []
         walk = False
         crouch = False
+        jump = False
         for input in inputs:
             match input.type:
                 case InputKey.UP:
@@ -102,7 +109,11 @@ class ClientGameHandler:
                     walk = True
                 case InputKey.CROUCH:
                     crouch = True
-                    
+                case InputKey.JUMP:
+                    if not jump:
+                        serverRequests.append(Request(RequestHead.JUMP_REQUEST, input.held))
+                        self.__jumped = True
+                
                 case _:
                     if input.held:
                         debug(D.TRACE, P.UNHANDLED_HELD_INPUT, R.NO_INPUTTYPE_MATCH, DD.INPUTTYPE, input.type)
@@ -162,6 +173,7 @@ class ClientGameHandler:
     # Setters
     def updateGameState(self, newGameState: GameState) -> None:
         self.__gameState = newGameState
+        self.__jumped = False
         if (player := self.getOwnPlayer()) is None:
             debug(D.WARNING, P.NO_PLAYER_RESET_TO_LOCAL_VALUES, R.PLAYER_NOT_FOUND_LOCALLY) # TODO: Detaills for getOwnPlayer Failure
             return

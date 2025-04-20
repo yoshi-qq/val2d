@@ -71,6 +71,22 @@ class ServerGameHandler:
             return
         player.getStatus().setWalk(walk)
     
+    def tryJump(self, playerName: str, held: bool) -> None:
+        if not self.__inGame:
+            debug(D.WARNING, P.NO_JUMP_DONE, R.NOT_INGAME, DD.PLAYER_NAME, playerName)
+            return
+        if not (player := self.__gameState.getPlayer(playerName)):
+            debug(D.WARNING, P.NO_JUMP_DONE, R.PLAYER_NOT_FOUND, DD.PLAYER_NAME, playerName)
+            return
+        if not player.getStatus().isAlive():
+            debug(D.WARNING, P.NO_JUMP_DONE, R.PLAYER_IS_DEAD, DD.PLAYER_NAME, playerName)
+            return
+        if not player.getStatus().isGrounded():
+            debug(D.WARNING, P.NO_JUMP_DONE, R.NOT_GROUNDED, DD.PLAYER_NAME, playerName)
+            return
+        if not held:
+            player.getStatus().jump()
+    
     def trySetCrouchStatus(self, playerName: str, crouch: bool) -> None:
         if not self.__inGame:
             debug(D.WARNING, P.CROUCH_STATUS_UNCHANGED, R.NOT_INGAME, DD.PLAYER_NAME, playerName)
@@ -106,10 +122,10 @@ class ServerGameHandler:
             debug(D.WARNING, P.COULDNT_MOVE_PLAYER, R.PLAYER_IS_DEAD, DD.PLAYER_NAME, playerName)
             return
         if accelerationDirection is None:
-            player.setAcceleration(getZeroPosition())
+            player.setOwnAcceleration(getZeroPosition())
             return
         newAcceleration = getForwardPosition().rotate(accelerationDirection).rotate(player.getPose().getOrientation())*DEFAULT_ACCELERATION
-        player.setAcceleration(newAcceleration)
+        player.setOwnAcceleration(newAcceleration)
 
     # Setters
     def setGamemode(self, mode: GameModeKey) -> None:

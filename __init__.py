@@ -175,5 +175,8 @@ def handleRequest(request: Request) -> None:
         case RequestHead.SET_CROUCH_REQUEST:
             if server:
                 server.trySetCrouchStatus(request.signature, request.body)
+        case RequestHead.JUMP_REQUEST:
+            if server:
+                server.tryJump(request.signature, request.body)
         case _:
             debug(D.WARNING, P.UNHANDLED_REQUEST, R.NO_MATCHING_REQUEST_HEAD, DD.FULL_REQUEST, request)

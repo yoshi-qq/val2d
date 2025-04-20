@@ -1,5 +1,6 @@
 # Roadmap
 ## Bugs
+- [ ] Mouse also captured in menu
 
 ## Next
 - [x] Lobby
@@ -9,8 +10,8 @@
 - [x] Walking
 - [x] Crouching
 - [x] local calculation for Walk & Crouch
-- [ ] correct Speed from Game
-- [ ] Jumping
+- [x] correct Speed from Game
+- [x] Jumping
 - [ ] Map
     - [ ] objects
     - [ ] collision
@@ -30,6 +31,7 @@
 - [x] better console (stacking messages with counts)
 - [ ] replace ALL Strings with Enums (debug messages included, split into: problem, reason, details)
 - [ ] Dev-Tools (noclip, speed, in-game coordinate display, etc.)
+- [ ] Integration instead of numerical accel, velocity, pos
 - [ ] Main Menu
 - [ ] Animations (graphy: add support for asesprite SpriteSheet export)
 - [ ] small adjustments from local to server tolerance

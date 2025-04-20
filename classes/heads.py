@@ -14,6 +14,7 @@ class RequestHead(Enum):
     TURN_TO_REQUEST = 103
     SET_WALK_REQUEST = 104
     SET_CROUCH_REQUEST = 105
+    JUMP_REQUEST = 106
 
 class MessageHead(Enum):
     PING = 200
@@ -71,7 +72,14 @@ class DebugProblem(Enum):
     WALK_STATUS_UNREQUESTED = 29
     CROUCH_STATUS_UNREQUESTED = 30
     COULDNT_TURN_PLAYER = 31
-    MOVEMENT_STATUS_UNCHANGED = 32
+    AGENT_NOT_DRAWN = 33
+    HANDITEM_NOT_DRAWN = 34
+    GAME_STATE_NOT_DRAWN = 35
+    RENDERING_GAMESTATE = 36
+    NO_JUMP_DONE = 37
+    BASE_SPEED_NOT_ACCESSABLE = 38
+    COULDNT_DO_GRAVITY_LOCALLY = 39
+    PLAYER_NOT_DRAWN = 40
 class DebugReason(Enum):
     EMPTY = 0
     INVALID_MESSAGE_HEAD = 1
@@ -96,6 +104,13 @@ class DebugReason(Enum):
     INPUT = 20
     INVALID_INPUT_NUM = 21
     PLAYER_NOT_FOUND = 22
+    AGENT_KEY_IS_NONE = 23
+    AGENT_IS_NONE = 24
+    SIDEARM_IS_NONE = 25
+    PRIMARY_IS_NONE = 26
+    PERSPECTIVE_IS_NONE = 27
+    NOT_GROUNDED = 28
+    HANDITEM_IS_NONE = 29
 class DebugDetails(Enum):
     EMPTY = 0
     MESSAGE_HEAD = 1
@@ -111,6 +126,7 @@ class DebugDetails(Enum):
     INPUTTYPE = 11
     TICK_SPEED = 12
     KEY_NUM = 13
+    RENDERS = 14
 
 P = DebugProblem
 debugProblems: dict[DebugProblem, tuple[str, str]] = {
@@ -145,6 +161,14 @@ debugProblems: dict[DebugProblem, tuple[str, str]] = {
     P.WALK_STATUS_UNREQUESTED: ("Walk Status Change not requested", ""),
     P.CROUCH_STATUS_UNREQUESTED: ("Crouch Status Change not requested", ""),
     P.COULDNT_TURN_PLAYER: ("Couldn't turn player", ""),
+    P.AGENT_NOT_DRAWN: ("Agent not drawn", ""),
+    P.HANDITEM_NOT_DRAWN: ("Handitem not drawn", ""),
+    P.GAME_STATE_NOT_DRAWN: ("Game State not drawn", ""),
+    P.RENDERING_GAMESTATE: ("Rendering Gamestate", ""),
+    P.NO_JUMP_DONE: ("Player didn't jump", ""),
+    P.BASE_SPEED_NOT_ACCESSABLE: ("Base Speed not accessable", ""),
+    P.COULDNT_DO_GRAVITY_LOCALLY: ("Couldn't apply Gravity Locally", ""),
+    P.PLAYER_NOT_DRAWN: ("Player not drawn", ""),
 }
 
 R = DebugReason
@@ -171,6 +195,14 @@ debugReasons: dict[DebugReason, tuple[str, str]] = {
     R.SERVER_TOO_SLOW: ("Server is too slow", ""),
     R.INPUT: ("Manual Input", ""),
     R.INVALID_INPUT_NUM: ("Invalid Key Number", ""),
+    R.PLAYER_NOT_FOUND: ("Player not found", ""),
+    R.AGENT_KEY_IS_NONE: ("Agent Key is None", ""),
+    R.AGENT_IS_NONE: ("Agent is None", ""),
+    R.SIDEARM_IS_NONE: ("Sidearm is None", ""),
+    R.PRIMARY_IS_NONE: ("Primary is None", ""),
+    R.PERSPECTIVE_IS_NONE: ("Perspective is None", ""),
+    R.NOT_GROUNDED: ("Player is not grounded", ""),
+    R.HANDITEM_IS_NONE: ("Handitem is None", ""),
 }
 
 DD = DebugDetails
@@ -189,4 +221,5 @@ debugDetails: dict[DebugDetails, tuple[str, str]] = {
     DD.INPUTTYPE: ("Input-Type", ""),
     DD.TICK_SPEED: ("Tick-Speed", ""),
     DD.KEY_NUM: ("Key-Number", ""),
+    DD.RENDERS: ("Renders", ""),
 }

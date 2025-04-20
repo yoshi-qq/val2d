@@ -1,5 +1,5 @@
 from typing import Union
-from config.constants import DEFAULT_SPEED, debug, D, WALK_SPEED_MOD, CROUCH_SPEED_MOD, AIRBORNE_SPEED_MOD, DEFAULT_DECELERATION
+from config.constants import DEFAULT_SPEED, debug, D, WALK_SPEED_MOD, CROUCH_SPEED_MOD, AIRBORNE_SPEED_MOD, DEFAULT_DECELERATION, DEFAULT_JUMP_VELOCITY, GRAVITY_ACCELERATION, DebugProblem as P, DebugReason as R, DebugDetails as DD, MAX_VERTICAL_SPEED
 from classes.types import Printable, JSONType, Position, Pose, agents, abilities
 from classes.keys import EffectKey, HandItemKey, BuffKey, AgentKey, AbilityKey
 from classes.inventoryTypes import Inventory
@@ -66,7 +66,8 @@ class Status(Printable):
         self.__grounded = grounded
         # self.__jerk: Position = jerk if jerk else Position()
         self.__velocity: Position = velocity if velocity else Position()
-        self.__acceleration: Position = acceleration if acceleration else Position()
+        self.__foreignAcceleration: Position = acceleration if acceleration else Position()
+        self.__ownAcceleration: Position = Position()
         self.__walking = walking
         self.__crouched = crouched
         self.__team = team
@@ -86,6 +87,8 @@ class Status(Printable):
         return self.__alive
     def isGrounded(self) -> bool:
         return self.__grounded
+    def getAcceleration(self) -> Position:
+        return self.__foreignAcceleration + self.__ownAcceleration
     def getVelocity(self) -> Position:
         return self.__velocity
     def isWalking(self) -> bool:
@@ -127,24 +130,41 @@ class Status(Printable):
     # Setters
     def setParent(self, parent: "Player") -> None:
         self.__parent = parent
-    def setAcceleration(self, acceleration: Position) -> None:
-        self.__acceleration = acceleration
+    def setOwnAcceleration(self, acceleration: Position) -> None:
+        self.__ownAcceleration = acceleration
+    def setForeignAcceleration(self, acceleration: Position) -> None:
+        self.__foreignAcceleration = acceleration
     def setWalk(self, walking: bool) -> None:
         self.__walking = walking
     def setCrouch(self, crouched: bool) -> None:
         self.__crouched = crouched
+    def setGrounded(self, grounded: bool) -> None:
+        self.__grounded = grounded
+    def jump(self) -> None:
+        """
+        Doesn't check for groundedness, accelerates the player upwards
+        """
+        self.__grounded = False
+        self.__velocity.move(Position(0, DEFAULT_JUMP_VELOCITY, 0))
     # Ticking
-    def applyAcceleration(self, passedTime: float, maxSpeed: float) -> None:
-        if self.__acceleration.getHorizontalMagnitude() != 0:
-            self.__velocity.move(self.__acceleration * passedTime) # TODO: change to better time measurement
+    def applyGravity(self, passedTime: float) -> None:
+        if self.__grounded:
+            self.__velocity.setY(max(self.__velocity.getY(), 0))
         else:
+            self.__velocity.move(Position(0, -GRAVITY_ACCELERATION * passedTime, 0)) 
+    
+    def applyAcceleration(self, passedTime: float, maxSpeed: float) -> None:
+        self.__velocity.move(self.getAcceleration() * passedTime) # TODO: change to better time measurement
+        if self.getAcceleration().getHorizontalMagnitude() == 0:
             horizontalVel = self.__velocity.getHorizontalPart()
             speed = horizontalVel.getMagnitude()
             if speed < DEFAULT_DECELERATION * passedTime:
-                self.__velocity = Position(0, 0, 0)
+                self.__velocity.setX(0)
+                self.__velocity.setZ(0)
             else:
                 self.__velocity.move(horizontalVel.getDirectionUnit() * -DEFAULT_DECELERATION * passedTime)
-        self.__velocity.cap(maxSpeed)
+        self.__velocity.horizontalCap(maxSpeed)
+        self.__velocity.verticalCap(MAX_VERTICAL_SPEED)
         
     def applySpeed(self, passedTime: float) -> None:
         # TODO: Collision boundaries
@@ -205,7 +225,7 @@ class Player(Printable):
     def getBaseSpeed(self) -> float:
         handItem = self.getHandItem()
         if handItem is None:
-            debug(D.ERROR, "Couldn't get Base Speed, falling back to DEFAULT_SPEED", f"HandItem is None (Name: {self.__name})")
+            debug(D.ERROR, P.BASE_SPEED_NOT_ACCESSABLE, R.HANDITEM_IS_NONE, DD.PLAYER_NAME, self.__name)
             return DEFAULT_SPEED
         else:
             return handItem.getMovementSpeed()
@@ -214,8 +234,8 @@ class Player(Printable):
         self.__agentKey = agentKey
     # def setJerk(self, jerk: Position) -> None:
     #     self.__status.setJerk(jerk)
-    def setAcceleration(self, acceleration: Position) -> None:
-        self.__status.setAcceleration(acceleration)
+    def setOwnAcceleration(self, acceleration: Position) -> None:
+        self.__status.setOwnAcceleration(acceleration)
     
     def getName(self) -> str:
         return self.__name
@@ -229,9 +249,16 @@ class Player(Printable):
         baseSpeed: float = self.getBaseSpeed()
         speedMod: float = self.getStatus().getSpeedMod()
         return baseSpeed * speedMod
+    def __checkGrounded(self) -> bool:
+        """
+        Dummy function (current condition is y <= 0)
+        """
+        return self.__pose.getPosition().getY() <= 0
     
     def tickMovement(self, passedTime: float) -> None:
         # self.__status.applyJerk(passedTime, DEFAULT_MAX_ACCELERATION)
+        self.__status.setGrounded(self.__checkGrounded())
+        self.__status.applyGravity(passedTime)
         self.__status.applyAcceleration(passedTime, self.getMaxSpeed())
         self.__status.applySpeed(passedTime)
     
