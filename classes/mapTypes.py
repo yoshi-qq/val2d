@@ -65,12 +65,13 @@ class Callout(Enum):
     
 
 class Object(Printable):
-    def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle()) -> None:
+    def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1)) -> None:
         self.__id = id
         self.__sprite = sprite
         self.__callout = callout
         self.__position = position
         self.__orientation = orientation
+        self.size = size
     def getID(self) -> int:
         return self.__id
     def getCallout(self) -> Callout:
@@ -83,6 +84,8 @@ class Object(Printable):
         return self.__position
     def getOrientation(self) -> Angle:
         return self.__orientation
+    def getSize(self) -> Position:
+        return self.size
     def collapseToDict(self) -> JSONType:
         return {}
     def move(self, pos: Position) -> None:
@@ -92,83 +95,73 @@ class Object(Printable):
     
 class Wall(Object):
     def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1), penetrationLevel: PenetrationLevel = PenetrationLevel.MEDIUM) -> None:
-        super().__init__(id, sprite, callout, position, orientation)
-        self.size = size
+        super().__init__(id, sprite, callout, position, orientation, size)
         self.penetrationLevel = penetrationLevel
-    def getSize(self) -> Position:
-        return self.size
 class Box(Object):
     def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1), penetrationLevel: PenetrationLevel = PenetrationLevel.MEDIUM) -> None:
-        super().__init__(id, sprite, callout, position, orientation)
-        self.size = size
+        super().__init__(id, sprite, callout, position, orientation, size)
         self.penetrationLevel = penetrationLevel
     def getSize(self) -> Position:
         return self.size
 class Cylinder(Object):
     def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1), penetrationLevel: PenetrationLevel = PenetrationLevel.MEDIUM) -> None:
-        super().__init__(id, sprite, callout, position, orientation)
-        self.size = size
+        super().__init__(id, sprite, callout, position, orientation, size)
         self.penetrationLevel = penetrationLevel
     def getSize(self) -> Position:
         return self.size
 class Stair(Object):
     def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1)) -> None:
-        self.size = size
-        super().__init__(id, sprite, callout, position, orientation)
+        super().__init__(id, sprite, callout, position, orientation, size)
     def getSize(self) -> Position:
         return self.size
 class Decoration(Object):
     def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1)) -> None:
-        self.size = size
-        super().__init__(id, sprite, callout, position, orientation)
+        super().__init__(id, sprite, callout, position, orientation, size)
 class BreakableDoor(Object):
     def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1), HP: int = 500) -> None:
-        self.size = size
         self.HP = HP
-        super().__init__(id, sprite, callout, position, orientation)
+        super().__init__(id, sprite, callout, position, orientation, size)
 class Switch(Object):
-    def __init__(self, id: int, doorID: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle()) -> None:
+    def __init__(self, id: int, doorID: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1)) -> None:
         self.doorID = doorID
-        super().__init__(id, sprite, callout, position, orientation)
+        super().__init__(id, sprite, callout, position, orientation, size)
 class Bike(Object):
-    def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle()) -> None:
-        super().__init__(id, sprite, callout, position, orientation)
+    def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1)) -> None:
+        super().__init__(id, sprite, callout, position, orientation, size)
 class UltOrb(Object):
-    def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle()) -> None:
-        super().__init__(id, sprite, callout, position, orientation)
+    def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1)) -> None:
+        super().__init__(id, sprite, callout, position, orientation, size)
 class Zipline(Object):
     def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1), direction: Position = Position(0, 0, 1), force: bool = False) -> None:
         self.size = size
         self.direction = direction
         self.force = force
-        super().__init__(id, sprite, callout, position, orientation)
+        super().__init__(id, sprite, callout, position, orientation, size)
 class Teleporter(Object):
-    def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), teleportPosition: Position = Position()) -> None:
+    def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), teleportPosition: Position = Position(), size: Position = Position(1, 1, 1)) -> None:
         self.teleportPosition = teleportPosition
-        super().__init__(id, sprite, callout, position, orientation)
+        super().__init__(id, sprite, callout, position, orientation, size)
 class TPDoor(Object):
-    def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle()) -> None:
-        super().__init__(id, sprite, callout, position, orientation)
+    def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1)) -> None:
+        super().__init__(id, sprite, callout, position, orientation, size)
 class RotatingDoor(Object):
-    def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), currentRotation: Angle = Angle()) -> None:
+    def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), currentRotation: Angle = Angle(), size: Position = Position(1, 1, 1)) -> None:
         self.currentRotation = currentRotation
-        super().__init__(id, sprite, callout, position, orientation)
+        super().__init__(id, sprite, callout, position, orientation, size)
 class CrouchDoor(Object):
-    def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle()) -> None:
-        super().__init__(id, sprite, callout, position, orientation)
+    def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1)) -> None:
+        super().__init__(id, sprite, callout, position, orientation, size)
 class Abyss(Object):
     def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1)) -> None:
-        self.size = size
-        super().__init__(id, sprite, callout, position, orientation)
+        super().__init__(id, sprite, callout, position, orientation, size)
 class SpawnPoint(Object):
     def __init__(self, TeamNumber: int, id: int, callout: Callout, position: Position = Position(), orientation: Angle = Angle()) -> None:
         self.TeamNumber = TeamNumber
-        super().__init__(id, None, callout, position, orientation)
+        super().__init__(id, None, callout, position, orientation, Position(0, 0, 0))
 class PlantSite(Object):
     def __init__(self, letter: Literal['A', 'B', 'C'], id: int, callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1)) -> None:
         self.letter = letter
-        self.size = size
-        super().__init__(id, None, callout, position, orientation)
+        super().__init__(id, None, callout, position, orientation, size)
 
 # MAP
 class Map(Printable):
