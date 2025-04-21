@@ -137,35 +137,23 @@ def drawNormal(surface, img, x = 0, y = 0, width = 1, height = 1, middle = False
         topleft = (x - img.get_width()/2, y - img.get_height()/2)
     surface.blit(img, topleft)
 
-def drawRotated(surface, img, x = 0, y = 0, angle = 180, width = 1, height = 1, stretch = 1, middle = False, flipped = False):
-    width, height = width*rx, height*ry
-    if abs(img.get_height() - height/stretch) > 1 or abs(img.get_width() - width*stretch) > 1:
-        img = pygame.transform.scale(img, (width*stretch, height/stretch))
-    if angle == 0:
-        drawNormal(surface, img, x, y, width, height, middle)
-        return
-    elif angle == "flip":
-        img = pygame.transform.flip(img, False, True) # ! legacy
-    elif angle == 180:
-        img = pygame.transform.flip(img, True, True)
-    else:
-        if abs(img.get_height() - height) > 1 or abs(img.get_width() - width) > 1:
-            img = pygame.transform.scale(img, (width, height))
-        center = img.get_rect().center
-        img = pygame.transform.rotate(img, -1*angle)
-        rotated_rect = img.get_rect()
-        rotated_rect.center = center
-        offset_x = rotated_rect.x - surface.get_rect().x
-        offset_y = rotated_rect.y - surface.get_rect().y
-        x += offset_x*0.75
-        y += offset_y*0.75
+def drawRotated(surface, img, x=0, y=0, angle=0,
+                width=1, height=1, middle=False, flipped=False):
+    w, h = round(width*rx), round(height*ry)
+
+    img = pygame.transform.scale(img, (w, h))
     if flipped:
         img = pygame.transform.flip(img, False, True)
-    x, y = round(x*rx), round(y*ry)
-    topleft = (x, y)
+
+    rot = pygame.transform.rotate(img, -angle)
+
     if middle:
-        topleft = (x - img.get_width()/2, y - img.get_height()/2)
-    surface.blit(img, topleft)
+        pivot = (x*rx, y*ry)
+    else:
+        pivot = ( (x + w/2)*rx , (y + h/2)*ry )
+
+    rect = rot.get_rect(center=pivot)
+    surface.blit(rot, rect.topleft)
 
 def getMouse():
     return (pygame.mouse.get_pos()[0]/xMultiplier, pygame.mouse.get_pos()[1]/yMultiplier)
@@ -438,7 +426,12 @@ def classes():
             return f"{self.__class__.__name__}({name}), x: {self.x}, y: {self.y}, width: {self.width}, height: {self.height}, angle: {self.angle}, stretch: {self.stretch}, priority: {self.priority + self.priorityOffset}"
         
     class RenderImage(RenderObject):
-        def __init__(self, strName = None, surface = screen, temporary = False, enabled = True, imageName = None, x: float = 0, xOffset: float = 0, y: float = 0, yOffset: float = 0, width: float = 10, height: float = 10, middle = False, priority: float = 2, angle: float = 0, flipped = False, stretch: float = 1, mapPosition = (None, None), gen = True):
+        def __init__(self, strName=None, surface=screen, temporary=False, enabled=True,
+                    imageName=None, x: float = 0, xOffset: float = 0, y: float = 0,
+                    yOffset: float = 0, width: float = 10, height: float = 10,
+                    middle=False, priority: float = 2, angle: float = 0,
+                    flipped: bool = False, stretch: float = 1,
+                    mapPosition=(None, None), gen=True, topStretchMultiplier: float = 1):
             self.strName = strName if strName is not None else imageName
             self.name = imageName
             self.imageName = imageName
@@ -447,16 +440,19 @@ def classes():
             self.middle = middle
             self.sizeMulti = 1
             self.flipped = flipped
+            self.topStretchMultiplier = topStretchMultiplier
             self.mapPosition = mapPosition
             if self.imageName is None:
                 self.imageName = pygame.surface.Surface((width, height))
                 self.imageName.fill((255, 0, 0))
             self.changeImage(self.imageName)
-            super().__init__(surface = surface, temporary = temporary, enabled = enabled, x = x, y = y, width = width, height = height, priority = priority, angle = angle, stretch = stretch)
+            super().__init__(surface=surface, temporary=temporary, enabled=enabled,
+                            x=x, y=y, width=width, height=height,
+                            priority=priority, angle=angle, stretch=stretch)
             if type(self) is RenderImage and gen:
                 renders.append(self)
-        
-        def offset(self, x: float = None, y: float = None, size: float = None, priority = None):
+
+        def offset(self, x: float = None, y: float = None, size: float = None, priority=None):
             if x is not None:
                 self.xOffset = x
             if y is not None:
@@ -465,23 +461,68 @@ def classes():
                 self.sizeMulti = size
             if priority is not None:
                 self.priorityOffset = priority
-        
+
         def update(self):
             try:
                 self.image = sprites[self.image][0]
             except KeyError:
                 self.image = self.image
+
+        def _make_trapezoid_surface(self):
+            img = self.image
+            if self.flipped:
+                img = pygame.transform.flip(img, True, False)
+            base_w = int(self.width * self.sizeMulti * rx)
+            h_px = int(self.height * self.sizeMulti * ry)
+            img = pygame.transform.scale(img, (base_w, h_px))
+            top_w = int(base_w * self.topStretchMultiplier)
+            bot_w = base_w
+            max_w = max(top_w, bot_w)
+            surf = pygame.Surface((max_w, h_px), pygame.SRCALPHA)
+            for row in range(h_px):
+                t = row / h_px
+                curr_w = int(top_w + (bot_w - top_w) * t)
+                slice_ = img.subsurface((0, row, base_w, 1))
+                slice_ = pygame.transform.scale(slice_, (curr_w, 1))
+                surf.blit(slice_, ((max_w - curr_w) // 2, row))
+            return surf
+
         def draw(self):
-            drawRotated(surface = self.surface, img = self.image, x = self.x + self.xOffset, y = self.y + self.yOffset, angle = self.angle, width = self.width * self.sizeMulti, height = self.height * self.sizeMulti, stretch = self.stretch, middle = self.middle, flipped = self.flipped)
+            if not self.enabled:
+                return
+            if self.topStretchMultiplier != 1:
+                tex = self._make_trapezoid_surface()
+            else:
+                tex = self.image
+                if self.flipped:
+                    tex = pygame.transform.flip(tex, True, False)
+                tex = pygame.transform.scale(tex, (int(self.width * self.sizeMulti * rx),
+                                                int(self.height * self.sizeMulti * ry)))
+            original = tex
+            x_px = (self.x + self.xOffset) * rx
+            y_px = (self.y + self.yOffset) * ry
+            if self.middle:
+                x_px -= original.get_width() // 2
+                y_px -= original.get_height() // 2
+
+            if self.angle != 0:
+                # compute the true centre of the unrotated sprite
+                orig_center = original.get_rect(topleft=(x_px, y_px)).center
+                # rotate around that point
+                tex = pygame.transform.rotate(original, -self.angle)
+                rot_rect = tex.get_rect(center=orig_center)
+                self.surface.blit(tex, rot_rect.topleft)
+            else:
+                self.surface.blit(original, (x_px, y_px))
 
         def changeImage(self, image):
             try:
                 self.image = sprites[image][0]
             except KeyError:
                 self.image = image
-      
+
     class RenderAnimation(RenderImage):
-        def __init__(self, continuous = True, slowdown = 1, rotation = 1, strName = "animation", surface = screen, temporary = False, enabled = True, imageNames: tuple = None, x = 0, xOffset = 0, y = 0, yOffset = 0, width = 10, height = 10, middle = False, priority = 2, angle = 0, stretch = 1, mapPosition = (None, None), gen = True):
+        def __init__(self, continuous = True, slowdown = 1, rotation = 1, strName = "animation", surface = screen, temporary = False, enabled = True, imageNames: tuple = None, x = 0, xOffset = 0, y = 0, yOffset = 0, width = 10, height = 10, middle = False, priority = 2, angle = 0, stretch = 1, mapPosition = (None, None), gen = True, topStretchMultiplier: float = 1):
             self.strName = imageNames[0]
             self.rotation = rotation
             self.continuous = continuous
@@ -490,7 +531,7 @@ def classes():
             if imageNames is None:
                 return
             self.frame = 0
-            super().__init__(strName = strName, surface = surface, temporary = temporary, enabled = enabled, imageName = imageNames[0], x = x, xOffset = xOffset, y = y, yOffset = yOffset, width = width, height = height, middle = middle, priority = priority, angle = angle, stretch = stretch, mapPosition = mapPosition, gen = gen)
+            super().__init__(strName = strName, surface = surface, temporary = temporary, enabled = enabled, imageName = imageNames[0], x = x, xOffset = xOffset, y = y, yOffset = yOffset, width = width, height = height, middle = middle, priority = priority, angle = angle, stretch = stretch, mapPosition = mapPosition, gen = gen, topStretchMultiplier=topStretchMultiplier)
             
             if type(self) is RenderAnimation and gen:
                 renders.append(self)
@@ -508,7 +549,7 @@ def classes():
             self.frame += self.slowdown**-1
         
     class RenderButton(RenderImage):
-        def __init__(self, imageName: Union[None, str] = None, strName: str = "button", clickAction: Union[Callable[[], None], Callable[[*T], None], Literal[False]] = False, arguments: tuple[*T] = (), rightClickAction: Union[Callable[[*T2], None], Callable[[*T2], None], Literal[False]] = False, rightArguments: tuple[*T2] = (), hoverAction: Union[Callable[[], None], Callable[[*T3], None], Literal[False]] = False, hoverArguments: tuple[*T3] = (), unHoverAction: Union[Callable[[], None], Callable[[*T4], None], Literal[False]] = False, unHoverArguments: tuple[*T4] = (), surface: pygame.Surface = screen, temporary: bool = False, enabled: bool = True, hoverImageName: Union[Literal[False], str] = False, x: float = 0, xOffset: float = 0, y: float = 0, yOffset: float = 0, width: float = 10, height: float = 10, priority: float = 2, angle: float = 0, stretch: float = 1, middle: bool = False, gen: bool = True):
+        def __init__(self, imageName: Union[None, str] = None, strName: str = "button", clickAction: Union[Callable[[], None], Callable[[*T], None], Literal[False]] = False, arguments: tuple[*T] = (), rightClickAction: Union[Callable[[*T2], None], Callable[[*T2], None], Literal[False]] = False, rightArguments: tuple[*T2] = (), hoverAction: Union[Callable[[], None], Callable[[*T3], None], Literal[False]] = False, hoverArguments: tuple[*T3] = (), unHoverAction: Union[Callable[[], None], Callable[[*T4], None], Literal[False]] = False, unHoverArguments: tuple[*T4] = (), surface: pygame.Surface = screen, temporary: bool = False, enabled: bool = True, hoverImageName: Union[Literal[False], str] = False, x: float = 0, xOffset: float = 0, y: float = 0, yOffset: float = 0, width: float = 10, height: float = 10, priority: float = 2, angle: float = 0, stretch: float = 1, middle: bool = False, gen: bool = True, topStretchMultiplier: float = 1):
             self.strName = imageName
             if isinstance(clickAction, str): # define click action
                 clickAction = eval(clickAction)  
@@ -532,7 +573,7 @@ def classes():
             
             self.hovered = False
             
-            super().__init__(strName = strName, surface = surface, temporary = temporary, enabled = enabled, imageName = imageName, x = x, xOffset = xOffset, y = y, yOffset = yOffset, width = width, height = height, priority = priority, angle = angle, stretch = stretch, middle = middle, gen = gen)
+            super().__init__(strName = strName, surface = surface, temporary = temporary, enabled = enabled, imageName = imageName, x = x, xOffset = xOffset, y = y, yOffset = yOffset, width = width, height = height, priority = priority, angle = angle, stretch = stretch, middle = middle, gen = gen, topStretchMultiplier=topStretchMultiplier)
             if type(self) is RenderButton and gen:
                 renders.append(self)
         
