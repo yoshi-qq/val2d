@@ -85,7 +85,9 @@ class Object(Printable):
         return self.__orientation
     def collapseToDict(self) -> JSONType:
         return {}
-
+    def move(self, pos: Position) -> None:
+        self.__position.move(pos)
+    
 class Wall(Object):
     def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1), penetrationLevel: PenetrationLevel = PenetrationLevel.MEDIUM) -> None:
         super().__init__(id, sprite, callout, position, orientation)

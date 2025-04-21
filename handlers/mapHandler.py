@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Callable, Optional
 from config.constants import ZOOM_IN
 from dependencies import graphy as g
 from classes.types import Pose
@@ -6,9 +6,9 @@ from classes.mapTypes import Object, Wall, Box, Cylinder, Stair, Decoration, Bre
 from helpers.graphicsHelper import getPoseAndSizeFromPerspective
 
 # region Specific Object Rendering
-def createWallRender(object: Wall, perspective: Pose, editable: bool = False) -> Optional["g.RenderObject"]:
+def createWallRender(object: Wall, perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> Optional["g.RenderObject"]:
     return
-def createBoxRender(object: Box, perspective: Pose, editable: bool = False) -> Optional["g.RenderObject"]:
+def createBoxRender(object: Box, perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> Optional["g.RenderObject"]:
     if (sprite := object.getSprite()) is None:
         return None
     width, height, length = object.getSize().getPosition()
@@ -21,42 +21,45 @@ def createBoxRender(object: Box, perspective: Pose, editable: bool = False) -> O
     width *= size
     height *= size
     length *= size
-    return g.RenderImage(temporary=True, imageName=sprite, x=x, priority= y, y=z, width=width, height=length, middle=True, angle=angle)
+    if editable and selectObject and openContextMenu:
+        return g.RenderButton(temporary=True, imageName=sprite, x=x, priority=y, y=z, width=width, height=length, middle=True, angle=angle, clickAction=selectObject, arguments=(object,), rightClickAction=openContextMenu, rightArguments=(object,))  
+    else:
+        return g.RenderImage(temporary=True, imageName=sprite, x=x, priority= y, y=z, width=width, height=length, middle=True, angle=angle)
     
-def createCylinderRender(object: Cylinder, perspective: Pose, editable: bool = False) -> Optional["g.RenderObject"]:
+def createCylinderRender(object: Cylinder, perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> Optional["g.RenderObject"]:
     return
-def createStairRender(object: Stair, perspective: Pose, editable: bool = False) -> Optional["g.RenderObject"]:
+def createStairRender(object: Stair, perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> Optional["g.RenderObject"]:
     return
-def createDecorationRender(object: Decoration, perspective: Pose, editable: bool = False) -> Optional["g.RenderObject"]:
+def createDecorationRender(object: Decoration, perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> Optional["g.RenderObject"]:
     return
-def createBreakableDoorRender(object: BreakableDoor, perspective: Pose, editable: bool = False) -> Optional["g.RenderObject"]:
+def createBreakableDoorRender(object: BreakableDoor, perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> Optional["g.RenderObject"]:
     return
-def createSwitchRender(object: Switch, perspective: Pose, editable: bool = False) -> Optional["g.RenderObject"]:
+def createSwitchRender(object: Switch, perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> Optional["g.RenderObject"]:
     return
-def createBikeRender(object: Bike, perspective: Pose, editable: bool = False) -> Optional["g.RenderObject"]:
+def createBikeRender(object: Bike, perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> Optional["g.RenderObject"]:
     return
-def createUltOrbRender(object: UltOrb, perspective: Pose, editable: bool = False) -> Optional["g.RenderObject"]:
+def createUltOrbRender(object: UltOrb, perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> Optional["g.RenderObject"]:
     return
-def createZiplineRender(object: Zipline, perspective: Pose, editable: bool = False) -> Optional["g.RenderObject"]:
+def createZiplineRender(object: Zipline, perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> Optional["g.RenderObject"]:
     return
-def createTeleporterRender(object: Teleporter, perspective: Pose, editable: bool = False) -> Optional["g.RenderObject"]:
+def createTeleporterRender(object: Teleporter, perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> Optional["g.RenderObject"]:
     return
-def createTPDoorRender(object: TPDoor, perspective: Pose, editable: bool = False) -> Optional["g.RenderObject"]:
+def createTPDoorRender(object: TPDoor, perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> Optional["g.RenderObject"]:
     return
-def createRotatingDoorRender(object: RotatingDoor, perspective: Pose, editable: bool = False) -> Optional["g.RenderObject"]:
+def createRotatingDoorRender(object: RotatingDoor, perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> Optional["g.RenderObject"]:
     return
-def createCrouchDoorRender(object: CrouchDoor, perspective: Pose, editable: bool = False) -> Optional["g.RenderObject"]:
+def createCrouchDoorRender(object: CrouchDoor, perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> Optional["g.RenderObject"]:
     return
-def createAbyssRender(object: Abyss, perspective: Pose, editable: bool = False) -> Optional["g.RenderObject"]:
+def createAbyssRender(object: Abyss, perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> Optional["g.RenderObject"]:
     return
-def createSpawnPointRender(object: SpawnPoint, perspective: Pose, editable: bool = False) -> Optional["g.RenderObject"]:
+def createSpawnPointRender(object: SpawnPoint, perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> Optional["g.RenderObject"]:
     return
-def createPlantSiteRender(object: PlantSite, perspective: Pose, editable: bool = False) -> Optional["g.RenderObject"]:
+def createPlantSiteRender(object: PlantSite, perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> Optional["g.RenderObject"]:
     return
 # endregion Specific Object Rendering
 
 
-def createObjectRender(object: Object, perspective: Pose, editable: bool = False) -> Optional["g.RenderObject"]:
+def createObjectRender(object: Object, perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> Optional["g.RenderObject"]:
     """
     Creates a RenderObject for an object from the given perspective.
     
@@ -69,43 +72,43 @@ def createObjectRender(object: Object, perspective: Pose, editable: bool = False
         Optional[g.RenderObject]: The created RenderObject, or None if the object is not renderable.
     """
     if isinstance(object, Wall):
-        return createWallRender(object, perspective, editable)
+        return createWallRender(object, perspective, editable, selectObject, openContextMenu)
     elif isinstance(object, Box):
-        return createBoxRender(object, perspective, editable)
+        return createBoxRender(object, perspective, editable, selectObject, openContextMenu)
     elif isinstance(object, Cylinder):
-        return createCylinderRender(object, perspective, editable)
+        return createCylinderRender(object, perspective, editable, selectObject, openContextMenu)
     elif isinstance(object, Stair):
-        return createStairRender(object, perspective, editable)
+        return createStairRender(object, perspective, editable, selectObject, openContextMenu)
     elif isinstance(object, Decoration):
-        return createDecorationRender(object, perspective, editable)
+        return createDecorationRender(object, perspective, editable, selectObject, openContextMenu)
     elif isinstance(object, BreakableDoor):
-        return createBreakableDoorRender(object, perspective, editable)
+        return createBreakableDoorRender(object, perspective, editable, selectObject, openContextMenu)
     elif isinstance(object, Switch):
-        return createSwitchRender(object, perspective, editable)
+        return createSwitchRender(object, perspective, editable, selectObject, openContextMenu)
     elif isinstance(object, Bike):
-        return createBikeRender(object, perspective, editable)
+        return createBikeRender(object, perspective, editable, selectObject, openContextMenu)
     elif isinstance(object, UltOrb):
-        return createUltOrbRender(object, perspective, editable)
+        return createUltOrbRender(object, perspective, editable, selectObject, openContextMenu)
     elif isinstance(object, Zipline):
-        return createZiplineRender(object, perspective, editable)
+        return createZiplineRender(object, perspective, editable, selectObject, openContextMenu)
     elif isinstance(object, Teleporter):
-        return createTeleporterRender(object, perspective, editable)
+        return createTeleporterRender(object, perspective, editable, selectObject, openContextMenu)
     elif isinstance(object, TPDoor):
-        return createTPDoorRender(object, perspective, editable)
+        return createTPDoorRender(object, perspective, editable, selectObject, openContextMenu)
     elif isinstance(object, RotatingDoor):
-        return createRotatingDoorRender(object, perspective, editable)
+        return createRotatingDoorRender(object, perspective, editable, selectObject, openContextMenu)
     elif isinstance(object, CrouchDoor):
-        return createCrouchDoorRender(object, perspective, editable)
+        return createCrouchDoorRender(object, perspective, editable, selectObject, openContextMenu)
     elif isinstance(object, Abyss):
-        return createAbyssRender(object, perspective, editable)
+        return createAbyssRender(object, perspective, editable, selectObject, openContextMenu)
     elif isinstance(object, SpawnPoint):
-        return createSpawnPointRender(object, perspective, editable)
+        return createSpawnPointRender(object, perspective, editable, selectObject, openContextMenu)
     elif isinstance(object, PlantSite):
-        return createPlantSiteRender(object, perspective, editable)
+        return createPlantSiteRender(object, perspective, editable, selectObject, openContextMenu)
     else:
         return None
 
-def createObjectRenders(objects: list[Object], perspective: Pose, editable: bool = False) -> list["g.RenderObject"]:
+def createObjectRenders(objects: list[Object], perspective: Pose, editable: bool = False, selectObject: Optional[Callable[[Object], None]] = None, openContextMenu: Optional[Callable[[Object], None]] = None) -> list["g.RenderObject"]:
     """
     Creates a list of RenderObjects from the given objects and perspective.
     
@@ -119,7 +122,7 @@ def createObjectRenders(objects: list[Object], perspective: Pose, editable: bool
     """
     renders: list[g.RenderObject] = []
     for obj in objects:
-        render = createObjectRender(obj, perspective, editable)
+        render = createObjectRender(obj, perspective, editable, selectObject, openContextMenu)
         if render is not None:
             renders.append(render)
     return renders

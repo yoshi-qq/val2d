@@ -3,6 +3,7 @@ from typing import Union, Callable, Literal, TypeVarTuple
 T = TypeVarTuple("T")
 T2 = TypeVarTuple("T2")
 T3 = TypeVarTuple("T3")
+T4 = TypeVarTuple("T4")
 from screeninfo import get_monitors
 from pygame.locals import HWSURFACE, DOUBLEBUF, FULLSCREEN
 from ctypes.wintypes import HWND, HANDLE, UINT, HGLOBAL, LPVOID
@@ -14,6 +15,7 @@ FOUR_K = (3840, 2160)
 activeInput = None
 running = False
 clickEvent = False
+mouseButton = 1
 defaultFont = None
 sprites = {}
 keys = set()
@@ -188,9 +190,10 @@ def getMouseMovement() -> tuple[int, int]:
     global mouseMovement
     return mouseMovement
 
-def click():
-    global clickEvent
+def click(button=1):
+    global clickEvent, mouseButton
     clickEvent = True
+    mouseButton = button
 
 def keyPress(key):
     global keys, activeInput
@@ -241,7 +244,7 @@ def draw():
             return "quit";
         elif event.type == pygame.MOUSEBUTTONDOWN:
             keys.add(event.button)
-            click()
+            click(event.button)
         elif event.type == pygame.MOUSEBUTTONUP:
             keys.discard(event.button)
             try:
@@ -505,12 +508,16 @@ def classes():
             self.frame += self.slowdown**-1
         
     class RenderButton(RenderImage):
-        def __init__(self, imageName: Union[None, str] = None, strName: str = "button", clickAction: Union[Callable[[], None], Callable[[*T], None], Literal[False]] = False, hoverAction: Union[Callable[[], None], Callable[[*T2], None], Literal[False]] = False, unHoverAction: Union[Callable[[], None], Callable[[*T3], None], Literal[False]] = False, arguments: tuple[*T] = (), hoverArguments: tuple[*T2] = (), unHoverArguments: tuple[*T3] = (), surface: pygame.Surface = screen, temporary: bool = False, enabled: bool = True, hoverImageName: Union[Literal[False], str] = False, x: float = 0, xOffset: float = 0, y: float = 0, yOffset: float = 0, width: float = 10, height: float = 10, priority: float = 2, angle: float = 0, stretch: float = 1, middle: bool = False, gen: bool = True):
+        def __init__(self, imageName: Union[None, str] = None, strName: str = "button", clickAction: Union[Callable[[], None], Callable[[*T], None], Literal[False]] = False, arguments: tuple[*T] = (), rightClickAction: Union[Callable[[*T2], None], Callable[[*T2], None], Literal[False]] = False, rightArguments: tuple[*T2] = (), hoverAction: Union[Callable[[], None], Callable[[*T3], None], Literal[False]] = False, hoverArguments: tuple[*T3] = (), unHoverAction: Union[Callable[[], None], Callable[[*T4], None], Literal[False]] = False, unHoverArguments: tuple[*T4] = (), surface: pygame.Surface = screen, temporary: bool = False, enabled: bool = True, hoverImageName: Union[Literal[False], str] = False, x: float = 0, xOffset: float = 0, y: float = 0, yOffset: float = 0, width: float = 10, height: float = 10, priority: float = 2, angle: float = 0, stretch: float = 1, middle: bool = False, gen: bool = True):
             self.strName = imageName
             if isinstance(clickAction, str): # define click action
                 clickAction = eval(clickAction)  
             self.clickAction = clickAction
             self.arguments = arguments
+            if isinstance(rightClickAction, str): # define right click action
+                rightClickAction = eval(rightClickAction)  
+            self.rightClickAction = rightClickAction
+            self.rightArguments = rightArguments
             if isinstance(hoverAction, str): # define hover action
                 hoverAction = eval(hoverAction) 
             self.hoverAction = hoverAction
@@ -529,9 +536,12 @@ def classes():
             if type(self) is RenderButton and gen:
                 renders.append(self)
         
-        def click(self, me):
+        def click(self, me, button: int = 1):
             if self.clickAction != False:
-                self.clickAction(*self.arguments)
+                if button == pygame.BUTTON_LEFT:
+                    self.clickAction(*self.arguments)
+                elif button == pygame.BUTTON_RIGHT:
+                    self.leftClickAction(*self.leftArguments)
         
         def hover(self, hover = False):
             if hover:
@@ -681,7 +691,7 @@ def classes():
             innerRect = pygame.Rect(self.borderSize, self.borderSize, self.width - self.borderSize * 2, self.height - self.borderSize * 2)
             pygame.draw.rect(self.renderSurface, self.color, innerRect)
         
-        def click(self, me):
+        def click(self, me, button: int = 1):
             if me:
                 self.active = True
             else:
