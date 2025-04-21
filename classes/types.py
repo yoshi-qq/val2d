@@ -128,6 +128,8 @@ class Angle:
         self.__angle = newAngle % 360
     def changeAngle(self, angleMod: float = 0):
         self.__angle = (self.__angle + angleMod) % 360
+    def turn(self, relativeAngle: "Angle") -> None:
+        self.changeAngle(relativeAngle.getAngle())
     def getAngle(self) -> float:
         return self.__angle
     # return the middle angle of two angles, returns None if they are perfectly antipodale

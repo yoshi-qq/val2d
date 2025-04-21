@@ -87,6 +87,8 @@ class Object(Printable):
         return {}
     def move(self, pos: Position) -> None:
         self.__position.move(pos)
+    def turn(self, angle: Angle) -> None:
+        self.__orientation.turn(angle)
     
 class Wall(Object):
     def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1), penetrationLevel: PenetrationLevel = PenetrationLevel.MEDIUM) -> None:

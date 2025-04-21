@@ -10,7 +10,9 @@ from handlers.mapHandler import createObjectRenders
 HOLD_TICK_DELAY = 10
 
 CAMERA_MOVEMENT_AMOUNT = 1
+CAMERA_ROTATION_AMOUNT = 15
 OBJ_MOVEMENT_AMOUNT = 1
+OBJ_ROTATION_AMOUNT = 15
 SHIFT_MODIFIER = 0.1
 
 objects: list[Object] = [
@@ -71,6 +73,10 @@ def handleInputs(keys: list[int]) -> None:
                     currentPose.move(Position(0, CAMERA_MOVEMENT_AMOUNT*mod, 0))
                 case p.K_e:
                     currentPose.move(Position(0, -CAMERA_MOVEMENT_AMOUNT*mod, 0))
+                case p.K_x:
+                    currentPose.turn(Angle(CAMERA_ROTATION_AMOUNT*mod))
+                case p.K_y:
+                    currentPose.turn(Angle(-CAMERA_ROTATION_AMOUNT*mod))
                 case p.K_RIGHT:
                     if selectedObject:
                         selectedObject.move(Position(OBJ_MOVEMENT_AMOUNT*mod, 0, 0))
@@ -89,6 +95,12 @@ def handleInputs(keys: list[int]) -> None:
                 case p.K_PERIOD:
                     if selectedObject:
                         selectedObject.move(Position(0, -OBJ_MOVEMENT_AMOUNT*mod, 0))
+                case p.K_m:
+                    if selectedObject:
+                        selectedObject.turn(Angle(OBJ_ROTATION_AMOUNT*mod))
+                case p.K_n:
+                    if selectedObject:
+                        selectedObject.turn(Angle(-OBJ_ROTATION_AMOUNT*mod))
                 case _:
                     pass
         if key not in lastKeys:
