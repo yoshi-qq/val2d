@@ -72,7 +72,8 @@ DEFAULT_SENSITIVITY = 0.2
 # endregion CLIENT GAMEPLAY
 
 # region GRAPHICS
-THREE_D_LEVEL = 2
+THREE_D_LEVEL = 2 # !deprecated and probably harmful
+DISTANCE_SCALING = False
 RESOLUTION = (1920, 1080)
 ASPECT_RATIO = RESOLUTION[0] / RESOLUTION[1]
 FONT = "font/fixed_sys.ttf"

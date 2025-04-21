@@ -1,12 +1,20 @@
 from math import sqrt, sin, cos, tan, atan2, radians
-from config.constants import VIEW_WIDTH, VIEW_HEIGHT, VIEW_ANGLE, ZOOM_IN, HEIGHT_TO_Z_OFFSET, THREE_D_LEVEL
+from config.constants import VIEW_WIDTH, VIEW_HEIGHT, VIEW_ANGLE, ZOOM_IN, HEIGHT_TO_Z_OFFSET, THREE_D_LEVEL, DISTANCE_SCALING
 from classes.types import Pose, Position, Angle
 
 HORIZONTAL_MIDDLE = VIEW_WIDTH / 2
 VERTICAL_MIDDLE = VIEW_HEIGHT / 2
-
-def getSizeFromY(y: float) -> float:
-    return (1+y/(VIEW_WIDTH/(2*tan(radians(VIEW_ANGLE)/2))-y)) * ZOOM_IN
+if DISTANCE_SCALING:
+    global getSizeFromY
+    def getSize1(y: float) -> float:
+        return (1+y/(VIEW_WIDTH/(2*tan(radians(VIEW_ANGLE)/2))-y)) * ZOOM_IN
+    getSizeFromY = getSize1
+else:
+    FOCAL = VIEW_HEIGHT / (2 * tan(radians(VIEW_ANGLE) / 2))
+    def getSize2(y: float) -> float:
+        depth = VIEW_HEIGHT - y
+        return 2*ZOOM_IN * FOCAL / (FOCAL + depth)
+    getSizeFromY = getSize2
 
 def getPoseAndSizeFromPerspective(perspective: Pose, objectPose: Pose, turnable: bool, threeDLevel: int = THREE_D_LEVEL) -> tuple[Pose, float]:
     ownX, ownY, ownZ = perspective.getPosition().getX(), perspective.getPosition().getY(), perspective.getPosition().getZ()

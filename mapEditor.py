@@ -5,7 +5,7 @@ from dependencies import graphy as g
 from config.constants import RESOLUTION, MAP_SKY, ABYSS_HEIGHT
 from classes.categories import PenetrationLevel as P
 from classes.types import Rect, Position as Pos, Angle, Pose, Position
-from classes.mapTypes import Map, Object, Box, Callout as C
+from classes.mapTypes import Map, Object, Callout as C, Box, Stair 
 from handlers.mapHandler import createObjectRenders
 
 TOPBAR_HEIGHT = 64
@@ -22,10 +22,11 @@ OBJ_ROTATION_AMOUNT = 15
 SHIFT_MODIFIER = 0.1
 
 objects: list[Object] = [
-    Box(id=0, sprite="box1", callout=C.MID, position=Pos(0, 0, 0), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW),
-    Box(id=1, sprite="box2", callout=C.MID, position=Pos(0, 0, 2), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW),
-    Box(id=1, sprite="box1", callout=C.MID, position=Pos(-2, 0, 0), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW),
-    Box(id=1, sprite="box3", callout=C.MID, position=Pos(0, 2, 0), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW)
+    Box(id=0, sprite="box1", callout=C.MID, position=Pos(1, 0, 3), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW),
+    Box(id=1, sprite="box2", callout=C.MID, position=Pos(-1, 0, 3), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW),
+    Box(id=2, sprite="box1", callout=C.MID, position=Pos(1, -2, -3), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW),
+    Box(id=3, sprite="box3", callout=C.MID, position=Pos(-1, -2, -3), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW),
+    Stair(id=4, sprite="wood_stairs", callout=C.MID, position=Pos(0, 0, 0), orientation=Angle(0), size=Pos(4, 2, 4))
 ]
 testMap = Map("Test Map", objects, Rect(-100, -100, 100, 100), "map_background")
 currentPose: Pose = Pose(Pos(0, 0, 0), Angle(0))
@@ -68,13 +69,13 @@ def handleInputs(keys: list[int]) -> None:
                 case p.K_ESCAPE:
                     setSelectedObject(None)
                 case p.K_d:
-                    currentPose.move(Position(CAMERA_MOVEMENT_AMOUNT*mod, 0, 0))
+                    currentPose.move(Position(CAMERA_MOVEMENT_AMOUNT*mod, 0, 0).rotate(currentPose.getOrientation()))
                 case p.K_a:
-                    currentPose.move(Position(-CAMERA_MOVEMENT_AMOUNT*mod, 0, 0))
+                    currentPose.move(Position(-CAMERA_MOVEMENT_AMOUNT*mod, 0, 0).rotate(currentPose.getOrientation()))
                 case p.K_w:
-                    currentPose.move(Position(0, 0, CAMERA_MOVEMENT_AMOUNT*mod))
+                    currentPose.move(Position(0, 0, CAMERA_MOVEMENT_AMOUNT*mod).rotate(currentPose.getOrientation()))
                 case p.K_s:
-                    currentPose.move(Position(0, 0, -CAMERA_MOVEMENT_AMOUNT*mod))
+                    currentPose.move(Position(0, 0, -CAMERA_MOVEMENT_AMOUNT*mod).rotate(currentPose.getOrientation()))
                 case p.K_q:
                     currentPose.move(Position(0, CAMERA_MOVEMENT_AMOUNT*mod, 0))
                 case p.K_e:
@@ -85,16 +86,16 @@ def handleInputs(keys: list[int]) -> None:
                     currentPose.turn(Angle(-CAMERA_ROTATION_AMOUNT*mod))
                 case p.K_RIGHT:
                     if selectedObject:
-                        selectedObject.move(Position(OBJ_MOVEMENT_AMOUNT*mod, 0, 0))
+                        selectedObject.move(Position(OBJ_MOVEMENT_AMOUNT*mod, 0, 0).rotate(currentPose.getOrientation()))
                 case p.K_LEFT:
                     if selectedObject:
-                        selectedObject.move(Position(-OBJ_MOVEMENT_AMOUNT*mod, 0, 0))
+                        selectedObject.move(Position(-OBJ_MOVEMENT_AMOUNT*mod, 0, 0).rotate(currentPose.getOrientation()))
                 case p.K_UP:
                     if selectedObject:
-                        selectedObject.move(Position(0, 0, OBJ_MOVEMENT_AMOUNT*mod))
+                        selectedObject.move(Position(0, 0, OBJ_MOVEMENT_AMOUNT*mod).rotate(currentPose.getOrientation()))
                 case p.K_DOWN:
                     if selectedObject:
-                        selectedObject.move(Position(0, 0, -OBJ_MOVEMENT_AMOUNT*mod))
+                        selectedObject.move(Position(0, 0, -OBJ_MOVEMENT_AMOUNT*mod).rotate(currentPose.getOrientation()))
                 case p.K_COMMA:
                     if selectedObject:
                         selectedObject.move(Position(0, OBJ_MOVEMENT_AMOUNT*mod, 0))
@@ -124,9 +125,10 @@ def setup() -> None:
     g.init(file=__file__, fps=60, fontPath="font/fixed_sys.ttf", captureCursor=False, naturalY=True, fullscreen=False, windowName="Map Editor", spriteFolder=ASSETS_FOLDER, spriteExtension="png", windowIcon="editor", windowRes=(1656, 972), nativeRes = RESOLUTION)
     _background = g.RenderImage(imageName=currentMap.getBackgroundSprite(), x=g.middle[0], y=g.middle[1], width=RESOLUTION[0], height=RESOLUTION[1], middle=True, priority=ABYSS_HEIGHT)
     # *UI)
-    ui: list[g.RenderObject] = []
-    topBarBackground: list[g.RenderImage] = [g.RenderImage(imageName="gray", y=RESOLUTION[1]-(j*TILESIZE), x=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+2) for i in range(0, ceil(RESOLUTION[0]/TILESIZE)) for j in range(0, ceil(TOPBAR_HEIGHT/TILESIZE))] + [g.RenderImage(imageName="sidebar", y=RESOLUTION[1]-(ceil(TOPBAR_HEIGHT/TILESIZE)*TILESIZE), x=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+2, angle=90) for i in range(0, ceil(RESOLUTION[0]/TILESIZE))]
-    sideBarBackground: list[g.RenderImage] = [g.RenderImage(imageName="gray", x=j*TILESIZE, y=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+1) for i in range(ceil(RESOLUTION[1]/TILESIZE)) for j in range(ceil(SIDEBAR_WIDTH/TILESIZE))] + [g.RenderImage(imageName="sidebar", x=ceil(SIDEBAR_WIDTH/TILESIZE)*TILESIZE, y=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+1) for i in range(0, ceil(RESOLUTION[1]/TILESIZE))]
+    _ui: list[g.RenderObject] = []
+    _topBarBackground: list[g.RenderImage] = [g.RenderImage(imageName="gray", y=RESOLUTION[1]-(j*TILESIZE), x=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+2) for i in range(0, ceil(RESOLUTION[0]/TILESIZE)) for j in range(0, ceil(TOPBAR_HEIGHT/TILESIZE))] + [g.RenderImage(imageName="sidebar", y=RESOLUTION[1]-(ceil(TOPBAR_HEIGHT/TILESIZE)*TILESIZE), x=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+2, angle=90) for i in range(0, ceil(RESOLUTION[0]/TILESIZE))]
+    _sideBarBackground: list[g.RenderImage] = [g.RenderImage(imageName="gray", x=j*TILESIZE, y=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+1) for i in range(ceil(RESOLUTION[1]/TILESIZE)) for j in range(ceil(SIDEBAR_WIDTH/TILESIZE))] + [g.RenderImage(imageName="sidebar", x=ceil(SIDEBAR_WIDTH/TILESIZE)*TILESIZE, y=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+1) for i in range(0, ceil(RESOLUTION[1]/TILESIZE))]
+
 def mainLoop() -> Optional[bool]:
     """
     The main loop for the map editor.

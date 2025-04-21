@@ -202,6 +202,8 @@ class Position:
         return self.translateFromAngle(angle)
     def getHorizontalPart(self) -> "Position":
         return Position(self.__x, 0, self.__z)
+    def getVerticalPart(self) -> "Position":
+        return Position(0, self.__y, 0)
     def getMagnitude(self) -> float:
         return sqrt(self.__x**2 + self.__y**2 + self.__z**2)
     def getHorizontalMagnitude(self) -> float:
@@ -263,6 +265,10 @@ class Pose:
     def turn(self, relativeOrientation: Angle) -> Angle:
         self.__orientation.changeAngle(relativeOrientation.getAngle())
         return self.__orientation
+    def __add__(self, other: Position) -> "Pose":
+        return Pose(self.__position + other, self.__orientation)
+    def __sub__(self, other: Position) -> "Pose":
+        return Pose(self.__position - other, self.__orientation)
     # Getters
     def getPosition(self) -> Position:
         return self.__position

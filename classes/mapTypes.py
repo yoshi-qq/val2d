@@ -115,6 +115,8 @@ class Stair(Object):
     def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1)) -> None:
         self.size = size
         super().__init__(id, sprite, callout, position, orientation)
+    def getSize(self) -> Position:
+        return self.size
 class Decoration(Object):
     def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1)) -> None:
         self.size = size
