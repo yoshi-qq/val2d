@@ -2,6 +2,9 @@
 ## Bugs
 - [ ] Mouse also captured in menu
 
+## Refactoring
+- [ ] Crouch door -> Crouching needed to fit under any low surface
+
 ## Next
 - [x] Lobby
 - [x] Agent Select
@@ -12,7 +15,23 @@
 - [x] local calculation for Walk & Crouch
 - [x] correct Speed from Game
 - [x] Jumping
-- [ ] Map
+- [x] Map
+    ### Editing
+    - [x] moving
+    - [x] turning
+    - [ ] saving and loading of map files
+    - [ ] display of current data in top-left corner
+    - [ ] resizing of objects
+    - [ ] placing of new objects (automatic IDs)
+    - [ ] multi-select with ctrl
+    - [ ] changing textures in editor (name or file select)
+    - [ ] changing penetrationLevel
+    - [ ] changing linked ID (switch-door)
+    - [ ] changing TP-Destination (maybe as own momevable)
+    - [ ] changing Callout (selector? tkinter)
+    - [ ] changing spawn team-id
+    - [ ] automatic abyss spawning
+    ### Gameplay
     - [ ] objects
     - [ ] collision
 - [ ] Guns
