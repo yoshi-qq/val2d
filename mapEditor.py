@@ -67,6 +67,10 @@ def handleInputs(keys: list[int]) -> None:
                     currentPose.move(Position(0, 0, CAMERA_MOVEMENT_AMOUNT*mod))
                 case p.K_s:
                     currentPose.move(Position(0, 0, -CAMERA_MOVEMENT_AMOUNT*mod))
+                case p.K_q:
+                    currentPose.move(Position(0, CAMERA_MOVEMENT_AMOUNT*mod, 0))
+                case p.K_e:
+                    currentPose.move(Position(0, -CAMERA_MOVEMENT_AMOUNT*mod, 0))
                 case p.K_RIGHT:
                     if selectedObject:
                         selectedObject.move(Position(OBJ_MOVEMENT_AMOUNT*mod, 0, 0))
@@ -79,6 +83,12 @@ def handleInputs(keys: list[int]) -> None:
                 case p.K_DOWN:
                     if selectedObject:
                         selectedObject.move(Position(0, 0, -OBJ_MOVEMENT_AMOUNT*mod))
+                case p.K_COMMA:
+                    if selectedObject:
+                        selectedObject.move(Position(0, OBJ_MOVEMENT_AMOUNT*mod, 0))
+                case p.K_PERIOD:
+                    if selectedObject:
+                        selectedObject.move(Position(0, -OBJ_MOVEMENT_AMOUNT*mod, 0))
                 case _:
                     pass
         if key not in lastKeys:
