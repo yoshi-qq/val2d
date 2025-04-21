@@ -1,7 +1,7 @@
 import os, pygame as p
 from typing import Optional
 from dependencies import graphy as g
-from config.constants import RESOLUTION
+from config.constants import RESOLUTION, ABYSS_HEIGHT
 from classes.categories import PenetrationLevel as P
 from classes.types import Rect, Position as Pos, Angle, Pose, Position
 from classes.mapTypes import Map, Object, Box, Callout as C
@@ -19,7 +19,7 @@ objects: list[Object] = [
     Box(id=1, sprite="box1", callout=C.MID, position=Pos(-2, 0, 0), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW),
     Box(id=1, sprite="box3", callout=C.MID, position=Pos(0, 2, 0), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW)
 ]
-testMap = Map("Test Map", objects, Rect(-100, -100, 100, 100), "mapBackground")
+testMap = Map("Test Map", objects, Rect(-100, -100, 100, 100), "map_background")
 currentPose: Pose = Pose(Pos(0, 0, 0), Angle(0))
 currentMap: Map = testMap
 selectedObject: Optional[Object] = None
@@ -94,7 +94,7 @@ def setup() -> None:
     """
     ASSETS_FOLDER = os.path.join(os.path.dirname(__file__), "assets")
     g.init(file=__file__, fps=60, fontPath="font/fixed_sys.ttf", captureCursor=False, naturalY=True, fullscreen=False, windowName="Map Editor", spriteFolder=ASSETS_FOLDER, spriteExtension="png", windowIcon="editor", windowRes=(1840, 1080), nativeRes = RESOLUTION)
-
+    _background = g.RenderImage(imageName=currentMap.getBackgroundSprite(), x=g.middle[0], y=g.middle[1], width=RESOLUTION[0], height=RESOLUTION[1], middle=True, priority=ABYSS_HEIGHT)
 
 def mainLoop() -> Optional[bool]:
     """

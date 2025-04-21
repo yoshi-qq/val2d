@@ -169,10 +169,16 @@ class PlantSite(Object):
 # MAP
 class Map(Printable):
     def __init__(self, name: str, objects: list[Object], bounds: Rect, backgroundSprite: str) -> None:
-        self.__objects = objects
         self.__name = name
+        self.__objects = objects
+        self.__bounds = bounds
+        self.__backgroundSprite = backgroundSprite
     def getName(self) -> str:
         return self.__name
+    def getBounds(self) -> Rect:
+        return self.__bounds
+    def getBackgroundSprite(self) -> str:
+        return self.__backgroundSprite
     def getObjects(self) -> list[Object]:
         return self.__objects
     def collapseToDict(self) -> JSONType:
