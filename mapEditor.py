@@ -1,13 +1,19 @@
 import os, pygame as p
+from math import ceil
 from typing import Optional
 from dependencies import graphy as g
-from config.constants import RESOLUTION, ABYSS_HEIGHT
+from config.constants import RESOLUTION, MAP_SKY, ABYSS_HEIGHT
 from classes.categories import PenetrationLevel as P
 from classes.types import Rect, Position as Pos, Angle, Pose, Position
 from classes.mapTypes import Map, Object, Box, Callout as C
 from handlers.mapHandler import createObjectRenders
 
+TOPBAR_HEIGHT = 64
+SIDEBAR_WIDTH = 200
 HOLD_TICK_DELAY = 10
+
+UI_LEVEL = MAP_SKY + 1
+TILESIZE = 32
 
 CAMERA_MOVEMENT_AMOUNT = 1
 CAMERA_ROTATION_AMOUNT = 15
@@ -115,9 +121,12 @@ def setup() -> None:
     This function sets up the initial state of the map editor, including loading the map and setting up the camera.
     """
     ASSETS_FOLDER = os.path.join(os.path.dirname(__file__), "assets")
-    g.init(file=__file__, fps=60, fontPath="font/fixed_sys.ttf", captureCursor=False, naturalY=True, fullscreen=False, windowName="Map Editor", spriteFolder=ASSETS_FOLDER, spriteExtension="png", windowIcon="editor", windowRes=(1840, 1080), nativeRes = RESOLUTION)
+    g.init(file=__file__, fps=60, fontPath="font/fixed_sys.ttf", captureCursor=False, naturalY=True, fullscreen=False, windowName="Map Editor", spriteFolder=ASSETS_FOLDER, spriteExtension="png", windowIcon="editor", windowRes=(1656, 972), nativeRes = RESOLUTION)
     _background = g.RenderImage(imageName=currentMap.getBackgroundSprite(), x=g.middle[0], y=g.middle[1], width=RESOLUTION[0], height=RESOLUTION[1], middle=True, priority=ABYSS_HEIGHT)
-
+    # *UI)
+    ui: list[g.RenderObject] = []
+    topBarBackground: list[g.RenderImage] = [g.RenderImage(imageName="gray", y=RESOLUTION[1]-(j*TILESIZE), x=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+2) for i in range(0, ceil(RESOLUTION[0]/TILESIZE)) for j in range(0, ceil(TOPBAR_HEIGHT/TILESIZE))] + [g.RenderImage(imageName="sidebar", y=RESOLUTION[1]-(ceil(TOPBAR_HEIGHT/TILESIZE)*TILESIZE), x=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+2, angle=90) for i in range(0, ceil(RESOLUTION[0]/TILESIZE))]
+    sideBarBackground: list[g.RenderImage] = [g.RenderImage(imageName="gray", x=j*TILESIZE, y=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+1) for i in range(ceil(RESOLUTION[1]/TILESIZE)) for j in range(ceil(SIDEBAR_WIDTH/TILESIZE))] + [g.RenderImage(imageName="sidebar", x=ceil(SIDEBAR_WIDTH/TILESIZE)*TILESIZE, y=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+1) for i in range(0, ceil(RESOLUTION[1]/TILESIZE))]
 def mainLoop() -> Optional[bool]:
     """
     The main loop for the map editor.
