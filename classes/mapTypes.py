@@ -92,6 +92,9 @@ class Object(Printable):
         self.__position.move(pos)
     def turn(self, angle: Angle) -> None:
         self.__orientation.turn(angle)
+    def stretch(self, stretch: Position) -> None:
+        self.size.move(stretch)
+        self.size.min(0)
     
 class Wall(Object):
     def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1), penetrationLevel: PenetrationLevel = PenetrationLevel.MEDIUM) -> None:
@@ -147,9 +150,6 @@ class TPDoor(Object):
 class RotatingDoor(Object):
     def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), currentRotation: Angle = Angle(), size: Position = Position(1, 1, 1)) -> None:
         self.currentRotation = currentRotation
-        super().__init__(id, sprite, callout, position, orientation, size)
-class CrouchDoor(Object):
-    def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1)) -> None:
         super().__init__(id, sprite, callout, position, orientation, size)
 class Abyss(Object):
     def __init__(self, id: int, sprite: Optional[str], callout: Callout, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1)) -> None:

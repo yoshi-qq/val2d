@@ -223,6 +223,16 @@ class Position:
     def cap(self, maximumMagnitude: float) -> None:
         if self.getMagnitude() != 0 and (magnitude := self.getMagnitude()) > maximumMagnitude:
             self.multiplyInPlace(maximumMagnitude / magnitude)
+    def min(self, minimumValue: float) -> None:
+        if self.__x < minimumValue: self.__x = minimumValue
+        if self.__y < minimumValue: self.__y = minimumValue
+        if self.__z < minimumValue: self.__z = minimumValue
+    def minX(self, minimumValue: float) -> None:
+        if self.__x < minimumValue: self.__x = minimumValue
+    def minY(self, minimumValue: float) -> None:
+        if self.__y < minimumValue: self.__y = minimumValue
+    def minZ(self, minimumValue: float) -> None:
+        if self.__z < minimumValue: self.__z = minimumValue
     def horizontalCap(self, maximumMagnitude: float) -> None:
         if self.getHorizontalMagnitude() != 0 and (magnitude := self.getHorizontalMagnitude()) > maximumMagnitude:
             self.multiplyHorizontalInPlace(maximumMagnitude / magnitude)

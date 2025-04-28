@@ -19,6 +19,7 @@ CAMERA_MOVEMENT_AMOUNT = 1
 CAMERA_ROTATION_AMOUNT = 15
 OBJ_MOVEMENT_AMOUNT = 1
 OBJ_ROTATION_AMOUNT = 15
+OBJ_STRETCH_AMOUNT = 1
 SHIFT_MODIFIER = 0.1
 
 objects: list[Object] = [
@@ -60,9 +61,14 @@ def held(key: int) -> bool:
 
 def handleInputs(keys: list[int]) -> None:
     global tick, lastKeys, keysFirstSeen
+    
     if p.K_LSHIFT in keys:
         mod = SHIFT_MODIFIER
     else: mod = 1
+    if p.K_LCTRL in keys:
+        primary = False
+    else: primary = True
+    
     for key in keys:
         if held(key):
             match key:
@@ -80,28 +86,47 @@ def handleInputs(keys: list[int]) -> None:
                     currentPose.move(Position(0, CAMERA_MOVEMENT_AMOUNT*mod, 0))
                 case p.K_e:
                     currentPose.move(Position(0, -CAMERA_MOVEMENT_AMOUNT*mod, 0))
+                    currentPose.getPosition().minY(-10)
                 case p.K_x:
                     currentPose.turn(Angle(CAMERA_ROTATION_AMOUNT*mod))
                 case p.K_y:
                     currentPose.turn(Angle(-CAMERA_ROTATION_AMOUNT*mod))
                 case p.K_RIGHT:
                     if selectedObject:
-                        selectedObject.move(Position(OBJ_MOVEMENT_AMOUNT*mod, 0, 0).rotate(currentPose.getOrientation()))
+                        if primary:
+                            selectedObject.move(Position(OBJ_MOVEMENT_AMOUNT*mod, 0, 0).rotate(currentPose.getOrientation()))
+                        else:
+                            selectedObject.stretch(Position(OBJ_MOVEMENT_AMOUNT*mod, 0, 0))
                 case p.K_LEFT:
                     if selectedObject:
-                        selectedObject.move(Position(-OBJ_MOVEMENT_AMOUNT*mod, 0, 0).rotate(currentPose.getOrientation()))
+                        if primary:
+                            selectedObject.move(Position(-OBJ_MOVEMENT_AMOUNT*mod, 0, 0).rotate(currentPose.getOrientation()))
+                        else:
+                            selectedObject.stretch(Position(-OBJ_MOVEMENT_AMOUNT*mod, 0, 0))
                 case p.K_UP:
                     if selectedObject:
-                        selectedObject.move(Position(0, 0, OBJ_MOVEMENT_AMOUNT*mod).rotate(currentPose.getOrientation()))
+                        if primary:
+                            selectedObject.move(Position(0, 0, OBJ_MOVEMENT_AMOUNT*mod).rotate(currentPose.getOrientation()))
+                        else:
+                            selectedObject.stretch(Position(0, 0, OBJ_STRETCH_AMOUNT*mod))
                 case p.K_DOWN:
                     if selectedObject:
-                        selectedObject.move(Position(0, 0, -OBJ_MOVEMENT_AMOUNT*mod).rotate(currentPose.getOrientation()))
+                        if primary:
+                            selectedObject.move(Position(0, 0, -OBJ_MOVEMENT_AMOUNT*mod).rotate(currentPose.getOrientation()))
+                        else:
+                            selectedObject.stretch(Position(0, 0, -OBJ_STRETCH_AMOUNT*mod))
                 case p.K_COMMA:
                     if selectedObject:
-                        selectedObject.move(Position(0, OBJ_MOVEMENT_AMOUNT*mod, 0))
+                        if primary:
+                            selectedObject.move(Position(0, OBJ_MOVEMENT_AMOUNT*mod, 0))
+                        else:
+                            selectedObject.stretch(Position(0, OBJ_MOVEMENT_AMOUNT*mod, 0))
                 case p.K_PERIOD:
                     if selectedObject:
-                        selectedObject.move(Position(0, -OBJ_MOVEMENT_AMOUNT*mod, 0))
+                        if primary:
+                            selectedObject.move(Position(0, -OBJ_MOVEMENT_AMOUNT*mod, 0))
+                        else:
+                            selectedObject.stretch(Position(0, -OBJ_MOVEMENT_AMOUNT*mod, 0))
                 case p.K_m:
                     if selectedObject:
                         selectedObject.turn(Angle(OBJ_ROTATION_AMOUNT*mod))

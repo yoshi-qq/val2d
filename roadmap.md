@@ -21,7 +21,7 @@
     - [x] turning
     - [ ] saving and loading of map files
     - [ ] display of current data in top-left corner
-    - [ ] resizing of objects
+    - [x] resizing of objects
     - [ ] placing of new objects (automatic IDs)
     - [ ] multi-select with ctrl
     - [ ] changing textures in editor (name or file select)
