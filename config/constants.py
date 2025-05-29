@@ -2,7 +2,7 @@ from enum import Enum
 from classes.heads import DebugProblem, DebugReason, DebugDetails, debugProblems, debugReasons, debugDetails
 from dependencies.console import Console
 # GENERAL
-VERSION = (0,10,2)
+VERSION = (0,10,3)
 STABLE = False
 VERSION_STRING = f"{VERSION[0]}.{VERSION[1]}.{VERSION[2]}"
 
@@ -85,7 +85,7 @@ HEIGHT_TO_Z_OFFSET = 0.5
 # endregion GRAPHICS
 
 # region COMMUNICATION
-DATA_SIZE = 8192
+DATA_SIZE = 16384
 DEFAULT_IP = "localhost"
 DEFAULT_PORT = 9009
 PING_INTERVAL = 1
