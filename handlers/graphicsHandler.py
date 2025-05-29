@@ -20,7 +20,7 @@ class GraphicsHandler:
         self.__perspective: Optional[Pose] = None
         self.__gameObjects: list[g.RenderObject] = []
         self.__menuObjects: list[g.RenderObject] = []
-        g.init(file=__file__, fps=60, fontPath="font/fixed_sys.ttf", captureCursor=True, naturalY=True, fullscreen=False, windowName="Val2D", spriteFolder=ASSETS_FOLDER, spriteExtension="png", windowIcon="logo", windowRes=(960, 540), nativeRes = RESOLUTION)
+        g.init(file=__file__, fps=60, fontPath="font/fixed_sys.ttf", captureCursor=False, naturalY=True, fullscreen=False, windowName="Val2D", spriteFolder=ASSETS_FOLDER, spriteExtension="png", windowIcon="logo", windowRes=(960, 540), nativeRes = RESOLUTION)
         self.__gameObjectRenders: list[g.RenderObject] = []
     # Global
     def draw(self) -> bool | Literal["quit"]:

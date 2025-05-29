@@ -2,7 +2,7 @@ from enum import Enum
 from classes.heads import DebugProblem, DebugReason, DebugDetails, debugProblems, debugReasons, debugDetails
 from dependencies.console import Console
 # GENERAL
-VERSION = (0,9,9)
+VERSION = (0,10,0)
 STABLE = False
 VERSION_STRING = f"{VERSION[0]}.{VERSION[1]}.{VERSION[2]}"
 
@@ -27,7 +27,7 @@ class D(Enum):
     TRACE_REASONED = 51
     TRACE_DETAILS = 52
     
-DEBUG_LEVEL: D = D.LOG_REASONED
+DEBUG_LEVEL: D = D.DEBUG_DETAILS
 
 DEBUG_SYMBOLS = {
     D.CRITICAL_ERROR: "🔥",
@@ -57,13 +57,16 @@ def unpack(tup: tuple[str, str]) -> str:
 
 def debug(minimumLevel: D, problem: DebugProblem, reason: DebugReason = DebugReason.EXPECTED, details: DebugDetails = DebugDetails.EMPTY, detailsObject: object = None) -> None:
     symbol = DEBUG_SYMBOLS.get(minimumLevel, "❓")
-    if ((details is not DebugDetails.EMPTY) or (detailsObject is not None)) and DEBUG_LEVEL.value >= minimumLevel.value + 2:
-        detailsSymbol = DEBUG_SYMBOLS.get(D(minimumLevel.value + 1), "📋")
-        CONSOLE.log(f"{symbol} |{unpack(debugProblems[problem])} <- {unpack(debugReasons[reason])} - ", f"{detailsSymbol}|{unpack(debugDetails[details])}")
+    if DEBUG_LEVEL.value >= minimumLevel.value + 2 and ((details is not DebugDetails.EMPTY) or (detailsObject is not None)):
+        _case = 0
     elif DEBUG_LEVEL.value >= minimumLevel.value + 1:
-        CONSOLE.log(f"{symbol} |{unpack(debugProblems[problem])} <- {unpack(debugReasons[reason])}")
+        _case = 1
     elif DEBUG_LEVEL.value >= minimumLevel.value:
-        CONSOLE.log(f"{symbol} |{unpack(debugProblems[problem])}")
+        _case = 2
+    else: 
+        return
+    detailsSymbol = DEBUG_SYMBOLS.get(D(minimumLevel.value + 1), "📋")
+    CONSOLE.log(_case, symbol, unpack(debugProblems[problem]), unpack(debugReasons[reason]), detailsSymbol, unpack(debugDetails[details]), detailsObject)
 # endregion DEBUG
 
 # region CLIENT GAMEPLAY
@@ -82,7 +85,7 @@ HEIGHT_TO_Z_OFFSET = 0.5
 # endregion GRAPHICS
 
 # region COMMUNICATION
-DATA_SIZE = 8192
+DATA_SIZE = 16384
 DEFAULT_IP = "localhost"
 DEFAULT_PORT = 9009
 PING_INTERVAL = 1

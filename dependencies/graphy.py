@@ -311,15 +311,9 @@ def renderThis(renderObject):
 
 def setMouseCapture(capture: bool):
     global cursorCaptured
-    if capture:
-        cursorCaptured = True
-        pygame.event.set_grab(True)
-        pygame.mouse.set_visible(False)
-    else:
-        cursorCaptured = False
-        pygame.event.set_grab(False)
-        pygame.mouse.set_visible(True)
-        
+    cursorCaptured = capture
+    pygame.event.set_grab(capture)
+    pygame.mouse.set_visible(not capture)
 
 #future use
 def rectOverlap(rect1, rect2):

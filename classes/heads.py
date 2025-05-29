@@ -38,6 +38,7 @@ class MessageHead(Enum):
     SEND_INPUT_REQUESTS = 218
     SEND_TURN_REQUEST = 219
     FORCE_DISCONNECT = 220
+    PRACTICE = 221
 
 
 class DebugProblem(Enum):
