@@ -4,11 +4,21 @@ import threading; # Threadfunktionen (Asynchrones Skript; mehrere können gleich
 import json; # Kodierung von strings, integers
 import pickle; # Kodierung von komplexen Objekten und Datentypen
 import sys; # System zum Löschen von Zeilen in der Konsole
+import struct
 
 def onConnect(this: "Server.Client") -> None:
     return
 def onDisconnect(this: "Server.Client") -> None:
     return
+
+def _recv_all(conn: socket.socket, size: int) -> bytes:
+    buf = b''
+    while len(buf) < size:
+        chunk = conn.recv(size - len(buf))
+        if not chunk:
+            raise ConnectionError("Socket closed during frame reception")
+        buf += chunk
+    return buf
 
 class Message(): # Nachrichten-Klasse bestehend aus Absender, Typ und Inhalt
     def __init__(self, sender, type, content):
@@ -117,19 +127,22 @@ class Server(): # Server-Klasse
         except TimeoutError as e:
             return e
     
-    def receive(self, conn, addr): # Annahme von Nachrichten
-        data = conn.recv(self.dataSize)
-        if not data: # Fehler bei Verbindungstrennung
-            raise Exception("disconnected", addr)
-        message = decode(data, self.encoding);
-        return message;
+    def receive(self, conn, addr):  # Annahme von Nachrichten
+        # Lese erst 4-Byte Länge, dann Payload
+        length_bytes = _recv_all(conn, 4)
+        length = struct.unpack('>I', length_bytes)[0]
+        data = _recv_all(conn, length)
+        message = decode(data, self.encoding)
+        return message
+
+    def send(self, conn, message):  # Senden an einen Client
+        data = encode(message, self.encoding)
+        length = struct.pack('>I', len(data))
+        conn.sendall(length + data)
     
     def sendAll(self, message): # Senden einer Nachricht an alle Clients
         for client in self.clients:
             self.send(client.conn, message);
-    
-    def send(self, conn, message): # Senden einer Nachricht an spezifischen Client
-        conn.sendall(encode(message, self.encoding));
     
     def userMessage(self, sender, content): # Ausgabe von empfangener Nachricht
         print(f"{sender}: {content}");
@@ -200,17 +213,18 @@ class Client(): # Client-Klasse
                     print(e);
                 break;
     
-    def receive(self): # Annahme von Nachrichten
-        data = self.client_socket.recv(self.dataSize);
-        if not data:
-            raise Exception("disconnected")
-        message = decode(data, self.encoding);
-        if self.debug > 1:
-            print(message);
-        return message;
+    def receive(self):  # Annahme von Nachrichten
+        # Lese erst 4-Byte Länge, dann Payload
+        length_bytes = _recv_all(self.client_socket, 4)
+        length = struct.unpack('>I', length_bytes)[0]
+        data = _recv_all(self.client_socket, length)
+        message = decode(data, self.encoding)
+        return message
 
-    def send(self, message): # Versand von Nachrichten
-        self.client_socket.sendall(encode(message, self.encoding));
+    def send(self, message):  # Versand von Nachrichten
+        data = encode(message, self.encoding)
+        length = struct.pack('>I', len(data))
+        self.client_socket.sendall(length + data)
     
     def userMessage(self, sender, content): # Ausgabe von Nachrichten
         print(f"{sender}: {content}");
