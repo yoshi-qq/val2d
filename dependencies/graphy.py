@@ -222,13 +222,13 @@ def draw():
     for event in pygame.event.get():
         if event.type == pygame.ACTIVEEVENT:
             if event.gain == 0 and cursorCaptured:
-                pygame.event.set_grab(False)
-                pygame.mouse.set_visible(True)
-                tabbedIn = False
-            else:
                 pygame.event.set_grab(True)
                 pygame.mouse.set_visible(False)
                 tabbedIn = True
+            else:
+                pygame.event.set_grab(False)
+                pygame.mouse.set_visible(True)
+                tabbedIn = False
         elif event.type == pygame.MOUSEMOTION:
             mouseMoved = True
             mousePos = event.pos
