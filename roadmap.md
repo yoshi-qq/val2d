@@ -1,6 +1,8 @@
 # Roadmap
 ## Bugs
-- [ ] Mouse also captured in menu
+- [ ] Switch from Agent Select to In-Game-Player only happens sometimes
+- [ ] Connection randomly closed
+- [X] Mouse also captured in menu
 
 ## Next
 - [x] Lobby
