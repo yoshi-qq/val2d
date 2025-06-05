@@ -2,7 +2,7 @@ from enum import Enum
 from classes.heads import DebugProblem, DebugReason, DebugDetails, debugProblems, debugReasons, debugDetails
 from dependencies.console import Console
 # GENERAL
-VERSION = (0,10,4)
+VERSION = (0,10,5)
 STABLE = False
 VERSION_STRING = f"{VERSION[0]}.{VERSION[1]}.{VERSION[2]}"
 
