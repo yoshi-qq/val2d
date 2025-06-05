@@ -132,7 +132,7 @@ class Angle:
         self.changeAngle(relativeAngle.getAngle())
     def getAngle(self) -> float:
         return self.__angle
-    # return the middle angle of two angles, returns None if they are perfectly antipodale
+    # return the middle angle of two angles, returns None if they are perfectly antipodal
     def getMiddle(self, secondAngle: "Angle") -> Optional["Angle"]:
         angle1 = self.getAngle()
         angle2 = secondAngle.getAngle()
@@ -219,7 +219,7 @@ class Position:
             return self.getHorizontalPart() / magnitude
         return Position(0,0,0)
     def getHorizontalAngle(self) -> Angle:
-        return Angle(degrees(atan2(self.__x, self.__y)))
+        return Angle(degrees(atan2(self.__x, self.__z)))
     def cap(self, maximumMagnitude: float) -> None:
         if self.getMagnitude() != 0 and (magnitude := self.getMagnitude()) > maximumMagnitude:
             self.multiplyInPlace(maximumMagnitude / magnitude)
@@ -247,7 +247,7 @@ class Position:
         return Position(self.__x - other.getX(), self.__y - other.getY(), self.__z - other.getZ())
     def __truediv__(self, divisor: float) -> "Position":
         return Position(self.__x / divisor, self.__y / divisor, self.__z / divisor)
-    def __lmul__(self, other: "float") -> "Position":
+    def __rmul__(self, other: "float") -> "Position":
         return self.__mul__(other)
     
     def __str__(self):

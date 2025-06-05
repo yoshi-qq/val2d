@@ -1,6 +1,7 @@
 # Roadmap
 ## Bugs
-- [ ] Mouse also captured in menu
+(- [ ] Switch from Agent Select to In-Game-Player only happens sometimes)
+(- [ ] Connection randomly closed)
 
 ## Refactoring
 - [ ] Crouch door -> Crouching needed to fit under any low surface

@@ -150,8 +150,10 @@ def handleEvent(event: Event) -> None:
         case EventHead.UPDATE_GAMESTATE_EVENT:
             if client:
                 client.updateGameState(event.body)
+        case EventHead.START_AGENT_SELECT_EVENT:
+            menu.setMenu(MenuKey.AGENT_SELECT)
         case _:
-            debug(D.WARNING, P.UNHANDLED_EVENT, R.NO_MATCHING_EVENT_HEAD, DD.FULL_EVENT, event)
+            debug(D.WARNING, P.UNHANDLED_EVENT, R.NO_MATCHING_EVENT_HEAD, DD.FULL_EVENT, event.head)
 
 def handleRequest(request: Request) -> None:
     global server, client

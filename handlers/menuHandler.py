@@ -1,6 +1,6 @@
 from typing import Any, Callable
 from handlers.graphicsHandler import g
-from classes.types import Input, Message, agents
+from classes.types import Input, Message, agents, MessageHead
 from classes.keys import MenuKey, AgentKey
 from handlers.config import CONFIG
 from dependencies.helpers import distributeObjects
@@ -22,7 +22,7 @@ class MenuHandler:
         if menu in self.__menuUpdaters.keys():
             self.__menuUpdaters[self.__menu](time)
     # Local
-    def __addMessage(self, head: str, body: Any) -> None:
+    def __addMessage(self, head: MessageHead, body: Any) -> None:
         self.__messageQueue.append(Message(head, body))
     
     def __setupMenus(self) -> None:
@@ -96,7 +96,7 @@ class MenuHandler:
     def __startButton(self) -> None:
         self.__addMessage(MessageHead.START, None)
     def __practiceButton(self) -> None:
-        self.__addMessage("Practice", None)
+        self.__addMessage(MessageHead.PRACTICE, None)
     def __leaveButton(self) -> None:
         self.__addMessage(MessageHead.LEAVE, None)
     def __joinButton(self) -> None:
@@ -118,6 +118,12 @@ class MenuHandler:
             obj.enabled = False
         for obj in self.__menus[menu]:
             obj.enabled = True
+        # Set MouseCapture on when changing to in-game
+        if menu == MenuKey.IN_GAME_PLAYER:
+            g.setMouseCapture(True)
+        # Turn MouseCapture off when leaving in-game
+        elif self.__menu == MenuKey.IN_GAME_PLAYER:
+            g.setMouseCapture(False)
         self.__menu = menu
         
     def disable(self) -> None:

@@ -34,13 +34,13 @@ class ServerGameHandler:
         
         self.__selectStartTime = now()
         def endAgentSelectAtTime() -> None:
-            while self.getRemainingSelectTime() > 0:
+            while self.getRemainingSelectTime() >= 0:
                 pass
             self.__messageQueue.append(Message(MessageHead.END_AGENT_SELECT, None))
         thread = Thread(target=endAgentSelectAtTime)
         thread.start()
     def endAgentSelect(self) -> None:
-        self.__selectStartTime = -1
+        self.__selectStartTime = now() - AGENT_SELECT_TIME
     def startGame(self) -> None:
         for player in self.__gameState.players:
             if player.getAgentKey() is None:
