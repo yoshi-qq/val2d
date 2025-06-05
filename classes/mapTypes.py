@@ -176,6 +176,10 @@ class Map(Printable):
         return self.__bounds
     def getBackgroundSprite(self) -> str:
         return self.__backgroundSprite
+    def addObject(self, obj: Object) -> None:
+        self.__objects.append(obj)
+    def removeObject(self, obj: Object) -> None:
+        self.__objects.remove(obj)
     def getObjects(self) -> list[Object]:
         return self.__objects
     def collapseToDict(self) -> JSONType:

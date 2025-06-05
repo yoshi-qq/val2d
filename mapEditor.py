@@ -1,12 +1,15 @@
 import os, pygame as p
 from math import ceil
-from typing import Optional
+from typing import Optional, Callable
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename, asksaveasfilename
+import pickle
 from dependencies import graphy as g
 from config.constants import RESOLUTION, MAP_SKY, ABYSS_HEIGHT
 from classes.categories import PenetrationLevel as P
 from classes.types import Rect, Position as Pos, Angle, Pose, Position
 from classes.mapTypes import Map, Object, Callout as C, Box, Stair 
-from handlers.mapHandler import createObjectRenders
+from handlers.mapHandler import createObjectRenders, createObjectRender
 
 TOPBAR_HEIGHT = 64
 SIDEBAR_WIDTH = 200
@@ -60,7 +63,7 @@ def held(key: int) -> bool:
     return key not in lastKeys or tick - keysFirstSeen[key] >= HOLD_TICK_DELAY
 
 def handleInputs(keys: list[int]) -> None:
-    global tick, lastKeys, keysFirstSeen
+    global tick, lastKeys, keysFirstSeen, selectedObject
     
     if p.K_LSHIFT in keys:
         mod = SHIFT_MODIFIER
@@ -133,11 +136,32 @@ def handleInputs(keys: list[int]) -> None:
                 case p.K_n:
                     if selectedObject:
                         selectedObject.turn(Angle(-OBJ_ROTATION_AMOUNT*mod))
+                case p.K_DELETE:
+                    if selectedObject:
+                        currentMap.removeObject(selectedObject)
                 case _:
                     pass
         if key not in lastKeys:
             keysFirstSeen[key] = tick
     lastKeys = keys
+
+def saveMap() -> None:
+    path = asksaveasfilename(
+    title="Save pickle file",
+    defaultextension=".pkl",
+    filetypes=[("Pickle files", "*.pkl"), ("All files", "*.*")]
+    )
+    with open(path, 'wb') as _file:
+        pickle.dump(currentMap, _file)
+
+def editMap() -> None:
+    global currentMap
+    path = askopenfilename(
+    title="Select a pickle file",
+    filetypes=[("Pickle files", "*.pkl"), ("All files", "*.*")]
+    )
+    with open(path, 'rb') as _file:
+        currentMap = pickle.load(_file)
 
 # *MAIN FUNCTIONS*
 def setup() -> None:
@@ -146,24 +170,51 @@ def setup() -> None:
     
     This function sets up the initial state of the map editor, including loading the map and setting up the camera.
     """
+    root = Tk()
+    root.withdraw()
     ASSETS_FOLDER = os.path.join(os.path.dirname(__file__), "assets")
     g.init(file=__file__, fps=60, fontPath="font/fixed_sys.ttf", captureCursor=False, naturalY=True, fullscreen=False, windowName="Map Editor", spriteFolder=ASSETS_FOLDER, spriteExtension="png", windowIcon="editor", windowRes=(1656, 972), nativeRes = RESOLUTION)
     _background = g.RenderImage(imageName=currentMap.getBackgroundSprite(), x=g.middle[0], y=g.middle[1], width=RESOLUTION[0], height=RESOLUTION[1], middle=True, priority=ABYSS_HEIGHT)
     # *UI)
     _ui: list[g.RenderObject] = []
-    _topBarBackground: list[g.RenderImage] = [g.RenderImage(imageName="gray", y=RESOLUTION[1]-(j*TILESIZE), x=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+2) for i in range(0, ceil(RESOLUTION[0]/TILESIZE)) for j in range(0, ceil(TOPBAR_HEIGHT/TILESIZE))] + [g.RenderImage(imageName="sidebar", y=RESOLUTION[1]-(ceil(TOPBAR_HEIGHT/TILESIZE)*TILESIZE), x=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+2, angle=90) for i in range(0, ceil(RESOLUTION[0]/TILESIZE))]
-    _sideBarBackground: list[g.RenderImage] = [g.RenderImage(imageName="gray", x=j*TILESIZE, y=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+1) for i in range(ceil(RESOLUTION[1]/TILESIZE)) for j in range(ceil(SIDEBAR_WIDTH/TILESIZE))] + [g.RenderImage(imageName="sidebar", x=ceil(SIDEBAR_WIDTH/TILESIZE)*TILESIZE, y=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+1) for i in range(0, ceil(RESOLUTION[1]/TILESIZE))]
+    _topBarBackground: list[g.RenderImage] = [g.RenderImage(imageName="gray", y=RESOLUTION[1]-(j*TILESIZE), x=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+2) 
+                                              for i in range(0, ceil(RESOLUTION[0]/TILESIZE)) for j in range(0, ceil(TOPBAR_HEIGHT/TILESIZE))] + [g.RenderImage(imageName="sidebar", y=RESOLUTION[1]-(ceil(TOPBAR_HEIGHT/TILESIZE)*TILESIZE), x=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+2, angle=90) 
+                                                                                                                                                  for i in range(0, ceil(RESOLUTION[0]/TILESIZE))]
+    _sideBarBackground: list[g.RenderImage] = [g.RenderImage(imageName="gray", x=j*TILESIZE, y=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+1) 
+                                               for i in range(ceil(RESOLUTION[1]/TILESIZE)) for j in range(ceil(SIDEBAR_WIDTH/TILESIZE))] + [g.RenderImage(imageName="sidebar", x=ceil(SIDEBAR_WIDTH/TILESIZE)*TILESIZE, y=i*TILESIZE, middle=False, width=TILESIZE, height=TILESIZE, priority=UI_LEVEL+1) 
+                                                                                                                                             for i in range(0, ceil(RESOLUTION[1]/TILESIZE))]
+    # actionButtons of the format list[(sprite, hoverSprite, function, size)]
+    actionButtonData: list[tuple[str, str, Callable[[], None], float]] = [
+        ("save", "save_hover", saveMap, 23/9),
+        ("edit", "edit_hover", editMap, 23/9)
+    ]
 
+    _actionButtons: list[g.RenderButton] = []
+    _length: int = len(actionButtonData)
+    spacing = TILESIZE/2
+    width = min(6*TILESIZE, RESOLUTION[0]/_length - spacing)
+    for i, (sprite, hoverSprite, func, size) in enumerate(actionButtonData):
+        height = width / size
+        x = i/_length * RESOLUTION[0] + (width+TILESIZE)/2
+        y = RESOLUTION[1]-1.5*TILESIZE
+        
+        _actionButtons.append(g.RenderButton(imageName=sprite, hoverImageName=hoverSprite, clickAction=func, x=x, y=y, width=width, height=height, middle=True, priority=UI_LEVEL+3))
 def mainLoop() -> Optional[bool]:
     """
     The main loop for the map editor.
     
     This function handles user input, updates the map, and renders the map and objects.
     """
-    global tick
+    global tick, selectedObject
     tick += 1
     handleInputs(list(g.getHeldKeys()))
     createObjectRenders(objects=currentMap.getObjects(), perspective=currentPose, editable=True, selectObject=setSelectedObject, openContextMenu=openContextMenu)
+    if selectedObject:
+        _selectedRender = createObjectRender(selectedObject, selectedObject.getPose())
+        if _selectedRender:
+            _selectedRender.x, _selectedRender.y = 4*TILESIZE, 6*TILESIZE
+            _selectedRender.width = _selectedRender.height = 5*TILESIZE
+            _selectedRender.priority = UI_LEVEL + 3
     if g.draw() == "quit":
         return True
 

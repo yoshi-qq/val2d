@@ -263,7 +263,7 @@ def draw():
     for key in exeKeys:
         keyPress(key)
                 
-                
+
     screen.fill((50, 50, 50))
     renders.sort(key = lambda render: render.priority + render.priorityOffset)
     preDraw()

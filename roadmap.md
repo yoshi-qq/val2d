@@ -20,7 +20,8 @@
     ### Editing
     - [x] moving
     - [x] turning
-    - [ ] saving and loading of map files
+    - [x] saving and loading of map files
+    - [x] display of current object in top-left corner
     - [ ] display of current data in top-left corner
     - [x] resizing of objects
     - [ ] placing of new objects (automatic IDs)
