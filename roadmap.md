@@ -24,7 +24,8 @@
     - [x] display of current object in top-left corner
     - [ ] display of current data in top-left corner
     - [x] resizing of objects
-    - [ ] placing of new objects (automatic IDs)
+    - [x] placing of new objects (automatic IDs)
+    - [x] deleting objects
     - [ ] multi-select with ctrl
     - [ ] changing textures in editor (name or file select)
     - [ ] changing penetrationLevel

@@ -88,8 +88,12 @@ class Object(Printable):
         return self.size
     def collapseToDict(self) -> JSONType:
         return {}
+    def setID(self, newID: int) -> None:
+        self.__id = newID
     def move(self, pos: Position) -> None:
         self.__position.move(pos)
+    def setPosition(self, pos: Position) -> None:
+        self.__position.setPosition(*pos.getPosition())
     def turn(self, angle: Angle) -> None:
         self.__orientation.turn(angle)
     def stretch(self, stretch: Position) -> None:
