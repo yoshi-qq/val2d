@@ -22,17 +22,17 @@
     - [x] turning
     - [x] saving and loading of map files
     - [x] display of current object in top-left corner
-    - [ ] display of current data in top-left corner
+    - [x] display of current data in top-left corner
     - [x] resizing of objects
     - [x] placing of new objects (automatic IDs)
     - [x] deleting objects
-    - [ ] multi-select with ctrl
     - [ ] changing textures in editor (name or file select)
     - [ ] changing penetrationLevel
     - [ ] changing linked ID (switch-door)
     - [ ] changing TP-Destination (maybe as own momevable)
     - [ ] changing Callout (selector? tkinter)
     - [ ] changing spawn team-id
+    - [ ] multi-select with ctrl
     - [ ] automatic abyss spawning
     ### Gameplay
     - [ ] objects

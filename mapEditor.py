@@ -1,5 +1,5 @@
 import os, pygame as p, pickle, copy
-from math import ceil
+from math import ceil, floor
 from typing import Optional, Callable
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, asksaveasfilename
@@ -11,7 +11,7 @@ from classes.mapTypes import Map, Object, Callout as C, Box, Stair
 from handlers.mapHandler import createObjectRenders, createObjectRender
 
 TOPBAR_HEIGHT = 96
-SIDEBAR_WIDTH = 200
+SIDEBAR_WIDTH = 300
 HOLD_TICK_DELAY = 10
 
 UI_LEVEL = MAP_SKY + 1
@@ -24,6 +24,9 @@ OBJ_ROTATION_AMOUNT = 15
 OBJ_STRETCH_AMOUNT = 1
 SHIFT_MODIFIER = 0.1
 SELECT_FACTOR = 1.25
+
+INFO_DEPTH = 12*TILESIZE
+INFO_TEXT_SIZE = 26
 
 objects: list[Object] = [
     Box(id=0, sprite="box1", callout=C.MID, position=Pos(1, 0, 3), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW),
@@ -186,6 +189,7 @@ def setup() -> None:
     
     This function sets up the initial state of the map editor, including loading the map and setting up the camera.
     """
+    global editButtons, dataTexts
     root = Tk()
     root.withdraw()
     ASSETS_FOLDER = os.path.join(os.path.dirname(__file__), "assets")
@@ -242,7 +246,29 @@ def setup() -> None:
         y = RESOLUTION[1]-2.5*TILESIZE
         _objectButtons.append(g.RenderButton(imageName=sprite, clickAction=placeObject, arguments=(obj,), x=x, y=y, width=width2, height=height, middle=True, priority=UI_LEVEL+3))
         _actionButtonsBackground.append(g.RenderImage(imageName="select", x=x, y=y, width=width2*SELECT_FACTOR, height=height*SELECT_FACTOR, middle=True, priority=UI_LEVEL+2.5))
-    # TODO: SIDE BAR
+    # SIDE BAR
+    dataTexts = {
+        "ID_name": g.RenderText(text="ID", x=SIDEBAR_WIDTH/2+TILESIZE, middle=True, priority=UI_LEVEL+3, size=INFO_TEXT_SIZE),
+        "ID": g.RenderText(text="iii", x=SIDEBAR_WIDTH/2+TILESIZE, middle=True, priority=UI_LEVEL+3, size=INFO_TEXT_SIZE),
+        "Position_name": g.RenderText(text="Position", x=SIDEBAR_WIDTH/2+TILESIZE, middle=True, priority=UI_LEVEL+3, size=INFO_TEXT_SIZE),
+        "Position": g.RenderText(text="xxxxx | yyyyy | zzzzz", x=SIDEBAR_WIDTH/2+TILESIZE, middle=True, priority=UI_LEVEL+3, size=INFO_TEXT_SIZE),
+        "Size_name": g.RenderText(text="Size", x=SIDEBAR_WIDTH/2+TILESIZE, middle=True, priority=UI_LEVEL+3, size=INFO_TEXT_SIZE),
+        "Size": g.RenderText(text="xxxxx | yyyyy | zzzzz", x=SIDEBAR_WIDTH/2+TILESIZE, middle=True, priority=UI_LEVEL+3, size=INFO_TEXT_SIZE),
+        "Orientation_name": g.RenderText(text="Orientation", x=SIDEBAR_WIDTH/2+TILESIZE, middle=True, priority=UI_LEVEL+3, size=INFO_TEXT_SIZE),
+        "Orientation": g.RenderText(text="rrrrr", x=SIDEBAR_WIDTH/2+TILESIZE, middle=True, priority=UI_LEVEL+3, size=INFO_TEXT_SIZE)
+    }
+    for i, text in enumerate(dataTexts.values()):
+        text.y = INFO_DEPTH+(i+floor(i/2))*INFO_TEXT_SIZE
+    
+    editButtons = [
+        # TODO: add penetration level
+        # TODO: position buttons
+        # TODO: orientation buttons
+        # TODO: size buttons
+    ]
+    # TODO: callout dropdown
+    # TODO: add texture buttons automatically
+    # LATER: IDs for doors
 
 def mainLoop() -> Optional[bool]:
     """
@@ -256,10 +282,21 @@ def mainLoop() -> Optional[bool]:
     createObjectRenders(objects=currentMap.getObjects(), perspective=currentPose, editable=True, selectObject=setSelectedObject, openContextMenu=openContextMenu)
     if selectedObject:
         _selectedRender = createObjectRender(selectedObject, selectedObject.getPose())
+        position = selectedObject.getPosition().getPosition()
+        size = selectedObject.getSize().getPosition()
+        dataTexts["ID"].updateText(f"{selectedObject.getID():0>3}")
+        dataTexts["Position"].updateText(f"{position[0]:>5.2f} | {position[1]:>5.2f} | {position[2]:>5.2f}")
+        dataTexts["Size"].updateText(f"{size[0]:>5.2f} | {size[1]:>5.2f} | {size[2]:>5.2f}")
+        dataTexts["Orientation"].updateText(f"{selectedObject.getOrientation().getAngle():>5.2f}")
         if _selectedRender:
-            _selectedRender.x, _selectedRender.y = 4*TILESIZE, 8*TILESIZE
+            _selectedRender.x, _selectedRender.y = SIDEBAR_WIDTH/2+TILESIZE, 8*TILESIZE
             _selectedRender.width = _selectedRender.height = 5*TILESIZE
             _selectedRender.priority = UI_LEVEL + 3
+        for obj in dataTexts.values():
+               obj.show()
+    else:
+           for obj in dataTexts.values():
+               obj.hide()
     if g.draw() == "quit":
         return True
 

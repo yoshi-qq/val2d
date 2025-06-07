@@ -138,8 +138,8 @@ def drawNormal(surface, img, x = 0, y = 0, width = 1, height = 1, middle = False
     surface.blit(img, topleft)
 
 def drawRotated(surface, img, x=0, y=0, angle=0,
-                width=1, height=1, middle=False, flipped=False):
-    w, h = round(width*rx), round(height*ry)
+                width=1, height=1, middle=False, flipped=False, stretch=1):
+    w, h = round(width*rx*stretch), round(height*ry)
 
     img = pygame.transform.scale(img, (w, h))
     if flipped:
@@ -384,7 +384,7 @@ def classes():
             self.y = y
             
     class RenderObject:
-        def __init__(self, surface = screen, temporary = False, enabled = True, x = 0, xOffset = 0, y = 0, yOffset = 0, width = 10, height = 10, priority = 2, angle = 0, stretch = 1):
+        def __init__(self, surface = screen, temporary = False, enabled = True, x = 0.0, xOffset = 0.0, y = 0.0, yOffset = 0.0, width = 10, height = 10, priority = 2, angle = 0, stretch = 1):
             self.enabled = enabled
             self.temporary = temporary
             self.x = x
