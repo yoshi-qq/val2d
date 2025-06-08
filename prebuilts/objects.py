@@ -21,7 +21,9 @@ boxes: list[SpecificObject] = [
     Box(sprite="wood_floor_2", size=Position(2, 2, 2), penetrationLevel=PenetrationLevel.MEDIUM),
 ]
 cylinders: list[SpecificObject] = []
-stairs: list[SpecificObject] = []
+stairs: list[SpecificObject] = [
+    Stair(sprite="wood_stair", size=Position(2, 4, 2), penetrationLevel=PenetrationLevel.MEDIUM)
+]
 decorations: list[SpecificObject] = []
 breakableDoors: list[SpecificObject] = []
 switches: list[SpecificObject] = []

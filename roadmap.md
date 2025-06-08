@@ -26,7 +26,7 @@
     - [x] resizing of objects
     - [x] placing of new objects (automatic IDs)
     - [x] deleting objects
-    - [ ] changing textures in editor (name or file select)
+    - [x] changing textures in editor (name or file select)
     - [ ] changing penetrationLevel
     - [ ] changing linked ID (switch-door)
     - [ ] changing TP-Destination (maybe as own momevable)

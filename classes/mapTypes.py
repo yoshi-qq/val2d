@@ -117,7 +117,7 @@ class Cylinder(Object):
     def getSize(self) -> Position:
         return self.size
 class Stair(Object):
-    def __init__(self, id: int = -1, sprite: Optional[str] = None, callout: Callout = Callout.MID, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1)) -> None:
+    def __init__(self, id: int = -1, sprite: Optional[str] = None, callout: Callout = Callout.MID, position: Position = Position(), orientation: Angle = Angle(), size: Position = Position(1, 1, 1), penetrationLevel: PenetrationLevel = PenetrationLevel.MEDIUM) -> None:
         super().__init__(id, sprite, callout, position, orientation, size)
     def getSize(self) -> Position:
         return self.size
