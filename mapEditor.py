@@ -1,6 +1,7 @@
 import os, pygame as p, pickle, copy
 from math import ceil, floor
-from typing import Optional, Callable
+from typing import Optional, Callable, Type
+from typing import Sequence # type: ignore
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, asksaveasfilename
 from dependencies import graphy as g
@@ -9,8 +10,13 @@ from classes.categories import PenetrationLevel as P
 from classes.types import Rect, Position as Pos, Angle, Pose, Position
 from classes.mapTypes import Map, Object, Callout as C, Box, Stair 
 from handlers.mapHandler import createObjectRenders, createObjectRender
+from prebuilts.objects import objects, SpecificObject
+from helpers.graphicsHelper import removeListObjects
 
-TOPBAR_HEIGHT = 96
+ASSETS_FOLDER = os.path.join(os.path.dirname(__file__), "assets")
+g.init(file=__file__, fps=60, fontPath="font/fixed_sys.ttf", captureCursor=False, naturalY=True, fullscreen=False, windowName="Map Editor", spriteFolder=ASSETS_FOLDER, spriteExtension="png", windowIcon="editor", windowRes=(1656, 972), nativeRes = RESOLUTION)
+
+TOPBAR_HEIGHT = 192
 SIDEBAR_WIDTH = 300
 HOLD_TICK_DELAY = 10
 
@@ -28,20 +34,26 @@ SELECT_FACTOR = 1.25
 INFO_DEPTH = 12*TILESIZE
 INFO_TEXT_SIZE = 26
 
-objects: list[Object] = [
+testObjects: list[Object] = [
     Box(id=0, sprite="box1", callout=C.MID, position=Pos(1, 0, 3), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW),
     Box(id=1, sprite="box2", callout=C.MID, position=Pos(-1, 0, 3), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW),
     Box(id=2, sprite="box1", callout=C.MID, position=Pos(1, -2, -3), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW),
     Box(id=3, sprite="box3", callout=C.MID, position=Pos(-1, -2, -3), orientation=Angle(0), size=Pos(2, 2, 2), penetrationLevel=P.LOW),
     Stair(id=4, sprite="wood_stairs", callout=C.MID, position=Pos(0, 0, 0), orientation=Angle(0), size=Pos(4, 2, 4))
 ]
-testMap = Map("Test Map", objects, Rect(-100, -100, 100, 100), "map_background")
+testMap = Map("Test Map", testObjects, Rect(-100, -100, 100, 100), "map_background")
 currentPose: Pose = Pose(Pos(0, 0, 0), Angle(0))
 currentMap: Map = testMap
 selectedObject: Optional[Object] = None
 tick: int = 0
 lastKeys: list[int] = []
 keysFirstSeen: dict[int, int] = {}
+selectedObject: Optional[Object] = None
+# *UI
+objectButtons: list[g.RenderButton] = []
+objectButtonsBackground: list[g.RenderImage] = []
+editButtons: list[g.RenderButton] = []
+dataTexts: dict[str, g.RenderText] = {}
 
 def setSelectedObject(obj: Optional[Object]) -> None:
     """
@@ -182,6 +194,31 @@ def placeObject(obj: Object) -> None:
     newObj.setID(generateID([obj.getID() for obj in currentMap.getObjects()]))
     currentMap.addObject(newObj)
 
+def setSelectedType(objType: Type[SpecificObject]) -> None:
+    global objectButtons, objectButtonsBackground
+    _spacing2 = TILESIZE/2
+    
+    _objectButtonData: list[tuple[Optional[str], Object, float]] = [] # TODO: add more Buttons
+    for obj in objects[objType]:
+        _objectButtonData.append((obj.getSprite(), obj, 1)) # TODO: add size dynamically
+    
+    removeListObjects(objectButtons)
+    removeListObjects(objectButtonsBackground)
+    objectButtons = []
+    objectButtonsBackground = []
+    
+    _objectLength: int = len(_objectButtonData)
+    if _objectLength == 0:
+        return
+    width2 = min(2*TILESIZE, RESOLUTION[0]/_objectLength - _spacing2)
+    maxSpace2 = 3*TILESIZE
+    y = RESOLUTION[1]-5.5*TILESIZE
+    for i, (sprite, obj, size) in enumerate(_objectButtonData):
+            height = width2 / size
+            x = min(i*(maxSpace2+width2), i/_objectLength * RESOLUTION[0]) + (width2+TILESIZE)/2
+            objectButtons.append(g.RenderButton(imageName=sprite, clickAction=placeObject, arguments=(obj,), x=x, y=y, width=width2, height=height, middle=True, priority=UI_LEVEL+3))
+            objectButtonsBackground.append(g.RenderImage(imageName="select", x=x, y=y, width=width2*SELECT_FACTOR, height=height*SELECT_FACTOR, middle=True, priority=UI_LEVEL+2.5))
+    
 # *MAIN FUNCTIONS*
 def setup() -> None:
     """
@@ -192,8 +229,6 @@ def setup() -> None:
     global editButtons, dataTexts
     root = Tk()
     root.withdraw()
-    ASSETS_FOLDER = os.path.join(os.path.dirname(__file__), "assets")
-    g.init(file=__file__, fps=60, fontPath="font/fixed_sys.ttf", captureCursor=False, naturalY=True, fullscreen=False, windowName="Map Editor", spriteFolder=ASSETS_FOLDER, spriteExtension="png", windowIcon="editor", windowRes=(1656, 972), nativeRes = RESOLUTION)
     _background = g.RenderImage(imageName=currentMap.getBackgroundSprite(), x=g.middle[0], y=g.middle[1], width=RESOLUTION[0], height=RESOLUTION[1], middle=True, priority=ABYSS_HEIGHT)
     # *UI)
     _ui: list[g.RenderObject] = []
@@ -210,42 +245,41 @@ def setup() -> None:
         ("edit", "edit_hover", editMap, 23/9)
     ]
     # objectButtons of the format list[(sprite, Object, size)]
-    objectButtonData: list[tuple[str, Object, float]] = [
-        ("box1", Box(id=-1, sprite="box1", callout=C.MID, position=Position(), orientation=Angle(), size=Position(2, 2, 2)), 1),
-        ("box2", Box(id=-1, sprite="box2", callout=C.MID, position=Position(), orientation=Angle(), size=Position(2, 2, 2)), 1),
-        ("box3", Box(id=-1, sprite="box3", callout=C.MID, position=Position(), orientation=Angle(), size=Position(2, 2, 2)), 1),
-        ("grass_tile", Box(id=-1, sprite="grass_tile", callout=C.MID, position=Position(), orientation=Angle(), size=Position(2, 2, 2)), 1),
-        ("floor_tile", Box(id=-1, sprite="floor_tile", callout=C.MID, position=Position(), orientation=Angle(), size=Position(2, 2, 2)), 1),
-        ("floor_tile_padded", Box(id=-1, sprite="floor_tile_padded", callout=C.MID, position=Position(), orientation=Angle(), size=Position(2, 2, 2)), 1),
-        ("light_gray_tile", Box(id=-1, sprite="light_gray_tile", callout=C.MID, position=Position(), orientation=Angle(), size=Position(2, 2, 2)), 1),
-        ("white_tile", Box(id=-1, sprite="white_tile", callout=C.MID, position=Position(), orientation=Angle(), size=Position(2, 2, 2)), 1),
-        ("wood_box", Box(id=-1, sprite="wood_box", callout=C.MID, position=Position(), orientation=Angle(), size=Position(2, 2, 2)), 1),
-        ("wood_floor", Box(id=-1, sprite="wood_floor", callout=C.MID, position=Position(), orientation=Angle(), size=Position(2, 2, 2)), 1),
-        ("wood_floor_2", Box(id=-1, sprite="wood_floor_2", callout=C.MID, position=Position(), orientation=Angle(), size=Position(2, 2, 2)), 1),
-        ("wood_stairs", Stair(id=-1, sprite="wood_stairs", callout=C.MID, position=Position(), orientation=Angle(), size=Position(2, 4, 4)), 1),
-    ] # TODO: add more Buttons
+    
     _actionButtons: list[g.RenderButton] = []
-    _objectButtons: list[g.RenderButton] = []
-    _actionButtonsBackground: list[g.RenderImage] = []
     _actionLength: int = len(actionButtonData)
-    _objectLength: int = len(objectButtonData)
     spacing1 = TILESIZE/2
-    spacing2 = TILESIZE/2
     width1 = min(3*TILESIZE, RESOLUTION[0]/_actionLength - spacing1)
-    width2 = min(2*TILESIZE, RESOLUTION[0]/_objectLength - spacing2)
     maxSpace1 = 3*TILESIZE
-    maxSpace2 = 3*TILESIZE
     for i, (sprite, hoverSprite, func, size) in enumerate(actionButtonData):
         height = width1 / size
         x = min(i*(maxSpace1+width1), i/_actionLength * RESOLUTION[0]) + (width1+TILESIZE)/2
         y = RESOLUTION[1]-0.5*TILESIZE
         _actionButtons.append(g.RenderButton(imageName=sprite, hoverImageName=hoverSprite, clickAction=func, x=x, y=y, width=width1, height=height, middle=True, priority=UI_LEVEL+3))
-    for i, (sprite, obj, size) in enumerate(objectButtonData):
+    
+    _spacing2 = TILESIZE/2
+    
+    _typeButtonData: list[tuple[Optional[str], Type[SpecificObject], Object, float]] = [] # TODO: add more Buttons
+    for _type, subObjects in objects.items():
+        try:
+            obj = subObjects[0]
+        except IndexError:
+            obj = Box() # Fallback
+        _typeButtonData.append((obj.getSprite(), _type, obj, 1)) # TODO: add size dynamically
+    
+    typeButtons: list[g.RenderButton] = []
+    typeButtonsBackground: list[g.RenderImage] = []
+    
+    _typeLength: int = len(_typeButtonData)
+    width2 = min(2*TILESIZE, RESOLUTION[0]/_typeLength - _spacing2)
+    maxSpace2 = 3*TILESIZE
+    y = RESOLUTION[1]-2.5*TILESIZE
+    for i, (sprite, _type, obj, size) in enumerate(_typeButtonData):
         height = width2 / size
-        x = min(i*(maxSpace2+width2), i/_objectLength * RESOLUTION[0]) + (width2+TILESIZE)/2
-        y = RESOLUTION[1]-2.5*TILESIZE
-        _objectButtons.append(g.RenderButton(imageName=sprite, clickAction=placeObject, arguments=(obj,), x=x, y=y, width=width2, height=height, middle=True, priority=UI_LEVEL+3))
-        _actionButtonsBackground.append(g.RenderImage(imageName="select", x=x, y=y, width=width2*SELECT_FACTOR, height=height*SELECT_FACTOR, middle=True, priority=UI_LEVEL+2.5))
+        x = min(i*(maxSpace2+width2), i/_typeLength * RESOLUTION[0]) + (width2+TILESIZE)/2
+        typeButtons.append(g.RenderButton(imageName=sprite, clickAction=setSelectedType, arguments=(_type,), x=x, y=y, width=width2, height=height, middle=True, priority=UI_LEVEL+3))
+        typeButtonsBackground.append(g.RenderImage(imageName="select", x=x, y=y, width=width2*SELECT_FACTOR, height=height*SELECT_FACTOR, middle=True, priority=UI_LEVEL+2.5))
+    
     # SIDE BAR
     dataTexts = {
         "ID_name": g.RenderText(text="ID", x=SIDEBAR_WIDTH/2+TILESIZE, middle=True, priority=UI_LEVEL+3, size=INFO_TEXT_SIZE),
@@ -269,7 +303,8 @@ def setup() -> None:
     # TODO: callout dropdown
     # TODO: add texture buttons automatically
     # LATER: IDs for doors
-
+    setSelectedType(Box)  # Default selected type
+    
 def mainLoop() -> Optional[bool]:
     """
     The main loop for the map editor.
