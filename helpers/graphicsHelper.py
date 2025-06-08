@@ -1,6 +1,8 @@
+from typing import Sequence
 from math import sqrt, sin, cos, tan, atan2, radians
 from config.constants import VIEW_WIDTH, VIEW_HEIGHT, VIEW_ANGLE, ZOOM_IN, HEIGHT_TO_Z_OFFSET, THREE_D_LEVEL, DISTANCE_SCALING
 from classes.types import Pose, Position, Angle
+from dependencies import graphy as g
 
 HORIZONTAL_MIDDLE = VIEW_WIDTH / 2
 VERTICAL_MIDDLE = VIEW_HEIGHT / 2
@@ -36,3 +38,7 @@ def getPoseAndSizeFromPerspective(perspective: Pose, objectPose: Pose, turnable:
     pose = Pose(Position(newX, newY, newZ), Angle(newAngle))
     
     return pose, size
+
+def removeListObjects(_list: Sequence[g.RenderObject]) -> None:
+    for obj in _list:
+        obj.remove()

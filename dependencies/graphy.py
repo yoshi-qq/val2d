@@ -99,7 +99,6 @@ def init(file: Union[None, str] = None, fps: int = 30, fontPath: str = "Arial", 
         realScreen = pygame.display.set_mode((displayResolution[0], displayResolution[1]), flags)
     else:
         screen = pygame.display.set_mode((displayResolution[0], displayResolution[1]), flags)
-    classes()
     renders = []
     spriteRoot = os.path.join(root, spriteFolder)
     sprites = {}
@@ -329,7 +328,7 @@ def rectOverlap(rect1, rect2):
 
 def markthis(size = 10):
     x, y = pygame.mouse.get_pos()
-    RenderImage(imageName = "mark", x = x/rx, y = y/ry, surface = screen, priority=10, width = size, height = size, middle = True)
+    RenderImage(imageName = "mark", x = x/rx, y = y/ry, surface = None, priority=10, width = size, height = size, middle = True)
 
 def rotate_point_around_center(point, center, angle_degrees):
     """Rotate a point around another point by a given angle in degrees, counter-clockwise."""
@@ -368,387 +367,388 @@ def hex(hexString: str):
     colorTuple = tuple(int(hexString[0:2], 16), int(hexString[2:4], 16), int(hexString[4:6], 16))
     return colorTuple
 
-def classes():
-    global Sprite, Point, RenderObject, RenderImage, RenderAnimation, RenderButton, RenderText, RenderTextButton, RenderInput, GameObject
+def getScreen():
+    global screen
+    return screen
 
-    class Sprite(pygame.sprite.Sprite):
-        def __init__(self, image, position):
-            super().__init__()
-            self.image = image
-            self.rect = self.image.get_rect(topleft=position)
+class Sprite(pygame.sprite.Sprite):
+    def __init__(self, image, position):
+        super().__init__()
+        self.image = image
+        self.rect = self.image.get_rect(topleft=position)
 
-    #future use
-    class Point:
-        def __init__(self, x, y):
-            self.x = x
+#future use
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        
+class RenderObject:
+    def __init__(self, surface = None, temporary = False, enabled = True, x = 0.0, xOffset = 0.0, y = 0.0, yOffset = 0.0, width = 10, height = 10, priority = 2, angle = 0, stretch = 1):
+        self.enabled = enabled
+        self.temporary = temporary
+        self.x = x
+        if natY:
+            self.y = 2*middle[1] - y
+        else:
             self.y = y
-            
-    class RenderObject:
-        def __init__(self, surface = screen, temporary = False, enabled = True, x = 0.0, xOffset = 0.0, y = 0.0, yOffset = 0.0, width = 10, height = 10, priority = 2, angle = 0, stretch = 1):
-            self.enabled = enabled
-            self.temporary = temporary
-            self.x = x
-            if natY:
-                self.y = 2*middle[1] - y
-            else:
-                self.y = y
-            self.xOffset = xOffset
-            self.yOffset = yOffset
-            self.width = width
-            self.height = height
-            self.sizeMulti = 1
-            self.priority = priority
-            self.priorityOffset = 0
-            self.angle = angle
-            self.stretch = stretch
-            self.surface = surface
-            
-        def show(self):
-            self.enabled = True
-            
-        def hide(self):
-            self.enabled = False
-            
-        def remove(self):
-            global renders
-            renders.remove(self)
+        self.xOffset = xOffset
+        self.yOffset = yOffset
+        self.width = width
+        self.height = height
+        self.sizeMulti = 1
+        self.priority = priority
+        self.priorityOffset = 0
+        self.angle = angle
+        self.stretch = stretch
+        self.surface = surface if surface else getScreen()
         
-        def __str__(self) -> str:
-            if hasattr(self, "strName"):
-                name = self.strName
-            else: name = "-Unknown-"
-            return f"{self.__class__.__name__}({name}), x: {self.x}, y: {self.y}, width: {self.width}, height: {self.height}, angle: {self.angle}, stretch: {self.stretch}, priority: {self.priority + self.priorityOffset}"
+    def show(self):
+        self.enabled = True
         
-    class RenderImage(RenderObject):
-        def __init__(self, strName=None, surface=screen, temporary=False, enabled=True,
-                    imageName=None, x: float = 0, xOffset: float = 0, y: float = 0,
-                    yOffset: float = 0, width: float = 10, height: float = 10,
-                    middle=False, priority: float = 2, angle: float = 0,
-                    flipped: bool = False, stretch: float = 1,
-                    mapPosition=(None, None), gen=True, topStretchMultiplier: float = 1):
-            self.strName = strName if strName is not None else imageName
-            self.name = imageName
-            self.imageName = imageName
-            self.xOffset = xOffset
-            self.yOffset = yOffset
-            self.middle = middle
-            self.sizeMulti = 1
-            self.flipped = flipped
-            self.topStretchMultiplier = topStretchMultiplier
-            self.mapPosition = mapPosition
-            if self.imageName is None:
-                self.imageName = pygame.surface.Surface((width, height))
-                self.imageName.fill((255, 0, 0))
-            self.changeImage(self.imageName)
-            super().__init__(surface=surface, temporary=temporary, enabled=enabled,
-                            x=x, y=y, width=width, height=height,
-                            priority=priority, angle=angle, stretch=stretch)
-            if type(self) is RenderImage and gen:
-                renders.append(self)
+    def hide(self):
+        self.enabled = False
+        
+    def remove(self):
+        global renders
+        renders.remove(self)
+    
+    def __str__(self) -> str:
+        if hasattr(self, "strName"):
+            name = self.strName
+        else: name = "-Unknown-"
+        return f"{self.__class__.__name__}({name}), x: {self.x}, y: {self.y}, width: {self.width}, height: {self.height}, angle: {self.angle}, stretch: {self.stretch}, priority: {self.priority + self.priorityOffset}"
+    
+class RenderImage(RenderObject):
+    def __init__(self, strName=None, surface= None, temporary=False, enabled=True,
+                imageName=None, x: float = 0, xOffset: float = 0, y: float = 0,
+                yOffset: float = 0, width: float = 10, height: float = 10,
+                middle=False, priority: float = 2, angle: float = 0,
+                flipped: bool = False, stretch: float = 1,
+                mapPosition=(None, None), gen=True, topStretchMultiplier: float = 1):
+        self.strName = strName if strName is not None else imageName
+        self.name = imageName
+        self.imageName = imageName
+        self.xOffset = xOffset
+        self.yOffset = yOffset
+        self.middle = middle
+        self.sizeMulti = 1
+        self.flipped = flipped
+        self.topStretchMultiplier = topStretchMultiplier
+        self.mapPosition = mapPosition
+        if self.imageName is None:
+            self.imageName = pygame.surface.Surface((width, height))
+            self.imageName.fill((255, 0, 0))
+        self.changeImage(self.imageName)
+        super().__init__(surface=surface, temporary=temporary, enabled=enabled,
+                        x=x, y=y, width=width, height=height,
+                        priority=priority, angle=angle, stretch=stretch)
+        if type(self) is RenderImage and gen:
+            renders.append(self)
 
-        def offset(self, x: float = None, y: float = None, size: float = None, priority=None):
-            if x is not None:
-                self.xOffset = x
-            if y is not None:
-                self.yOffset = y
-            if size is not None:
-                self.sizeMulti = size
-            if priority is not None:
-                self.priorityOffset = priority
+    def offset(self, x: float = None, y: float = None, size: float = None, priority=None):
+        if x is not None:
+            self.xOffset = x
+        if y is not None:
+            self.yOffset = y
+        if size is not None:
+            self.sizeMulti = size
+        if priority is not None:
+            self.priorityOffset = priority
 
-        def update(self):
-            try:
-                self.image = sprites[self.image][0]
-            except KeyError:
-                self.image = self.image
+    def update(self):
+        try:
+            self.image = sprites[self.image][0]
+        except KeyError:
+            self.image = self.image
 
-        def _make_trapezoid_surface(self):
-            img = self.image
+    def _make_trapezoid_surface(self):
+        img = self.image
+        if self.flipped:
+            img = pygame.transform.flip(img, True, False)
+        base_w = int(self.width * self.sizeMulti * rx)
+        h_px = int(self.height * self.sizeMulti * ry)
+        img = pygame.transform.scale(img, (base_w, h_px))
+        top_w = int(base_w * self.topStretchMultiplier)
+        bot_w = base_w
+        max_w = max(top_w, bot_w)
+        surf = pygame.Surface((max_w, h_px), pygame.SRCALPHA)
+        for row in range(h_px):
+            t = row / h_px
+            curr_w = int(top_w + (bot_w - top_w) * t)
+            slice_ = img.subsurface((0, row, base_w, 1))
+            slice_ = pygame.transform.scale(slice_, (curr_w, 1))
+            surf.blit(slice_, ((max_w - curr_w) // 2, row))
+        return surf
+
+    def draw(self):
+        if not self.enabled:
+            return
+        if self.topStretchMultiplier != 1:
+            tex = self._make_trapezoid_surface()
+        else:
+            tex = self.image
             if self.flipped:
-                img = pygame.transform.flip(img, True, False)
-            base_w = int(self.width * self.sizeMulti * rx)
-            h_px = int(self.height * self.sizeMulti * ry)
-            img = pygame.transform.scale(img, (base_w, h_px))
-            top_w = int(base_w * self.topStretchMultiplier)
-            bot_w = base_w
-            max_w = max(top_w, bot_w)
-            surf = pygame.Surface((max_w, h_px), pygame.SRCALPHA)
-            for row in range(h_px):
-                t = row / h_px
-                curr_w = int(top_w + (bot_w - top_w) * t)
-                slice_ = img.subsurface((0, row, base_w, 1))
-                slice_ = pygame.transform.scale(slice_, (curr_w, 1))
-                surf.blit(slice_, ((max_w - curr_w) // 2, row))
-            return surf
+                tex = pygame.transform.flip(tex, True, False)
+            tex = pygame.transform.scale(tex, (int(self.width * self.sizeMulti * rx),
+                                            int(self.height * self.sizeMulti * ry)))
+        original = tex
+        x_px = (self.x + self.xOffset) * rx
+        y_px = (self.y + self.yOffset) * ry
+        if self.middle:
+            x_px -= original.get_width() // 2
+            y_px -= original.get_height() // 2
 
-        def draw(self):
-            if not self.enabled:
+        if self.angle != 0:
+            # compute the true centre of the unrotated sprite
+            orig_center = original.get_rect(topleft=(x_px, y_px)).center
+            # rotate around that point
+            tex = pygame.transform.rotate(original, -self.angle)
+            rot_rect = tex.get_rect(center=orig_center)
+            self.surface.blit(tex, rot_rect.topleft)
+        else:
+            self.surface.blit(original, (x_px, y_px))
+
+    def changeImage(self, image):
+        try:
+            self.image = sprites[image][0]
+        except KeyError:
+            self.image = image
+
+class RenderAnimation(RenderImage):
+    def __init__(self, continuous = True, slowdown = 1, rotation = 1, strName = "animation", surface = None, temporary = False, enabled = True, imageNames: tuple = None, x = 0, xOffset = 0, y = 0, yOffset = 0, width = 10, height = 10, middle = False, priority = 2, angle = 0, stretch = 1, mapPosition = (None, None), gen = True, topStretchMultiplier: float = 1):
+        self.strName = imageNames[0]
+        self.rotation = rotation
+        self.continuous = continuous
+        self.slowdown = slowdown
+        self.imageNames = imageNames
+        if imageNames is None:
+            return
+        self.frame = 0
+        super().__init__(strName = strName, surface = surface, temporary = temporary, enabled = enabled, imageName = imageNames[0], x = x, xOffset = xOffset, y = y, yOffset = yOffset, width = width, height = height, middle = middle, priority = priority, angle = angle, stretch = stretch, mapPosition = mapPosition, gen = gen, topStretchMultiplier=topStretchMultiplier)
+        
+        if type(self) is RenderAnimation and gen:
+            renders.append(self)
+        
+    def draw(self):
+        if self.frame >= len(self.imageNames):
+            if self.continuous:
+                self.frame = 0
+            else:
+                self.remove()
                 return
-            if self.topStretchMultiplier != 1:
-                tex = self._make_trapezoid_surface()
-            else:
-                tex = self.image
-                if self.flipped:
-                    tex = pygame.transform.flip(tex, True, False)
-                tex = pygame.transform.scale(tex, (int(self.width * self.sizeMulti * rx),
-                                                int(self.height * self.sizeMulti * ry)))
-            original = tex
-            x_px = (self.x + self.xOffset) * rx
-            y_px = (self.y + self.yOffset) * ry
-            if self.middle:
-                x_px -= original.get_width() // 2
-                y_px -= original.get_height() // 2
-
-            if self.angle != 0:
-                # compute the true centre of the unrotated sprite
-                orig_center = original.get_rect(topleft=(x_px, y_px)).center
-                # rotate around that point
-                tex = pygame.transform.rotate(original, -self.angle)
-                rot_rect = tex.get_rect(center=orig_center)
-                self.surface.blit(tex, rot_rect.topleft)
-            else:
-                self.surface.blit(original, (x_px, y_px))
-
-        def changeImage(self, image):
-            try:
-                self.image = sprites[image][0]
-            except KeyError:
-                self.image = image
-
-    class RenderAnimation(RenderImage):
-        def __init__(self, continuous = True, slowdown = 1, rotation = 1, strName = "animation", surface = screen, temporary = False, enabled = True, imageNames: tuple = None, x = 0, xOffset = 0, y = 0, yOffset = 0, width = 10, height = 10, middle = False, priority = 2, angle = 0, stretch = 1, mapPosition = (None, None), gen = True, topStretchMultiplier: float = 1):
-            self.strName = imageNames[0]
-            self.rotation = rotation
-            self.continuous = continuous
-            self.slowdown = slowdown
-            self.imageNames = imageNames
-            if imageNames is None:
-                return
-            self.frame = 0
-            super().__init__(strName = strName, surface = surface, temporary = temporary, enabled = enabled, imageName = imageNames[0], x = x, xOffset = xOffset, y = y, yOffset = yOffset, width = width, height = height, middle = middle, priority = priority, angle = angle, stretch = stretch, mapPosition = mapPosition, gen = gen, topStretchMultiplier=topStretchMultiplier)
-            
-            if type(self) is RenderAnimation and gen:
-                renders.append(self)
-            
-        def draw(self):
-            if self.frame >= len(self.imageNames):
-                if self.continuous:
-                   self.frame = 0
-                else:
-                    self.remove()
-                    return
-            self.changeImage(self.imageNames[math.floor(self.frame)])
-            super().draw()
-            self.angle += self.rotation
-            self.frame += self.slowdown**-1
+        self.changeImage(self.imageNames[math.floor(self.frame)])
+        super().draw()
+        self.angle += self.rotation
+        self.frame += self.slowdown**-1
+    
+class RenderButton(RenderImage):
+    def __init__(self, imageName: Union[None, str] = None, strName: str = "button", clickAction: Union[Callable[[], None], Callable[[*T], None], Literal[False]] = False, arguments: tuple[*T] = (), rightClickAction: Union[Callable[[*T2], None], Callable[[*T2], None], Literal[False]] = False, rightArguments: tuple[*T2] = (), hoverAction: Union[Callable[[], None], Callable[[*T3], None], Literal[False]] = False, hoverArguments: tuple[*T3] = (), unHoverAction: Union[Callable[[], None], Callable[[*T4], None], Literal[False]] = False, unHoverArguments: tuple[*T4] = (), surface: pygame.Surface = None, temporary: bool = False, enabled: bool = True, hoverImageName: Union[Literal[False], str] = False, x: float = 0, xOffset: float = 0, y: float = 0, yOffset: float = 0, width: float = 10, height: float = 10, priority: float = 2, angle: float = 0, stretch: float = 1, middle: bool = False, gen: bool = True, topStretchMultiplier: float = 1):
+        self.strName = imageName
+        if isinstance(clickAction, str): # define click action
+            clickAction = eval(clickAction)  
+        self.clickAction = clickAction
+        self.arguments = arguments
+        if isinstance(rightClickAction, str): # define right click action
+            rightClickAction = eval(rightClickAction)  
+        self.rightClickAction = rightClickAction
+        self.rightArguments = rightArguments
+        if isinstance(hoverAction, str): # define hover action
+            hoverAction = eval(hoverAction) 
+        self.hoverAction = hoverAction
+        self.hoverArguments = hoverArguments
+        if isinstance(unHoverAction, str): # define unhover action
+            unHoverAction = eval(unHoverAction)  
+        self.unHoverAction = unHoverAction
+        self.unHoverArguments = unHoverArguments
         
-    class RenderButton(RenderImage):
-        def __init__(self, imageName: Union[None, str] = None, strName: str = "button", clickAction: Union[Callable[[], None], Callable[[*T], None], Literal[False]] = False, arguments: tuple[*T] = (), rightClickAction: Union[Callable[[*T2], None], Callable[[*T2], None], Literal[False]] = False, rightArguments: tuple[*T2] = (), hoverAction: Union[Callable[[], None], Callable[[*T3], None], Literal[False]] = False, hoverArguments: tuple[*T3] = (), unHoverAction: Union[Callable[[], None], Callable[[*T4], None], Literal[False]] = False, unHoverArguments: tuple[*T4] = (), surface: pygame.Surface = screen, temporary: bool = False, enabled: bool = True, hoverImageName: Union[Literal[False], str] = False, x: float = 0, xOffset: float = 0, y: float = 0, yOffset: float = 0, width: float = 10, height: float = 10, priority: float = 2, angle: float = 0, stretch: float = 1, middle: bool = False, gen: bool = True, topStretchMultiplier: float = 1):
-            self.strName = imageName
-            if isinstance(clickAction, str): # define click action
-                clickAction = eval(clickAction)  
-            self.clickAction = clickAction
-            self.arguments = arguments
-            if isinstance(rightClickAction, str): # define right click action
-                rightClickAction = eval(rightClickAction)  
-            self.rightClickAction = rightClickAction
-            self.rightArguments = rightArguments
-            if isinstance(hoverAction, str): # define hover action
-                hoverAction = eval(hoverAction) 
-            self.hoverAction = hoverAction
-            self.hoverArguments = hoverArguments
-            if isinstance(unHoverAction, str): # define unhover action
-                unHoverAction = eval(unHoverAction)  
-            self.unHoverAction = unHoverAction
-            self.unHoverArguments = unHoverArguments
-            
-            # define images
-            self.hoverImageName = hoverImageName
-            
-            self.hovered = False
-            
-            super().__init__(strName = strName, surface = surface, temporary = temporary, enabled = enabled, imageName = imageName, x = x, xOffset = xOffset, y = y, yOffset = yOffset, width = width, height = height, priority = priority, angle = angle, stretch = stretch, middle = middle, gen = gen, topStretchMultiplier=topStretchMultiplier)
-            if type(self) is RenderButton and gen:
-                renders.append(self)
+        # define images
+        self.hoverImageName = hoverImageName
         
-        def click(self, me, button: int = 1):
-            if self.clickAction != False:
-                if button == pygame.BUTTON_LEFT:
-                    self.clickAction(*self.arguments)
-                elif button == pygame.BUTTON_RIGHT:
-                    self.leftClickAction(*self.leftArguments)
+        self.hovered = False
         
-        def hover(self, hover = False):
-            if hover:
-                if True:
-                    self.hovered = True
-                    if self.hoverImageName != False:
-                        self.changeImage(self.hoverImageName)
-                    if self.hoverAction != False:
-                        self.hoverAction(*self.hoverArguments)
-            elif self.hovered:
-                self.hovered = False
-                if self.hoverImageName != False:
-                    self.changeImage(self.imageName)
-                if self.unHoverAction != False:
-                    self.unHoverAction(*self.unHoverArguments)
-        
-        def draw(self):
-            return super().draw()
-        
-    class RenderText(RenderObject):
-        def __init__(self, surface: pygame.surface = screen, enabled = True, x: float = 0, y: float = 0, xOffset: float = 0, yOffset: float = 0, text: str = "example", font: pygame.font = defaultFont, size: float = 30, color: tuple = (0, 0, 0), temporary = False, angle = 0, stretch = 1, middle = False, priority: float = 2, gen: bool = True):
-            self.strName = text
-            try:
-                self.font = pygame.font.Font(font, size)
-            except:
-                self.font = pygame.font.SysFont(defaultFont, size)
-            self.text = text
-            self.color = color
-            self.middle = middle
-            self.renderSurface = self.font.render(text, True, color)
-            self.height = self.renderSurface.get_height()
-            self.width = self.renderSurface.get_width()
-            super().__init__(surface = surface, temporary = temporary, enabled = enabled, x = x, y = y, width = self.width, height = self.height, priority = priority, angle = angle, stretch = stretch)
-            if type(self) is RenderText and gen:
-                    renders.append(self)
-        
-        def updateText(self, newText: str) -> None:
-            self.text = newText
-            self.renderSurface = self.font.render(self.text, True, self.color)
-            self.height = self.renderSurface.get_height()
-            self.width = self.renderSurface.get_width()
-        
-        def draw(self):
-            drawRotated(surface = self.surface, img = self.renderSurface, x = self.x + self.xOffset, y = self.y + self.yOffset, angle = self.angle, width = self.width * self.sizeMulti, height = self.height * self.sizeMulti, stretch = self.stretch, middle = self.middle)
-
-    class RenderTextButton(RenderButton):
-        def __init__(self, surface: pygame.surface = screen, drawType = "rect", imageName = None, hoverImageName = None, strName = "textButton", enabled = True, x: float = 0, y: float = 0, width: float = 30, height: float = 10, xOffset: float = 0, yOffset: float = 0, clickAction = False, hoverAction = False, unHoverAction = False, arguments: tuple = (), hoverArguments: tuple = (), unHoverArguments: tuple = (),  text: str = "example", font: pygame.font = defaultFont, size: float = None, borderSize = 5, color: tuple = (0, 0, 0), activeColor: tuple = (100, 100, 100), textColor: tuple = (200, 200, 200), borderColor: tuple = (200, 200, 200), temporary = False, angle = 0, stretch = 1, middle = False, priority: float = 2, gen: bool = True):
-            self.strName = f"{{{imageName}}}{{{text}}}"
-            self.borderSize = borderSize
-            self.middle = middle
-            self.text = text
-            self.width = width
-            self.height = height
-            if size is None:
-                size = round(self.height)
-            self.size = size
-            self.textSurface = RenderText(surface = surface, enabled = True, x = x+self.borderSize-size/10*self.middle, y = y+self.borderSize-size/15*self.middle, xOffset = xOffset, yOffset = yOffset, text = self.text, font = font, size = size, color = textColor, temporary = temporary, angle = angle, stretch = stretch, middle = middle, priority = priority, gen = False)
-            self.font = font
-            self.textColor = textColor
-            self.color = color
-            self.activeColor = activeColor
-            self.borderColor = borderColor
-            
-            
-            
-            if imageName is not None:
-                self.renderSurface = imageName
-            else:
-                if drawType == "rect":
-                    self.renderSurface = pygame.Surface((self.width, self.height))
-                    self.renderSurface.fill(self.borderColor)
-                    innerRect = pygame.Rect(self.borderSize, self.borderSize, self.width - self.borderSize * 2, self.height - self.borderSize * 2)
-                    pygame.draw.rect(self.renderSurface, self.color, innerRect)
-                elif drawType == "circ":
-                    self.renderSurface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-                    pygame.draw.circle(self.renderSurface, self.borderColor, (self.height/2, self.height/2), min(self.height/2, self.height/2))
-                    pygame.draw.circle(self.renderSurface, self.color, (self.height/2, self.height/2), min(self.height/2, self.height/2) - self.borderSize)
-            
-            if hoverImageName is not None:
-                self.activeSurface = hoverImageName
-            elif activeColor is not None:
-                if drawType == "rect":
-                    self.activeSurface = pygame.Surface((self.width, self.height))
-                    self.activeSurface.fill(self.borderColor)
-                    pygame.draw.rect(self.activeSurface, self.activeColor, innerRect)
-                elif drawType == "circ":
-                    self.activeSurface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-                    pygame.draw.circle(self.activeSurface, self.borderColor, (self.height/2, self.height/2), min(self.height/2, self.height/2))
-                    pygame.draw.circle(self.activeSurface, self.activeColor, (self.height/2, self.height/2), min(self.height/2, self.height/2) - self.borderSize)
-            else:
-                self.activeSurface = False
-            
-            super().__init__(imageName = self.renderSurface, strName = strName, clickAction = clickAction, hoverAction = hoverAction, unHoverAction = unHoverAction, arguments = arguments, hoverArguments = hoverArguments, unHoverArguments = unHoverArguments, surface = surface, temporary = temporary, enabled = enabled, hoverImageName = self.activeSurface, x = x, xOffset = xOffset, y = y, yOffset = yOffset, width = width, height = height, middle = middle, priority = priority, angle = angle, stretch = stretch, gen = gen)
-            
-            if type(self) is RenderTextButton and gen:
-                renders.append(self)
-
-        def draw(self):
-            super().draw()
-            self.textSurface.draw()
-        
-    class RenderInput(RenderObject):
-        def __init__(self, surface: pygame.surface = screen, enabled = True, x: float = 0, y: float = 0, xOffset: float = 0, yOffset: float = 0, text: str = "example", font: pygame.font = defaultFont, size: float = 30, borderSize = 5, color: tuple = (0, 0, 0), activeColor = (100, 100, 100), textColor: tuple = (200, 200, 200), borderColor: tuple = (200, 200, 200), temporary = False, angle = 0, stretch = 1, middle = False, priority: float = 2, gen: bool = True):
-            self.strName = text
-            self.borderSize = borderSize
-            self.middle = middle
-            self.text = text
-            self.textSurface = RenderText(surface = surface, enabled = True, x = x+self.borderSize-size/10*self.middle, y = y+self.borderSize-size/15*self.middle, xOffset = xOffset, yOffset = yOffset, text = self.text, font = font, size = size, color = textColor, temporary = temporary, angle = angle, stretch = stretch, middle = middle, priority = priority, gen = False)
-            self.height = self.textSurface.height + self.borderSize * 2
-            self.width = self.textSurface.width + self.borderSize * 2
-            self.size = size
-            self.font = font
-            self.mainColor = color
-            self.activeColor = activeColor
-            self.color = self.mainColor
-            self.textColor = textColor
-            self.borderColor = borderColor
-            self.renderSurface = pygame.Surface((self.width, self.height))
-            self.renderSurface.fill(self.borderColor)
-            innerRect = pygame.Rect(self.borderSize, self.borderSize, self.width - self.borderSize * 2, self.height - self.borderSize * 2)
-            pygame.draw.rect(self.renderSurface, self.color, innerRect)
-            super().__init__(surface = surface, temporary = temporary, enabled = enabled, x = x, y = y, width = self.width, height = self.height, priority = priority, angle = angle, stretch = stretch)
-
-            self.active = False
-            self.hovered = False
-            
-            if type(self) is RenderInput and gen:
-                    renders.append(self)
-            
-        def setOn(self, on: bool):
-            global activeInput
-            if on:
-                activeInput = self
-                self.color = self.activeColor
-            else:
-                if activeInput == self:
-                    activeInput = None
-                self.color = self.mainColor
-            self.update()
-            
-        def update(self):
-            self.textSurface = RenderText(surface = self.surface, enabled = True, x = self.x+self.borderSize-self.size/10*self.middle, y = self.y+self.borderSize-self.size/15*self.middle, xOffset = self.xOffset, yOffset = self.yOffset, text = self.text, font = self.font, size = self.size, color = self.textColor, temporary = self.temporary, angle = self.angle, stretch = self.stretch, middle = self.middle, priority = self.priority, gen = False)
-            self.height = self.textSurface.height + self.borderSize * 2
-            self.width = self.textSurface.width + self.borderSize * 2
-            self.renderSurface = pygame.Surface((self.width, self.height))
-            self.renderSurface.fill(self.borderColor)
-            innerRect = pygame.Rect(self.borderSize, self.borderSize, self.width - self.borderSize * 2, self.height - self.borderSize * 2)
-            pygame.draw.rect(self.renderSurface, self.color, innerRect)
-        
-        def click(self, me, button: int = 1):
-            if me:
-                self.active = True
-            else:
-                self.active = False
-                self.setOn(False)
-        
-        def hover(self, hover = False):
-            if hover:
+        super().__init__(strName = strName, surface = surface, temporary = temporary, enabled = enabled, imageName = imageName, x = x, xOffset = xOffset, y = y, yOffset = yOffset, width = width, height = height, priority = priority, angle = angle, stretch = stretch, middle = middle, gen = gen, topStretchMultiplier=topStretchMultiplier)
+        if type(self) is RenderButton and gen:
+            renders.append(self)
+    
+    def click(self, me, button: int = 1):
+        if self.clickAction != False:
+            if button == pygame.BUTTON_LEFT:
+                self.clickAction(*self.arguments)
+            elif button == pygame.BUTTON_RIGHT:
+                self.leftClickAction(*self.leftArguments)
+    
+    def hover(self, hover = False):
+        if hover:
+            if True:
                 self.hovered = True
-                self.setOn(True)
-            elif self.hovered:
-                self.hovered = False
-                if not self.active:
-                    self.setOn(False)
+                if self.hoverImageName != False:
+                    self.changeImage(self.hoverImageName)
+                if self.hoverAction != False:
+                    self.hoverAction(*self.hoverArguments)
+        elif self.hovered:
+            self.hovered = False
+            if self.hoverImageName != False:
+                self.changeImage(self.imageName)
+            if self.unHoverAction != False:
+                self.unHoverAction(*self.unHoverArguments)
+    
+    def draw(self):
+        return super().draw()
+    
+class RenderText(RenderObject):
+    def __init__(self, surface: pygame.surface = None, enabled = True, x: float = 0, y: float = 0, xOffset: float = 0, yOffset: float = 0, text: str = "example", font: pygame.font = defaultFont, size: float = 30, color: tuple = (0, 0, 0), temporary = False, angle = 0, stretch = 1, middle = False, priority: float = 2, gen: bool = True):
+        self.strName = text
+        try:
+            self.font = pygame.font.Font(font, size)
+        except:
+            self.font = pygame.font.SysFont(defaultFont, size)
+        self.text = text
+        self.color = color
+        self.middle = middle
+        self.renderSurface = self.font.render(text, True, color)
+        self.height = self.renderSurface.get_height()
+        self.width = self.renderSurface.get_width()
+        super().__init__(surface = surface, temporary = temporary, enabled = enabled, x = x, y = y, width = self.width, height = self.height, priority = priority, angle = angle, stretch = stretch)
+        if type(self) is RenderText and gen:
+                renders.append(self)
+    
+    def updateText(self, newText: str) -> None:
+        self.text = newText
+        self.renderSurface = self.font.render(self.text, True, self.color)
+        self.height = self.renderSurface.get_height()
+        self.width = self.renderSurface.get_width()
+    
+    def draw(self):
+        drawRotated(surface = self.surface, img = self.renderSurface, x = self.x + self.xOffset, y = self.y + self.yOffset, angle = self.angle, width = self.width * self.sizeMulti, height = self.height * self.sizeMulti, stretch = self.stretch, middle = self.middle)
+
+class RenderTextButton(RenderButton):
+    def __init__(self, surface: pygame.surface = None, drawType = "rect", imageName = None, hoverImageName = None, strName = "textButton", enabled = True, x: float = 0, y: float = 0, width: float = 30, height: float = 10, xOffset: float = 0, yOffset: float = 0, clickAction = False, hoverAction = False, unHoverAction = False, arguments: tuple = (), hoverArguments: tuple = (), unHoverArguments: tuple = (),  text: str = "example", font: pygame.font = defaultFont, size: float = None, borderSize = 5, color: tuple = (0, 0, 0), activeColor: tuple = (100, 100, 100), textColor: tuple = (200, 200, 200), borderColor: tuple = (200, 200, 200), temporary = False, angle = 0, stretch = 1, middle = False, priority: float = 2, gen: bool = True):
+        self.strName = f"{{{imageName}}}{{{text}}}"
+        self.borderSize = borderSize
+        self.middle = middle
+        self.text = text
+        self.width = width
+        self.height = height
+        if size is None:
+            size = round(self.height)
+        self.size = size
+        self.textSurface = RenderText(surface = surface, enabled = True, x = x+self.borderSize-size/10*self.middle, y = y+self.borderSize-size/15*self.middle, xOffset = xOffset, yOffset = yOffset, text = self.text, font = font, size = size, color = textColor, temporary = temporary, angle = angle, stretch = stretch, middle = middle, priority = priority, gen = False)
+        self.font = font
+        self.textColor = textColor
+        self.color = color
+        self.activeColor = activeColor
+        self.borderColor = borderColor
         
-        def draw(self):
-            drawRotated(surface = self.surface, img = self.renderSurface, x = self.x + self.xOffset, y = self.y + self.yOffset, angle = self.angle, width = self.width * self.sizeMulti, height = self.height * self.sizeMulti, stretch = self.stretch, middle = self.middle)
-            self.textSurface.draw()
         
+        
+        if imageName is not None:
+            self.renderSurface = imageName
+        else:
+            if drawType == "rect":
+                self.renderSurface = pygame.Surface((self.width, self.height))
+                self.renderSurface.fill(self.borderColor)
+                innerRect = pygame.Rect(self.borderSize, self.borderSize, self.width - self.borderSize * 2, self.height - self.borderSize * 2)
+                pygame.draw.rect(self.renderSurface, self.color, innerRect)
+            elif drawType == "circ":
+                self.renderSurface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+                pygame.draw.circle(self.renderSurface, self.borderColor, (self.height/2, self.height/2), min(self.height/2, self.height/2))
+                pygame.draw.circle(self.renderSurface, self.color, (self.height/2, self.height/2), min(self.height/2, self.height/2) - self.borderSize)
+        
+        if hoverImageName is not None:
+            self.activeSurface = hoverImageName
+        elif activeColor is not None:
+            if drawType == "rect":
+                self.activeSurface = pygame.Surface((self.width, self.height))
+                self.activeSurface.fill(self.borderColor)
+                pygame.draw.rect(self.activeSurface, self.activeColor, innerRect)
+            elif drawType == "circ":
+                self.activeSurface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+                pygame.draw.circle(self.activeSurface, self.borderColor, (self.height/2, self.height/2), min(self.height/2, self.height/2))
+                pygame.draw.circle(self.activeSurface, self.activeColor, (self.height/2, self.height/2), min(self.height/2, self.height/2) - self.borderSize)
+        else:
+            self.activeSurface = False
+        
+        super().__init__(imageName = self.renderSurface, strName = strName, clickAction = clickAction, hoverAction = hoverAction, unHoverAction = unHoverAction, arguments = arguments, hoverArguments = hoverArguments, unHoverArguments = unHoverArguments, surface = surface, temporary = temporary, enabled = enabled, hoverImageName = self.activeSurface, x = x, xOffset = xOffset, y = y, yOffset = yOffset, width = width, height = height, middle = middle, priority = priority, angle = angle, stretch = stretch, gen = gen)
+        
+        if type(self) is RenderTextButton and gen:
+            renders.append(self)
+
+    def draw(self):
+        super().draw()
+        self.textSurface.draw()
+    
+class RenderInput(RenderObject):
+    def __init__(self, surface: pygame.surface = None, enabled = True, x: float = 0, y: float = 0, xOffset: float = 0, yOffset: float = 0, text: str = "example", font: pygame.font = defaultFont, size: float = 30, borderSize = 5, color: tuple = (0, 0, 0), activeColor = (100, 100, 100), textColor: tuple = (200, 200, 200), borderColor: tuple = (200, 200, 200), temporary = False, angle = 0, stretch = 1, middle = False, priority: float = 2, gen: bool = True):
+        self.strName = text
+        self.borderSize = borderSize
+        self.middle = middle
+        self.text = text
+        self.textSurface = RenderText(surface = surface, enabled = True, x = x+self.borderSize-size/10*self.middle, y = y+self.borderSize-size/15*self.middle, xOffset = xOffset, yOffset = yOffset, text = self.text, font = font, size = size, color = textColor, temporary = temporary, angle = angle, stretch = stretch, middle = middle, priority = priority, gen = False)
+        self.height = self.textSurface.height + self.borderSize * 2
+        self.width = self.textSurface.width + self.borderSize * 2
+        self.size = size
+        self.font = font
+        self.mainColor = color
+        self.activeColor = activeColor
+        self.color = self.mainColor
+        self.textColor = textColor
+        self.borderColor = borderColor
+        self.renderSurface = pygame.Surface((self.width, self.height))
+        self.renderSurface.fill(self.borderColor)
+        innerRect = pygame.Rect(self.borderSize, self.borderSize, self.width - self.borderSize * 2, self.height - self.borderSize * 2)
+        pygame.draw.rect(self.renderSurface, self.color, innerRect)
+        super().__init__(surface = surface, temporary = temporary, enabled = enabled, x = x, y = y, width = self.width, height = self.height, priority = priority, angle = angle, stretch = stretch)
+
+        self.active = False
+        self.hovered = False
+        
+        if type(self) is RenderInput and gen:
+                renders.append(self)
+        
+    def setOn(self, on: bool):
+        global activeInput
+        if on:
+            activeInput = self
+            self.color = self.activeColor
+        else:
+            if activeInput == self:
+                activeInput = None
+            self.color = self.mainColor
+        self.update()
+        
+    def update(self):
+        self.textSurface = RenderText(surface = self.surface, enabled = True, x = self.x+self.borderSize-self.size/10*self.middle, y = self.y+self.borderSize-self.size/15*self.middle, xOffset = self.xOffset, yOffset = self.yOffset, text = self.text, font = self.font, size = self.size, color = self.textColor, temporary = self.temporary, angle = self.angle, stretch = self.stretch, middle = self.middle, priority = self.priority, gen = False)
+        self.height = self.textSurface.height + self.borderSize * 2
+        self.width = self.textSurface.width + self.borderSize * 2
+        self.renderSurface = pygame.Surface((self.width, self.height))
+        self.renderSurface.fill(self.borderColor)
+        innerRect = pygame.Rect(self.borderSize, self.borderSize, self.width - self.borderSize * 2, self.height - self.borderSize * 2)
+        pygame.draw.rect(self.renderSurface, self.color, innerRect)
+    
+    def click(self, me, button: int = 1):
+        if me:
+            self.active = True
+        else:
+            self.active = False
+            self.setOn(False)
+    
+    def hover(self, hover = False):
+        if hover:
+            self.hovered = True
+            self.setOn(True)
+        elif self.hovered:
+            self.hovered = False
+            if not self.active:
+                self.setOn(False)
+    
+    def draw(self):
+        drawRotated(surface = self.surface, img = self.renderSurface, x = self.x + self.xOffset, y = self.y + self.yOffset, angle = self.angle, width = self.width * self.sizeMulti, height = self.height * self.sizeMulti, stretch = self.stretch, middle = self.middle)
+        self.textSurface.draw()
+    
 
 
-    class GameObject():
+class GameObject():
         def __init__(self, strName = None, x = 0, y = 0, renderObject = None, enabled = True, angle = 0, priority = 2):
             global renders
             self.strName = strName
