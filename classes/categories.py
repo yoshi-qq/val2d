@@ -24,3 +24,4 @@ class PenetrationLevel(Enum):
     LOW = 0
     MEDIUM = 1
     HIGH = 2
+    INPENETRABLE = 3
