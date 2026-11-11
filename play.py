@@ -1003,7 +1003,7 @@ class Game:
             ab = m.agents[me.agent]["abilities"][k]
             columns["gear"].append((k, f"{k} {ab['name']}  {ab['price']}"))
         out = []
-        col_w, card_h, gap = 158, 70, 8
+        col_w, card_h, gap = 158, 76, 8
         left = (self.w - len(self.BUY_COLUMNS) * (col_w + gap) + gap) / 2
         for ci, (cat, _) in enumerate(self.BUY_COLUMNS):
             for ri, (key, label) in enumerate(columns.get(cat, [])):
@@ -1035,9 +1035,9 @@ class Game:
 
     def item_picture(self, me: PlayerState, key: str) -> pygame.Surface | None:
         if key in self.match.weapons:
-            return self.bank.scaled(f"weapons/val2d/{key}_kauf.png", (96, 36))
+            return self.bank.scaled(f"weapons/val2d/{key}_kauf.png", (128, 48))
         if key in self.match.armor:
-            return self.bank.scaled(f"ui/buy/{ {'leicht': 'vest_light', 'schwer': 'vest_heavy'}.get(key, key)}.png", (96, 36))
+            return self.bank.scaled(f"ui/buy/{ {'leicht': 'vest_light', 'schwer': 'vest_heavy'}.get(key, key)}.png", (128, 48))
         return self.bank.scaled(f"ui/faehigkeit_{me.agent}_{key}.png", (36, 36))
 
     def draw_buy(self, me: PlayerState) -> None:
@@ -1074,11 +1074,11 @@ class Game:
                 pygame.draw.rect(s, C_MUTED, r, 1)
             pic = self.item_picture(me, key)
             if pic is not None:
-                s.blit(pic, (r.centerx - pic.get_width() / 2, r.y + 8))
+                s.blit(pic, (r.centerx - pic.get_width() / 2, r.y + 4))
             name = label.rsplit("  ", 1)[0]
-            self.text(name, (r.x + 10, r.bottom - 26), C_TEXT if affordable or owned else C_MUTED)
+            self.text(name, (r.x + 10, r.bottom - 22), C_TEXT if affordable or owned else C_MUTED)
             cost = self.font.render(str(price), True, C_SITE if affordable else C_MUTED)
-            s.blit(cost, (r.right - cost.get_width() - 10, r.bottom - 26))
+            s.blit(cost, (r.right - cost.get_width() - 10, r.bottom - 22))
         self.text("Click buys · B closes", (70, self.h - 76 + 10), C_MUTED)
 
     def draw_scores(self) -> None:
