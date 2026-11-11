@@ -170,6 +170,26 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
             pygame.draw.rect(surf, (110, 106, 120), rect)
         else:
             _tile_rect(surf, t, rect)
+    # shadow under the south edge of full-height walls, edge strip on platforms
+    shadow = bank.scaled("maps/common/wall_shadow.png", (tile_px, max(1, round(tile_px / 4))))
+    edge = bank.scaled("maps/common/platform_edge.png", (tile_px, max(1, round(tile_px / 8))))
+    for wall in world.walls:
+        if shadow is None or wall.rect in platform_rects or wall.height < 2:
+            continue
+        if wall.rect.y0 <= 0 or wall.rect.x1 <= 0 or wall.rect.x0 >= world.width:
+            continue
+        r = to_px(wall.rect)
+        _tile_rect(surf, shadow, pygame.Rect(r.x, r.bottom, r.w, shadow.get_height()))
+    for pl in world.platforms:
+        if edge is not None:
+            r = to_px(pl.rect)
+            _tile_rect(surf, edge, pygame.Rect(r.x, r.bottom - edge.get_height(), r.w, edge.get_height()))
+    # site letters painted on the floor
+    for site in world.sites:
+        mark = bank.scaled(f"maps/common/decals/site_{site.name.lower()}.png", (tile_px, tile_px))
+        if mark is not None:
+            c = to_px(site.rect).center
+            surf.blit(mark, (c[0] - mark.get_width() / 2, c[1] - mark.get_height() / 2))
     return surf
 
 

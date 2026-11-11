@@ -82,6 +82,8 @@ class UiState:
     landed_at: dict[int, float] = field(default_factory=dict)
     prev_z: dict[int, float] = field(default_factory=dict)
     blasts: list[tuple[Vec, float, float]] = field(default_factory=list)  # pos, radius, start
+    scorches: list[tuple[Vec, float]] = field(default_factory=list)       # pos, until
+    figure_fx: list[tuple[int, str, float, float]] = field(default_factory=list)  # pid, fx file, start, duration
     waves: list[tuple[int, Vec, float]] = field(default_factory=list)      # pid, end point, start
 
 
@@ -323,7 +325,9 @@ class Game:
             elif e.kind == "blast":
                 self.sound.play("shot", me, Vec(*d["pos"]), 40)
                 self.ui.blasts.append((Vec(*d["pos"]), float(d["radius"]), t))
+                self.ui.scorches.append((Vec(*d["pos"]), t + 20.0))
             elif e.kind == "revive":
+                self.ui.figure_fx.append((d["pid"], "revive", t, 0.6))
                 revived = m.players.get(d["pid"])
                 self.ui.feed.append((t + 4, f"{revived.name if revived else '?'} revived", None, revived.agent if revived else None, False))
             elif e.kind == "ability" and d.get("kind") == "wave":
@@ -331,6 +335,9 @@ class Game:
                 self.ui.waves.append((d["pid"], Vec(*d["pos"]), t))
             elif e.kind == "ability":
                 self.ui.last_cast[d["pid"]] = (t, str(d.get("key", "C")))
+                fx = {"teleport": ("teleport", 0.4), "shield": ("shield_shell", 0.6), "anchor": ("teleport", 0.4)}.get(str(d.get("kind")))
+                if fx:
+                    self.ui.figure_fx.append((d["pid"], fx[0], t, fx[1]))
                 self.sound.play("ability", me, Vec(*d["pos"]), 30)
             elif e.kind == "round_end":
                 won = d["winner"] == me.team
@@ -367,6 +374,15 @@ class Game:
             sx, sy = self.to_screen(site.rect.center, me)
             lbl = self.big.render(site.name, True, C_SITE)
             s.blit(lbl, (sx - lbl.get_width() / 2, sy - lbl.get_height() / 2))
+        self.ui.scorches = [(pos, until) for pos, until in self.ui.scorches if until > m.time]
+        for pos, until in self.ui.scorches:
+            d = round(3 * self.scale)
+            mark = self.bank.scaled("maps/common/decals/scorch.png", (d, d))
+            if mark is not None:
+                mark = mark.copy()
+                mark.set_alpha(int(255 * min(1.0, (until - m.time) / 5)))
+                x, y = self.to_screen(pos, me)
+                s.blit(mark, (x - d / 2, y - d / 2))
         for e in m.effects:
             self.draw_effect(e, me)
         if m.spike_pos is not None:
@@ -428,6 +444,11 @@ class Game:
                 for layer in self.chars.overlays(p.agent, list(self.sprite_cfg(p).get("overlays", [])), p.team != me.team,
                                                  self.scale, walk_index):
                     s.blit(layer, (px - layer.get_width() / 2, py - layer.get_height() / 2))
+                self.draw_figure_fx(p, (px, py))
+                if p.team != me.team and p.revealed_until > m.time:
+                    mark = self.bank.scaled("fx/ability/reveal_marker.png", (round(self.scale * 14 / 16), round(self.scale * 7 / 16)))
+                    if mark is not None:
+                        s.blit(mark, (px - mark.get_width() / 2, py - img.get_height() / 2 - mark.get_height() - 4))
                 r = img.get_height() / 2
             else:
                 if p.team != me.team:
@@ -532,6 +553,28 @@ class Game:
                 form = str(name)
         return self.chars.frame(p.agent, state, p.team != me.team, self.scale, clock, form=form, speed=speed)
 
+    def draw_figure_fx(self, p: PlayerState, at: tuple[float, float]) -> None:
+        """Effects in the 16x32 figure cell, centred on the player: one-shots from events, loops while active."""
+        t = self.match.time
+        size = (round(self.scale), round(2 * self.scale))
+        active: list[tuple[str, float]] = []
+        keep = []
+        for pid, name, start, duration in self.ui.figure_fx:
+            if t - start > duration:
+                continue
+            keep.append((pid, name, start, duration))
+            if pid == p.pid:
+                active.append((name, (t - start) / duration))
+        self.ui.figure_fx = keep
+        if p.heal_left > 0:
+            active.append(("heal", (t * 6 % 3) / 3))
+        if p.immune_until > t:
+            active.append(("immunity_aura", (t * 4 % 2) / 2))
+        for name, progress in active:
+            img = self.bank.strip_frame(f"fx/ability/{name}.png", size, progress, 16)
+            if img is not None:
+                self.screen.blit(img, (at[0] - size[0] / 2, at[1] - size[1] / 2))
+
     def draw_bursts(self, me: PlayerState) -> None:
         """Short-lived explosions and wave lines from events."""
         s, t = self.screen, self.match.time
@@ -621,7 +664,11 @@ class Game:
         if e.kind == "blast":
             left = max(0.0, e.until - self.match.time)
             pygame.draw.circle(s, C_ENEMY if e.team != me.team else C_SITE, (ex, ey), max(2, e.radius * self.scale), 1)
-            pygame.draw.circle(s, C_SITE, (ex, ey), 4 + int(left * 6) % 4)
+            nade = self.bank.scaled("fx/ability/grenade.png", (max(1, round(self.scale * 6 / 16)), max(1, round(self.scale * 5 / 16))))
+            if nade is not None:
+                s.blit(nade, (ex - nade.get_width() / 2, ey - nade.get_height() / 2))
+            else:
+                pygame.draw.circle(s, C_SITE, (ex, ey), 4 + int(left * 6) % 4)
             return
         if e.kind == "alarm":
             size = max(1, round(self.scale))
@@ -775,6 +822,23 @@ class Game:
             if dst[2] > 0 and dst[3] > 0:
                 self.screen.blit(pygame.transform.scale(img.subsurface(src), (dst[2], dst[3])), (dst[0], dst[1]))
 
+    def draw_score_pips(self, me: PlayerState) -> None:
+        """Round pips left (own wins) and right (enemy wins) of the timer, up to the rounds needed to win."""
+        m = self.match
+        need = max(1, m.win_rounds)
+        px = 12
+        mine, theirs = m.score[me.team], m.score[1 - me.team]
+        for side, won, name in ((-1, mine, "round_win"), (1, theirs, "round_loss")):
+            for i in range(need):
+                rel = f"ui/icons/{name if i < won else 'round_empty'}.png"
+                img = self.bank.scaled(rel, (px, px))
+                x = self.w / 2 + side * (130 + i * (px + 3)) - (px if side < 0 else 0)
+                if img is not None:
+                    self.screen.blit(img, (x, 26))
+                else:
+                    pygame.draw.rect(self.screen, C_ALLY if side < 0 and i < won else C_ENEMY if i < won else C_MUTED,
+                                     (x, 26, px, px), 0 if i < won else 1)
+
     def draw_bar(self, icon: str, fill: str, value: int, top: int, pos: tuple[int, int]) -> None:
         """HUD bar: icon, empty bar, fill clipped to value/top, number (pixel art at 3x)."""
         x, y = pos
@@ -863,6 +927,7 @@ class Game:
         phase = {"buy": "Buy phase", "live": "", "planted": "Bomb planted", "end": "Round over", "over": "Match over"}.get(m.phase, "")
         mine, theirs = m.score[me.team], m.score[1 - me.team]
         self.text(f"{mine}  {int(left) // 60}:{int(left) % 60:02d}  {theirs}", (self.w / 2, 12), big=True, center=True)
+        self.draw_score_pips(me)
         side = "Attack" if m.side(me.team) == "attack" else "Defense"
         self.text(f"Round {m.round_no} · {side} {('· ' + phase) if phase else ''}", (self.w / 2, 54), C_MUTED, center=True)
         self.draw_bar("leben", "balken_leben", max(me.hp, 0), 100, (20, self.h - 40))
