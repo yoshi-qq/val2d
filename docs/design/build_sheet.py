@@ -114,10 +114,10 @@ def build() -> str:
         abil = agents.get(key, {}).get("abilities", {})
         for slot in "CQEX":
             label = f"{agents.get(key, {}).get('name', key)} {slot} · {abil.get(slot, {}).get('name', '')}"
-            icons.append(img(f"assets/ui/faehigkeit_{key}_{slot}.png", 5, label))
-    parts.append(section("Ability icons", "16×16", icons))
+            icons.append(img(f"assets/ui/faehigkeit_{key}_{slot}.png", 3, label))
+    parts.append(section("Ability icons", "32×32", icons))
     hud = "assets/ui/hud/"
-    parts.append(section("HUD", "icons 8×8, frames 12×12 nine-slice, bars 48×6", [img(hud + f, 8 if f.endswith(("rahmen.png", "rahmen_aktiv.png")) or len(f) < 16 else 4, l) for f, l in (
+    parts.append(section("HUD", "icons 16×16, frames 24×24 nine-slice, bars 96×12", [img(hud + f, 4 if f.endswith(("rahmen.png", "rahmen_aktiv.png")) or len(f) < 16 else 2, l) for f, l in (
         ("leben.png", "Health"), ("schild.png", "Shield"), ("credits.png", "Credits"), ("munition.png", "Ammo"),
         ("kopfschuss.png", "Headshot (kill feed)"), ("spike_klein.png", "Bomb (HUD)"), ("uhr.png", "Round timer"),
         ("tot.png", "Eliminated"), ("rahmen.png", "Frame"), ("rahmen_aktiv.png", "Frame selected"),
@@ -129,7 +129,7 @@ def build() -> str:
         img(fx + "tripwire.png", 8, "Tripwire (tile)"), img(fx + "tripwire_node.png", 10, "Tripwire node"),
         anim(fx + "alarm.png", 2, 6, "Alarm", 3), anim(fx + "wave.png", 3, 6, "Wave (tile)", 10)]))
     st = "assets/ui/status/"
-    parts.append(section("Status icons", "8×8", [img(st + f"{k}.png", 8, k.title()) for k in (
+    parts.append(section("Status icons", "16×16", [img(st + f"{k}.png", 4, k.title()) for k in (
         "nearsight", "concuss", "slow", "vulnerable", "decay", "suppress", "detain", "deaf", "stim")]))
     for folder, title in (("ui/menu", "Menus"), ("ui/icons", "Interface icons"), ("ui/buy", "Buy menu"),
                           ("maps/common", "Map tiles: common set"), ("maps/common/props", "Map props"),
@@ -141,11 +141,11 @@ def build() -> str:
             scale = 1 if w > 200 else 8 if h <= 8 else 5 if h <= 16 else 3 if h <= 32 else 2
             items.append(img(rel, scale, f.stem.replace("_", " ")))
         parts.append(section(title, "", items))
-    parts.append(section("Minimap", "8×8", [img(mm + f"{k}.png", 8, l) for k, l in (
+    parts.append(section("Minimap", "12×12", [img(mm + f"{k}.png", 6, l) for k, l in (
         ("selbst", "You"), ("verbuendet", "Ally"), ("feind", "Enemy"), ("tot", "Eliminated"), ("spike", "Bomb"),
         ("dunst", "Smoke"), ("bann", "Slow field"), ("schleier", "Vapor wall"))]))
     bn = "assets/ui/banner/"
-    parts.append(section("Round banners", "height 21 px, own 5×7 pixel font", [img(bn + f"{k}.png", 3, l) for k, l in (
+    parts.append(section("Round banners", "height 32 px, game font", [img(bn + f"{k}.png", 3, l) for k, l in (
         ("sieg", "Victory"), ("niederlage", "Defeat"), ("seitenwechsel", "Switching sides"),
         ("spike_gelegt", "Bomb planted"), ("entschaerft", "Bomb defused"), ("verlaengerung", "Overtime"))]))
     logo = section("Logo", "chosen: crosshair; replaces the former Riot logo", [

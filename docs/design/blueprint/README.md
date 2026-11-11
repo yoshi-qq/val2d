@@ -100,14 +100,14 @@ white cross = centre/anchor, white line = ground row, white ring = maximum radiu
 
 | Template | Example | Target file | Frame size | Frames | Speed | Purpose |
 |---|---|---|---|---|---|---|
-| `ui/ability_icon.png` | [example](examples/ability_icon.example.png) | `assets/ui/faehigkeit_{agent}_{C|Q|E}.png` | 16×16 | 1 | still | ability icon; glyph inside the 12 × 12 safe area |
-| `ui/ability_icon_ult.png` | [example](examples/ability_icon_ult.example.png) | `assets/ui/faehigkeit_{agent}_X.png` | 16×16 | 1 | still | ultimate icon with gold frame |
-| `ui/hud_icon.png` | [example](examples/hud_icon.example.png) | `assets/ui/hud/{name}.png` | 8×8 | 1 | still | HUD icon: leben, schild, credits, munition, kopfschuss, spike_klein, uhr, tot |
-| `ui/status_icon.png` | [example](examples/status_icon.example.png) | `assets/ui/status/{status}.png` | 8×8 | 1 | still | status icon: nearsight, concuss, slow, vulnerable, decay, suppress, detain, deaf, stim |
-| `ui/minimap_icon.png` | [example](examples/minimap_icon.example.png) | `assets/ui/minimap/{name}.png` | 8×8 | 1 | still | minimap: selbst (arrow points up), verbuendet, feind, tot, spike, dunst, bann, schleier |
-| `ui/frame_nine_slice.png` | [example](examples/frame_nine_slice.example.png) | `assets/ui/hud/rahmen.png, rahmen_aktiv.png` | 12×12 | 1 | still | nine-slice frame, 4 px corners, centre stretches |
-| `ui/bar.png` | [example](examples/bar.example.png) | `assets/ui/hud/balken_{leben|schild|fortschritt|leer}.png` | 48×6 | 1 | still | bar, stretched horizontally; fill drawn over balken_leer |
-| `ui/banner.png` | [example](examples/banner.example.png) | `assets/ui/banner/{name}.png` | 96×21 | 1 | still | round banner, width follows the text (12 px padding each side), 5 × 7 pixel font |
+| `ui/ability_icon.png` | [example](examples/ability_icon.example.png) | `assets/ui/faehigkeit_{agent}_{C|Q|E}.png` | 32×32 | 1 | still | ability icon: dark plate, 24 × 24 glyph in white with the agent's accent colour |
+| `ui/ability_icon_ult.png` | [example](examples/ability_icon_ult.example.png) | `assets/ui/faehigkeit_{agent}_X.png` | 32×32 | 1 | still | ultimate icon: as above with a gold frame and corner highlights |
+| `ui/hud_icon.png` | [example](examples/hud_icon.example.png) | `assets/ui/hud/{name}.png` | 16×16 | 1 | still | HUD icon: leben, schild, credits, munition, kopfschuss, spike_klein, uhr, tot |
+| `ui/status_icon.png` | [example](examples/status_icon.example.png) | `assets/ui/status/{status}.png` | 16×16 | 1 | still | status icon: nearsight, concuss, slow, vulnerable, decay, suppress, detain, deaf, stim |
+| `ui/minimap_icon.png` | [example](examples/minimap_icon.example.png) | `assets/ui/minimap/{name}.png` | 12×12 | 1 | still | minimap: selbst (arrow points up), verbuendet, feind, tot, spike, dunst, bann, schleier |
+| `ui/frame_nine_slice.png` | [example](examples/frame_nine_slice.example.png) | `assets/ui/hud/rahmen.png, rahmen_aktiv.png` | 24×24 | 1 | still | nine-slice frame, 8 px corners, centre stretches |
+| `ui/bar.png` | [example](examples/bar.example.png) | `assets/ui/hud/balken_{leben|schild|fortschritt|leer}.png` | 96×12 | 1 | still | bar, stretched horizontally; fill drawn over balken_leer |
+| `ui/banner.png` | [example](examples/banner.example.png) | `assets/ui/banner/{name}.png` | 160×32 | 1 | still | round banner, height 32, width = text + 40 px, game font fixed_sys at 16 px without smoothing |
 | `ui/logo.png` | [example](examples/logo.example.png) | `assets/logo.png (+ icon.ico 16/32/48)` | 48×48 | 1 | still | game logo, also program icon |
 | `ui/player_card.png` | [example](examples/player_card.example.png) | `assets/menu/lobby/playercard.png` | 64×128 | 1 | still | lobby player card with logo at (8, 10) |
 

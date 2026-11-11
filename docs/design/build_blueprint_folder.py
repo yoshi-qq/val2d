@@ -134,14 +134,18 @@ def g_icon_ult(im: Image.Image, ox: int, w: int, h: int) -> None:
     g_box(2)(im, ox, w, h)
 
 
-def g_nine(im: Image.Image, ox: int, w: int, h: int) -> None:
+def g_nine(im: Image.Image, ox: int, w: int, h: int, corner: int = 4) -> None:
     p = im.load()
     for i in range(w):
-        dot(p, i, 4, 90, w, h, ox)
-        dot(p, i, h - 5, 90, w, h, ox)
+        dot(p, i, corner, 90, w, h, ox)
+        dot(p, i, h - 1 - corner, 90, w, h, ox)
     for i in range(h):
-        dot(p, 4, i, 90, w, h, ox)
-        dot(p, w - 5, i, 90, w, h, ox)
+        dot(p, corner, i, 90, w, h, ox)
+        dot(p, w - 1 - corner, i, 90, w, h, ox)
+
+
+def g_nine8(im: Image.Image, ox: int, w: int, h: int) -> None:
+    g_nine(im, ox, w, h, 8)
 
 
 def g_bar(im: Image.Image, ox: int, w: int, h: int) -> None:
@@ -284,22 +288,22 @@ def catalogue() -> list[Entry]:
     for name, file, size, frames, fps, purpose, guide in fx:
         e.append(Entry(f"effects/fx_{name}.png", f"assets/fx/{file}.png", size, frames, fps, purpose, guide, "Effects", f"assets/fx/{file}.png"))
     e += [
-        Entry("ui/ability_icon.png", "assets/ui/faehigkeit_{agent}_{C|Q|E}.png", (16, 16), 1, "still",
-              "ability icon; glyph inside the 12 × 12 safe area", g_icon, "Interface", "assets/ui/faehigkeit_kestrel_C.png"),
-        Entry("ui/ability_icon_ult.png", "assets/ui/faehigkeit_{agent}_X.png", (16, 16), 1, "still",
-              "ultimate icon with gold frame", g_icon_ult, "Interface", "assets/ui/faehigkeit_kestrel_X.png"),
-        Entry("ui/hud_icon.png", "assets/ui/hud/{name}.png", (8, 8), 1, "still",
+        Entry("ui/ability_icon.png", "assets/ui/faehigkeit_{agent}_{C|Q|E}.png", (32, 32), 1, "still",
+              "ability icon: dark plate, 24 × 24 glyph in white with the agent's accent colour", g_icon, "Interface", "assets/ui/faehigkeit_kestrel_C.png"),
+        Entry("ui/ability_icon_ult.png", "assets/ui/faehigkeit_{agent}_X.png", (32, 32), 1, "still",
+              "ultimate icon: as above with a gold frame and corner highlights", g_icon_ult, "Interface", "assets/ui/faehigkeit_kestrel_X.png"),
+        Entry("ui/hud_icon.png", "assets/ui/hud/{name}.png", (16, 16), 1, "still",
               "HUD icon: leben, schild, credits, munition, kopfschuss, spike_klein, uhr, tot", g_box(0), "Interface", "assets/ui/hud/schild.png"),
-        Entry("ui/status_icon.png", "assets/ui/status/{status}.png", (8, 8), 1, "still",
+        Entry("ui/status_icon.png", "assets/ui/status/{status}.png", (16, 16), 1, "still",
               "status icon: nearsight, concuss, slow, vulnerable, decay, suppress, detain, deaf, stim", g_box(0), "Interface", "assets/ui/status/slow.png"),
-        Entry("ui/minimap_icon.png", "assets/ui/minimap/{name}.png", (8, 8), 1, "still",
+        Entry("ui/minimap_icon.png", "assets/ui/minimap/{name}.png", (12, 12), 1, "still",
               "minimap: selbst (arrow points up), verbuendet, feind, tot, spike, dunst, bann, schleier", g_box(0), "Interface", "assets/ui/minimap/selbst.png"),
-        Entry("ui/frame_nine_slice.png", "assets/ui/hud/rahmen.png, rahmen_aktiv.png", (12, 12), 1, "still",
-              "nine-slice frame, 4 px corners, centre stretches", g_nine, "Interface", "assets/ui/hud/rahmen_aktiv.png"),
-        Entry("ui/bar.png", "assets/ui/hud/balken_{leben|schild|fortschritt|leer}.png", (48, 6), 1, "still",
+        Entry("ui/frame_nine_slice.png", "assets/ui/hud/rahmen.png, rahmen_aktiv.png", (24, 24), 1, "still",
+              "nine-slice frame, 8 px corners, centre stretches", g_nine8, "Interface", "assets/ui/hud/rahmen_aktiv.png"),
+        Entry("ui/bar.png", "assets/ui/hud/balken_{leben|schild|fortschritt|leer}.png", (96, 12), 1, "still",
               "bar, stretched horizontally; fill drawn over balken_leer", g_bar, "Interface", "assets/ui/hud/balken_schild.png"),
-        Entry("ui/banner.png", "assets/ui/banner/{name}.png", (96, 21), 1, "still",
-              "round banner, width follows the text (12 px padding each side), 5 × 7 pixel font", g_banner, "Interface", "assets/ui/banner/seitenwechsel.png"),
+        Entry("ui/banner.png", "assets/ui/banner/{name}.png", (160, 32), 1, "still",
+              "round banner, height 32, width = text + 40 px, game font fixed_sys at 16 px without smoothing", g_banner, "Interface", "assets/ui/banner/seitenwechsel.png"),
         Entry("ui/logo.png", "assets/logo.png (+ icon.ico 16/32/48)", (48, 48), 1, "still",
               "game logo, also program icon", g_box(1), "Interface", "assets/logo.png"),
         Entry("ui/player_card.png", "assets/menu/lobby/playercard.png", (64, 128), 1, "still",
