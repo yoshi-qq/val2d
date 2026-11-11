@@ -234,3 +234,10 @@ def test_rate_ramp_speeds_up_held_fire() -> None:
         elif i >= 128:
             shots_late += fired
     assert shots_late > shots_early * 1.2
+
+
+def test_map_materials_set_wall_properties() -> None:
+    m = load_map("gasse")
+    glass = [w for w in m.walls if w.material == "glass"]
+    assert glass and not glass[0].blocks_sight and glass[0].height == 2 and glass[0].penetration == 0
+    assert m.floor == "concrete" and any(mat == "tiles" for mat, _ in m.floors)

@@ -137,7 +137,14 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
         rel = f"{folder}/{name}.png" if (ASSETS / folder / f"{name}.png").exists() else f"maps/werkhof/{name}.png"
         return bank.scaled(rel, (tile_px, tile_px))
 
-    floor = tile("boden_stein")
+    from gameplay.world import load_materials
+    wall_mats, floor_mats = load_materials()
+
+    def mat_tile(rel: str) -> pygame.Surface | None:
+        return bank.scaled(rel, (tile_px, tile_px)) if (ASSETS / rel).exists() else None
+
+    floor = mat_tile(floor_mats.get(world.floor, "")) if world.floor else None
+    floor = floor or tile("boden_stein")
     if floor is None:
         return None
     w_px, h_px = round(world.width * scale), round(world.height * scale)
@@ -149,6 +156,10 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
         return pygame.Rect(left, top, max(1, round(x1 * scale) - left), max(1, round((world.height - y0) * scale) - top))
 
     _tile_rect(surf, floor, surf.get_rect())
+    for mat, rect in world.floors:
+        patch = mat_tile(floor_mats.get(mat, ""))
+        if patch is not None:
+            _tile_rect(surf, patch, to_px(rect))
     layers: list[tuple[str, pygame.Rect]] = []
     layers += [("platz_rand", to_px(s.rect)) for s in world.sites]
     layers += [("plattform", to_px(p.rect)) for p in world.platforms]
@@ -159,13 +170,16 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
             continue
         if wall.rect.x0 < -0.5 or wall.rect.y0 < -0.5 or wall.rect.x1 > world.width + 0.5 or wall.rect.y1 > world.height + 0.5:
             continue
+        if wall.material and wall.material in wall_mats:
+            layers.append(("mat:" + wall_mats[wall.material].get("tile", ""), to_px(wall.rect)))
+            continue
         if wall.height == 1 and not wall.blocks_sight:
             name = "kiste_metall"
         else:
             name = "wand_duenn" if wall.penetration <= 1 else "wand"
         layers.append((name, to_px(wall.rect)))
     for name, rect in layers:
-        t = tile(name)
+        t = mat_tile(name[4:]) if name.startswith("mat:") else tile(name)
         if t is None:
             pygame.draw.rect(surf, (110, 106, 120), rect)
         else:

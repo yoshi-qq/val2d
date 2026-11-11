@@ -17,6 +17,7 @@ class Wall:
     penetration: int  # material: 0 thin, 1 medium, 2 thick, 3 impenetrable
     blocks_sight: bool = True
     height: int = 2  # levels; crates have 1 and can be climbed
+    material: str = ""  # key in config/materials.py WALLS (decides the tile)
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,8 @@ class WorldMap:
     spawns: dict[int, list[Vec]] = field(default_factory=dict)  # 0 Angreifer, 1 Verteidiger
     spawn_zones: dict[int, Rect] = field(default_factory=dict)
     callouts: list[tuple[str, Rect]] = field(default_factory=list)
+    floor: str = ""  # key in config/materials.py FLOORS for the whole map
+    floors: list[tuple[str, Rect]] = field(default_factory=list)  # floor material patches
 
     def floor_level(self, p: Vec) -> int:
         """Level of the surface under a point (crates count as level 1)."""
@@ -80,6 +83,13 @@ class WorldMap:
         return [w for w in self.walls if w.blocks_sight and w.height > level]
 
 
+def load_materials() -> tuple[dict[str, dict], dict[str, str]]:
+    """(WALLS, FLOORS) from config/materials.py; empty if unreadable."""
+    from gameplay.data import ROOT, _load_py
+    path = ROOT / "config" / "materials.py"
+    return dict(_load_py(path, "WALLS") or {}), dict(_load_py(path, "FLOORS") or {})
+
+
 def _rect(v: list[float]) -> Rect:
     x0, y0, x1, y1 = v
     return Rect(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
@@ -99,8 +109,16 @@ def load_map(key: str) -> WorldMap:
     w, h = m.width, m.height
     m.walls += [Wall(Rect(-1, -1, w + 1, 0), 3), Wall(Rect(-1, h, w + 1, h + 1), 3),
                 Wall(Rect(-1, 0, 0, h), 3), Wall(Rect(w, 0, w + 1, h), 3)]
+    mats = load_materials()[0]
     for wl in raw.get("walls", []):
-        m.walls.append(Wall(_rect(wl["rect"]), int(wl.get("pen", 2)), bool(wl.get("sight", True)), int(wl.get("height", 2))))
+        mat = str(wl.get("mat", ""))
+        base = mats.get(mat, {})
+        if mat and not base:
+            warnings.warn(f"Map {key}: unknown wall material {mat!r}")
+        m.walls.append(Wall(_rect(wl["rect"]), int(wl.get("pen", base.get("pen", 2))), bool(wl.get("sight", base.get("sight", True))),
+                            int(wl.get("height", base.get("height", 2))), mat))
+    m.floor = str(raw.get("floor", ""))
+    m.floors = [(str(f["mat"]), _rect(f["rect"])) for f in raw.get("floors", [])]
     for b in raw.get("crates", []):
         m.walls.append(Wall(_rect(b), 1, False, 1))
     m.platforms = [Platform(_rect(p)) for p in raw.get("platforms", [])]
