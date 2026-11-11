@@ -49,3 +49,10 @@ def test_frame_sizes_follow_cells() -> None:
     c = chars()
     assert c.frame("kestrel", "idle", False, 32, 0.0).get_size() == (32, 64)
     assert c.frame("kestrel", "dead", False, 32, 0.0).get_size() == (64, 32)
+
+
+def test_screen_pictures_ignore_enemy_flag() -> None:
+    c = chars()
+    for tag in ("portrait", "killfeed", "select"):
+        found = c.resolve("kestrel", tag, enemy=True)
+        assert found is not None and found[1] == tag and "_feind" not in found[0]

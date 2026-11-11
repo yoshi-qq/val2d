@@ -187,6 +187,7 @@ _BUILTIN_STATES: dict[str, tuple[float | None, bool, str | None]] = {
     "victory": (4, True, "idle"), "portrait": (None, False, None), "killfeed": (None, False, "portrait"),
     "select": (None, False, "portrait"),
 }
+SCREEN_STATES = ("_portrait", "_killfeed", "_select")
 _SIZES_M: dict[str, tuple[float, float]] = {"dead": (2, 1), "portrait": (2, 2), "killfeed": (1, 1), "select": (2, 4)}
 
 
@@ -215,6 +216,8 @@ class CharacterSprites:
         self.states = load_states()
 
     def _file(self, agent: str, name: str, enemy: bool) -> str:
+        if enemy and name.endswith(SCREEN_STATES):  # screen pictures have no enemy outline
+            enemy = False
         return f"agents/{agent}/{name}{'_feind' if enemy else ''}.png"
 
     def resolve(self, agent: str, state: str, enemy: bool, form: str | None = None) -> tuple[str, str] | None:
