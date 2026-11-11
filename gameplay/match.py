@@ -99,10 +99,20 @@ class PlayerState:
     plant_progress: float = 0.0
     defuse_progress: float = 0.0
     prev_ability: str | None = None
+    prev_interact: bool = False
+    visible: bool = True  # nur im Schatten-Match eines Clients von Bedeutung
 
     @property
     def weapon(self) -> WeaponState | None:
         return self.weapons.get(self.slot)
+
+
+@dataclass
+class Drop:
+    key: str
+    mag: int
+    reserve: int
+    pos: Vec
 
 
 @dataclass
@@ -136,6 +146,7 @@ class Match:
         self.rng = random.Random(seed)
         self.players: dict[int, PlayerState] = {}
         self.effects: list[Effect] = []
+        self.drops: list[Drop] = []
         self.events: list[GameEvent] = []
         self.time = 0.0
         self.phase = "lobby"  # lobby, buy, live, planted, end, over
@@ -198,6 +209,7 @@ class Match:
             self.attacking_team = 1 - self.attacking_team
         pistol = self._is_pistol_round()
         self.effects.clear()
+        self.drops.clear()
         self.round_winner = None
         self.round_reason = ""
         self.spike_pos = None
@@ -407,9 +419,32 @@ class Match:
             self._finish_reload(p)
         if self.phase in ("live", "planted") and not busy:
             self._handle_fire(p, cmd)
+        self._pickup(p, cmd)
         recovery = self._weapon_def(p).spray_recovery if self._weapon_def(p) else 5.0
         if not cmd.fire:
             p.spray = max(0.0, p.spray - recovery * dt)
+
+    def _pickup(self, p: PlayerState, cmd: Command) -> None:
+        """Leerer Platz: automatisch aufheben. F (ohne Spike-Aufgabe): tauschen."""
+        pressed = cmd.interact and not p.prev_interact
+        p.prev_interact = cmd.interact
+        for drop in list(self.drops):
+            if (drop.pos - p.pos).length() > PICKUP_RANGE:
+                continue
+            d = self.weapons.get(drop.key)
+            if not d:
+                continue
+            spike_job = self.spike_carrier == p.pid or (self.phase == "planted" and self.side(p.team) == "defense" and self.spike_pos is not None and (p.pos - self.spike_pos).length() <= INTERACT_RANGE)
+            if d.slot not in p.weapons or (pressed and not spike_job):
+                old = p.weapons.get(d.slot)
+                p.weapons[d.slot] = WeaponState(drop.key, drop.mag, drop.reserve)
+                self.drops.remove(drop)
+                if old:
+                    self.drops.append(Drop(old.key, old.mag, old.reserve, p.pos))
+                p.slot = d.slot
+                p.equip_until = self.time + d.equip
+                self.events.append(GameEvent("pickup", self.time, {"pid": p.pid, "weapon": drop.key}))
+                return
 
     def _max_speed(self, p: PlayerState) -> float:
         d = self._weapon_def(p)
@@ -600,6 +635,11 @@ class Match:
         if self.spike_carrier == target.pid:
             self.spike_carrier = None
             self.spike_pos = target.pos
+        for slot in ("primary", "sidearm"):
+            ws = target.weapons.get(slot)
+            if ws and (slot == "primary" or ws.key != "spatz"):
+                self.drops.append(Drop(ws.key, ws.mag, ws.reserve, target.pos))
+                break
         if attacker and attacker.team != target.team:
             attacker.kills += 1
             attacker.credits = min(int(self._eco["max"]), attacker.credits + int(self._eco["kill"]))
@@ -820,6 +860,7 @@ class Match:
                 "charges": dict(p.charges), "ult": p.ult_points, "kills": p.kills, "deaths": p.deaths,
                 "blind": p.blind_until > self.time, "reloading": p.reload_until > self.time,
                 "plant": p.plant_progress, "defuse": p.defuse_progress,
+                "vx": p.vel.x, "vy": p.vel.y, "spray": p.spray,
             })
         return {
             "time": self.time, "phase": self.phase, "phase_left": self.phase_time_left(), "round": self.round_no,
@@ -830,4 +871,7 @@ class Match:
                          "a": (e.a.x, e.a.y) if e.a else None, "b": (e.b.x, e.b.y) if e.b else None}
                         for e in self.effects if e.kind != "flash"],
             "players": players,
+            "roster": [{"pid": p.pid, "name": p.name, "team": p.team, "agent": p.agent, "kills": p.kills,
+                        "deaths": p.deaths, "alive": p.alive} for p in self.players.values()],
+            "drops": [{"key": d.key, "x": d.pos.x, "y": d.pos.y} for d in self.drops],
         }
