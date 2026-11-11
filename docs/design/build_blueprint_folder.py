@@ -323,7 +323,13 @@ BATCH_THREE = [
     ("maps/common/props", "Map props", "assets/maps/common/props/{name}.png"),
     ("maps/common/decals", "Map decals", "assets/maps/common/decals/{name}.png"),
     ("fx/ability", "Ability sprites (generic)", "assets/fx/ability/{name}.png"),
+    ("ui/crosshair", "Interface: crosshair", "assets/ui/crosshair/{name}.png"),
+    ("ui/scoreboard", "Interface: scoreboard", "assets/ui/scoreboard/{name}.png"),
 ]
+EXTRA_FILES = ["fx/tracer.png", "fx/tracer_own.png", "fx/sound_ring.png", "fx/radius_ring.png", "fx/facing_marker.png",
+               "ui/minimap/frame.png", "ui/minimap/wall.png", "ui/minimap/crate.png", "ui/hud/killfeed_row.png",
+               "ui/hud/killfeed_row_self.png", "ui/hud/score_panel.png", "ui/hud/weapon_panel.png", "ui/hud/ability_panel.png",
+               "ui/hud/carrier_hint.png"]
 
 
 def batch_three() -> list[Entry]:
@@ -342,6 +348,8 @@ def batch_three() -> list[Entry]:
                 guide = g_agent
             elif name.startswith(("button", "panel", "textfield", "tab", "checkbox")):
                 guide = g_nine
+            elif (fw, h) == (24, 24):
+                guide = g_nine8
             elif fw >= 24 and h >= 24 and fw == h:
                 guide = g_circle
             else:
@@ -354,6 +362,17 @@ def batch_three() -> list[Entry]:
             short = folder.replace("/", "_")
             out.append(Entry(f"{short}/{name}.png", target.format(name=name), (fw, h), frames, fps, purpose, guide,
                              category, str(f.relative_to(ROOT)).replace("\\", "/")))
+    for rel in EXTRA_FILES:
+        f = ROOT / "assets" / rel
+        if not f.exists():
+            continue
+        with Image.open(f) as im:
+            w, h = im.size
+        frames = 3 if f.stem == "sound_ring" else 1
+        fw = w // frames
+        guide = g_nine8 if (fw, h) == (24, 24) else g_circle if fw == h and fw >= 32 else g_corners
+        out.append(Entry(f"extra/{f.stem}.png", f"assets/{rel}", (fw, h), frames, "still" if frames == 1 else "5 fps",
+                         f.stem.replace("_", " "), guide, "Interface and effects: extras", f"assets/{rel}"))
     return out
 
 

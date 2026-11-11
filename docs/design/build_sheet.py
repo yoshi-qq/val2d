@@ -133,7 +133,8 @@ def build() -> str:
         "nearsight", "concuss", "slow", "vulnerable", "decay", "suppress", "detain", "deaf", "stim")]))
     for folder, title in (("ui/menu", "Menus"), ("ui/icons", "Interface icons"), ("ui/buy", "Buy menu"),
                           ("maps/common", "Map tiles: common set"), ("maps/common/props", "Map props"),
-                          ("maps/common/decals", "Map decals"), ("fx/ability", "Ability sprites")):
+                          ("maps/common/decals", "Map decals"), ("fx/ability", "Ability sprites"),
+                          ("ui/crosshair", "Crosshair"), ("ui/scoreboard", "Scoreboard")):
         items = []
         for f in sorted((ROOT / "assets" / folder).glob("*.png")):
             rel = str(f.relative_to(ROOT)).replace("\\", "/")

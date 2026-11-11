@@ -247,3 +247,40 @@ white cross = centre/anchor, white line = ground row, white ring = maximum radiu
 | `fx_ability/revive.png` | [example](examples/revive.example.png) | `assets/fx/ability/revive.png` | 16×32 | 4 | 10 fps | revive |
 | `fx_ability/shield_shell.png` | [example](examples/shield_shell.example.png) | `assets/fx/ability/shield_shell.png` | 16×32 | 3 | 10 fps | shield shell |
 | `fx_ability/teleport.png` | [example](examples/teleport.example.png) | `assets/fx/ability/teleport.png` | 16×32 | 4 | 10 fps | teleport |
+
+## Interface: crosshair
+
+| Template | Example | Target file | Frame size | Frames | Speed | Purpose |
+|---|---|---|---|---|---|---|
+| `ui_crosshair/arm.png` | [example](examples/arm.example.png) | `assets/ui/crosshair/arm.png` | 2×8 | 1 | still | arm |
+| `ui_crosshair/arm_hit.png` | [example](examples/arm_hit.example.png) | `assets/ui/crosshair/arm_hit.png` | 2×8 | 1 | still | arm hit |
+| `ui_crosshair/dot.png` | [example](examples/dot.example.png) | `assets/ui/crosshair/dot.png` | 4×4 | 1 | still | dot |
+| `ui_crosshair/dot_hit.png` | [example](examples/dot_hit.example.png) | `assets/ui/crosshair/dot_hit.png` | 4×4 | 1 | still | dot hit |
+
+## Interface: scoreboard
+
+| Template | Example | Target file | Frame size | Frames | Speed | Purpose |
+|---|---|---|---|---|---|---|
+| `ui_scoreboard/header_team_a.png` | [example](examples/header_team_a.example.png) | `assets/ui/scoreboard/header_team_a.png` | 24×24 | 1 | still | header team a |
+| `ui_scoreboard/header_team_b.png` | [example](examples/header_team_b.example.png) | `assets/ui/scoreboard/header_team_b.png` | 24×24 | 1 | still | header team b |
+| `ui_scoreboard/row.png` | [example](examples/row.example.png) | `assets/ui/scoreboard/row.png` | 24×24 | 1 | still | row |
+| `ui_scoreboard/row_self.png` | [example](examples/row_self.example.png) | `assets/ui/scoreboard/row_self.png` | 24×24 | 1 | still | row self |
+
+## Interface and effects: extras
+
+| Template | Example | Target file | Frame size | Frames | Speed | Purpose |
+|---|---|---|---|---|---|---|
+| `extra/tracer.png` | [example](examples/tracer.example.png) | `assets/fx/tracer.png` | 16×2 | 1 | still | tracer |
+| `extra/tracer_own.png` | [example](examples/tracer_own.example.png) | `assets/fx/tracer_own.png` | 16×2 | 1 | still | tracer own |
+| `extra/sound_ring.png` | [example](examples/sound_ring.example.png) | `assets/fx/sound_ring.png` | 64×64 | 3 | 5 fps | sound ring |
+| `extra/radius_ring.png` | [example](examples/radius_ring.example.png) | `assets/fx/radius_ring.png` | 64×64 | 1 | still | radius ring |
+| `extra/facing_marker.png` | [example](examples/facing_marker.example.png) | `assets/fx/facing_marker.png` | 8×8 | 1 | still | facing marker |
+| `extra/frame.png` | [example](examples/frame.example.png) | `assets/ui/minimap/frame.png` | 24×24 | 1 | still | frame |
+| `extra/wall.png` | [example](examples/wall.example.png) | `assets/ui/minimap/wall.png` | 4×4 | 1 | still | wall |
+| `extra/crate.png` | [example](examples/crate.example.png) | `assets/ui/minimap/crate.png` | 4×4 | 1 | still | crate |
+| `extra/killfeed_row.png` | [example](examples/killfeed_row.example.png) | `assets/ui/hud/killfeed_row.png` | 24×24 | 1 | still | killfeed row |
+| `extra/killfeed_row_self.png` | [example](examples/killfeed_row_self.example.png) | `assets/ui/hud/killfeed_row_self.png` | 24×24 | 1 | still | killfeed row self |
+| `extra/score_panel.png` | [example](examples/score_panel.example.png) | `assets/ui/hud/score_panel.png` | 24×24 | 1 | still | score panel |
+| `extra/weapon_panel.png` | [example](examples/weapon_panel.example.png) | `assets/ui/hud/weapon_panel.png` | 24×24 | 1 | still | weapon panel |
+| `extra/ability_panel.png` | [example](examples/ability_panel.example.png) | `assets/ui/hud/ability_panel.png` | 24×24 | 1 | still | ability panel |
+| `extra/carrier_hint.png` | [example](examples/carrier_hint.example.png) | `assets/ui/hud/carrier_hint.png` | 16×16 | 1 | still | carrier hint |
