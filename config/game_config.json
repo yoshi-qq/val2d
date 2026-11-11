@@ -1,0 +1,22 @@
+{
+  "_hinweis": "Von Christian einzustellen. Trefferzonen: halbe Breiten quer zur Schusslinie (Meter, aus Sprite-Breite 16 px = 1 m), erlaubte Tiefenabweichung des Cursors (Meter).",
+  "hit_zones": {
+    "head_half_width": 0.25,
+    "body_half_width": 0.375,
+    "legs_half_width": 0.22,
+    "head_depth_tolerance": 1.2,
+    "body_depth_tolerance": 3.0
+  },
+  "lobby_defaults": {
+    "all_around_sight": false,
+    "sound_rings": false,
+    "win_rounds": 13,
+    "overtime": true,
+    "team_size": 1
+  },
+  "player_defaults": {
+    "camera_push": 0.35,
+    "sensitivity": 0.25,
+    "enemy_highlight": "#ee4c4a"
+  }
+}
