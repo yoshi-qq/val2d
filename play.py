@@ -73,6 +73,7 @@ class UiState:
     rings: list[Ring] = field(default_factory=list)
     feed: list[tuple[float, str, str | None, str | None, bool]] = field(default_factory=list)  # until, text, killer agent, victim agent, head
     banner: tuple[float, str] = (0.0, "")
+    banner_art: str = ""  # file name under assets/ui/banner/ shown above the banner text
     hit_marker: float = 0.0
     last_shot: dict[int, float] = field(default_factory=dict)
     last_cast: dict[int, tuple[float, str]] = field(default_factory=dict)  # pid -> (time, slot)
@@ -248,6 +249,12 @@ class Game:
             events = self.step(dt, cmd)
             if self.match.phase != "lobby" and not self.grabbed and not self.ui.buy_open:
                 self.grab(True)
+            if self.match.round_no != self.seen_round and self.seen_round > 0 and self.me in self.match.players:
+                half = int(self.match._r["half_after"])
+                if self.match.round_no == half + 1:
+                    self.ui.banner, self.ui.banner_art = (self.match.time + 3, "Sides switched"), "seitenwechsel"
+                elif self.match.round_no == 2 * half + 1:
+                    self.ui.banner, self.ui.banner_art = (self.match.time + 3, "Overtime"), "verlaengerung"
             if self.match.round_no != self.seen_round and self.me in self.match.players:
                 self.seen_round = self.match.round_no  # new round: take the facing from the spawn
                 self.local_facing = self.match.players[self.me].facing
@@ -312,6 +319,7 @@ class Game:
                 self.sound.play("kill", None, None)
             elif e.kind == "plant":
                 self.ui.banner = (t + 2.5, f"Bomb planted on {d['site']}")
+                self.ui.banner_art = "spike_gelegt"
                 self.sound.play("plant", None, None)
             elif e.kind == "blast":
                 self.sound.play("shot", me, Vec(*d["pos"]), 40)
@@ -327,7 +335,12 @@ class Game:
                 self.sound.play("ability", me, Vec(*d["pos"]), 30)
             elif e.kind == "round_end":
                 won = d["winner"] == me.team
-                self.ui.banner = (t + 5, f"{'Round won' if won else 'Round lost'}: {d['reason']}  {d['score'][0]}:{d['score'][1]}")
+                self.ui.banner = (t + 5, f"{d['reason']}  {d['score'][me.team]}:{d['score'][1 - me.team]}")
+                self.ui.banner_art = "sieg" if won else "niederlage"
+                if d.get("reason") == "Bomb defused":
+                    self.ui.banner_art = "entschaerft" if won else "niederlage"
+            elif e.kind == "defuse":
+                self.sound.play("plant", None, None)
 
     # ------------------------------------------------------------ Zeichnen
     def to_screen(self, p: Vec, me: PlayerState) -> tuple[float, float]:
@@ -763,6 +776,72 @@ class Game:
             if dst[2] > 0 and dst[3] > 0:
                 self.screen.blit(pygame.transform.scale(img.subsurface(src), (dst[2], dst[3])), (dst[0], dst[1]))
 
+    def draw_bar(self, icon: str, fill: str, value: int, top: int, pos: tuple[int, int]) -> None:
+        """HUD bar: icon, empty bar, fill clipped to value/top, number (pixel art at 3x)."""
+        x, y = pos
+        k = 3
+        sym = self.bank.scaled(f"ui/hud/{icon}.png", (8 * k, 8 * k))
+        empty = self.bank.scaled("ui/hud/balken_leer.png", (48 * k, 6 * k))
+        full = self.bank.scaled(f"ui/hud/{fill}.png", (48 * k, 6 * k))
+        if sym is None or empty is None or full is None:
+            self.text(f"{icon.title()} {value}", (x, y))
+            return
+        self.screen.blit(sym, (x, y))
+        self.screen.blit(empty, (x + 30, y + 3))
+        width = round(full.get_width() * max(0.0, min(1.0, value / max(top, 1))))
+        if width > 0:
+            self.screen.blit(full, (x + 30, y + 3), (0, 0, width, full.get_height()))
+        self.text(str(value), (x + 36 + empty.get_width(), y))
+
+    def draw_minimap(self, me: PlayerState) -> None:
+        """North-up overview in the top-left corner: walls, own team, visible enemies, bomb, smokes."""
+        m, wm = self.match, self.match.world
+        size = 190
+        k = size / max(wm.width, wm.height)
+        ox, oy = 12, 44
+        panel = pygame.Surface((round(wm.width * k), round(wm.height * k)), pygame.SRCALPHA)
+        panel.fill((20, 20, 28, 190))
+
+        def pt(v: Vec) -> tuple[float, float]:
+            return v.x * k, (wm.height - v.y) * k
+
+        for w in wm.walls:
+            if w.rect.x0 < -0.5 or w.rect.y0 < -0.5 or w.rect.x1 > wm.width + 0.5 or w.rect.y1 > wm.height + 0.5:
+                continue
+            x0, y1 = pt(Vec(w.rect.x0, w.rect.y0))
+            x1, y0 = pt(Vec(w.rect.x1, w.rect.y1))
+            pygame.draw.rect(panel, (120, 116, 132, 255) if w.height > 1 else (80, 96, 108, 255), (x0, y0, max(1, x1 - x0), max(1, y1 - y0)))
+        for site in wm.sites:
+            x, y = pt(site.rect.center)
+            lbl = self.font.render(site.name, True, C_SITE)
+            panel.blit(lbl, (x - lbl.get_width() / 2, y - lbl.get_height() / 2))
+
+        def icon(name: str, at: Vec, px: int = 12, angle: float | None = None) -> None:
+            img = self.bank.scaled(f"ui/minimap/{name}.png", (px, px))
+            x, y = pt(at)
+            if img is None:
+                pygame.draw.circle(panel, C_TEXT, (x, y), 3)
+                return
+            if angle is not None:
+                img = pygame.transform.rotate(img, -angle)
+            panel.blit(img, (x - img.get_width() / 2, y - img.get_height() / 2))
+
+        for e in m.effects:
+            name = {"smoke": "dunst", "zone": "bann", "wall": "schleier"}.get(e.kind)
+            if name:
+                icon(name, e.pos, max(8, round(2 * max(e.radius, 1.0) * k)))
+        if m.spike_pos is not None:
+            icon("spike", m.spike_pos)
+        for p in m.players.values():
+            if p.pid == self.me:
+                continue
+            if p.team == me.team:
+                icon("verbuendet" if p.alive else "tot", p.pos)
+            elif p.alive and (p.visible if self.mode == "client" else m.can_see(me, p)):
+                icon("feind", p.pos)
+        icon("selbst", me.pos, 14, me.facing)
+        self.screen.blit(panel, (ox, oy))
+
     def draw_crosshair(self, me: PlayerState) -> None:
         cx, cy = self.to_screen(me.pos + heading(me.facing) * self.cursor_depth, me)
         col = C_ENEMY if self.match.time < self.ui.hit_marker else (120, 255, 200)
@@ -787,7 +866,9 @@ class Game:
         self.text(f"{mine}  {int(left) // 60}:{int(left) % 60:02d}  {theirs}", (self.w / 2, 12), big=True, center=True)
         side = "Attack" if m.side(me.team) == "attack" else "Defense"
         self.text(f"Round {m.round_no} · {side} {('· ' + phase) if phase else ''}", (self.w / 2, 54), C_MUTED, center=True)
-        self.text(f"Health {max(me.hp, 0)}   Shield {me.armor}", (20, self.h - 40))
+        self.draw_bar("leben", "balken_leben", max(me.hp, 0), 100, (20, self.h - 40))
+        self.draw_bar("schild", "balken_schild", me.armor, 50, (250, self.h - 40))
+        self.draw_minimap(me)
         if me.weapon:
             d = m.weapons.get(me.weapon.key)
             name = d.name if d else me.weapon.key
@@ -825,7 +906,7 @@ class Game:
             sx += 28 + self.font.size(k)[0] + 16
         self.text(f"{m.agents[me.agent]['name']} · {m.world.callout_at(me.pos)}", (20, 16), C_MUTED)
         if m.spike_carrier == self.me:
-            self.text("You carry the bomb (hold F on A or B)", (20, 40), C_SITE)
+            self.text("You carry the bomb (hold F on A or B)", (20, 248), C_SITE)
         prog = me.plant_progress / 4.0 if me.plant_progress else me.defuse_progress / 7.0
         if prog > 0:
             pygame.draw.rect(self.screen, C_MUTED, (self.w / 2 - 100, self.h / 2 + 60, 200, 10), 1)
@@ -848,11 +929,19 @@ class Game:
         if self.status:
             self.text(self.status, (self.w / 2, self.h / 2 - 110), C_ENEMY, center=True)
         if m.time < self.ui.banner[0]:
-            self.text(self.ui.banner[1], (self.w / 2, self.h / 3), C_SITE, big=True, center=True)
+            art = self.bank.raw(f"ui/banner/{self.ui.banner_art}.png") if self.ui.banner_art else None
+            y = 96
+            if art is not None:
+                k = 3
+                img = self.bank.scaled(f"ui/banner/{self.ui.banner_art}.png", (art.get_width() * k, art.get_height() * k))
+                if img is not None:
+                    self.screen.blit(img, (self.w / 2 - img.get_width() / 2, y))
+                    y += img.get_height() + 8
+            self.text(self.ui.banner[1], (self.w / 2, y), C_SITE, big=art is None, center=True)
         if not me.alive and m.phase in ("live", "planted"):
             self.text("Eliminated – waiting for the next round", (self.w / 2, self.h / 2 - 80), C_ENEMY, center=True)
         if m.phase == "buy":
-            self.text("B: buy menu", (20, 64), C_MUTED)
+            self.text("B: buy menu", (20, 272), C_MUTED)
 
     def buy_layout(self) -> list[tuple[pygame.Rect, str, str]]:
         m = self.match
