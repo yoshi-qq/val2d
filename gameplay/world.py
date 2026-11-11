@@ -139,6 +139,11 @@ def load_map(key: str) -> WorldMap:
                         spawns={0: [Vec(20, 4)], 1: [Vec(20, 36)]},
                         spawn_zones={0: Rect(15, 0, 25, 8), 1: Rect(15, 32, 25, 40)},
                         sites=[Site("A", Rect(16, 16, 24, 24))])
+    return parse_map(key, raw)
+
+
+def parse_map(key: str, raw: dict) -> WorldMap:
+    """Builds a WorldMap from map-file data (also used by the map editor for its preview)."""
     m = WorldMap(key=key, name=raw["name"], width=raw["width"], height=raw["height"])
     w, h = m.width, m.height
     m.walls += [Wall(Rect(-1, -1, w + 1, 0), 3), Wall(Rect(-1, h, w + 1, h + 1), 3),
