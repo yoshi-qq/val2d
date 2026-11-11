@@ -35,7 +35,8 @@ def load_agents() -> dict[str, dict[str, Any]]:
     for key, agent in raw.items():
         try:
             abil = {slot: dict(agent["abilities"][slot]) for slot in ("C", "Q", "E", "X")}
-            out[key] = {"name": str(agent["name"]), "role": str(agent.get("role", "")), "abilities": abil}
+            out[key] = {"name": str(agent["name"]), "role": str(agent.get("role", "")), "abilities": abil,
+                        "sprites": dict(agent.get("sprites", {}))}
         except (KeyError, TypeError) as exc:
             warnings.warn(f"Agent {key} skipped: {exc}")
     return out

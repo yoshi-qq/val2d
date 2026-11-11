@@ -29,7 +29,7 @@ from gameplay.match import Command, Effect, GameEvent, Match, PlayerState
 from gameplay.net import DEFAULT_PORT, Client, apply_snapshot, discover, events_from_json
 from gameplay.session import HostSession
 from gameplay.world import load_map
-from sprite_bank import SpriteBank, build_map_surface
+from sprite_bank import CharacterSprites, SpriteBank, build_map_surface
 
 ROOT = Path(__file__).resolve().parent
 FONT_PATH = ROOT / "font" / "fixed_sys.ttf"
@@ -75,7 +75,11 @@ class UiState:
     banner: tuple[float, str] = (0.0, "")
     hit_marker: float = 0.0
     last_shot: dict[int, float] = field(default_factory=dict)
-    last_cast: dict[int, float] = field(default_factory=dict)
+    last_cast: dict[int, tuple[float, str]] = field(default_factory=dict)  # pid -> (time, slot)
+    last_hit: dict[int, float] = field(default_factory=dict)
+    died_at: dict[int, float] = field(default_factory=dict)
+    landed_at: dict[int, float] = field(default_factory=dict)
+    prev_z: dict[int, float] = field(default_factory=dict)
     blasts: list[tuple[Vec, float, float]] = field(default_factory=list)  # pos, radius, start
     waves: list[tuple[int, Vec, float]] = field(default_factory=list)      # pid, end point, start
 
@@ -170,6 +174,7 @@ class Game:
                 self.match.add_player(f"Enemy {i + 1}", 1, list(self.match.agents)[i % len(self.match.agents)], is_bot=True)
         self.bots = BotDirector(self.match)
         self.bank = SpriteBank()
+        self.chars = CharacterSprites(self.bank)
         self.map_surface = build_map_surface(self.match.world, self.bank, self.scale)
         self._crop: pygame.Surface | None = None
         self.local_facing = 0.0
@@ -286,9 +291,12 @@ class Game:
                 self.sound.play(d["kind"], me, pos, d["radius"])
                 if m.cfg.lobby.sound_rings and d["pid"] != self.me:
                     self.ui.rings.append(Ring(pos, min(d["radius"], 6.0), t))
-            elif e.kind == "hit" and d["by"] == self.me:
-                self.ui.hit_marker = t + 0.15
+            elif e.kind == "hit":
+                self.ui.last_hit[d["pid"]] = t
+                if d["by"] == self.me:
+                    self.ui.hit_marker = t + 0.15
             elif e.kind == "kill":
+                self.ui.died_at[d["pid"]] = t
                 killer = m.players.get(d["by"]) if d["by"] else None
                 victim = m.players.get(d["pid"])
                 by = killer.name if killer else "Bomb"
@@ -304,10 +312,10 @@ class Game:
                 revived = m.players.get(d["pid"])
                 self.ui.feed.append((t + 4, f"{revived.name if revived else '?'} revived"))
             elif e.kind == "ability" and d.get("kind") == "wave":
-                self.ui.last_cast[d["pid"]] = t
+                self.ui.last_cast[d["pid"]] = (t, str(d.get("key", "C")))
                 self.ui.waves.append((d["pid"], Vec(*d["pos"]), t))
             elif e.kind == "ability":
-                self.ui.last_cast[d["pid"]] = t
+                self.ui.last_cast[d["pid"]] = (t, str(d.get("key", "C")))
                 self.sound.play("ability", me, Vec(*d["pos"]), 30)
             elif e.kind == "round_end":
                 won = d["winner"] == me.team
@@ -381,7 +389,7 @@ class Game:
             if not p.alive:
                 if p.visible or self.mode != "client":
                     bx, by = self.to_screen(p.pos, me)
-                    body = self.bank.agent(p.agent, "dead", p.team != me.team, self.scale, m.time)
+                    body = self.character_frame(p, me)
                     if body is not None:
                         s.blit(body, (bx - body.get_width() / 2, by - body.get_height() / 2))
                 continue
@@ -393,12 +401,13 @@ class Game:
             col = C_ALLY if p.team == me.team else C_ENEMY
             fx, fy = self.to_screen(p.pos + heading(p.facing) * 0.9, me)
             pygame.draw.line(s, col, (px, py), (fx, fy), 2)
-            img = self.action_frame(p, me)
-            if img is None:
-                pose = "jump" if p.z > 0.001 else "crouch" if p.crouching else "walk" if p.vel.length() > 0.5 else "idle"
-                img = self.bank.agent(p.agent, pose, p.team != me.team, self.scale, m.time)
+            img = self.character_frame(p, me)
             if img is not None:
                 s.blit(img, (px - img.get_width() / 2, py - img.get_height() / 2))
+                walk_index = int(m.time * 8)
+                for layer in self.chars.overlays(p.agent, list(self.sprite_cfg(p).get("overlays", [])), p.team != me.team,
+                                                 self.scale, walk_index):
+                    s.blit(layer, (px - layer.get_width() / 2, py - layer.get_height() / 2))
                 r = img.get_height() / 2
             else:
                 if p.team != me.team:
@@ -428,20 +437,80 @@ class Game:
             self.draw_scores()
         pygame.display.flip()
 
-    def action_frame(self, p: PlayerState, me: PlayerState) -> pygame.Surface | None:
-        """Reload, cast or shoot animation if one is running for p."""
+    def sprite_cfg(self, p: PlayerState) -> dict:
+        return dict(self.match.agents.get(p.agent, {}).get("sprites", {}))
+
+    def slot_active(self, p: PlayerState, slot: str) -> bool:
+        """An ability counts as active for its duration after use; X also while overdrive or immunity runs."""
+        t = self.match.time
+        if slot == "X" and (p.overdrive_until > t or p.immune_until > t):
+            return True
+        cast_t, cast_slot = self.ui.last_cast.get(p.pid, (-99.0, ""))
+        if cast_slot != slot:
+            return False
+        ab = self.match.agents.get(p.agent, {}).get("abilities", {}).get(slot, {})
+        return t - cast_t < float(ab.get("duration", 0.0)) and float(ab.get("duration", 0.0)) <= 15.0
+
+    def character_state(self, p: PlayerState, me: PlayerState) -> tuple[str, float, float]:
+        """(state, clock, speed factor) after the priority list of CHARACTER_SHEETS.md."""
         m, t, enemy = self.match, self.match.time, p.team != me.team
-        if p.reload_until > t and p.weapon:
-            d = m.weapons.get(p.weapon.key)
-            total = d.reload if d else 2.0
-            return self.bank.agent_frame(p.agent, "reload", enemy, self.scale, 1 - (p.reload_until - t) / total)
-        cast = t - self.ui.last_cast.get(p.pid, -9.0)
-        if cast < 3 / 8:
-            return self.bank.agent_frame(p.agent, "cast", enemy, self.scale, cast / (3 / 8))
-        shot = t - self.ui.last_shot.get(p.pid, -9.0)
-        if shot < 2 / 12:
-            return self.bank.agent_frame(p.agent, "shoot", enemy, self.scale, shot / (2 / 12))
-        return None
+        if not p.alive:
+            since = t - self.ui.died_at.get(p.pid, -99.0)
+            dying = self.chars.duration(p.agent, "dying", enemy)
+            return ("dying", since, 1.0) if since < dying else ("dead", 0.0, 1.0)
+        if m.phase == "over" and m.match_winner == p.team:
+            return "victory", t, 1.0
+        if p.plant_progress > 0:
+            return "plant", t, 1.0
+        if p.defuse_progress > 0:
+            return "defuse", t, 1.0
+        cfg = self.sprite_cfg(p)
+        for slot, name in dict(cfg.get("mechanics", {})).items():
+            if self.slot_active(p, slot):
+                return f"mech_{name}", t, 1.0
+        cast_t, slot = self.ui.last_cast.get(p.pid, (-99.0, ""))
+        if slot:
+            tag = f"cast_{slot.lower()}"
+            since = t - cast_t
+            if since < self.chars.duration(p.agent, tag, enemy):
+                return tag, since, 1.0
+            if self.slot_active(p, slot):
+                return f"channel_{slot.lower()}", since, 1.0
+        weapon = m.weapons.get(p.weapon.key) if p.weapon else None
+        if p.reload_until > t and weapon:
+            return "reload", 1 - (p.reload_until - t) / max(weapon.reload, 0.01), 1.0
+        if p.equip_until > t and weapon:
+            return "equip", 1 - (p.equip_until - t) / max(weapon.equip, 0.01), 1.0
+        shot = t - self.ui.last_shot.get(p.pid, -99.0)
+        if shot < self.chars.duration(p.agent, "shoot", enemy):
+            return ("melee" if weapon and weapon.slot == "melee" else "shoot"), shot, 1.0
+        hit = t - self.ui.last_hit.get(p.pid, -99.0)
+        if hit < self.chars.duration(p.agent, "flinch", enemy):
+            return "flinch", hit, 1.0
+        prev_z = self.ui.prev_z.get(p.pid, 0.0)
+        self.ui.prev_z[p.pid] = p.z
+        if prev_z > 0.05 and p.z <= 0.001:
+            self.ui.landed_at[p.pid] = t
+        if p.z > 0.001:
+            return ("jump" if p.vz > 0 else "fall"), t, 1.0
+        landed = t - self.ui.landed_at.get(p.pid, -99.0)
+        if landed < self.chars.duration(p.agent, "land", enemy):
+            return "land", landed, 1.0
+        speed = p.vel.length()
+        run = float(m._mv["run_speed"])
+        if p.crouching:
+            return ("crouch_walk" if speed > 0.3 else "crouch"), t, 1.0
+        if speed > 0.5:
+            return "walk", t, max(0.4, min(1.0, speed / run))
+        return "idle", t, 1.0
+
+    def character_frame(self, p: PlayerState, me: PlayerState) -> pygame.Surface | None:
+        state, clock, speed = self.character_state(p, me)
+        form = None
+        for slot, name in dict(self.sprite_cfg(p).get("forms", {})).items():
+            if self.slot_active(p, slot):
+                form = str(name)
+        return self.chars.frame(p.agent, state, p.team != me.team, self.scale, clock, form=form, speed=speed)
 
     def draw_bursts(self, me: PlayerState) -> None:
         """Short-lived explosions and wave lines from events."""

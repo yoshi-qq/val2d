@@ -38,6 +38,13 @@ Building blocks (kind) and their fields:
   decoy        duration, speed                                       (fake footsteps walking forward)
 
 Statuses (status fields): blind, nearsight, concuss, slow, vulnerable, decay, suppress, detain, deaf, stim.
+
+Optional per agent: sprites=dict(...) for special sprite mechanics (docs/design/CHARACTER_SHEETS.md, section 5):
+  forms      {slot: form}   while that ability is active, {key}@{form}_{state}.png replaces the normal state
+  mechanics  {slot: name}   while that ability is active, the state {key}_mech_{name}.png is shown
+  overlays   [name, ...]    {key}_overlay_{name}.png drawn on top of every state
+An ability counts as active for its `duration` after use (or while channel_{slot} would loop).
+Example: "kestrel": dict(..., sprites=dict(forms={"X": "overdrive"}, overlays=["scarf"]))
 """
 
 STATUS_RULES = dict(

@@ -171,3 +171,106 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
         else:
             _tile_rect(surf, t, rect)
     return surf
+
+
+# ------------------------------------------------------------ Character states (docs/design/CHARACTER_SHEETS.md)
+SPEC_PATH = ROOT / "docs" / "design" / "character_sheet_spec.py"
+_BUILTIN_STATES: dict[str, tuple[float | None, bool, str | None]] = {
+    # tag: (fps, loop, fallback); used if the spec file is missing
+    "idle": (4, True, None), "walk": (8, True, "idle"), "crouch": (4, True, "idle"), "crouch_walk": (6, True, "crouch"),
+    "jump": (8, False, "idle"), "fall": (8, False, "jump"), "land": (12, False, "idle"), "shoot": (12, False, "idle"),
+    "reload": (None, False, "idle"), "equip": (None, False, "idle"), "melee": (12, False, "shoot"),
+    "flinch": (12, False, "idle"), "plant": (4, True, "crouch"), "defuse": (4, True, "crouch"),
+    "cast_c": (8, False, "cast"), "cast_q": (8, False, "cast"), "cast_e": (8, False, "cast"), "cast_x": (8, False, "cast"),
+    "channel_c": (6, True, "cast_c"), "channel_q": (6, True, "cast_q"), "channel_e": (6, True, "cast_e"),
+    "channel_x": (6, True, "cast_x"), "cast": (8, False, "idle"), "dying": (10, False, "dead"), "dead": (None, False, None),
+    "victory": (4, True, "idle"), "portrait": (None, False, None), "killfeed": (None, False, "portrait"),
+    "select": (None, False, "portrait"),
+}
+_SIZES_M: dict[str, tuple[float, float]] = {"dead": (2, 1), "portrait": (2, 2), "killfeed": (1, 1), "select": (2, 4)}
+
+
+def load_states() -> dict[str, tuple[float | None, bool, str | None]]:
+    """State table from the design spec (fps, loop, fallback); built-in copy if the spec is unreadable."""
+    import runpy
+    try:
+        states = runpy.run_path(str(SPEC_PATH)).get("STATES") or []
+        table = {s.tag: (s.fps, bool(s.loop), s.fallback) for s in states}
+        return table or dict(_BUILTIN_STATES)
+    except Exception as exc:  # the spec is a design file; the game must run without it
+        warnings.warn(f"Character sheet spec unreadable ({exc}); using built-in states.")
+        return dict(_BUILTIN_STATES)
+
+
+class CharacterSprites:
+    """Picks the frame for an agent state, following the fallback chain of the spec.
+
+    state: tag from the spec, or "mech_<name>" (falls back to idle).
+    clock: seconds since the state began (fps states) or progress 0..1 (fps None, stretched states).
+    form: active form name, tries {key}@{form}_{state}.png first.
+    """
+
+    def __init__(self, bank: SpriteBank) -> None:
+        self.bank = bank
+        self.states = load_states()
+
+    def _file(self, agent: str, name: str, enemy: bool) -> str:
+        return f"agents/{agent}/{name}{'_feind' if enemy else ''}.png"
+
+    def resolve(self, agent: str, state: str, enemy: bool, form: str | None = None) -> tuple[str, str] | None:
+        """(file, state actually used) after fallbacks, or None if not even idle exists."""
+        seen: set[str] = set()
+        tag: str | None = state
+        while tag and tag not in seen:
+            seen.add(tag)
+            if form:
+                rel = self._file(agent, f"{agent}@{form}_{tag}", enemy)
+                if (ASSETS / rel).exists():
+                    return rel, tag
+            rel = self._file(agent, f"{agent}_{tag}", enemy)
+            if (ASSETS / rel).exists():
+                return rel, tag
+            tag = "idle" if tag.startswith("mech_") else self.states.get(tag, (None, False, "idle"))[2]
+        return None
+
+    def duration(self, agent: str, state: str, enemy: bool = False) -> float:
+        """Play time of a non-looping fps state (frames / fps), 0 if unknown."""
+        found = self.resolve(agent, state, enemy)
+        if not found:
+            return 0.0
+        fps = self.states.get(found[1], (None, False, None))[0]
+        return self.bank.frames_in(found[0], self._cell_w(found[1])) / fps if fps else 0.0
+
+    def _cell_w(self, tag: str) -> int:
+        return round(_SIZES_M.get(tag, (1, 2))[0] * PX_PER_M)
+
+    def frame(self, agent: str, state: str, enemy: bool, scale: float, clock: float,
+              form: str | None = None, speed: float = 1.0) -> pygame.Surface | None:
+        found = self.resolve(agent, state, enemy, form)
+        if not found:
+            return None
+        rel, tag = found
+        fps, loop, _ = self.states.get(tag, (8, True, None)) if not tag.startswith("mech_") else (8, True, None)
+        cell_w = self._cell_w(tag)
+        count = self.bank.frames_in(rel, cell_w)
+        if fps is None:
+            index = min(count - 1, max(0, int(clock * count)))
+        else:
+            index = int(clock * fps * speed)
+            index = index % count if loop else min(count - 1, index)
+        if tag != state and state.startswith("channel_") and tag.startswith("cast_"):
+            index = count - 1  # channel falls back to the last frame of its cast
+        w_m, h_m = _SIZES_M.get(tag, (1, 2))
+        return self.bank.scaled(rel, (round(w_m * scale), round(h_m * scale)), index, cell_w)
+
+    def overlays(self, agent: str, names: list[str], enemy: bool, scale: float, walk_index: int) -> list[pygame.Surface]:
+        out = []
+        for name in names:
+            rel = self._file(agent, f"{agent}_overlay_{name}", enemy)
+            if self.bank.raw(rel) is None:
+                continue
+            count = self.bank.frames_in(rel, 16)
+            img = self.bank.scaled(rel, (round(scale), round(2 * scale)), walk_index % count, 16)
+            if img is not None:
+                out.append(img)
+        return out
