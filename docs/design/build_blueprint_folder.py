@@ -201,6 +201,7 @@ class Entry:
     purpose: str
     guide: Guide
     category: str
+    example: str | None = None  # finished sprite (path from the repo root) shown on top of the template
 
 
 def _config(name: str, probe: str) -> dict:
@@ -222,23 +223,27 @@ def catalogue() -> list[Entry]:
         fps = f"{st.fps:g} fps" if st.fps else ("stretched" if st.tag in ("reload", "equip") else "still")
         need = "required" if st.required else f"optional, falls back to {st.fallback}"
         e.append(Entry(f"agents/agent_{st.tag}.png", f"assets/agents/{{key}}/{{key}}_{st.tag}.png", st.size, st.frames[1],
-                       fps, f"{st.note} ({need}; {st.frames[0]}–{st.frames[1]} frames, template has the maximum)", guide, "Agents"))
+                       fps, f"{st.note} ({need}; {st.frames[0]}–{st.frames[1]} frames, template has the maximum)", guide, "Agents",
+                       f"assets/agents/kestrel/kestrel_{st.tag}.png"))
     e += [
         Entry("agents/agent_mech_NAME.png", "assets/agents/{key}/{key}_mech_{name}.png", (16, 32), 6, "6 fps",
-              "extra state for a special mechanic (glide, hover, carry); 1–6 frames, loops, falls back to idle", g_agent, "Agents"),
+              "extra state for a special mechanic (glide, hover, carry); 1–6 frames, loops, falls back to idle", g_agent, "Agents",
+              "docs/design/blueprint/examples/source/kestrel_mech_glide.png"),
         Entry("agents/agent@FORM_idle.png", "assets/agents/{key}/{key}@{form}_{state}.png", (16, 32), 4, "as the state",
-              "form: replaces a state while the form is active; draw at least idle and walk", g_agent, "Agents"),
+              "form: replaces a state while the form is active; draw at least idle and walk", g_agent, "Agents",
+              "docs/design/blueprint/examples/source/kestrel@overdrive_walk.png"),
         Entry("agents/agent_overlay_NAME.png", "assets/agents/{key}/{key}_overlay_{name}.png", (16, 32), 4, "as walk",
-              "overlay on top of every state (glowing eyes, shield shell); 1 frame or as many as walk", g_agent, "Agents"),
+              "overlay on top of every state (glowing eyes, shield shell); 1 frame or as many as walk", g_agent, "Agents",
+              "overlay:assets/agents/kestrel/kestrel_idle.png+docs/design/blueprint/examples/source/kestrel_overlay_shield.png"),
     ]
     weapons = _config("weapons", "spatz")
     keys = ", ".join(k for k in weapons if k != "messer") or "see config/weapons.py"
     e += [
         Entry("weapons/weapon_hand.png", "assets/weapons/val2d/{key}.png", (16, 8), 1, "still",
-              f"weapon in hand, side view, muzzle right; keys: {keys}", g_weapon, "Weapons"),
+              f"weapon in hand, side view, muzzle right; keys: {keys}", g_weapon, "Weapons", "assets/weapons/val2d/falke.png"),
         Entry("weapons/weapon_buy.png", "assets/weapons/val2d/{key}_kauf.png", (32, 12), 1, "still",
-              "buy-menu icon, same weapon larger, with outline", g_weapon, "Weapons"),
-        Entry("weapons/knife.png", "assets/weapons/val2d/messer.png", (16, 8), 1, "still", "knife, blade right", g_weapon, "Weapons"),
+              "buy-menu icon, same weapon larger, with outline", g_weapon, "Weapons", "assets/weapons/val2d/falke_kauf.png"),
+        Entry("weapons/knife.png", "assets/weapons/val2d/messer.png", (16, 8), 1, "still", "knife, blade right", g_weapon, "Weapons", "assets/weapons/val2d/messer.png"),
     ]
     for name, file, purpose in (
         ("floor", "boden_stein", "walkable floor, 2 × 2 m, tiles seamlessly"),
@@ -249,7 +254,8 @@ def catalogue() -> list[Entry]:
         ("ramp", "rampe", "ramp between levels, steps run across the direction of travel"),
         ("site_border", "platz_rand", "bomb site border, transparent centre, laid over the floor"),
     ):
-        e.append(Entry(f"tiles/tile_{name}.png", f"assets/maps/{{map}}/{file}.png", (32, 32), 1, "still", purpose, g_tile, "Map tiles"))
+        e.append(Entry(f"tiles/tile_{name}.png", f"assets/maps/{{map}}/{file}.png", (32, 32), 1, "still", purpose, g_tile, "Map tiles",
+                       f"assets/maps/werkhof/{file}.png"))
     fx = [
         ("bomb", "spike", (16, 16), 2, "4 fps", "bomb carried and planted: LED on, off", g_none),
         ("muzzle_flash", "muendung", (8, 8), 3, "15 fps", "muzzle flash, once per shot", g_none),
@@ -276,28 +282,28 @@ def catalogue() -> list[Entry]:
         ("wave", "wave", (16, 16), 3, "10 fps", "wave band, tiled along the line", g_none),
     ]
     for name, file, size, frames, fps, purpose, guide in fx:
-        e.append(Entry(f"effects/fx_{name}.png", f"assets/fx/{file}.png", size, frames, fps, purpose, guide, "Effects"))
+        e.append(Entry(f"effects/fx_{name}.png", f"assets/fx/{file}.png", size, frames, fps, purpose, guide, "Effects", f"assets/fx/{file}.png"))
     e += [
         Entry("ui/ability_icon.png", "assets/ui/faehigkeit_{agent}_{C|Q|E}.png", (16, 16), 1, "still",
-              "ability icon; glyph inside the 12 × 12 safe area", g_icon, "Interface"),
+              "ability icon; glyph inside the 12 × 12 safe area", g_icon, "Interface", "assets/ui/faehigkeit_kestrel_C.png"),
         Entry("ui/ability_icon_ult.png", "assets/ui/faehigkeit_{agent}_X.png", (16, 16), 1, "still",
-              "ultimate icon with gold frame", g_icon_ult, "Interface"),
+              "ultimate icon with gold frame", g_icon_ult, "Interface", "assets/ui/faehigkeit_kestrel_X.png"),
         Entry("ui/hud_icon.png", "assets/ui/hud/{name}.png", (8, 8), 1, "still",
-              "HUD icon: leben, schild, credits, munition, kopfschuss, spike_klein, uhr, tot", g_box(0), "Interface"),
+              "HUD icon: leben, schild, credits, munition, kopfschuss, spike_klein, uhr, tot", g_box(0), "Interface", "assets/ui/hud/schild.png"),
         Entry("ui/status_icon.png", "assets/ui/status/{status}.png", (8, 8), 1, "still",
-              "status icon: nearsight, concuss, slow, vulnerable, decay, suppress, detain, deaf, stim", g_box(0), "Interface"),
+              "status icon: nearsight, concuss, slow, vulnerable, decay, suppress, detain, deaf, stim", g_box(0), "Interface", "assets/ui/status/slow.png"),
         Entry("ui/minimap_icon.png", "assets/ui/minimap/{name}.png", (8, 8), 1, "still",
-              "minimap: selbst (arrow points up), verbuendet, feind, tot, spike, dunst, bann, schleier", g_box(0), "Interface"),
+              "minimap: selbst (arrow points up), verbuendet, feind, tot, spike, dunst, bann, schleier", g_box(0), "Interface", "assets/ui/minimap/selbst.png"),
         Entry("ui/frame_nine_slice.png", "assets/ui/hud/rahmen.png, rahmen_aktiv.png", (12, 12), 1, "still",
-              "nine-slice frame, 4 px corners, centre stretches", g_nine, "Interface"),
+              "nine-slice frame, 4 px corners, centre stretches", g_nine, "Interface", "assets/ui/hud/rahmen_aktiv.png"),
         Entry("ui/bar.png", "assets/ui/hud/balken_{leben|schild|fortschritt|leer}.png", (48, 6), 1, "still",
-              "bar, stretched horizontally; fill drawn over balken_leer", g_bar, "Interface"),
+              "bar, stretched horizontally; fill drawn over balken_leer", g_bar, "Interface", "assets/ui/hud/balken_schild.png"),
         Entry("ui/banner.png", "assets/ui/banner/{name}.png", (96, 21), 1, "still",
-              "round banner, width follows the text (12 px padding each side), 5 × 7 pixel font", g_banner, "Interface"),
+              "round banner, width follows the text (12 px padding each side), 5 × 7 pixel font", g_banner, "Interface", "assets/ui/banner/seitenwechsel.png"),
         Entry("ui/logo.png", "assets/logo.png (+ icon.ico 16/32/48)", (48, 48), 1, "still",
-              "game logo, also program icon", g_box(1), "Interface"),
+              "game logo, also program icon", g_box(1), "Interface", "assets/logo.png"),
         Entry("ui/player_card.png", "assets/menu/lobby/playercard.png", (64, 128), 1, "still",
-              "lobby player card with logo at (8, 10)", g_box(4), "Interface"),
+              "lobby player card with logo at (8, 10)", g_box(4), "Interface", "assets/menu/lobby/playercard.png"),
     ]
     return e
 
@@ -311,19 +317,56 @@ def template(entry: Entry) -> Image.Image:
     return im
 
 
+def load_example(entry: Entry) -> Image.Image | None:
+    if not entry.example:
+        return None
+    try:
+        if entry.example.startswith("overlay:"):
+            under, over = entry.example[len("overlay:"):].split("+")
+            im = Image.open(ROOT / under).convert("RGBA").crop((0, 0, 16, 32))
+            im.alpha_composite(Image.open(ROOT / over).convert("RGBA"))
+            return im
+        return Image.open(ROOT / entry.example).convert("RGBA")
+    except OSError as exc:
+        print(f"warning: example for {entry.file} missing: {exc}")
+        return None
+
+
+def example_image(entry: Entry) -> Image.Image | None:
+    """The finished sprite drawn over its template, so alignment with the guides is visible."""
+    ex = load_example(entry)
+    if ex is None:
+        return None
+    tpl = template(entry)
+    canvas = Image.new("RGBA", (max(tpl.width, ex.width), max(tpl.height, ex.height)), (0, 0, 0, 0))
+    canvas.alpha_composite(tpl)
+    canvas.alpha_composite(ex)
+    return canvas
+
+
+def example_name(entry: Entry) -> str:
+    return "examples/" + Path(entry.file).stem + ".example.png"
+
+
 def overview(entries: list[Entry]) -> Image.Image:
     f = ImageFont.load_default()
     scale_for = lambda e: 4 if e.size[1] <= 16 else 3 if e.size[1] <= 32 else 2 if e.size[1] <= 64 else 1  # noqa: E731
     rows = []
     for e in entries:
         im = template(e)
+        ex = example_image(e)
+        if ex is not None:
+            both = Image.new("RGBA", (im.width + 4 + ex.width, max(im.height, ex.height)), (0, 0, 0, 0))
+            both.alpha_composite(im)
+            both.alpha_composite(ex, (im.width + 4, 0))
+            im = both
         s = scale_for(e)
         rows.append((e, im.resize((im.width * s, im.height * s), Image.NEAREST)))
     width = 1200
     height = 40 + sum(max(img.height, 26) + 16 for _, img in rows)
     sheet = Image.new("RGBA", (width, height), (31, 30, 39, 255))
     d = ImageDraw.Draw(sheet)
-    d.text((10, 10), "Val2d sprite blueprints - every template at a glance", fill=(232, 230, 239), font=f)
+    d.text((10, 10), "Val2d sprite blueprints - template (left) and finished example (right)", fill=(232, 230, 239), font=f)
     y = 36
     category = ""
     for e, img in rows:
@@ -348,6 +391,7 @@ def index(entries: list[Entry]) -> str:
         "Open a template in Aseprite, put it on a locked `guides` layer, draw on a layer above, hide the guides and export to the target path.",
         "Rules: `STYLE_GUIDE.md` in this folder. Agents in detail: `../CHARACTER_SHEETS.md`. Colours: `palette.png`.",
         "Frames sit side by side in one strip without spacing; the template always has the maximum number of frames.",
+        "Every template has a finished example in `examples/` (Kestrel and the Workyard set), drawn over the guides.",
         "Regenerate this folder with `python docs/design/build_blueprint_folder.py`.",
         "",
         "Guide colours: red = head zone, gold = body zone or grip/fill area, teal = leg zone or accent line,",
@@ -358,8 +402,9 @@ def index(entries: list[Entry]) -> str:
     for e in entries:
         if e.category != category:
             category = e.category
-            lines += ["", f"## {category}", "", "| Template | Target file | Frame size | Frames | Speed | Purpose |", "|---|---|---|---|---|---|"]
-        lines.append(f"| `{e.file}` | `{e.target}` | {e.size[0]}×{e.size[1]} | {e.frames} | {e.fps} | {e.purpose} |")
+            lines += ["", f"## {category}", "", "| Template | Example | Target file | Frame size | Frames | Speed | Purpose |", "|---|---|---|---|---|---|---|"]
+        ex = f"[example]({example_name(e)})" if e.example else "–"
+        lines.append(f"| `{e.file}` | {ex} | `{e.target}` | {e.size[0]}×{e.size[1]} | {e.frames} | {e.fps} | {e.purpose} |")
     return "\n".join(lines) + "\n"
 
 
@@ -393,6 +438,10 @@ def main() -> None:
         path = OUT / e.file
         path.parent.mkdir(parents=True, exist_ok=True)
         template(e).save(path)
+        ex = example_image(e)
+        if ex is not None:
+            (OUT / "examples").mkdir(parents=True, exist_ok=True)
+            ex.save(OUT / example_name(e))
     overview(entries).save(OUT / "OVERVIEW.png")
     palette().save(OUT / "palette.png")
     (OUT / "README.md").write_text(index(entries), encoding="utf-8")

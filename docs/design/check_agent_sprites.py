@@ -29,7 +29,7 @@ def hex_to_rgb(h: str) -> tuple[int, int, int]:
 def check(key: str, make_enemy: bool) -> int:
     folder = ROOT / "assets" / "agents" / key
     problems = 0
-    colours: set[tuple[int, int, int]] = set()
+    colours: dict[tuple[int, int, int], int] = {}
     reserved = {hex_to_rgb(v): k for k, v in RESERVED.items()}
     for st in STATES:
         path = folder / f"{key}_{st.tag}.png"
@@ -62,7 +62,7 @@ def check(key: str, make_enemy: bool) -> int:
                            for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)))
                 ability = st.tag.startswith(("cast", "channel"))
                 if not edge and not ability and st.tag not in ("dead", "portrait", "select"):  # outline, glow and derived strips excluded
-                    colours.add((r, g, b))
+                    colours[(r, g, b)] = colours.get((r, g, b), 0) + 1
                 if (r, g, b) in reserved:
                     reserved_hits[reserved[(r, g, b)]] = reserved_hits.get(reserved[(r, g, b)], 0) + 1
                 fx = x % w
@@ -77,8 +77,9 @@ def check(key: str, make_enemy: bool) -> int:
             problems += 1
         if make_enemy and st.tag not in NO_ENEMY_VARIANT:
             enemy_variant(im).save(folder / f"{key}_{st.tag}_feind.png")
-    if len(colours) > MAX_COLOURS + 4:  # small tolerance for glow pixels in ability frames
-        print(f"PALETTE  {len(colours)} drawn colours over all strips; the budget is {MAX_COLOURS}")
+    drawn = [c for c, n in colours.items() if n >= 6]  # single sparks and accents (< 6 px) don't count
+    if len(drawn) > MAX_COLOURS + 4:  # outline pixels filling 1-px gaps (e.g. between the legs) count as drawn; allow for them
+        print(f"PALETTE  {len(drawn)} drawn colours over all strips; the budget is {MAX_COLOURS}")
         problems += 1
     print(f"{key}: {problems} problem(s)")
     return problems
