@@ -374,6 +374,14 @@ class Game:
             sx, sy = self.to_screen(site.rect.center, me)
             lbl = self.big.render(site.name, True, C_SITE)
             s.blit(lbl, (sx - lbl.get_width() / 2, sy - lbl.get_height() / 2))
+        for drop in m.drops:  # weapons lying on the ground, hand sprite at 2x the world scale
+            size = (round(2 * self.scale), round(self.scale))
+            gun = self.bank.scaled(f"weapons/val2d/{drop.key}.png", size)
+            dx, dy = self.to_screen(drop.pos, me)
+            if gun is not None:
+                s.blit(gun, (dx - size[0] / 2, dy - size[1] / 2))
+            else:
+                pygame.draw.rect(s, C_MUTED, (dx - 8, dy - 3, 16, 6))
         self.ui.scorches = [(pos, until) for pos, until in self.ui.scorches if until > m.time]
         for pos, until in self.ui.scorches:
             d = round(3 * self.scale)
@@ -952,8 +960,15 @@ class Game:
             self.text("You carry the bomb (hold F on A or B)", (20, 248), C_SITE)
         prog = me.plant_progress / 4.0 if me.plant_progress else me.defuse_progress / 7.0
         if prog > 0:
-            pygame.draw.rect(self.screen, C_MUTED, (self.w / 2 - 100, self.h / 2 + 60, 200, 10), 1)
-            pygame.draw.rect(self.screen, C_SITE, (self.w / 2 - 100, self.h / 2 + 60, 200 * min(prog, 1), 10))
+            empty = self.bank.scaled("ui/hud/balken_leer.png", (192, 24))
+            full = self.bank.scaled("ui/hud/balken_fortschritt.png", (192, 24))
+            x0, y0 = self.w / 2 - 96, self.h / 2 + 60
+            if empty is not None and full is not None:
+                self.screen.blit(empty, (x0, y0))
+                self.screen.blit(full, (x0, y0), (0, 0, round(192 * min(prog, 1)), 24))
+            else:
+                pygame.draw.rect(self.screen, C_MUTED, (x0, y0, 192, 10), 1)
+                pygame.draw.rect(self.screen, C_SITE, (x0, y0, 192 * min(prog, 1), 10))
         y = 90
         self.ui.feed = [f for f in self.ui.feed if m.time <= f[0]]
         for _, msg, killer, victim, head in self.ui.feed:
