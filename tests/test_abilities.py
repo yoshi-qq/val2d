@@ -158,3 +158,23 @@ def test_heal_restores_health_over_time() -> None:
     cast(m, a, "sable", "E", depth=0.5)
     run(m, 5)
     assert pa.hp >= 85
+
+
+def test_bot_uses_offensive_ability_on_close_enemy() -> None:
+    from gameplay.bots import BotBrain
+    m, a, b = setup("okoro")
+    m.players[a].is_bot = True
+    m.players[a].charges["E"] = 1
+    brain = BotBrain(a, reaction=0.0)
+    cmd = brain.think(m, 1 / 64)
+    assert cmd.ability == "E"
+
+
+def test_bot_buys_abilities_with_spare_credits() -> None:
+    from gameplay.bots import BotBrain
+    m, a, _ = setup("tamsin")
+    m.phase = "buy"
+    p = m.players[a]
+    p.credits, p.charges = 9000, {}
+    wants = BotBrain(a).think(m, 1 / 64).buy
+    assert "C" in wants and "Q" in wants

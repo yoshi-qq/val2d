@@ -20,6 +20,7 @@ class BotBrain:
     stuck_time: float = 0.0
     last_pos: Vec | None = None
     detour: Vec | None = None
+    ability_ready_at: float = 0.0
 
     def think(self, m: Match, dt: float) -> Command:
         p = m.players[self.pid]
@@ -32,9 +33,58 @@ class BotBrain:
             return cmd
         enemy = self._visible_enemy(m, p)
         if enemy:
-            return self._fight(m, p, enemy, dt, cmd)
-        self.seen_since.clear()
-        return self._navigate(m, p, dt, cmd)
+            cmd = self._fight(m, p, enemy, dt, cmd)
+        else:
+            self.seen_since.clear()
+            cmd = self._navigate(m, p, dt, cmd)
+        return self._abilities(m, p, enemy, cmd)
+
+    # ---------------------------------------------------------------- abilities
+    OFFENSIVE = {"flash", "blast", "wave", "zone", "slow_field"}
+    SELF_BUFF = {"overdrive", "immunity", "stim", "reveal_all"}
+    PLACE_AHEAD = {"smoke", "wall", "vapor_wall", "sensor", "alarm", "tripwire", "decoy"}
+
+    def _usable(self, m: Match, p: PlayerState, key: str) -> dict | None:
+        ab = m.agents.get(p.agent, {}).get("abilities", {}).get(key)
+        if not ab:
+            return None
+        if key == "X":
+            return ab if p.ult_points >= int(ab.get("cost", 99)) else None
+        return ab if p.charges.get(key, 0) > 0 else None
+
+    def _abilities(self, m: Match, p: PlayerState, enemy: PlayerState | None, cmd: Command) -> Command:
+        """Simple rules: offensive blocks at a seen enemy, buffs in a fight, smokes/traps near the goal, heal when hurt."""
+        if m.phase not in ("live", "planted") or m.time < self.ability_ready_at or p.prev_ability:
+            return cmd
+        for key in ("X", "E", "Q", "C"):
+            ab = self._usable(m, p, key)
+            if not ab:
+                continue
+            kind = str(ab.get("kind", ""))
+            use = False
+            if enemy is not None:
+                dist = (enemy.pos - p.pos).length()
+                if kind in self.OFFENSIVE and dist <= 1.5 * float(ab.get("range", ab.get("length", 20.0))) and dist > 3.0:
+                    cmd.cursor_depth = dist
+                    use = True
+                elif kind in self.SELF_BUFF or kind == "shield":
+                    use = True
+                elif kind == "dash" and p.hp < 50:
+                    cmd.facing = (cmd.facing or p.facing) + 180
+                    use = True
+            else:
+                near_goal = self.goal is not None and (self.goal - p.pos).length() < 14.0
+                if kind in self.PLACE_AHEAD and near_goal and self.rng.random() < 0.02:
+                    cmd.cursor_depth = min(float(ab.get("range", 10.0)), (self.goal - p.pos).length())
+                    use = True
+                elif kind == "heal" and p.hp < 60:
+                    cmd.cursor_depth = 0.5
+                    use = True
+            if use:
+                cmd.ability = key
+                self.ability_ready_at = m.time + self.rng.uniform(3.0, 7.0)
+                break
+        return cmd
 
     # ---------------------------------------------------------------- Kauf
     def _shopping(self, m: Match, p: PlayerState) -> list[str]:
@@ -50,7 +100,15 @@ class BotBrain:
             a = m.armor.get(key)
             if a and p.armor < a.points and credits >= a.price:
                 wants.append(key)
+                credits -= a.price
                 break
+        abil = m.agents.get(p.agent, {}).get("abilities", {})
+        for key in ("C", "Q"):
+            ab = abil.get(key, {})
+            price = int(ab.get("price", 0))
+            if price and p.charges.get(key, 0) < int(ab.get("max", 1)) and credits >= price:
+                wants.append(key)
+                credits -= price
         return wants
 
     # ---------------------------------------------------------------- Kampf
