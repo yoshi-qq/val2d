@@ -39,7 +39,7 @@ Full rules in `../CHARACTER_SHEETS.md`. In short:
 
 ## 4. Weapons
 
-- Side view, **muzzle pointing right**. In hand 16 × 8, buy menu 32 × 12 (with outline).
+- Side view, **muzzle pointing right**. In hand 16 × 8; buy menu 64 × 24, centred, with rail, ejection port, trigger guard and the class details below, lit automatically (`docs/design/sprites_buy_hd.py`). Vests in the buy menu are 64 × 24 too.
 - Body in neutral greys (`#46454d` base, `#6c6b75` light top edge, `#232228` barrel and grip). **One accent colour** per weapon (stock, magazine or furniture) tells weapons apart.
 - Read class by shape: pistols short without stock, SMGs with a wire stock and a straight magazine, shotguns long barrel without a magazine, rifles with a curved magazine, snipers with a scope and a long barrel, heavy weapons with a drum or belt.
 - Grip and magazine stay in the gold zone of the template, so hands line up in every weapon.

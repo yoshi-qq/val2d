@@ -53,7 +53,7 @@ white cross = centre/anchor, white line = ground row, white ring = maximum radiu
 | Template | Example | Target file | Frame size | Frames | Speed | Purpose |
 |---|---|---|---|---|---|---|
 | `weapons/weapon_hand.png` | [example](examples/weapon_hand.example.png) | `assets/weapons/val2d/{key}.png` | 16×8 | 1 | still | weapon in hand, side view, muzzle right; keys: spatz, stachel, hornisse, lynx, kite, bulle, wespe, sirene, brecher, faecher, falke, lanze, speer, hammer, heron, elster, crane, adler, muehle, walze |
-| `weapons/weapon_buy.png` | [example](examples/weapon_buy.example.png) | `assets/weapons/val2d/{key}_kauf.png` | 32×12 | 1 | still | buy-menu icon, same weapon larger, with outline |
+| `weapons/weapon_buy.png` | [example](examples/weapon_buy.example.png) | `assets/weapons/val2d/{key}_kauf.png` | 64×24 | 1 | still | buy-menu icon, 64 × 24, centred, lit automatically with outline (docs/design/sprites_buy_hd.py) |
 | `weapons/knife.png` | [example](examples/knife.example.png) | `assets/weapons/val2d/messer.png` | 16×8 | 1 | still | knife, blade right |
 
 ## Map tiles
@@ -178,8 +178,8 @@ white cross = centre/anchor, white line = ground row, white ring = maximum radiu
 | `ui_buy/cat_sidearm.png` | [example](examples/cat_sidearm.example.png) | `assets/ui/buy/cat_sidearm.png` | 16×16 | 1 | still | cat sidearm |
 | `ui_buy/cat_smg.png` | [example](examples/cat_smg.example.png) | `assets/ui/buy/cat_smg.png` | 16×16 | 1 | still | cat smg |
 | `ui_buy/cat_sniper.png` | [example](examples/cat_sniper.example.png) | `assets/ui/buy/cat_sniper.png` | 16×16 | 1 | still | cat sniper |
-| `ui_buy/vest_heavy.png` | [example](examples/vest_heavy.example.png) | `assets/ui/buy/vest_heavy.png` | 32×12 | 1 | still | vest heavy |
-| `ui_buy/vest_light.png` | [example](examples/vest_light.example.png) | `assets/ui/buy/vest_light.png` | 32×12 | 1 | still | vest light |
+| `ui_buy/vest_heavy.png` | [example](examples/vest_heavy.example.png) | `assets/ui/buy/vest_heavy.png` | 64×24 | 1 | still | vest heavy |
+| `ui_buy/vest_light.png` | [example](examples/vest_light.example.png) | `assets/ui/buy/vest_light.png` | 64×24 | 1 | still | vest light |
 
 ## Map tiles: common set
 

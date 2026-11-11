@@ -90,9 +90,9 @@ def build() -> str:
             img(f"{a}_idle_feind.png", 5, "As enemy"),
             anim(f"{a}_walk_feind.png", 4, 5, "Enemy walking"),
         ]))
-    guns = [img(f"assets/weapons/val2d/{k}_kauf.png", 4, w.get("name", k)) for k, w in weapons.items() if k != "messer"]
-    guns.append(img("assets/weapons/val2d/messer.png", 6, weapons.get("messer", {}).get("name", "Knife")))
-    parts.append(section("Weapons", "buy menu 32×12, in hand 16×8", guns))
+    guns = [img(f"assets/weapons/val2d/{k}_kauf.png", 2, w.get("name", k)) for k, w in weapons.items() if k != "messer"]
+    guns.append(img("assets/weapons/val2d/messer_kauf.png", 2, weapons.get("messer", {}).get("name", "Knife")))
+    parts.append(section("Weapons", "buy menu 64×24, in hand 16×8", guns))
     t = "assets/maps/werkhof/"
     parts.append(section("Tiles: Werkhof", "32×32 = 2 m", [img(t + f, 4, l) for f, l in (
         ("boden_stein.png", "Stone floor"), ("wand.png", "Thick wall"), ("wand_duenn.png", "Thin wall"),

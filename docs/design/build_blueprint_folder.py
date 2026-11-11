@@ -245,8 +245,8 @@ def catalogue() -> list[Entry]:
     e += [
         Entry("weapons/weapon_hand.png", "assets/weapons/val2d/{key}.png", (16, 8), 1, "still",
               f"weapon in hand, side view, muzzle right; keys: {keys}", g_weapon, "Weapons", "assets/weapons/val2d/falke.png"),
-        Entry("weapons/weapon_buy.png", "assets/weapons/val2d/{key}_kauf.png", (32, 12), 1, "still",
-              "buy-menu icon, same weapon larger, with outline", g_weapon, "Weapons", "assets/weapons/val2d/falke_kauf.png"),
+        Entry("weapons/weapon_buy.png", "assets/weapons/val2d/{key}_kauf.png", (64, 24), 1, "still",
+              "buy-menu icon, 64 × 24, centred, lit automatically with outline (docs/design/sprites_buy_hd.py)", g_weapon, "Weapons", "assets/weapons/val2d/falke_kauf.png"),
         Entry("weapons/knife.png", "assets/weapons/val2d/messer.png", (16, 8), 1, "still", "knife, blade right", g_weapon, "Weapons", "assets/weapons/val2d/messer.png"),
     ]
     for name, file, purpose in (
