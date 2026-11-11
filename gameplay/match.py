@@ -5,7 +5,6 @@ server process) runs Match.tick and sends Match.snapshot() to everyone.
 """
 from __future__ import annotations
 
-import json
 import math
 import random
 import warnings
@@ -13,7 +12,8 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any
 
-from gameplay.data import DATA_DIR, GameConfig, WeaponDef, load_armor, load_config, load_weapons, rule
+from gameplay import abilities
+from gameplay.data import ROOT, GameConfig, WeaponDef, _load_py, load_armor, load_config, load_weapons, rule
 from gameplay.geometry import Rect, Vec, angle_diff, angle_of, heading, segment_circle_hit
 from gameplay.hitzones import resolve_zone
 from gameplay.world import Wall, WorldMap
@@ -24,13 +24,26 @@ INTERACT_RANGE = 1.5
 PICKUP_RANGE = 1.2
 
 
+AGENTS_PATH = ROOT / "config" / "agents.py"
+
+
 @lru_cache(maxsize=1)
 def load_agents() -> dict[str, dict[str, Any]]:
-    try:
-        return json.loads((DATA_DIR / "agents.json").read_text(encoding="utf-8"))["agents"]
-    except (OSError, KeyError, json.JSONDecodeError) as exc:
-        warnings.warn(f"agents.json unreadable ({exc}); no agents available.")
-        return {}
+    """Agents from config/agents.py; broken entries are skipped with a warning."""
+    raw = _load_py(AGENTS_PATH, "AGENTS") or {}
+    out: dict[str, dict[str, Any]] = {}
+    for key, agent in raw.items():
+        try:
+            abil = {slot: dict(agent["abilities"][slot]) for slot in ("C", "Q", "E", "X")}
+            out[key] = {"name": str(agent["name"]), "role": str(agent.get("role", "")), "abilities": abil}
+        except (KeyError, TypeError) as exc:
+            warnings.warn(f"Agent {key} skipped: {exc}")
+    return out
+
+
+@lru_cache(maxsize=1)
+def load_status_rules() -> dict[str, float]:
+    return dict(_load_py(AGENTS_PATH, "STATUS_RULES") or {})
 
 
 @dataclass
@@ -99,6 +112,16 @@ class PlayerState:
     dash_vel: Vec = Vec(0, 0)
     plant_progress: float = 0.0
     defuse_progress: float = 0.0
+    status: dict[str, float] = field(default_factory=dict)  # status -> active until
+    immune_until: float = 0.0
+    anchor: Vec | None = None
+    anchor_until: float = 0.0
+    heal_left: float = 0.0
+    heal_rate: float = 0.0
+    hp_frac: float = 0.0
+    decay_pool: float = 0.0
+    recharge_timers: dict[str, float] = field(default_factory=dict)
+    last_pos: Vec | None = None
     prev_ability: str | None = None
     prev_interact: bool = False
     visible: bool = True  # only meaningful in a client's shadow match
@@ -128,6 +151,7 @@ class Effect:
     b: Vec | None = None
     start: float = 0.0
     data: dict[str, float] = field(default_factory=dict)
+    props: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -144,6 +168,7 @@ class Match:
         self.weapons = load_weapons()
         self.armor = load_armor()
         self.agents = load_agents()
+        self.status_rules = load_status_rules()
         self.rng = random.Random(seed)
         self.players: dict[int, PlayerState] = {}
         self.effects: list[Effect] = []
@@ -245,7 +270,12 @@ class Match:
             p.level = 0
             p.slot = "primary" if "primary" in p.weapons else "sidearm"
             p.spray = 0.0
-            p.blind_until = p.revealed_until = p.overdrive_until = p.dash_until = 0.0
+            p.blind_until = p.revealed_until = p.overdrive_until = p.dash_until = p.immune_until = 0.0
+            p.status = {}
+            p.anchor, p.anchor_until = None, 0.0
+            p.heal_left = p.heal_rate = p.hp_frac = p.decay_pool = 0.0
+            p.recharge_timers = {}
+            p.last_pos = None
             p.plant_progress = p.defuse_progress = 0.0
             for key, ab in self.agents[p.agent]["abilities"].items():
                 if key == "X":
@@ -459,10 +489,7 @@ class Match:
             s *= float(self._mv["walk_mod"])
         if p.z > 0.001:
             s *= float(self._mv["air_mod"])
-        for e in self.effects:
-            if e.kind == "slow_field" and e.team != p.team and (p.pos - e.pos).length() <= e.radius:
-                s *= e.data.get("slow", 0.6)
-        return s
+        return s * abilities.speed_factor(self, p)
 
     def _physics(self, p: PlayerState, dt: float) -> None:
         radius = float(self._mv["radius"])
@@ -511,7 +538,7 @@ class Match:
         ws, d = p.weapon, self._weapon_def(p)
         if not ws or not d or not d.is_gun or ws.mag >= d.mag or ws.reserve <= 0 or p.reload_until > self.time:
             return
-        p.reload_until = self.time + d.reload
+        p.reload_until = self.time + d.reload * (abilities.rule(self, "stim_reload") if abilities.has(self, p, "stim") else 1.0)
         p.burst_left = 0
 
     def _finish_reload(self, p: PlayerState) -> None:
@@ -544,6 +571,8 @@ class Match:
             top, ramp_time = d.rate_ramp
             rate += (top - d.rate) * min(1.0, p.fire_held / max(ramp_time, 1e-6))
         rate *= self._ult_ability(p, "rate_mult") if self.time < p.overdrive_until else 1.0
+        if abilities.has(self, p, "stim"):
+            rate *= abilities.rule(self, "stim_rate")
         if d.burst:
             if p.burst_left == 0:
                 p.burst_left = d.pellets
@@ -573,6 +602,8 @@ class Match:
             base += d.spread_first + p.spray
         if p.crouching:
             base *= 0.8
+        if abilities.has(self, p, "concuss"):
+            base += abilities.rule(self, "concuss_spread")
         return base
 
     def _fire_bullet(self, p: PlayerState, d: WeaponDef, pellets: int) -> None:
@@ -627,6 +658,8 @@ class Match:
     def _damage(self, attacker: PlayerState | None, target: PlayerState, dmg: int, zone: str, source: str) -> None:
         if not target.alive or dmg <= 0:
             return
+        if abilities.has(self, target, "vulnerable"):
+            dmg = int(round(dmg * abilities.rule(self, "vulnerable_mult")))
         absorbed = min(target.armor, int(round(dmg * self._absorb)))
         target.armor -= absorbed
         target.hp -= dmg - absorbed
@@ -663,47 +696,25 @@ class Match:
     # ------------------------------------------------------------------ Abilities
     def _use_ability(self, p: PlayerState, key: str) -> None:
         ab = self.agents[p.agent]["abilities"].get(key)
-        if not ab:
+        if not ab or abilities.has(self, p, "suppress"):
             return
         if key == "X":
             if p.ult_points < int(ab["cost"]):
                 return
+        elif p.charges.get(key, 0) <= 0:
+            return
+        try:
+            target = abilities.use(self, p, key, ab)
+        except (KeyError, TypeError, ValueError) as exc:
+            warnings.warn(f"Ability {ab.get('name', key)} of {p.agent} misconfigured: {exc}")
+            return
+        if target is None:
+            return
+        if key == "X":
             p.ult_points -= int(ab["cost"])
         else:
-            if p.charges.get(key, 0) <= 0:
-                return
             p.charges[key] -= 1
-        aim = heading(p.facing)
-        target = p.pos + aim * min(p.cursor_depth, float(ab.get("range", p.cursor_depth)))
-        kind = ab["kind"]
-        if kind == "flash":
-            pos = p.pos + aim * min(p.cursor_depth, float(ab["range"]))
-            pos = self._clip_to_walls(p.pos, pos, p.level)
-            self.effects.append(Effect("flash", p.pid, p.team, pos, self.time + float(ab["fuse"]), data={"blind": float(ab["blind"]), "cone": float(ab["cone"])}))
-        elif kind == "hop":
-            p.vz = float(ab["velocity"])
-        elif kind == "dash":
-            move = p.vel.normalized() if p.vel.length() > 0.3 else aim
-            p.dash_vel = move * (float(ab["distance"]) / float(ab["duration"]))
-            p.dash_until = self.time + float(ab["duration"])
-        elif kind == "overdrive":
-            p.overdrive_until = self.time + float(ab["duration"])
-        elif kind == "sensor":
-            self.effects.append(Effect("sensor", p.pid, p.team, p.pos, self.time + float(ab["duration"]), radius=float(ab["radius"]), data={"pulse": float(ab["pulse"])}))
-        elif kind == "vapor_wall":
-            side = aim.rotated(90) * (float(ab["length"]) / 2)
-            target = self._clip_to_walls(p.pos, target, p.level)
-            self.effects.append(Effect("vapor_wall", p.pid, p.team, target, self.time + float(ab["duration"]), a=target - side, b=target + side))
-        elif kind == "smoke":
-            target = self._clip_to_walls(p.pos, target, p.level)
-            self.effects.append(Effect("smoke", p.pid, p.team, target, self.time + float(ab["duration"]), radius=float(ab["radius"])))
-        elif kind == "slow_field":
-            target = self._clip_to_walls(p.pos, target, p.level)
-            self.effects.append(Effect("slow_field", p.pid, p.team, target, self.time + float(ab["duration"]), radius=float(ab["radius"]), data={"slow": float(ab["slow"])}))
-        else:
-            warnings.warn(f"Unknown ability kind {kind}")
-            return
-        self.events.append(GameEvent("ability", self.time, {"pid": p.pid, "key": key, "kind": kind, "pos": (target.x, target.y)}))
+        self.events.append(GameEvent("ability", self.time, {"pid": p.pid, "key": key, "kind": ab["kind"], "pos": (target.x, target.y)}))
 
     def _clip_to_walls(self, a: Vec, b: Vec, level: int) -> Vec:
         direction = (b - a).normalized()
@@ -716,36 +727,7 @@ class Match:
         return a + direction * max(0.0, best - 0.3)
 
     def _tick_effects(self, dt: float) -> None:
-        keep: list[Effect] = []
-        for e in self.effects:
-            if e.kind == "flash":
-                if self.time >= e.until:
-                    for t in self.players.values():
-                        if not t.alive or not self._line_clear(t.pos, e.pos, t.level, ignore_effects=False):
-                            continue
-                        to = angle_of(e.pos - t.pos)
-                        if abs(angle_diff(t.facing, to)) <= e.data["cone"] / 2:
-                            t.blind_until = max(t.blind_until, self.time + e.data["blind"])
-                    continue
-            elif self.time >= e.until:
-                continue
-            if e.kind == "sensor" and int(self.time / e.data["pulse"]) != int((self.time - dt) / e.data["pulse"]):
-                for t in self.players.values():
-                    if t.alive and t.team != e.team and (t.pos - e.pos).length() <= e.radius and self._line_clear(e.pos, t.pos, 0, ignore_effects=True):
-                        t.revealed_until = self.time + 1.5
-            if e.kind == "slow_field":
-                for t in self.players.values():
-                    if t.alive and t.team != e.team and (t.pos - e.pos).length() <= e.radius:
-                        t.revealed_until = self.time + 0.25
-            keep.append(e)
-        self.effects = keep
-        for p in self.players.values():
-            ab = self.agents[p.agent]["abilities"].get("E", {})
-            if "recharge" in ab and p.charges.get("E", 0) < int(ab["max"]) and self.phase in ("live", "planted"):
-                p.sig_timer += dt
-                if p.sig_timer >= float(ab["recharge"]):
-                    p.sig_timer = 0.0
-                    p.charges["E"] = p.charges.get("E", 0) + 1
+        abilities.tick(self, dt)
 
     # ------------------------------------------------------------------ Sight
     def _line_clear(self, a: Vec, b: Vec, level: int, ignore_effects: bool = False) -> bool:
@@ -765,7 +747,7 @@ class Match:
                 if (a - e.pos).length() > e.radius and (b - e.pos).length() > e.radius:
                     return False
                 return (a - e.pos).length() <= e.radius and (b - e.pos).length() <= e.radius
-            if e.kind == "vapor_wall" and e.a and e.b:
+            if e.kind == "wall" and e.a and e.b:
                 from gameplay.geometry import segments_intersect
                 if segments_intersect(a, b, e.a, e.b):
                     return False
@@ -779,6 +761,8 @@ class Match:
         if target.revealed_until > self.time:
             return True
         if viewer.blind_until > self.time or not viewer.alive:
+            return False
+        if abilities.has(self, viewer, "nearsight") and (target.pos - viewer.pos).length() > abilities.rule(self, "nearsight_range"):
             return False
         if not self.cfg.lobby.all_around_sight:
             to = angle_of(target.pos - viewer.pos)
@@ -840,6 +824,14 @@ class Match:
         self.events.append(GameEvent("plant", self.time, {"pid": p.pid, "site": site}))
 
     # ------------------------------------------------------------------ Snapshot
+    def _effect_visible(self, e: Effect, viewer: PlayerState | None) -> bool:
+        """Flashes and decoys are never drawn; enemy traps only for their own team."""
+        if e.kind in ("flash", "decoy"):
+            return False
+        if e.kind in ("tripwire", "alarm") and viewer is not None and viewer.team != e.team:
+            return False
+        return True
+
     def spike_time_left(self) -> float:
         if self.phase != "planted":
             return 0.0
@@ -868,6 +860,8 @@ class Match:
                 "charges": dict(p.charges), "ult": p.ult_points, "kills": p.kills, "deaths": p.deaths,
                 "blind": p.blind_until > self.time, "reloading": p.reload_until > self.time,
                 "plant": p.plant_progress, "defuse": p.defuse_progress,
+                "status": sorted(k for k, v in p.status.items() if v > self.time)
+                if viewer is None or viewer.team == p.team else [],
                 "vx": p.vel.x, "vy": p.vel.y, "spray": p.spray,
             })
         return {
@@ -876,8 +870,9 @@ class Match:
             "round_winner": self.round_winner, "round_reason": self.round_reason,
             "spike": {"carrier": self.spike_carrier, "pos": (self.spike_pos.x, self.spike_pos.y) if self.spike_pos else None, "site": self.spike_site},
             "effects": [{"kind": e.kind, "team": e.team, "x": e.pos.x, "y": e.pos.y, "r": e.radius,
-                         "a": (e.a.x, e.a.y) if e.a else None, "b": (e.b.x, e.b.y) if e.b else None}
-                        for e in self.effects if e.kind != "flash"],
+                         "a": (e.a.x, e.a.y) if e.a else None, "b": (e.b.x, e.b.y) if e.b else None,
+                         "start": e.start, "until": e.until}
+                        for e in self.effects if self._effect_visible(e, viewer)],
             "players": players,
             "roster": [{"pid": p.pid, "name": p.name, "team": p.team, "agent": p.agent, "kills": p.kills,
                         "deaths": p.deaths, "alive": p.alive} for p in self.players.values()],

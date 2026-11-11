@@ -21,6 +21,7 @@ from pathlib import Path
 
 import pygame
 
+from gameplay import abilities
 from gameplay.bots import BotDirector
 from gameplay.data import LobbySettings, load_config
 from gameplay.geometry import Vec, heading
@@ -269,6 +270,8 @@ class Game:
             if e.kind == "shot":
                 self.ui.tracers.append(Tracer(Vec(*d["from"]), Vec(*d["to"]), t + 0.08, d["pid"] == self.me))
             elif e.kind == "sound":
+                if me.status.get("deaf", 0.0) > t:
+                    continue
                 pos = Vec(*d["pos"])
                 self.sound.play(d["kind"], me, pos, d["radius"])
                 if m.cfg.lobby.sound_rings and d["pid"] != self.me:
@@ -284,6 +287,12 @@ class Game:
             elif e.kind == "plant":
                 self.ui.banner = (t + 2.5, f"Bomb planted on {d['site']}")
                 self.sound.play("plant", None, None)
+            elif e.kind == "blast":
+                self.sound.play("shot", me, Vec(*d["pos"]), 40)
+                self.ui.rings.append(Ring(Vec(*d["pos"]), d["radius"], t))
+            elif e.kind == "revive":
+                revived = m.players.get(d["pid"])
+                self.ui.feed.append((t + 4, f"{revived.name if revived else '?'} revived"))
             elif e.kind == "ability":
                 self.sound.play("ability", me, Vec(*d["pos"]), 30)
             elif e.kind == "round_end":
@@ -385,6 +394,12 @@ class Game:
                 name = self.font.render(p.name, True, col)
                 s.blit(name, (px - name.get_width() / 2, py - r - 22))
         self.draw_crosshair(me)
+        if me.status.get("nearsight", 0.0) > m.time:
+            fog = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
+            fog.fill((10, 8, 14, 225))
+            cx, cy = self.to_screen(me.pos, me)
+            pygame.draw.circle(fog, (0, 0, 0, 0), (cx, cy), abilities.rule(m, "nearsight_range") * self.scale)
+            s.blit(fog, (0, 0))
         if me.blind_until > m.time:
             flash = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
             flash.fill((255, 255, 255, int(min(1.0, (me.blind_until - m.time) / 0.6) * 245)))
@@ -432,7 +447,22 @@ class Game:
     def draw_effect(self, e: Effect, me: PlayerState) -> None:
         s = self.screen
         ex, ey = self.to_screen(e.pos, me)
-        art = {"smoke": "fx/dunst.png", "slow_field": "fx/bann.png"}.get(e.kind)
+        if e.kind == "zone" and e.start > self.match.time:
+            pygame.draw.circle(s, C_MUTED, (ex, ey), max(2, e.radius * self.scale), 1)
+            return
+        if e.kind == "blast":
+            left = max(0.0, e.until - self.match.time)
+            pygame.draw.circle(s, C_ENEMY if e.team != me.team else C_SITE, (ex, ey), max(2, e.radius * self.scale), 1)
+            pygame.draw.circle(s, C_SITE, (ex, ey), 4 + int(left * 6) % 4)
+            return
+        if e.kind == "alarm":
+            pygame.draw.circle(s, C_ALLY, (ex, ey), 5)
+            pygame.draw.circle(s, (60, 90, 90), (ex, ey), e.radius * self.scale, 1)
+            return
+        if e.kind == "tripwire" and e.a and e.b:
+            pygame.draw.line(s, C_ALLY, self.to_screen(e.a, me), self.to_screen(e.b, me), 1)
+            return
+        art = {"smoke": "fx/dunst.png", "zone": "fx/bann.png"}.get(e.kind)
         if art:
             d = max(1, round(2 * e.radius * self.scale))
             img = self.bank.scaled(art, (d, d))
@@ -450,7 +480,7 @@ class Game:
             else:
                 pygame.draw.circle(s, C_ALLY if e.team == me.team else C_ENEMY, (ex, ey), 5)
             pygame.draw.circle(s, (60, 90, 90), (ex, ey), e.radius * self.scale, 1)
-        elif e.kind == "vapor_wall" and e.a and e.b:
+        elif e.kind == "wall" and e.a and e.b:
             a, b = self.to_screen(e.a, me), self.to_screen(e.b, me)
             length = math.hypot(b[0] - a[0], b[1] - a[1])
             tile_px = max(1, round(self.scale))
@@ -522,6 +552,9 @@ class Game:
         parts = [f"{k} {abil[k]['name']} ×{me.charges.get(k, 0)}" for k in ("C", "Q", "E")]
         parts.append(f"X {abil['X']['name']} {me.ult_points}/{abil['X']['cost']}")
         self.text("   ".join(parts), (20, self.h - 70), C_MUTED)
+        active = [k for k, until in me.status.items() if until > m.time and k != "blind"]
+        if active:
+            self.text(" · ".join(sorted(active)), (20, self.h - 100), C_ENEMY if set(active) - {"stim"} else C_ALLY)
         self.text(f"{m.agents[me.agent]['name']} · {m.world.callout_at(me.pos)}", (20, 16), C_MUTED)
         if m.spike_carrier == self.me:
             self.text("You carry the bomb (hold F on A or B)", (20, 40), C_SITE)
@@ -605,7 +638,7 @@ class Game:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Play Val2d against bots or online")
-    ap.add_argument("--agent", default="kestrel", choices=["kestrel", "marrow"])
+    ap.add_argument("--agent", default="kestrel", help="agent key from config/agents.py")
     ap.add_argument("--team-size", type=int, default=5, choices=range(1, 6))
     ap.add_argument("--rounds", type=int, default=13)
     ap.add_argument("--map", default="werkhof")

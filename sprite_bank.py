@@ -104,8 +104,8 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
     tile_px = max(1, round(2 * scale))  # tile 32 px = 2 m
 
     def tile(name: str) -> pygame.Surface | None:
-        own = bank.scaled(f"{folder}/{name}.png", (tile_px, tile_px))
-        return own if own is not None else bank.scaled(f"maps/werkhof/{name}.png", (tile_px, tile_px))
+        rel = f"{folder}/{name}.png" if (ASSETS / folder / f"{name}.png").exists() else f"maps/werkhof/{name}.png"
+        return bank.scaled(rel, (tile_px, tile_px))
 
     floor = tile("boden_stein")
     if floor is None:

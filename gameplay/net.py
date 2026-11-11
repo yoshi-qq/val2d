@@ -203,6 +203,8 @@ class Host:
         if e.kind in ("shot", "hit"):
             shooter = self.match.players.get(e.data.get("pid") if e.kind == "shot" else e.data.get("by"))
             return shooter is None or self.match.can_see(viewer, shooter) or e.data.get("by") == viewer.pid
+        if e.kind == "sound" and viewer.status.get("deaf", 0.0) > self.match.time:
+            return False
         if e.kind == "buy":
             buyer = self.match.players.get(e.data.get("pid"))
             return buyer is not None and buyer.team == viewer.team
@@ -323,8 +325,9 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int) -> None:
     m.spike_carrier = sp["carrier"]
     m.spike_pos = Vec(*sp["pos"]) if sp["pos"] else None
     m.spike_site = sp["site"]
-    m.effects = [Effect(e["kind"], 0, e["team"], Vec(e["x"], e["y"]), m.time + 1.0, e["r"],
-                        Vec(*e["a"]) if e["a"] else None, Vec(*e["b"]) if e["b"] else None) for e in snap["effects"]]
+    m.effects = [Effect(e["kind"], 0, e["team"], Vec(e["x"], e["y"]), float(e.get("until", m.time + 1.0)), e["r"],
+                        Vec(*e["a"]) if e["a"] else None, Vec(*e["b"]) if e["b"] else None,
+                        start=float(e.get("start", 0.0))) for e in snap["effects"]]
     m.drops = [Drop(d["key"], 0, 0, Vec(d["x"], d["y"])) for d in snap.get("drops", [])]
     for row in snap.get("roster", []):
         pid = int(row["pid"])
@@ -360,6 +363,7 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int) -> None:
         p.blind_until = m.time + 0.3 if row["blind"] else 0.0
         p.reload_until = m.time + 0.3 if row["reloading"] else 0.0
         p.plant_progress, p.defuse_progress = row["plant"], row["defuse"]
+        p.status = {k: m.time + 0.3 for k in row.get("status", [])}
 
 
 def events_from_json(rows: list[dict[str, Any]]) -> list[GameEvent]:
