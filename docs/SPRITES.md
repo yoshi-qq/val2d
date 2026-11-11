@@ -16,3 +16,5 @@ Status: benötigt · in Arbeit · fertig · eingebaut
 | icon_faehigkeit_{agent}_{C,Q,E,X} | 16×16 | Fähigkeitenleiste | – | Text | fertig | assets/ui/faehigkeit_{agent}_{C,Q,E,X}.png |
 | hud_* | Oberfläche | Leben, Schild, Munition, Credits, Zeit, Punktestand, Killfeed | – | Text in fixed_sys | fertig | assets/ui/hud/: leben, schild, credits, munition, kopfschuss, spike_klein, uhr, tot (8×8); rahmen, rahmen_aktiv (12×12, 9-Teile, Ecken 4 px); balken_leben, balken_schild, balken_fortschritt, balken_leer (48×6, waagerecht dehnbar) |
 | logo, icon, playercard | 48×48, 64×128 | Ersatz für Riot-Logo | – | – | fertig | assets/logo.png, assets/icon.ico (16/32/48), assets/menu/lobby/playercard.png (Fadenkreuz) |
+| minimap_* | 8×8 | Minimap: Du, Verbündet, Gegner, Ausgeschaltet, Spike, Dunst, Bann, Schleier | – | – | fertig | assets/ui/minimap/{selbst,verbuendet,feind,tot,spike,dunst,bann,schleier}.png |
+| banner_* | Breite je Text × 21 | Rundenbanner: Sieg, Niederlage, Seitenwechsel, Spike gelegt, Entschärft, Verlängerung | – | Text im HUD | fertig | assets/ui/banner/{sieg,niederlage,seitenwechsel,spike_gelegt,entschaerft,verlaengerung}.png |

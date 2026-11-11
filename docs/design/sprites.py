@@ -541,6 +541,95 @@ def make_hud() -> None:
     save(bar(48, "#3a3846", "#2a2933"), "ui/hud/balken_leer.png")
 
 
+MINIMAP: dict[str, tuple[list[str], dict[str, str]]] = {
+    "selbst": (["...W....", "..WWW...", ".WWWWW..", "WWWWWWW.", "..WWW...", "..WWW...", "........", "........"], {"W": "#e8e6ef"}),
+    "verbuendet": (["..CCC...", ".CcccC..", "CcccccC.", "CcccccC.", ".CcccC..", "..CCC...", "........", "........"], {"C": "#16151b", "c": "#4fd6c8"}),
+    "feind": (["..RRR...", ".RrrrR..", "RrrrrrR.", "RrrrrrR.", ".RrrrR..", "..RRR...", "........", "........"], {"R": "#16151b", "r": "#ee4c4a"}),
+    "tot": (["r.....r.", ".r...r..", "..r.r...", "...r....", "..r.r...", ".r...r..", "r.....r.", "........"], {"r": "#9b98aa"}),
+    "spike": (["oooooo..", "oYLLYo..", "oYLLYo..", "oooooo..", "........", "........", "........", "........"], {"o": "#16151b", "Y": "#e0b437", "L": "#ff5a4f"}),
+    "dunst": (["..ggg...", ".gGGGg..", "gGGGGGg.", "gGGGGGg.", ".gGGGg..", "..ggg...", "........", "........"], {"g": "#6e6e80", "G": "#9a9aac"}),
+    "bann": (["..ppp...", ".p...p..", "p.....p.", "p.....p.", ".p...p..", "..ppp...", "........", "........"], {"p": "#9664c8"}),
+    "schleier": (["........", "........", "WWWWWWW.", "wwwwwww.", "........", "........", "........", "........"], {"W": "#bac4d6", "w": "#8a94a6"}),
+}
+
+FONT5: dict[str, list[str]] = {
+    "A": [".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
+    "Ä": [".#.#.", ".....", ".###.", "#...#", "#####", "#...#", "#...#"],
+    "C": [".####", "#....", "#....", "#....", "#....", "#....", ".####"],
+    "D": ["####.", "#...#", "#...#", "#...#", "#...#", "#...#", "####."],
+    "E": ["#####", "#....", "#....", "####.", "#....", "#....", "#####"],
+    "F": ["#####", "#....", "#....", "####.", "#....", "#....", "#...."],
+    "G": [".####", "#....", "#....", "#..##", "#...#", "#...#", ".###."],
+    "H": ["#...#", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
+    "I": ["###", ".#.", ".#.", ".#.", ".#.", ".#.", "###"],
+    "K": ["#...#", "#..#.", "#.#..", "##...", "#.#..", "#..#.", "#...#"],
+    "L": ["#....", "#....", "#....", "#....", "#....", "#....", "#####"],
+    "N": ["#...#", "##..#", "#.#.#", "#..##", "#...#", "#...#", "#...#"],
+    "P": ["####.", "#...#", "#...#", "####.", "#....", "#....", "#...."],
+    "R": ["####.", "#...#", "#...#", "####.", "#.#..", "#..#.", "#...#"],
+    "S": [".####", "#....", "#....", ".###.", "....#", "....#", "####."],
+    "T": ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "..#.."],
+    "U": ["#...#", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
+    "V": ["#...#", "#...#", "#...#", "#...#", ".#.#.", ".#.#.", "..#.."],
+    "W": ["#...#", "#...#", "#...#", "#.#.#", "#.#.#", "##.##", "#...#"],
+    " ": ["..", "..", "..", "..", "..", "..", ".."],
+}
+
+BANNERS = {
+    "sieg": ("SIEG", "#4fd6c8"),
+    "niederlage": ("NIEDERLAGE", "#ee4c4a"),
+    "seitenwechsel": ("SEITENWECHSEL", "#e0b437"),
+    "spike_gelegt": ("SPIKE GELEGT", "#ee4c4a"),
+    "entschaerft": ("ENTSCHÄRFT", "#4fd6c8"),
+    "verlaengerung": ("VERLÄNGERUNG", "#e0b437"),
+}
+
+
+def text_image(text: str, color: str, shadow: str) -> Image.Image:
+    glyphs = [FONT5[ch] for ch in text]
+    width = sum(len(g[0]) + 1 for g in glyphs) + 1
+    im = Image.new("RGBA", (width, 9), CLEAR)
+    p = im.load()
+    x0 = 0
+    for g in glyphs:
+        for y, row in enumerate(g):
+            for x, bit in enumerate(row):
+                if bit == "#":
+                    p[x0 + x + 1, y + 1] = hexc(shadow)
+        for y, row in enumerate(g):
+            for x, bit in enumerate(row):
+                if bit == "#":
+                    p[x0 + x, y] = hexc(color) if y < 4 else darker(hexc(color), 0.8)
+        x0 += len(g[0]) + 1
+    return im
+
+
+def banner(text: str, accent: str) -> Image.Image:
+    t = text_image(text, "#e8e6ef", "#0e0d12")
+    w, h = t.width + 24, 21
+    im = Image.new("RGBA", (w, h), CLEAR)
+    p = im.load()
+    for y in range(h):
+        inset = 0 if 2 <= y <= h - 3 else (1 if y in (1, h - 2) else 2)
+        for x in range(inset, w - inset):
+            edge = y in (0, h - 1) or x in (inset, w - inset - 1)
+            p[x, y] = hexc("#0e0d12") if edge else hexc("#1f1e27")
+    for x in range(3, w - 3):
+        p[x, 2] = hexc(accent)
+        p[x, h - 3] = darker(hexc(accent), 0.6)
+    for y in range(4, h - 4):
+        p[3, y] = p[w - 4, y] = hexc(accent)
+    im.alpha_composite(t, (12, 6))
+    return im
+
+
+def make_minimap_and_banners() -> None:
+    for key, (rows, pal) in MINIMAP.items():
+        save(from_rows(rows, pal), f"ui/minimap/{key}.png")
+    for key, (text, accent) in BANNERS.items():
+        save(banner(text, accent), f"ui/banner/{key}.png")
+
+
 def main() -> None:
     make_agents()
     make_weapons()
@@ -548,6 +637,7 @@ def main() -> None:
     make_fx()
     make_icons()
     make_hud()
+    make_minimap_and_banners()
 
 
 if __name__ == "__main__":
