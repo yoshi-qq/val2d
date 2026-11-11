@@ -277,3 +277,25 @@ class CharacterSprites:
             if img is not None:
                 out.append(img)
         return out
+
+
+def draw_nine_slice(target: pygame.Surface, bank: SpriteBank, rel: str, rect: pygame.Rect, corner: int, k: int = 2) -> bool:
+    """Draws a 9-slice frame: `corner` px corners in the file, pixels scaled k times (nearest). False if missing."""
+    img = bank.raw(rel)
+    if img is None:
+        return False
+    w, h = img.get_size()
+    c, d = corner, corner * k
+    parts = [((0, 0, c, c), (rect.x, rect.y, d, d)),
+             ((w - c, 0, c, c), (rect.right - d, rect.y, d, d)),
+             ((0, h - c, c, c), (rect.x, rect.bottom - d, d, d)),
+             ((w - c, h - c, c, c), (rect.right - d, rect.bottom - d, d, d)),
+             ((c, 0, w - 2 * c, c), (rect.x + d, rect.y, rect.w - 2 * d, d)),
+             ((c, h - c, w - 2 * c, c), (rect.x + d, rect.bottom - d, rect.w - 2 * d, d)),
+             ((0, c, c, h - 2 * c), (rect.x, rect.y + d, d, rect.h - 2 * d)),
+             ((w - c, c, c, h - 2 * c), (rect.right - d, rect.y + d, d, rect.h - 2 * d)),
+             ((c, c, w - 2 * c, h - 2 * c), (rect.x + d, rect.y + d, rect.w - 2 * d, rect.h - 2 * d))]
+    for src, dst in parts:
+        if dst[2] > 0 and dst[3] > 0:
+            target.blit(pygame.transform.scale(img.subsurface(src), (dst[2], dst[3])), (dst[0], dst[1]))
+    return True

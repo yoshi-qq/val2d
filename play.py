@@ -266,7 +266,6 @@ class Game:
             self.session.close()
         if self.client:
             self.client.close()
-        pygame.quit()
 
     def step(self, dt: float, cmd: Command) -> list[GameEvent]:
         if self.mode == "local":
@@ -1015,7 +1014,11 @@ def main() -> None:
     net.add_argument("--join", metavar="ADDRESS[:PORT]", help="Join a match")
     net.add_argument("--find", action="store_true", help="Find a match on the local network and join")
     ap.add_argument("--port", type=int, default=DEFAULT_PORT)
+    ap.add_argument("--no-menu", action="store_true", help="Start the practice match directly, without the main menu")
     args = ap.parse_args()
+    if not (args.host or args.join or args.find or args.no_menu):
+        run_menu(args)
+        return
     if args.find:
         print("Looking for matches on the local network …")
         found = discover()
@@ -1034,6 +1037,32 @@ def main() -> None:
         pygame.quit()
         return
     game.run()
+    pygame.quit()
+
+
+def run_menu(args: argparse.Namespace) -> None:
+    """Main menu loop: each match returns to the menu; quitting the menu ends the program."""
+    from menu import MainMenu
+    pygame.init()
+    screen = pygame.display.set_mode((1280, 720))
+    pygame.display.set_caption("Val2d")
+    try:
+        font, big = pygame.font.Font(str(FONT_PATH), 18), pygame.font.Font(str(FONT_PATH), 36)
+    except (OSError, FileNotFoundError):
+        font, big = pygame.font.Font(None, 22), pygame.font.Font(None, 44)
+    menu = MainMenu(screen, font, big, args)
+    while True:
+        chosen = menu.run()
+        if chosen is None:
+            break
+        try:
+            Game(chosen).run()
+        except (OSError, ConnectionError) as exc:
+            menu.status = f"No connection: {exc}"
+            warnings.warn(menu.status)
+        screen = pygame.display.set_mode((1280, 720))
+        menu.screen = screen
+    pygame.quit()
 
 
 if __name__ == "__main__":
