@@ -15,4 +15,4 @@ Status: benötigt · in Arbeit · fertig · eingebaut
 | fx_dunst, fx_schleier, fx_bann, fx_lauscher, fx_funke | 64×64 | Fähigkeiten Marrow und Kestrel | je 3–6 | Kreise und Linien | fertig | assets/fx/dunst.png 64, bann.png 64, schleier.png 16 (kacheln entlang der Wand), funke.png 16, lauscher.png 6; je 1 Bild |
 | icon_faehigkeit_{agent}_{C,Q,E,X} | 16×16 | Fähigkeitenleiste | – | Text | fertig | assets/ui/faehigkeit_{agent}_{C,Q,E,X}.png |
 | hud_* | Oberfläche | Leben, Schild, Munition, Credits, Zeit, Punktestand, Killfeed | – | Text in fixed_sys | benötigt | |
-| logo, icon, playercard | 48×48, 64×128 | Ersatz für Riot-Logo | – | – | Entwürfe, Wahl offen | docs/design/logo-entwurf/ |
+| logo, icon, playercard | 48×48, 64×128 | Ersatz für Riot-Logo | – | – | fertig | assets/logo.png, assets/icon.ico (16/32/48), assets/menu/lobby/playercard.png (Fadenkreuz) |

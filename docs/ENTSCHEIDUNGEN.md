@@ -23,3 +23,4 @@ Format: Datum · wer · Bereich · Wortlaut
 - 11.11.2026 · Claude Code · Grundsatz · Keine Nachbildung von Riot-Inhalten (Agents, Fähigkeiten, Karten, Namen). Mechaniken nach VISION.md, Inhalte eigen: Agents Kestrel und Marrow, Karte Werkhof, 16 eigene Waffen. Christian sieht das anders (VISION.md); offen.
 - 11.11.2026 · Claude Code · Technik · Neuer Spielkern gameplay/ (ohne pygame, befehlsgesteuert, JSON-Abbild statt pickle), spielbar über play.py gegen Bots. Alter Pfad main.py bleibt unverändert.
 - 11.11.2026 · Claude Code · Werte · Alle Spielwerte eigener Entwurf in gameplay/data/*.json (Quelle je Datei), Trefferzonen und Lobby-Standards in config/game_config.json.
+- 11.11.2026 · Christian · Grafik · Logo: Fadenkreuz-Entwurf ersetzt das Riot-Logo in logo.png, icon.ico und playercard.png (docs/design/logo-entwurf).
