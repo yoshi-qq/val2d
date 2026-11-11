@@ -255,10 +255,26 @@ def edge_light(im: Image.Image, light: float = 0.12, shade: float = 0.78) -> Ima
     return im
 
 
+def seamless(im: Image.Image) -> Image.Image:
+    """Natural surfaces have no visible tile seams: a few soft blotches instead of edge lines."""
+    rng = random.Random(im.getpixel((0, 0))[0])
+    p = im.load()
+    for _ in range(5):
+        cx, cy, r = rng.randrange(32), rng.randrange(32), rng.randrange(3, 7)
+        f = rng.choice((0.975, 1.02))
+        for y in range(cy - r, cy + r + 1):
+            for x in range(cx - r, cx + r + 1):
+                if (x - cx) ** 2 + (y - cy) ** 2 <= r * r:
+                    xx, yy = x % 32, y % 32  # wraps, so the tile stays seamless
+                    c = p[xx, yy]
+                    p[xx, yy] = tuple(max(0, min(255, int(v * f))) for v in c[:3]) + (255,)
+    return im
+
+
 def make_tiles() -> None:
     rng = random.Random(3)
     t = "maps/common/"
-    save(edge_light(noise_tile("#7d7a80", 18, 1)), t + "floor_concrete.png")
+    save(seamless(noise_tile("#7d7a80", 18, 1)), t + "floor_concrete.png")
     grate = Image.new("RGBA", (32, 32), hexc("#2d2c31"))
     g = grate.load()
     for y in range(32):
@@ -275,8 +291,8 @@ def make_tiles() -> None:
             if x % 8 == 0 or y % 8 == 0:
                 tp[x, y] = hexc("#7d7a72")
     save(edge_light(tiles), t + "floor_tiles.png")
-    save(edge_light(noise_tile("#c9b07a", 40, 4, 0.12, 0.85)), t + "floor_sand.png")
-    save(edge_light(noise_tile("#6b5236", 40, 5, 0.1, 0.8)), t + "floor_dirt.png")
+    save(seamless(noise_tile("#c9b07a", 40, 4, 0.12, 0.85)), t + "floor_sand.png")
+    save(seamless(noise_tile("#6b5236", 40, 5, 0.1, 0.8)), t + "floor_dirt.png")
     cracked = Image.open(base.ASSETS / "maps/werkhof/boden_stein.png").convert("RGBA")
     cp = cracked.load()
     x, y = 6, 4
@@ -315,17 +331,28 @@ def make_tiles() -> None:
     save(glass, t + "window_glass.png")
     for state in ("closed", "open"):
         door = blank(32, 32)
-        rect(door, 0, 10, 31, 21, "#2b3c45")
+        rect(door, 0, 4, 31, 27, (0, 0, 0, 0))
+        for x0 in (0, 28):  # frame posts, full depth of the wall
+            rect(door, x0, 2, x0 + 3, 29, "#3a3743")
+            rect(door, x0, 2, x0 + 3, 2, "#5c5866")
+            rect(door, x0 + 3 if x0 == 0 else x0, 3, x0 + 3 if x0 == 0 else x0, 29, "#26242c")
+        rect(door, 4, 6, 27, 6, "#26242c")  # track
+        rect(door, 4, 25, 27, 25, "#26242c")
         if state == "closed":
-            rect(door, 1, 11, 30, 20, "#4d6a77")
-            rect(door, 15, 11, 16, 20, "#2b3c45")
-            rect(door, 1, 11, 30, 11, "#6d8c99")
-            door.load()[14, 15] = hexc(GOLD)
-            door.load()[17, 15] = hexc(GOLD)
+            for x0, x1 in ((4, 15), (16, 27)):
+                rect(door, x0, 8, x1, 23, "#4d6a77")
+                rect(door, x0, 8, x1, 8, "#6d8c99")
+                rect(door, x0, 23, x1, 23, "#2b3c45")
+                rect(door, x0 + 2, 11, x1 - 2, 12, "#3b525d")
+                rect(door, x0 + 2, 19, x1 - 2, 20, "#3b525d")
+            rect(door, 15, 8, 16, 23, "#1f2c33")
+            rect(door, 13, 15, 13, 16, GOLD)
+            rect(door, 18, 15, 18, 16, GOLD)
         else:
-            rect(door, 1, 11, 5, 20, "#4d6a77")
-            rect(door, 26, 11, 30, 20, "#4d6a77")
-            rect(door, 6, 11, 25, 20, (0, 0, 0, 0))
+            for x0, x1 in ((4, 6), (25, 27)):  # leaves slid into the posts
+                rect(door, x0, 8, x1, 23, "#4d6a77")
+                rect(door, x0, 8, x1, 8, "#6d8c99")
+            rect(door, 7, 8, 24, 23, (79, 214, 200, 28))  # faint open gap
         save(door, t + f"door_{state}.png")
     barrier = []
     for f in range(2):
@@ -365,8 +392,6 @@ def make_props() -> None:
                  {"o": "#3a1a0e", "O": "#f08a24", "W": WHITE}),
         "plant": (["...gg.g...", ".gGGgGGg..", "gGGgGGgGg.", ".gGGGGGg..", "..ooooo...", "..oBBBo...", "..oBBBo...", "...ooo...."],
                   {"g": "#2a4a2a", "G": "#4f8a4a", "o": "#3a2a1c", "B": "#8a5a3a"}),
-        "lamp": (["..oooo..", ".oYYYYo.", "oYWWWWYo", "oYWWWWYo", ".oYYYYo.", "..oooo.."],
-                 {"o": "#2d2c31", "Y": GOLD, "W": "#fffbe8"}),
         "debris": (["..oo....o.", ".oGGo..oGo", "..oo..oGGo", "o.....oo..", "Go..o.....", "o..oGo..oo", "...oo...oG"],
                    {"o": "#3a3743", "G": "#7d7a80"}),
         "bench": (["oooooooooooooooooooooooooooooooo", "oWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWo", "owwwwwwwwwwwwwwwwwwwwwwwwwwwwwwo",
@@ -377,6 +402,16 @@ def make_props() -> None:
     for name, (rows, pal) in props.items():
         pal = {k: v for k, v in pal.items() if k != "."}
         save(glyph(rows, pal), t + f"{name}.png")
+    lamp = blank(16, 16)
+    lp = lamp.load()
+    for y in range(16):
+        for x in range(16):
+            d = math.hypot(x - 7.5, y - 7.5)
+            if d < 7.8:
+                lp[x, y] = (255, 230, 150, int(70 * (1 - d / 7.8)))  # light pool on the floor
+    lamp.alpha_composite(glyph(["..oooo..", ".oYYYYo.", "oYWWWWYo", "oYWWWWYo", "oYWWWWYo", ".oYYYYo.", "..oooo.."],
+                               {"o": "#2d2c31", "Y": GOLD, "W": "#fffbe8"}), (4, 4))
+    save(lamp, t + "lamp.png")
 
 
 def make_decals() -> None:

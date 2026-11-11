@@ -210,7 +210,7 @@ white cross = centre/anchor, white line = ground row, white ring = maximum radiu
 | `maps_common_props/cone.png` | [example](examples/cone.example.png) | `assets/maps/common/props/cone.png` | 10×6 | 1 | still | cone |
 | `maps_common_props/crate_small.png` | [example](examples/crate_small.example.png) | `assets/maps/common/props/crate_small.png` | 12×12 | 1 | still | crate small |
 | `maps_common_props/debris.png` | [example](examples/debris.example.png) | `assets/maps/common/props/debris.png` | 10×7 | 1 | still | debris |
-| `maps_common_props/lamp.png` | [example](examples/lamp.example.png) | `assets/maps/common/props/lamp.png` | 8×6 | 1 | still | lamp |
+| `maps_common_props/lamp.png` | [example](examples/lamp.example.png) | `assets/maps/common/props/lamp.png` | 16×16 | 1 | still | lamp |
 | `maps_common_props/pallet.png` | [example](examples/pallet.example.png) | `assets/maps/common/props/pallet.png` | 16×9 | 1 | still | pallet |
 | `maps_common_props/plant.png` | [example](examples/plant.example.png) | `assets/maps/common/props/plant.png` | 10×8 | 1 | still | plant |
 
