@@ -278,7 +278,8 @@ class Client:
                 with self.lock:
                     self.inbox.append(msg)
         except (OSError, ValueError, json.JSONDecodeError) as exc:
-            warnings.warn(f"Verbindung zum Host verloren: {exc}")
+            if self.connected:
+                warnings.warn(f"Verbindung zum Host verloren: {exc}")
         self.connected = False
 
     def send(self, cmd: Command) -> None:
@@ -295,6 +296,7 @@ class Client:
         return msgs
 
     def close(self) -> None:
+        self.connected = False
         try:
             self.sock.close()
         except OSError:
@@ -304,6 +306,7 @@ class Client:
 # ------------------------------------------------------------------ Abbild anwenden
 def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int) -> None:
     """Überträgt ein Host-Abbild in ein Schatten-Match zum Zeichnen (ohne eigene Simulation)."""
+    new_round = int(snap["round"]) != m.round_no
     m.time = float(snap["time"])
     m.phase = snap["phase"]
     left = float(snap["phase_left"])
@@ -343,7 +346,7 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int) -> None:
         p.pos = Vec(row["x"], row["y"])
         p.vel = Vec(row.get("vx", 0.0), row.get("vy", 0.0))
         p.z, p.level = row["z"], row["level"]
-        if pid != own_pid:
+        if pid != own_pid or new_round:
             p.facing = row["facing"]
         p.alive, p.hp, p.armor = row["alive"], row["hp"], row["armor"]
         if row["credits"] is not None:

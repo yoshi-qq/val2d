@@ -1,6 +1,11 @@
 """Val2d spielen: Übungspartie gegen Bots auf dem eigenen Spielkern (gameplay).
 
-Aufruf:  python play.py [--agent kestrel|marrow] [--team-size 1..5] [--rounds 13] [--all-around] [--sound-rings]
+Aufruf:  python play.py [--agent kestrel|marrow] [--team-size 1..5] [--rounds 13] [--map werkhof|gasse]
+                        [--all-around] [--sound-rings]
+Im Netz:  python play.py --host            Partie öffnen (Host = Spieler 1), Enter startet
+          python play.py --find            Partie im lokalen Netz suchen und beitreten
+          python play.py --join 192.168.1.20[:9009]
+Eigener Server-Prozess: python server.py (siehe dort).
 Steuerung: WASD laufen, Umschalt gehen, Strg ducken, Leertaste springen, Maus links schießen,
 Maus waagerecht drehen, Maus senkrecht Zieltiefe, R nachladen, 1/2/3 Waffe, C/Q/E/X Fähigkeiten,
 F halten Spike legen/entschärfen, B Kaufmenü, Tab Punktestand, Esc beenden.
@@ -20,6 +25,8 @@ from gameplay.bots import BotDirector
 from gameplay.data import LobbySettings, load_config
 from gameplay.geometry import Vec, heading
 from gameplay.match import Command, GameEvent, Match, PlayerState
+from gameplay.net import DEFAULT_PORT, Client, apply_snapshot, discover, events_from_json
+from gameplay.session import HostSession
 from gameplay.world import load_map
 
 ROOT = Path(__file__).resolve().parent
@@ -126,14 +133,33 @@ class Game:
                               sound_rings=args.sound_rings or base.lobby.sound_rings,
                               win_rounds=args.rounds, overtime=base.lobby.overtime, team_size=args.team_size)
         cfg = type(base)(hit_zones=base.hit_zones, lobby=lobby, player=base.player)
-        self.match = Match(load_map(args.map), cfg)
-        self.me = self.match.add_player("Du", 0, args.agent).pid
-        others = [a for a in self.match.agents if a != args.agent] or [args.agent]
-        for i in range(args.team_size - 1):
-            self.match.add_player(f"Bot {i + 1}", 0, others[i % len(others)], is_bot=True)
-        for i in range(args.team_size):
-            self.match.add_player(f"Gegner {i + 1}", 1, list(self.match.agents)[i % len(self.match.agents)], is_bot=True)
+        self.team_size = args.team_size
+        self.mode = "local"
+        self.session: HostSession | None = None
+        self.client: Client | None = None
+        self.status = ""
+        if args.join:
+            self.mode = "client"
+            address, _, port = args.join.partition(":")
+            self.client = Client(address, int(port or DEFAULT_PORT), args.name, args.agent)
+            self.match = Match(load_map(self.client.map_key), cfg)
+            self.me = self.client.pid
+        elif args.host:
+            self.mode = "host"
+            self.match = Match(load_map(args.map), cfg)
+            self.session = HostSession(self.match, args.name, args.port)
+            self.me = self.match.add_player(args.name, 0, args.agent).pid
+        else:
+            self.match = Match(load_map(args.map), cfg)
+            self.me = self.match.add_player("Du", 0, args.agent).pid
+            others = [a for a in self.match.agents if a != args.agent] or [args.agent]
+            for i in range(args.team_size - 1):
+                self.match.add_player(f"Bot {i + 1}", 0, others[i % len(others)], is_bot=True)
+            for i in range(args.team_size):
+                self.match.add_player(f"Gegner {i + 1}", 1, list(self.match.agents)[i % len(self.match.agents)], is_bot=True)
         self.bots = BotDirector(self.match)
+        self.local_facing = 0.0
+        self.seen_round = -1
         self.ui = UiState()
         self.sound = Sound()
         self.cursor_depth = 8.0
@@ -141,7 +167,8 @@ class Game:
         self.camera_push = base.player.camera_push
         self.clock = pygame.time.Clock()
         self.grab(True)
-        self.match.start()
+        if self.mode == "local":
+            self.match.start()
 
     def grab(self, on: bool) -> None:
         pygame.event.set_grab(on)
@@ -154,12 +181,16 @@ class Game:
         while running:
             dt = self.clock.tick(120) / 1000.0
             cmd = Command()
-            me = self.match.players[self.me]
+            me = self.match.players.get(self.me)
+            if me is None:  # Client vor dem ersten Abbild
+                me = PlayerState(pid=self.me, name="", team=0, agent="kestrel")
             for ev in pygame.event.get():
                 if ev.type == pygame.QUIT or (ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE):
                     running = False
                 elif ev.type == pygame.KEYDOWN:
-                    if ev.key == pygame.K_b:
+                    if ev.key == pygame.K_RETURN and self.session and not self.session.started:
+                        self.session.start(self.team_size)
+                    elif ev.key == pygame.K_b:
                         self.ui.buy_open = not self.ui.buy_open
                         self.grab(not self.ui.buy_open)
                     elif ev.key in (pygame.K_1, pygame.K_2, pygame.K_3):
@@ -175,7 +206,8 @@ class Game:
             self.ui.show_scores = keys[pygame.K_TAB]
             if not self.ui.buy_open:
                 dx, dy = pygame.mouse.get_rel()
-                me.facing = (me.facing + dx * self.sens) % 360
+                self.local_facing = (self.local_facing + dx * self.sens) % 360
+                me.facing = self.local_facing
                 self.cursor_depth = max(0.5, min(VIEW_METERS, self.cursor_depth - dy * 0.03))
                 cmd.fire = buttons[0]
             cmd.facing = me.facing
@@ -189,16 +221,45 @@ class Game:
             for key, ab in ((pygame.K_c, "C"), (pygame.K_q, "Q"), (pygame.K_e, "E"), (pygame.K_x, "X")):
                 if keys[key]:
                     cmd.ability = ab
-            commands = self.bots.commands(dt)
-            commands[self.me] = cmd
-            events = self.match.tick(dt, commands)
+            events = self.step(dt, cmd)
+            if self.match.round_no != self.seen_round and self.me in self.match.players:
+                self.seen_round = self.match.round_no  # neue Runde: Blick vom Spawn übernehmen
+                self.local_facing = self.match.players[self.me].facing
             self.handle_events(events)
             self.draw()
+            if self.client and not self.client.connected:
+                self.status = "Verbindung zum Host verloren"
+        if self.session:
+            self.session.close()
+        if self.client:
+            self.client.close()
         pygame.quit()
+
+    def step(self, dt: float, cmd: Command) -> list[GameEvent]:
+        if self.mode == "local":
+            commands = self.bots.commands(dt)
+            commands[self.me] = cmd
+            return self.match.tick(dt, commands)
+        if self.session:
+            return self.session.step(dt, {self.me: cmd})
+        assert self.client is not None
+        if self.client.connected:
+            self.client.send(cmd)
+        events: list[GameEvent] = []
+        for msg in self.client.take():
+            if msg.get("type") == "state":
+                try:
+                    apply_snapshot(self.match, msg["snap"], self.me)
+                    events += events_from_json(msg.get("events", []))
+                except (KeyError, TypeError, ValueError) as exc:
+                    warnings.warn(f"Abbild vom Host unlesbar: {exc}")
+        return events
 
     def handle_events(self, events: list[GameEvent]) -> None:
         m, t = self.match, self.match.time
-        me = m.players[self.me]
+        me = m.players.get(self.me)
+        if me is None:
+            return
         for e in events:
             d = e.data
             if e.kind == "shot":
@@ -211,8 +272,10 @@ class Game:
             elif e.kind == "hit" and d["by"] == self.me:
                 self.ui.hit_marker = t + 0.15
             elif e.kind == "kill":
-                by = m.players[d["by"]].name if d["by"] else "Spike"
-                self.ui.feed.append((t + 5, f"{by} → {m.players[d['pid']].name}{' (Kopf)' if d['head'] else ''}"))
+                killer = m.players.get(d["by"]) if d["by"] else None
+                victim = m.players.get(d["pid"])
+                by = killer.name if killer else "Spike"
+                self.ui.feed.append((t + 5, f"{by} → {victim.name if victim else '?'}{' (Kopf)' if d['head'] else ''}"))
                 self.sound.play("kill", None, None)
             elif e.kind == "plant":
                 self.ui.banner = (t + 2.5, f"Spike gelegt auf {d['site']}")
@@ -234,7 +297,11 @@ class Game:
 
     def draw(self) -> None:
         m, s = self.match, self.screen
-        me = m.players[self.me]
+        me = m.players.get(self.me)
+        if me is None or m.phase == "lobby":
+            self.draw_lobby()
+            pygame.display.flip()
+            return
         s.fill(C_BG)
         wm = m.world
         from gameplay.geometry import Rect
@@ -292,7 +359,8 @@ class Game:
         for p in m.players.values():
             if not p.alive:
                 continue
-            if p.team != me.team and not m.can_see(me, p):
+            seen = p.visible if self.mode == "client" else m.can_see(me, p)
+            if p.team != me.team and not seen:
                 continue
             px, py = self.to_screen(p.pos, me)
             r = 0.4 * self.scale
@@ -318,6 +386,27 @@ class Game:
         if self.ui.show_scores or m.phase == "over":
             self.draw_scores()
         pygame.display.flip()
+
+    def draw_lobby(self) -> None:
+        s = self.screen
+        s.fill(C_BG)
+        title = {"host": "Lobby – du bist Host", "client": "Lobby – beigetreten"}.get(self.mode, "Lobby")
+        self.text(title, (self.w / 2, 80), C_TEXT, big=True, center=True)
+        self.text(f"Karte {self.match.world.name}", (self.w / 2, 130), C_MUTED, center=True)
+        y = 190
+        for team in (0, 1):
+            self.text(f"Team {team + 1}", (self.w / 2 - 300 + team * 340, y), C_ALLY if team == 0 else C_ENEMY)
+            row = y + 34
+            for p in (p for p in self.match.players.values() if p.team == team):
+                self.text(f"{p.name}  ({self.match.agents.get(p.agent, {}).get('name', p.agent)})", (self.w / 2 - 300 + team * 340, row))
+                row += 26
+        if self.mode == "host":
+            hint = f"Enter startet · freie Plätze bis {self.team_size} je Team füllen Bots · Port {self.session.net.port if self.session else ''}"
+        else:
+            hint = "Warte auf den Start durch den Host …"
+        self.text(hint, (self.w / 2, self.h - 90), C_SITE, center=True)
+        if self.status:
+            self.text(self.status, (self.w / 2, self.h - 60), C_ENEMY, center=True)
 
     def draw_crosshair(self, me: PlayerState) -> None:
         cx, cy = self.to_screen(me.pos + heading(me.facing) * self.cursor_depth, me)
@@ -368,6 +457,8 @@ class Game:
                 continue
             self.text(msg, (self.w - 360, y))
             y += 22
+        if self.status:
+            self.text(self.status, (self.w / 2, self.h / 2 - 110), C_ENEMY, center=True)
         if m.time < self.ui.banner[0]:
             self.text(self.ui.banner[1], (self.w / 2, self.h / 3), C_SITE, big=True, center=True)
         if not me.alive and m.phase in ("live", "planted"):
@@ -383,8 +474,8 @@ class Game:
                 items.append((key, f"{d.name}  {d.price}"))
         for key, a in m.armor.items():
             items.append((key, f"{a.name}  {a.price}"))
-        me = m.players[self.me]
-        for k in ("C", "Q"):
+        me = m.players.get(self.me)
+        for k in (("C", "Q") if me else ()):
             ab = m.agents[me.agent]["abilities"][k]
             items.append((k, f"{k} {ab['name']}  {ab['price']}"))
         out = []
@@ -441,7 +532,31 @@ def main() -> None:
     ap.add_argument("--map", default="werkhof")
     ap.add_argument("--all-around", action="store_true", help="Lobby-Regel Rundumsicht")
     ap.add_argument("--sound-rings", action="store_true", help="Lobby-Regel Schallringe")
-    Game(ap.parse_args()).run()
+    ap.add_argument("--name", default="Spieler", help="Name in der Partie (bis 16 Zeichen)")
+    net = ap.add_mutually_exclusive_group()
+    net.add_argument("--host", action="store_true", help="Partie im Netz öffnen (Host = Spieler 1)")
+    net.add_argument("--join", metavar="ADRESSE[:PORT]", help="Einer Partie beitreten")
+    net.add_argument("--find", action="store_true", help="Partie im lokalen Netz suchen und beitreten")
+    ap.add_argument("--port", type=int, default=DEFAULT_PORT)
+    args = ap.parse_args()
+    if args.find:
+        print("Suche Partien im lokalen Netz …")
+        found = discover()
+        if not found:
+            print("Keine Partie gefunden. Läuft beim Host play.py --host oder server.py, und sind beide im selben Netz?")
+            return
+        for address, port, host_name in found:
+            print(f"  {host_name}  {address}:{port}")
+        address, port, host_name = found[0]
+        print(f"Trete {host_name} bei …")
+        args.join = f"{address}:{port}"
+    try:
+        game = Game(args)
+    except (OSError, ConnectionError) as exc:
+        print(f"Keine Verbindung: {exc}")
+        pygame.quit()
+        return
+    game.run()
 
 
 if __name__ == "__main__":
