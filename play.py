@@ -417,12 +417,18 @@ class Game:
                 self.ui.rings.remove(ring)
                 continue
             rx, ry = self.to_screen(ring.pos, me)
-            pygame.draw.circle(s, C_MUTED, (rx, ry), max(1, ring.radius * self.scale * age / 0.6), 1)
+            d = max(2, round(2 * ring.radius * self.scale * age / 0.6))
+            img = self.bank.tinted("fx/sound_ring.png", (d, d), min(2, int(age / 0.2)), 64, C_MUTED)
+            if img is not None:
+                s.blit(img, (rx - d / 2, ry - d / 2))
+            else:
+                pygame.draw.circle(s, C_MUTED, (rx, ry), max(1, d / 2), 1)
         for tr in list(self.ui.tracers):
             if m.time > tr.until:
                 self.ui.tracers.remove(tr)
                 continue
-            pygame.draw.line(s, (255, 230, 140), self.to_screen(tr.a, me), self.to_screen(tr.b, me), 2 if tr.own else 1)
+            self.tile_line("fx/tracer_own.png" if tr.own else "fx/tracer.png", self.to_screen(tr.a, me),
+                           self.to_screen(tr.b, me), 16, 0.0, (255, 230, 140), 2 if tr.own else 1)
             frame = max(0, min(2, int((0.08 - (tr.until - m.time)) / 0.08 * 3)))
             size = max(1, round(self.scale * 0.5))
             muzzle = self.bank.scaled("fx/muendung.png", (size, size), frame, 8)
@@ -444,7 +450,14 @@ class Game:
             r = 0.4 * self.scale
             col = C_ALLY if p.team == me.team else C_ENEMY
             fx, fy = self.to_screen(p.pos + heading(p.facing) * 0.9, me)
-            pygame.draw.line(s, col, (px, py), (fx, fy), 2)
+            size = max(1, round(self.scale / 2))
+            marker = self.bank.tinted("fx/facing_marker.png", (size, size), 0, 0, col)
+            if marker is not None:
+                screen_angle = math.degrees(math.atan2(fx - px, -(fy - py)))
+                marker = pygame.transform.rotate(marker, -screen_angle)
+                s.blit(marker, (fx - marker.get_width() / 2, fy - marker.get_height() / 2))
+            else:
+                pygame.draw.line(s, col, (px, py), (fx, fy), 2)
             img = self.character_frame(p, me)
             if img is not None:
                 s.blit(img, (px - img.get_width() / 2, py - img.get_height() / 2))
@@ -561,6 +574,19 @@ class Game:
                 form = str(name)
         return self.chars.frame(p.agent, state, p.team != me.team, self.scale, clock, form=form, speed=speed)
 
+    def radius_ring(self, pos: Vec, radius: float, color: tuple[int, int, int], me: PlayerState) -> None:
+        x, y = self.to_screen(pos, me)
+        d = max(2, round(2 * radius * self.scale))
+        img = self.bank.tinted("fx/radius_ring.png", (d, d), 0, 0, color)
+        if img is not None:
+            self.screen.blit(img, (x - d / 2, y - d / 2))
+        else:
+            pygame.draw.circle(self.screen, color, (x, y), d / 2, 1)
+
+    def panel(self, rel: str, rect: pygame.Rect) -> None:
+        """Semi-transparent 9-slice HUD panel (8 px corners, drawn at 1x)."""
+        draw_nine_slice(self.screen, self.bank, rel, rect, 8, 1)
+
     def draw_figure_fx(self, p: PlayerState, at: tuple[float, float]) -> None:
         """Effects in the 16x32 figure cell, centred on the player: one-shots from events, loops while active."""
         t = self.match.time
@@ -667,11 +693,11 @@ class Game:
         s = self.screen
         ex, ey = self.to_screen(e.pos, me)
         if e.kind == "zone" and e.start > self.match.time:
-            pygame.draw.circle(s, C_MUTED, (ex, ey), max(2, e.radius * self.scale), 1)
+            self.radius_ring(e.pos, e.radius, C_MUTED, me)
             return
         if e.kind == "blast":
             left = max(0.0, e.until - self.match.time)
-            pygame.draw.circle(s, C_ENEMY if e.team != me.team else C_SITE, (ex, ey), max(2, e.radius * self.scale), 1)
+            self.radius_ring(e.pos, e.radius, C_ENEMY if e.team != me.team else C_SITE, me)
             nade = self.bank.scaled("fx/ability/grenade.png", (max(1, round(self.scale * 6 / 16)), max(1, round(self.scale * 5 / 16))))
             if nade is not None:
                 s.blit(nade, (ex - nade.get_width() / 2, ey - nade.get_height() / 2))
@@ -685,7 +711,7 @@ class Game:
                 s.blit(img, (ex - size / 2, ey - size / 2))
             else:
                 pygame.draw.circle(s, C_ALLY, (ex, ey), 5)
-            pygame.draw.circle(s, (60, 90, 90), (ex, ey), e.radius * self.scale, 1)
+            self.radius_ring(e.pos, e.radius, (60, 140, 140), me)
             return
         if e.kind == "tripwire" and e.a and e.b:
             a, b = self.to_screen(e.a, me), self.to_screen(e.b, me)
@@ -723,7 +749,7 @@ class Game:
                 s.blit(img, (ex - size / 2, ey - size / 2))
             else:
                 pygame.draw.circle(s, C_ALLY if e.team == me.team else C_ENEMY, (ex, ey), 5)
-            pygame.draw.circle(s, (60, 90, 90), (ex, ey), e.radius * self.scale, 1)
+            self.radius_ring(e.pos, e.radius, (60, 140, 140), me)
         elif e.kind == "wall" and e.a and e.b:
             a, b = self.to_screen(e.a, me), self.to_screen(e.b, me)
             length = math.hypot(b[0] - a[0], b[1] - a[1])
@@ -850,7 +876,13 @@ class Game:
         k = size / max(wm.width, wm.height)
         ox, oy = 12, 44
         panel = pygame.Surface((round(wm.width * k), round(wm.height * k)), pygame.SRCALPHA)
-        panel.fill((20, 20, 28, 190))
+        framed = self.bank.raw("ui/minimap/frame.png") is not None
+        if framed:
+            draw_nine_slice(self.screen, self.bank, "ui/minimap/frame.png", pygame.Rect(ox - 6, oy - 6, panel.get_width() + 12, panel.get_height() + 12), 8, 1)
+        else:
+            panel.fill((20, 20, 28, 190))
+        wall_tile = self.bank.scaled("ui/minimap/wall.png", (4, 4))
+        crate_tile = self.bank.scaled("ui/minimap/crate.png", (4, 4))
 
         def pt(v: Vec) -> tuple[float, float]:
             return v.x * k, (wm.height - v.y) * k
@@ -860,7 +892,16 @@ class Game:
                 continue
             x0, y1 = pt(Vec(w.rect.x0, w.rect.y0))
             x1, y0 = pt(Vec(w.rect.x1, w.rect.y1))
-            pygame.draw.rect(panel, (120, 116, 132, 255) if w.height > 1 else (80, 96, 108, 255), (x0, y0, max(1, x1 - x0), max(1, y1 - y0)))
+            rect = pygame.Rect(round(x0), round(y0), max(1, round(x1 - x0)), max(1, round(y1 - y0)))
+            tile = wall_tile if w.height > 1 else crate_tile
+            if tile is not None:
+                panel.set_clip(rect)
+                for ty in range(rect.y - rect.y % 4, rect.bottom, 4):
+                    for tx in range(rect.x - rect.x % 4, rect.right, 4):
+                        panel.blit(tile, (tx, ty))
+                panel.set_clip(None)
+            else:
+                pygame.draw.rect(panel, (120, 116, 132, 255) if w.height > 1 else (80, 96, 108, 255), rect)
         for site in wm.sites:
             x, y = pt(site.rect.center)
             lbl = self.font.render(site.name, True, C_SITE)
@@ -897,9 +938,20 @@ class Game:
         col = C_ENEMY if self.match.time < self.ui.hit_marker else (120, 255, 200)
         d = self.match.weapons.get(me.weapon.key) if me.weapon else None
         gap = 4 + (self.match.current_spread(me, d) * self.cursor_depth * math.pi / 180 * self.scale if d else 0)
-        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            pygame.draw.line(self.screen, col, (cx + dx * gap, cy + dy * gap), (cx + dx * (gap + 7), cy + dy * (gap + 7)), 2)
-        pygame.draw.circle(self.screen, col, (cx, cy), 2)
+        hit = "_hit" if self.match.time < self.ui.hit_marker else ""
+        dot = self.bank.scaled(f"ui/crosshair/dot{hit}.png", (8, 8))
+        arm = self.bank.scaled(f"ui/crosshair/arm{hit}.png", (4, 16))
+        if dot is None or arm is None:
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                pygame.draw.line(self.screen, col, (cx + dx * gap, cy + dy * gap), (cx + dx * (gap + 7), cy + dy * (gap + 7)), 2)
+            pygame.draw.circle(self.screen, col, (cx, cy), 2)
+            return
+        for angle, (dx, dy) in ((0, (0, -1)), (90, (-1, 0)), (180, (0, 1)), (270, (1, 0))):
+            img = pygame.transform.rotate(arm, angle)
+            ax = cx + dx * (gap + 8) - img.get_width() / 2
+            ay = cy + dy * (gap + 8) - img.get_height() / 2
+            self.screen.blit(img, (ax, ay))
+        self.screen.blit(dot, (cx - 4, cy - 4))
 
     def text(self, msg: str, pos: tuple[float, float], col=C_TEXT, big: bool = False, center: bool = False) -> None:
         img = (self.big if big else self.font).render(msg, True, col)
@@ -910,6 +962,9 @@ class Game:
 
     def draw_hud(self, me: PlayerState) -> None:
         m = self.match
+        self.panel("ui/hud/score_panel.png", pygame.Rect(self.w / 2 - 330, 4, 660, 76))
+        self.panel("ui/hud/ability_panel.png", pygame.Rect(8, self.h - 160, 330, 154))
+        self.panel("ui/hud/weapon_panel.png", pygame.Rect(self.w - 340, self.h - 84, 330, 78))
         left = m.phase_time_left()
         phase = {"buy": "Buy phase", "live": "", "planted": "Bomb planted", "end": "Round over", "over": "Match over"}.get(m.phase, "")
         mine, theirs = m.score[me.team], m.score[1 - me.team]
@@ -957,7 +1012,10 @@ class Game:
             sx += 28 + self.font.size(k)[0] + 16
         self.text(f"{m.agents[me.agent]['name']} · {m.world.callout_at(me.pos)}", (20, 16), C_MUTED)
         if m.spike_carrier == self.me:
-            self.text("You carry the bomb (hold F on A or B)", (20, 248), C_SITE)
+            hint = self.bank.scaled("ui/hud/carrier_hint.png", (32, 32))
+            if hint is not None:
+                self.screen.blit(hint, (20, 242))
+            self.text("You carry the bomb (hold F on A or B)", (60 if hint else 20, 248), C_SITE)
         prog = me.plant_progress / 4.0 if me.plant_progress else me.defuse_progress / 7.0
         if prog > 0:
             empty = self.bank.scaled("ui/hud/balken_leer.png", (192, 24))
@@ -973,6 +1031,9 @@ class Game:
         self.ui.feed = [f for f in self.ui.feed if m.time <= f[0]]
         for _, msg, killer, victim, head in self.ui.feed:
             x = self.w - 420
+            mine = me.name and me.name in msg
+            width = 28 * 2 + 16 + self.font.size(msg)[0] + (28 if head else 0)
+            self.panel("ui/hud/killfeed_row_self.png" if mine else "ui/hud/killfeed_row.png", pygame.Rect(x - 8, y - 6, width, 32))
             for agent in (killer, victim):
                 icon = self.bank.scaled(f"agents/{agent}/{agent}_killfeed.png", (24, 24)) if agent else None
                 if icon is not None:
@@ -1098,21 +1159,45 @@ class Game:
 
     def draw_scores(self) -> None:
         m = self.match
+        me = m.players.get(self.me)
         overlay = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
         overlay.fill((10, 10, 16, 200))
         self.screen.blit(overlay, (0, 0))
         title = "Match over" if m.phase == "over" else "Scoreboard"
-        if m.phase == "over":
-            me = m.players[self.me]
+        if m.phase == "over" and me is not None:
             title += ": won" if m.match_winner == me.team else ": lost"
-        self.text(f"{title}   {m.score[0]} : {m.score[1]}", (self.w / 2, 80), C_TEXT, big=True, center=True)
-        y = 150
+        self.text(f"{title}   {m.score[0]} : {m.score[1]}", (self.w / 2, 92), C_TEXT, big=True, center=True)
+        x, w, y = self.w / 2 - 320, 640, 146
         for team in (0, 1):
+            own = me is not None and team == me.team
+            header = pygame.Rect(x, y, w, 32)
+            if not draw_nine_slice(self.screen, self.bank, f"ui/scoreboard/header_team_{'a' if own else 'b'}.png", header, 8, 1):
+                pygame.draw.rect(self.screen, C_ALLY if own else C_ENEMY, header, 1)
+            self.text(f"Team {team + 1}" + ("  (you)" if own else ""), (x + 16, y + 6))
+            skull = self.bank.scaled("ui/icons/skull.png", (16, 16))
+            trophy = self.bank.scaled("ui/icons/trophy.png", (16, 16))
+            coin = self.bank.scaled("ui/hud/credits.png", (16, 16))
+            for icon, col_x in ((trophy, x + 380), (skull, x + 450), (coin, x + 540)):
+                if icon is not None:
+                    self.screen.blit(icon, (col_x, y + 8))
+            y += 38
             for p in sorted((p for p in m.players.values() if p.team == team), key=lambda p: -p.kills):
-                col = C_ALLY if team == m.players[self.me].team else C_ENEMY
-                self.text(f"{p.name:<12} {m.agents[p.agent]['name']:<10} {p.kills:>3} / {p.deaths:<3} {p.credits:>6} ¤", (self.w / 2 - 260, y), col)
-                y += 26
-            y += 20
+                row = pygame.Rect(x, y, w, 36)
+                rel = "ui/scoreboard/row_self.png" if p.pid == self.me else "ui/scoreboard/row.png"
+                if not draw_nine_slice(self.screen, self.bank, rel, row, 8, 1):
+                    pygame.draw.rect(self.screen, C_MUTED, row, 1)
+                head = self.bank.scaled(f"agents/{p.agent}/{p.agent}_killfeed.png", (24, 24))
+                if head is not None:
+                    self.screen.blit(head, (x + 10, y + 6))
+                col = C_TEXT if p.alive else C_MUTED
+                self.text(p.name, (x + 44, y + 9), col)
+                self.text(m.agents.get(p.agent, {}).get("name", p.agent), (x + 220, y + 9), C_MUTED)
+                self.text(str(p.kills), (x + 384, y + 9), col)
+                self.text(str(p.deaths), (x + 454, y + 9), col)
+                credits = "" if (me is not None and p.team != me.team) else str(p.credits)
+                self.text(credits, (x + 544, y + 9), C_SITE)
+                y += 40
+            y += 18
 
 
 def main() -> None:
