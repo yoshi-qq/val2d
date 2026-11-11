@@ -473,7 +473,42 @@ def index(entries: list[Entry]) -> str:
             lines += ["", f"## {category}", "", "| Template | Example | Target file | Frame size | Frames | Speed | Purpose |", "|---|---|---|---|---|---|---|"]
         ex = f"[example]({example_name(e)})" if e.example else "–"
         lines.append(f"| `{e.file}` | {ex} | `{e.target}` | {e.size[0]}×{e.size[1]} | {e.frames} | {e.fps} | {e.purpose} |")
+    lines += map_keys()
     return "\n".join(lines) + "\n"
+
+
+def map_keys() -> list[str]:
+    """Material and object keys as the game uses them (config/materials.py), with sprite and in-game size."""
+    try:
+        data = runpy.run_path(str(ROOT / "config" / "materials.py"))
+    except Exception as exc:  # the index must still build
+        return ["", f"(config/materials.py not readable: {exc})"]
+    out = ["", "## Map keys (config/materials.py)", "",
+           "Map files refer to sprites by key. Draw a new material or object with the template of its kind,",
+           "then add the key with its tile to config/materials.py (or ask the coding session).", ""]
+    walls = data.get("WALLS", {})
+    if walls:
+        out += ["### Walls", "", "| Key | Tile | Penetration | Blocks sight | Height |", "|---|---|---|---|---|"]
+        out += [f"| `{k}` | `assets/{v['tile']}` | {v.get('pen', '–')} | {'yes' if v.get('sight', True) else 'no'} | {v.get('height', 2)} |"
+                for k, v in walls.items()]
+    floors = data.get("FLOORS", {})
+    if floors:
+        out += ["", "### Floors", "", "| Key | Tile |", "|---|---|"]
+        out += [f"| `{k}` | `assets/{v}` |" for k, v in floors.items()]
+    objects = data.get("OBJECTS", {})
+    if objects:
+        out += ["", "### Objects", "", "| Key | Tile | Size in game | Pixels at 16 px/m | Blocks |", "|---|---|---|---|---|"]
+        for k, v in objects.items():
+            w, h = v.get("size", (1, 1))
+            out.append(f"| `{k}` | `assets/{v['tile']}` | {w:g} × {h:g} m | {round(w * 16)} × {round(h * 16)} | "
+                       f"{'yes' if v.get('blocks') else 'no'} |")
+    decals = data.get("DECALS", {})
+    if decals:
+        out += ["", "### Decals (never block)", "", "| Key | Tile | Size in game | Tiled |", "|---|---|---|---|"]
+        for k, v in decals.items():
+            w, h = v.get("size", (1, 1))
+            out.append(f"| `{k}` | `assets/{v['tile']}` | {w:g} × {h:g} m | {'yes' if v.get('tiled') else 'no'} |")
+    return out
 
 
 PALETTE = [

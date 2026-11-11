@@ -44,15 +44,17 @@ Full rules in `../CHARACTER_SHEETS.md`. In short:
 - Read class by shape: pistols short without stock, SMGs with a wire stock and a straight magazine, shotguns long barrel without a magazine, rifles with a curved magazine, snipers with a scope and a long barrel, heavy weapons with a drum or belt.
 - Grip and magazine stay in the gold zone of the template, so hands line up in every weapon.
 
-## 5. Map tiles
+## 5. Map tiles, objects and decals
 
-- 32 × 32 = 2 × 2 m, seamless on all sides.
-- Light edge top and left, shadow edge bottom and right (template edges).
-- Walkable floor is mid-bright and low in contrast, so figures stand out on it.
-- Walls are darker than the floor. Thin walls (penetration 0–1) show a lighter material with visible boards or panels, so players see that bullets go through.
-- Crates and platforms have a clear frame so their height reads at a glance.
-- Overlays (bomb site border) are transparent in the middle.
-- Speckle and noise at most 16 pixels per tile; no busy patterns.
+- Tiles are 32 × 32 = 2 × 2 m and seamless on all sides. Maps pick them by material key (`config/materials.py`, listed in `README.md`).
+- Built surfaces (stone slabs, tiles, grate, walls) show their joints with a light edge top/left and a shadow edge bottom/right. **Natural surfaces (concrete, sand, dirt) show no joints**, only soft blotches that wrap around the tile, so no 2 m grid shows on the map.
+- Walkable floor is mid-bright and low in contrast, so figures and effects stand out on it.
+- Walls are darker than the floor. Thin walls (penetration 0–1: wood fence, thin Workyard wall, glass) show a material players read as "bullets go through". Glass is see-through and drawn as a narrow pane.
+- Doors fill their whole 2 × 2 m cell: frame posts over the full depth, two leaves with a handle; open, the leaves sit in the posts.
+- Objects are drawn at their real size (16 px = 1 m, sizes in `README.md`). Small props need a strong silhouette; light sources get a soft light pool on the floor.
+- Decals are transparent overlays (alpha 110–190), never block and lie under objects and figures. `hazard_stripe` tiles along its length.
+- Depth: `wall_shadow` lies under the south edge of walls of height 2+, `platform_edge` on platform edges.
+- Speckle at most 16 pixels per tile; no busy patterns.
 
 ## 6. Effects
 
@@ -62,6 +64,8 @@ Full rules in `../CHARACTER_SHEETS.md`. In short:
 - Generic effects are white or light grey so the game can tint them per status or team. Agent-specific effects use the agent's glow colour.
 - Effects that are repeated along a line (wall, wire, wave) tile seamlessly from left to right.
 - Hits show sparks, no blood.
+- World markers that the game tints per team or status are pure white with alpha: tracer (16 × 2, tiled along the shot), sound ring, dashed radius ring (64 × 64 with a centre cross), facing marker (8 × 8, points up).
+- Effects on a figure (teleport, heal, revive, shield, immunity) use the agent cell 16 × 32, centred on the player.
 
 ## 7. Interface
 
@@ -73,6 +77,10 @@ Full rules in `../CHARACTER_SHEETS.md`. In short:
 | Frames | 24 × 24 | nine-slice, 8 px corners; fill `#1f1e27` with a slightly lighter upper half, edge `#0e0d12`, light top/left line, shadow bottom/right line, corner rivets; selected with a teal edge |
 | Bars | 96 × 12 | dark rounded edge, light top line, lighter upper part and darker lower part, ticks at 25 %; stretched horizontally |
 | Banners | height 32 | game font `fixed_sys.ttf` at 16 px without smoothing, dark shadow, 20 px padding each side, beveled corners, accent lines and arrow tips in the result colour (teal good, red bad, gold neutral) |
+| HUD panels | 24 × 24 | nine-slice with 8 px corners, semi-transparent (alpha 200–245) so the map shows through: score, weapon, ability, kill-feed row (own row gold with a stripe), scoreboard rows (own row teal stripe) and team headers (teal own, red enemy), minimap frame |
+| Crosshair | dot 4 × 4, arm 2 × 8 | bright mint with a dark edge; the arm points up and is rotated by the game; red variants for hits |
+| Buy menu | 64 × 24 | weapons and vests centred, lit like the weapons section; category icons 16 × 16 |
+| Menu kit | 16 × 16 / 24 × 24 | buttons in four states, panel, textfield, tabs, checkbox, slider, cursor; menu background 480 × 270 from real map tiles at night |
 | Logo | 48 × 48 | crosshair logo on a rounded dark plate; also program icon at 16/32/48 |
 | Player card | 64 × 128 | dark banner with a pointed bottom, logo at (8, 10), grey line at row 104 |
 | Text | – | game font `font/fixed_sys.ttf`; all player-facing text in English |

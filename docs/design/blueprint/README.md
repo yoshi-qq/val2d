@@ -284,3 +284,61 @@ white cross = centre/anchor, white line = ground row, white ring = maximum radiu
 | `extra/weapon_panel.png` | [example](examples/weapon_panel.example.png) | `assets/ui/hud/weapon_panel.png` | 24×24 | 1 | still | weapon panel |
 | `extra/ability_panel.png` | [example](examples/ability_panel.example.png) | `assets/ui/hud/ability_panel.png` | 24×24 | 1 | still | ability panel |
 | `extra/carrier_hint.png` | [example](examples/carrier_hint.example.png) | `assets/ui/hud/carrier_hint.png` | 16×16 | 1 | still | carrier hint |
+
+## Map keys (config/materials.py)
+
+Map files refer to sprites by key. Draw a new material or object with the template of its kind,
+then add the key with its tile to config/materials.py (or ask the coding session).
+
+### Walls
+
+| Key | Tile | Penetration | Blocks sight | Height |
+|---|---|---|---|---|
+| `concrete` | `assets/maps/common/wall_concrete.png` | 3 | yes | 2 |
+| `brick` | `assets/maps/common/wall_brick.png` | 2 | yes | 2 |
+| `wood_fence` | `assets/maps/common/fence_wood.png` | 0 | yes | 2 |
+| `glass` | `assets/maps/common/window_glass.png` | 0 | no | 2 |
+| `crate_metal` | `assets/maps/werkhof/kiste_metall.png` | 1 | no | 1 |
+| `werkhof_thick` | `assets/maps/werkhof/wand.png` | 2 | yes | 2 |
+| `werkhof_thin` | `assets/maps/werkhof/wand_duenn.png` | 0 | yes | 2 |
+
+### Floors
+
+| Key | Tile |
+|---|---|
+| `stone` | `assets/maps/werkhof/boden_stein.png` |
+| `concrete` | `assets/maps/common/floor_concrete.png` |
+| `grate` | `assets/maps/common/floor_grate.png` |
+| `tiles` | `assets/maps/common/floor_tiles.png` |
+| `sand` | `assets/maps/common/floor_sand.png` |
+| `dirt` | `assets/maps/common/floor_dirt.png` |
+| `stone_cracked` | `assets/maps/common/floor_stone_cracked.png` |
+
+### Objects
+
+| Key | Tile | Size in game | Pixels at 16 px/m | Blocks |
+|---|---|---|---|---|
+| `door` | `assets/maps/common/door_closed.png` | 2 × 2 m | 32 × 32 | yes |
+| `spawn_barrier` | `assets/maps/common/spawn_barrier.png` | 2 × 2 m | 32 × 32 | yes |
+| `barrel` | `assets/maps/common/props/barrel.png` | 0.75 × 0.75 m | 12 × 12 | yes |
+| `crate_small` | `assets/maps/common/props/crate_small.png` | 0.75 × 0.75 m | 12 × 12 | yes |
+| `pallet` | `assets/maps/common/props/pallet.png` | 1 × 0.56 m | 16 × 9 | no |
+| `cone` | `assets/maps/common/props/cone.png` | 0.62 × 0.38 m | 10 × 6 | no |
+| `plant` | `assets/maps/common/props/plant.png` | 0.62 × 0.5 m | 10 × 8 | yes |
+| `lamp` | `assets/maps/common/props/lamp.png` | 1 × 1 m | 16 × 16 | no |
+| `bench` | `assets/maps/common/props/bench.png` | 2 × 0.5 m | 32 × 8 | yes |
+| `debris` | `assets/maps/common/props/debris.png` | 0.62 × 0.44 m | 10 × 7 | no |
+
+### Decals (never block)
+
+| Key | Tile | Size in game | Tiled |
+|---|---|---|---|
+| `crack` | `assets/maps/common/decals/crack.png` | 2 × 2 m | no |
+| `oil_stain` | `assets/maps/common/decals/oil_stain.png` | 2 × 2 m | no |
+| `scorch` | `assets/maps/common/decals/scorch.png` | 2 × 2 m | no |
+| `arrow` | `assets/maps/common/decals/arrow.png` | 1 × 1 m | no |
+| `drain` | `assets/maps/common/decals/drain.png` | 1 × 0.56 m | no |
+| `hazard_stripe` | `assets/maps/common/decals/hazard_stripe.png` | 2 × 0.5 m | yes |
+| `site_a` | `assets/maps/common/decals/site_a.png` | 1 × 1 m | no |
+| `site_b` | `assets/maps/common/decals/site_b.png` | 1 × 1 m | no |
+| `site_c` | `assets/maps/common/decals/site_c.png` | 1 × 1 m | no |
