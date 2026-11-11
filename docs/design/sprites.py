@@ -630,8 +630,190 @@ def make_minimap_and_banners() -> None:
         save(banner(text, accent), f"ui/banner/{key}.png")
 
 
+def _set(rows: list[str], y: int, x: int, ch: str) -> None:
+    r = list(rows[y])
+    r[x] = ch
+    rows[y] = "".join(r)
+
+
+def _hands_off(top: list[str]) -> list[str]:
+    rows = list(top)
+    for y in (18, 19):
+        for x in (2, 3, 12, 13):
+            _set(rows, y, x, ".")
+    return rows
+
+
+def action_frames(top: list[str], pal: dict[str, str], hip: str, coat: int, glow: str) -> dict[str, list[Image.Image]]:
+    """Schießen (2), Nachladen (4), Fähigkeit (3). Waffe und Mündungsfeuer zeichnet das Spiel getrennt."""
+    pal = {**pal, "*": glow}
+    base_legs = legs(5, 5, hip, coat_rows=coat)
+
+    def fig(rows: list[str]) -> Image.Image:
+        return outline(from_rows(rows + base_legs, pal))
+
+    # Schießen: Rückstoß, Oberkörper 1 px tiefer
+    recoil = ["................"] + top[:-1]
+    shoot = [fig(top), fig(recoil)]
+    # Nachladen: Hände zur Mitte (Gürtel) und zurück
+    r1 = _hands_off(top)
+    for x, ch in ((4, "S"), (11, "s")):
+        _set(r1, 17, x, ch)
+    r2 = _hands_off(top)
+    for x, ch in ((6, "S"), (7, "S"), (8, "S"), (9, "s")):
+        _set(r2, 16, x, ch)
+    reload = [fig(top), fig(r1), fig(r2), fig(r1)]
+    # Fähigkeit: rechte Hand hoch, Leuchten
+    c1 = list(top)
+    for y in (18, 19):
+        _set(c1, y, 12, ".")
+        _set(c1, y, 13, ".")
+    _set(c1, 13, 14, "S")
+    c2 = list(c1)
+    _set(c2, 13, 14, ".")
+    _set(c2, 10, 14, "S")
+    _set(c2, 9, 14, "*")
+    _set(c2, 9, 15, "*")
+    _set(c2, 8, 14, "*")
+    cast = [fig(c1), fig(c2), fig(c1)]
+    return {"shoot": shoot, "reload": reload, "cast": cast}
+
+
+def make_agent_actions() -> None:
+    for key, top, pal, hip, coat, glow in (("kestrel", KESTREL_TOP, KESTREL_PAL, "PPPPPp", 0, "#ffd75e"),
+                                           ("marrow", MARROW_TOP, MARROW_PAL, "CCCCCc", 2, "#bac4d6")):
+        for state, frames in action_frames(top, pal, hip, coat, glow).items():
+            im = strip(frames)
+            save(im, f"agents/{key}/{key}_{state}.png")
+            save(enemy_variant(im), f"agents/{key}/{key}_{state}_feind.png")
+
+
+def make_fx_anims() -> None:
+    rng = random.Random(9)
+
+    def blank(w: int, h: int) -> Image.Image:
+        return Image.new("RGBA", (w, h), CLEAR)
+
+    def disc(size: int, frac: float, inner: Color, edge: Color, dither: float) -> Image.Image:
+        im = blank(size, size)
+        p = im.load()
+        c = (size - 1) / 2
+        rad = size / 2 * frac
+        for y in range(size):
+            for x in range(size):
+                d = math.hypot(x - c, y - c)
+                if d <= rad:
+                    if d > rad * 0.75 and rng.random() < dither:
+                        continue
+                    p[x, y] = inner if d < rad * 0.75 else edge
+        return im
+
+    save(strip([disc(64, f, (136, 136, 152, 235), (110, 110, 126, 200), 0.4) for f in (0.35, 0.6, 0.82, 1.0)]), "fx/dunst_aufbau.png")
+
+    def ring(size: int, r0: float, r1: float, col: Color, fill_alpha: int) -> Image.Image:
+        im = blank(size, size)
+        p = im.load()
+        c = (size - 1) / 2
+        for y in range(size):
+            for x in range(size):
+                d = math.hypot(x - c, y - c)
+                if r0 <= d <= r1:
+                    p[x, y] = col
+                elif d < r0 and fill_alpha and (x + y) % 6 == 0:
+                    p[x, y] = col[:3] + (fill_alpha,)
+        return im
+
+    save(strip([ring(64, 29 - i, 31.5, (150, 100, 200, 230 - i * 40), 90 - i * 25) for i in range(3)]), "fx/bann_puls.png")
+    save(strip([ring(32, r, r + 1.5, (143, 179, 189, 220 - i * 60), 0) for i, r in enumerate((4, 9, 14))]), "fx/lauscher_puls.png")
+
+    def burst(size: int, length: int, core: Color, tip: Color) -> Image.Image:
+        im = blank(size, size)
+        p = im.load()
+        c = (size - 1) / 2
+        for a in range(8):
+            ang = a * math.pi / 4
+            for r in range(0, length):
+                x, y = int(c + math.cos(ang) * r), int(c + math.sin(ang) * r)
+                if 0 <= x < size and 0 <= y < size:
+                    p[x, y] = core if r < length / 2 else tip
+        return im
+
+    save(strip([burst(16, 3, (255, 251, 232, 255), (255, 215, 94, 255)), burst(16, 8, (255, 251, 232, 255), (255, 215, 94, 255)),
+                burst(16, 8, (255, 251, 232, 120), (255, 215, 94, 90))]), "fx/funke_explosion.png")
+
+    trail = []
+    for i in range(3):
+        im = blank(16, 32)
+        p = im.load()
+        alpha = 200 - i * 70
+        for y in range(4, 30, 2):
+            for x in (1, 14) if i < 2 else (3, 12):
+                if rng.random() < 0.8:
+                    p[x, y] = (255, 251, 232, alpha)
+        trail.append(im)
+    save(strip(trail), "fx/gleiten_spur.png")
+
+    dust = []
+    for i in range(3):
+        im = blank(16, 8)
+        p = im.load()
+        for _ in range(10 + i * 4):
+            x = int(8 + rng.gauss(0, 2 + i * 1.5))
+            y = int(6 - abs(rng.gauss(0, 1 + i)))
+            if 0 <= x < 16 and 0 <= y < 8:
+                p[x, y] = (196, 174, 136, 220 - i * 60)
+        dust.append(im)
+    save(strip(dust), "fx/satz_staub.png")
+
+    veil = []
+    for dens in (0.3, 0.65, 0.95):
+        im = blank(16, 16)
+        p = im.load()
+        for y in range(4, 12):
+            for x in range(16):
+                if rng.random() < dens * (1.0 if 5 <= y <= 10 else 0.5):
+                    p[x, y] = (186, 196, 214, 230) if y < 8 else (150, 160, 180, 230)
+        veil.append(im)
+    save(strip(veil), "fx/schleier_aufbau.png")
+
+    boom = []
+    for i, frac in enumerate((0.2, 0.45, 0.7, 0.9, 1.0, 1.0)):
+        im = blank(64, 64)
+        p = im.load()
+        rad = 32 * frac
+        for y in range(64):
+            for x in range(64):
+                d = math.hypot(x - 31.5, y - 31.5)
+                if d > rad:
+                    continue
+                if i < 4:
+                    col = (255, 251, 232, 255) if d < rad * 0.4 else (255, 215, 94, 255) if d < rad * 0.7 else (240, 138, 36, 240)
+                elif i == 4:
+                    col = (240, 138, 36, 200) if d > rad * 0.6 else (93, 92, 102, 220)
+                else:
+                    if rng.random() < 0.5:
+                        continue
+                    col = (93, 92, 102, 160)
+                p[x, y] = col
+        boom.append(im)
+    save(strip(boom), "fx/spike_explosion.png")
+
+    wall_hit = [from_rows(r, {"W": "#fffbe8", "Y": "#ffd75e", "g": "#8a8893"}) for r in (
+        ["........", "........", "...W....", "..WYW...", "...W....", "........", "........", "........"],
+        ["........", ".Y...Y..", "..Y.Y...", "...W....", "..Y.Y...", ".g...g..", "........", "........"],
+        ["........", "........", "..g.g...", "...g....", "..g.g...", "........", "........", "........"])]
+    save(strip(wall_hit), "fx/einschlag_wand.png")
+    body_hit = [from_rows(r, {"R": "#ee4c4a", "r": "#a8322f", "W": "#ffffff"}) for r in (
+        ["........", "........", "...R....", "..RWR...", "...R....", "........", "........", "........"],
+        ["........", ".R...R..", "..r.r...", "...W....", "..r.r...", ".R...R..", "........", "........"],
+        ["........", "........", "..r.r...", "........", "..r.r...", "........", "........", "........"])]
+    save(strip(body_hit), "fx/treffer_koerper.png")
+
+
 def main() -> None:
     make_agents()
+    make_agent_actions()
+    make_fx_anims()
     make_weapons()
     make_tiles()
     make_fx()
