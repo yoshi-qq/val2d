@@ -48,7 +48,7 @@ OBJECTS: dict[str, dict] = {
     "pallet": dict(tile="maps/common/props/pallet.png", size=(1.0, 0.56), blocks=False),
     "cone": dict(tile="maps/common/props/cone.png", size=(0.62, 0.38), blocks=False),
     "plant": dict(tile="maps/common/props/plant.png", size=(0.62, 0.5), blocks=True, pen=0, sight=True, height=1),
-    "lamp": dict(tile="maps/common/props/lamp.png", size=(0.5, 0.38), blocks=False),
+    "lamp": dict(tile="maps/common/props/lamp.png", size=(1.0, 1.0), blocks=False),
     "bench": dict(tile="maps/common/props/bench.png", size=(2.0, 0.5), blocks=True, pen=0, sight=False, height=1),
     "debris": dict(tile="maps/common/props/debris.png", size=(0.62, 0.44), blocks=False),
 }
