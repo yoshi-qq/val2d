@@ -1,94 +1,94 @@
 # Val2d – Vision
 
-Stand: 11.11.2026 · Christian Abel · Quelle: Visionsbogen und Rückfragen im Chat
+As of: 11.11.2026 · Christian Abel · Source: vision sheet and follow-up questions in the chat
 
-## Kern
+## Core
 
-Val2d ist ein taktischer 2D-Shooter, der sich spielt wie VALORANT. **Regeln, Systeme, Waffenbalance und Spielgefühl so nah wie möglich am Original.** Abgewichen wird nur dort, wo 2D eine Mechanik wirklich unmöglich macht; dann gibt es eine 2D-Lösung, die dem Original im Ergebnis möglichst nahekommt (Beispiel: Trefferzonen, siehe unten).
+Val2d is a tactical 2D shooter that plays like VALORANT. **Rules, systems, weapon balance and game feel as close to the original as possible.** We only deviate where 2D truly makes a mechanic impossible; then there is a 2D solution whose result comes as close to the original as possible (example: hit zones, see below).
 
-**Inhalte von Riot werden nicht nachgebaut, auch nicht umbenannt:** Agents mit ihren Fähigkeiten-Kits, Maps, Namen von Agents, Maps und Waffen, Grafiken, Sounds, Logos. Riots Fan-Richtlinie verbietet die Nutzung ihrer IP in Spielen ausdrücklich, auch nichtkommerziell. Agents, Fähigkeiten, Maps und Waffennamen sind eigene Entwürfe; Agents werden über eine Config zusammengestellt (siehe „Agents und Fähigkeiten“).
+**Riot's content is not recreated, not even renamed:** agents with their ability kits, maps, names of agents, maps and weapons, graphics, sounds, logos. Riot's fan content policy explicitly forbids using their IP in games, even non-commercially. Agents, abilities, maps and weapon names are our own designs; agents are assembled via a config (see "Agents and abilities").
 
-Was sich wie Valorant anfühlen muss:
-- Gunplay: First-Shot-Accuracy, Counter-Strafing, Spray
-- Fähigkeiten und Utility
-- Economy (Credits, Eco-, Force- und Vollkauf)
-- Sound als Information
-- Rundenstruktur mit Bombe
-- Agentenwahl und Teamkomposition
+What has to feel like Valorant:
+- Gunplay: first-shot accuracy, counter-strafing, spray
+- Abilities and utility
+- Economy (credits, eco, force and full buy)
+- Sound as information
+- Round structure with a bomb
+- Agent selection and team composition
 
-Für wen: Freunde im LAN, Freunde über das Internet, solo gegen Bots. Kein öffentliches Matchmaking mit Fremden geplant.
+Who it's for: friends on LAN, friends over the internet, solo against bots. No public matchmaking with strangers planned.
 
-Nicht kommerziell. Sprites entstehen im eigenen Pixel-Art-Stil.
+Non-commercial. Sprites are made in our own pixel-art style.
 
-## Darstellung
+## Presentation
 
-- **Perspektive:** von oben, mit Höhenebenen (z). Kisten, Treppen und Sprünge zählen spielerisch.
-- **Figuren:** Sprites sind so gezeichnet, als lägen die Figuren auf dem Boden (Vorderansicht flach auf die Map gelegt): oben im Sprite der Kopf, unten die Beine.
-- **Sicht:** Sichtkegel in Blickrichtung, Rest verdeckt (Standard). Als Lobby-Regel umschaltbar auf Rundumsicht (Wände verdecken weiterhin).
-- **Kamera:** in Zielrichtung vorgeschoben; Stärke als Spieler-Einstellung.
-- **Stil:** Pixel-Art im Stil der vorhandenen Aseprite-Dateien. Neue Designs entstehen gemeinsam mit Christian, er prüft jedes Sprite auf Stiltreue.
-- **Eingabe:** Tastatur und Maus.
+- **Perspective:** top-down, with height levels (z). Crates, stairs and jumps matter for gameplay.
+- **Characters:** sprites are drawn as if the characters were lying on the ground (front view laid flat onto the map): head at the top of the sprite, legs at the bottom.
+- **Vision:** vision cone in the facing direction, the rest hidden (default). Can be switched to all-round vision as a lobby rule (walls still block sight).
+- **Camera:** pushed forward in the aim direction; strength as a player setting.
+- **Style:** pixel art in the style of the existing Aseprite files. New designs are made together with Christian; he checks every sprite for style consistency.
+- **Input:** keyboard and mouse.
 
-## Zwei Sitzungen
+## Two sessions
 
-Val2d entsteht in zwei getrennten Sitzungen:
+Val2d is built in two separate sessions:
 
-- **Coding-Sitzung** (Claude Code, lokal auf dem PC): Code, Spiellogik, Netzwerk, Spielwerte, Tests. Nutzt für Grafik vorhandene Assets oder klar benannte Platzhalter und erzeugt keine finalen Sprites.
-- **Design-Sitzung** (Chat in claude.ai mit Christian): Sprites, Animationen und Oberflächen im eigenen Pixel-Art-Stil. Christian prüft jedes Design auf Stiltreue. Ergebnis sind Dateien in `assets/`.
+- **Coding session** (Claude Code, locally on the PC): code, game logic, networking, game values, tests. Uses existing assets or clearly named placeholders for graphics and does not create final sprites.
+- **Design session** (chat in claude.ai with Christian): sprites, animations and interfaces in our own pixel-art style. Christian checks every design for style consistency. The result is files in `assets/`.
 
-**Übergabe zwischen beiden:** `docs/SPRITES.md`. Die Coding-Sitzung trägt ein, was gebraucht wird (Name, Größe in Pixeln, Zweck, Animationen, Platzhalter-Pfad). Die Design-Sitzung trägt den Status und den Pfad der fertigen Datei ein. Die Coding-Sitzung ersetzt dann den Platzhalter.
+**Handover between the two:** `docs/SPRITES.md`. The coding session enters what is needed (name, size in pixels, purpose, animations, placeholder path). The design session enters the status and the path of the finished file. The coding session then replaces the placeholder.
 
 ## Gunplay
 
-- **Streuung wie Valorant:** stehend ist die erste Kugel exakt; Laufen, Springen und Spray streuen zufällig in festem Rahmen. Spray-Muster ungefähr wie im Original (in Valorant bewusst nicht vollständig konstant lernbar). Glück soll nur haben, wer falsch schießt.
-- **Treffer und Zonen: reine Präzision**, siehe „Trefferzonen in 2D“.
-- **Wanddurchschuss** nach Penetrationsstufe des Materials, wie in Valorant.
-- **Maßstab:** echte Meter. Laufgeschwindigkeiten, Reichweiten und Schadensabfall nach den echten Werten.
-- **Waffenwerte:** Zahlen aus den offiziellen Valorant-Patchnotes (Schaden, Feuerrate, Magazin, Preise, Streuung), mit Patchnummer und Quelle in einer Datendatei. Waffen tragen eigene Namen.
+- **Spread like Valorant:** standing still, the first bullet is exact; moving, jumping and spraying spread randomly within a fixed range. Spray patterns roughly as in the original (in Valorant deliberately not fully learnable as a constant pattern). Only someone who shoots wrong should get lucky.
+- **Hits and zones: pure precision**, see "Hit zones in 2D".
+- **Wall penetration** according to the material's penetration level, as in Valorant.
+- **Scale:** real meters. Movement speeds, ranges and damage falloff according to the real values.
+- **Weapon values:** numbers from the official Valorant patch notes (damage, fire rate, magazine, prices, spread), with patch number and source in a data file. Weapons carry their own names.
 
-### Trefferzonen in 2D
+### Hit zones in 2D
 
-Die Zone (Kopf, Körper, Beine) wird über zwei Achsen relativ zur Schusslinie bestimmt, mit unterschiedlicher Skalierung:
+The zone (head, body, legs) is determined along two axes relative to the line of fire, with different scaling:
 
-- **Quer zur Schusslinie (x):** exakt die Breiten der Zonen im Sprite. Wer seitlich daneben zielt, trifft nicht bzw. trifft die schmalere Zone nicht.
-- **Entlang der Schusslinie (y, Tiefe):** entscheidet die Höhe am Körper. Maßgeblich ist, ob der Mauszeiger *auf* dem Ziel lag oder davor bzw. dahinter. Der Mittelpunkt ist der Kopf. Je weiter der Cursor davor oder dahinter lag, desto tiefer am Körper der Treffer. Die erlaubte Abweichung ist deutlich größer als der Sprite, weil die Kugel in Schussrichtung weiterfliegt.
-- **Bedingung:** Cursor und Ziel liegen auf derselben Höhenebene (z).
-- **Mindestens Beine:** Liegen Cursor und Ziel auf derselben Ebene und geht die Schusslinie durch den Gegner (Querabstand innerhalb der größten Sprite-Breite), ist immer mindestens ein Beintreffer möglich, auch außerhalb jeder Tiefentoleranz oder seitlich neben der Zone, die die Tiefe vorgibt.
-- **Ansicht:** Die Kamera dreht mit der Maus, gezielt wird auf dem Bildschirm immer senkrecht nach oben. x und y sind damit die Bildschirmachsen. Gegner-Sprites stehen auf dem Bildschirm aufrecht und drehen nicht mit der Welt.
-- **Kopf knapp verfehlt:** Tiefe passt zum Kopf, seitlich daneben, aber innerhalb der Körperbreite: Körpertreffer.
-- **Andere Ebene:** Liegt der Cursor auf einer anderen Höhenebene als das Ziel: Fehlschuss.
-- **Demo:** Artefakt „Val2d-Trefferlogik“ (claude.ai) zeigt die Logik interaktiv.
-- **Einstellbar:** Die erlaubten Abweichungen je Zone stehen in der Game-Config und werden von Christian eingestellt, nicht im Code festgelegt.
+- **Across the line of fire (x):** exactly the widths of the zones in the sprite. Aiming off to the side misses, or misses the narrower zone.
+- **Along the line of fire (y, depth):** decides the height on the body. What counts is whether the mouse cursor was *on* the target or in front of or behind it. The center point is the head. The further in front of or behind the target the cursor was, the lower on the body the hit. The allowed deviation is considerably larger than the sprite, because the bullet keeps flying in the direction of fire.
+- **Condition:** cursor and target are on the same height level (z).
+- **At least legs:** if cursor and target are on the same level and the line of fire passes through the enemy (lateral distance within the largest sprite width), at least a leg hit is always possible, even outside any depth tolerance or off to the side of the zone that the depth indicates.
+- **View:** the camera rotates with the mouse; on screen you always aim straight up. x and y are therefore the screen axes. Enemy sprites stand upright on the screen and do not rotate with the world.
+- **Head narrowly missed:** depth matches the head, off to the side but within the body width: body hit.
+- **Different level:** if the cursor is on a different height level than the target: miss.
+- **Demo:** the artifact "Val2d-Trefferlogik" (claude.ai) shows the logic interactively.
+- **Adjustable:** the allowed deviations per zone are in the game config and are tuned by Christian, not fixed in the code.
 
-## Spielablauf
+## Game flow
 
-- **Teams:** flexibel von 1 gegen 1 bis 5 gegen 5.
-- **Bots:** füllen freie Plätze. Erster Stand: einfache Bots (laufen, zielen, Bombe legen und entschärfen). Gute Bots sind ein eigener Ausbauschritt.
-- **Partielänge:** einstellbar, Standard wie im Original (13 Siegrunden, Overtime).
-- **Sound:** echter Stereo-Raumklang. Sichtbare Schallringe als Lobby-Einstellung, gilt für alle oder niemanden, standardmäßig aus.
-- **Host:** beides möglich. Ein Spieler hostet und spielt mit (Standard, wenn nichts anderes eingestellt ist: Host = Spieler 1), oder ein eigener Server-Prozess.
+- **Teams:** flexible from 1 vs 1 to 5 vs 5.
+- **Bots:** fill empty slots. First version: simple bots (move, aim, plant and defuse the bomb). Good bots are a separate expansion step.
+- **Match length:** adjustable, default as in the original (13 winning rounds, overtime).
+- **Sound:** real stereo spatial sound. Visible sound rings as a lobby setting, applies to everyone or no one, off by default.
+- **Host:** both possible. A player hosts and plays along (default if nothing else is set: host = player 1), or a dedicated server process.
 
-## Agents und Fähigkeiten
+## Agents and abilities
 
-- **Festlegung in `config/agents.json`**, von Christian bearbeitbar: je Agent Name, Rolle, Spriteset und vier Fähigkeiten (Tasten Q, E, C, X). Je Fähigkeit: Baustein, Parameter (z. B. Radius, Dauer, Reichweite), Kosten, Ladungen, Abklingzeit; für X die Ultimate-Punkte.
-- **Bausteine:** Eine Fähigkeit wird aus drei frei kombinierbaren Teilen zusammengesetzt, jeweils mit Parametern in der Config:
-  - **Auslösung:** werfen (mit Abprallen, Flugzeit), platzieren, über die Taktikkarte zielen, auf sich selbst, als Projektil, als Falle mit Auslöser.
-  - **Form:** Kreis, Wand oder Linie, Kegel, Punkt; Größe, Höhenebene, Dauer.
-  - **Wirkung (auch mehrere):** Sicht blockieren, blenden, verlangsamen, Schaden über Zeit oder sofort, heilen, aufdecken, Bewegung (Dash, Sprung, Teleport), Schild oder Barriere, Lärm erzeugen.
-  Neue Teile kommen als Code dazu, neue Fähigkeiten nur über die Config. Technische Namen im Code, angezeigte Namen in der Config.
-- **Orientierung an Valorant:** Rollen (Duelist, Initiator, Controller, Sentinel), Designgrundsätze (jede Fähigkeit hat Gegenspiel, ist auf einen Blick lesbar, kostet Credits oder hat Ladungen und Abklingzeit; Teams brauchen Info, Sichtblock, Einstieg und Absicherung) und das Spielgefühl einer Runde. Einzelne Agents, Kits und Maps sind dabei keine Gegenstücke zu bestimmten Valorant-Inhalten.
-- **Mitgeliefert** werden nur eigene Beispiel-Agents mit eigenem Kit. Keine Voreinstellungen, die Kits, Namen oder Werte von Valorant-Agents nachbilden.
-- Fehler in der Config (unbekannter Baustein, fehlender Wert) werden beim Start gemeldet, der Agent wird übersprungen; das Spiel stürzt nicht ab.
+- **Defined in `config/agents.json`**, editable by Christian: per agent name, role, sprite set and four abilities (keys Q, E, C, X). Per ability: building block, parameters (e.g. radius, duration, range), cost, charges, cooldown; for X the ultimate points.
+- **Building blocks:** an ability is assembled from three freely combinable parts, each with parameters in the config:
+  - **Trigger:** throw (with bouncing, flight time), place, aim via the tactical map, on oneself, as a projectile, as a trap with a trigger.
+  - **Shape:** circle, wall or line, cone, point; size, height level, duration.
+  - **Effect (also several):** block vision, blind, slow, damage over time or instant, heal, reveal, movement (dash, jump, teleport), shield or barrier, make noise.
+  New parts are added as code, new abilities only via the config. Technical names in the code, displayed names in the config.
+- **Modeled on Valorant:** roles (Duelist, Initiator, Controller, Sentinel), design principles (every ability has counterplay, is readable at a glance, costs credits or has charges and a cooldown; teams need info, vision block, entry and site protection) and the game feel of a round. Individual agents, kits and maps are not counterparts to specific Valorant content.
+- **Shipped** are only our own example agents with their own kits. No presets that imitate the kits, names or values of Valorant agents.
+- Errors in the config (unknown building block, missing value) are reported at startup and the agent is skipped; the game does not crash.
 
-## Erster fertiger Stand
+## First finished version
 
-- Modus: Unrated
-- Maps: eine eigene Standard-Map nach dem bekannten Bauplan (zwei Bombenplätze, Mitte, Angreifer- und Verteidiger-Spawn, Callouts) und eine einfache 1-gegen-1-Map; beide im Map-Editor bearbeitbar
-- Agents: zwei eigene Beispiel-Agents (ein Controller, ein Duelist) mit eigenem Kit, festgelegt in `config/agents.json`
-- Fähigkeiten-Bausteine für beide Kits, erweiterbar
-- Alle Waffen (eigene Namen, echte Zahlen), Kaufmenü, Economy, Bombe, Runden
-- Netzwerk über den neuen Wrapper (LAN und Internet)
+- Mode: Unrated
+- Maps: one custom standard map following the familiar layout (two bomb sites, mid, attacker and defender spawn, callouts) and a simple 1 vs 1 map; both editable in the map editor
+- Agents: two custom example agents (one Controller, one Duelist) with their own kits, defined in `config/agents.json`
+- Ability building blocks for both kits, extensible
+- All weapons (own names, real numbers), buy menu, economy, bomb, rounds
+- Networking via the new wrapper (LAN and internet)
 
-## Danach
+## After that
 
-Ausbau in dieser Reihenfolge: mehr Agents, weitere Modi, mehr Maps.
+Expansion in this order: more agents, more modes, more maps.

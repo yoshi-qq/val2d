@@ -1,4 +1,4 @@
-"""Netz-Tests über localhost: Host-Sitzung und Client in einem Prozess, echte Sockets."""
+"""Network tests over localhost: host session and client in one process, real sockets."""
 from __future__ import annotations
 
 import socket
@@ -27,7 +27,7 @@ def _wait(condition: Callable[[], bool], session: HostSession | None = None, tim
     end = time.monotonic() + timeout
     while not condition():
         if time.monotonic() > end:
-            raise TimeoutError("Bedingung nicht erfüllt")
+            raise TimeoutError("condition not met")
         if session:
             session.step(1 / 64)
         time.sleep(0.005)
@@ -35,7 +35,7 @@ def _wait(condition: Callable[[], bool], session: HostSession | None = None, tim
 
 @pytest.fixture
 def session() -> HostSession:
-    s = HostSession(Match(load_map("werkhof"), seed=1), "Testhost", _free_port())
+    s = HostSession(Match(load_map("werkhof"), seed=1), "Test host", _free_port())
     yield s
     s.close()
 
@@ -51,7 +51,7 @@ def test_command_from_json_clamps_and_drops_junk() -> None:
 
 
 def test_client_joins_receives_snapshot_and_moves(session: HostSession) -> None:
-    client = Client("127.0.0.1", session.net.port, "Gast", "marrow")
+    client = Client("127.0.0.1", session.net.port, "Guest", "marrow")
     try:
         assert client.map_key == "werkhof"
         _wait(lambda: client.pid in session.match.players, session)
@@ -63,7 +63,7 @@ def test_client_joins_receives_snapshot_and_moves(session: HostSession) -> None:
                 apply_snapshot(shadow, msg["snap"], client.pid)
         assert client.pid in shadow.players
         assert shadow.phase == "buy"
-        # Kaufphase überspringen, dann vorwärts laufen
+        # skip the buy phase, then walk forward
         session.match.phase_until = session.match.time
         start = session.match.players[client.pid].pos
         for _ in range(40):
@@ -76,7 +76,7 @@ def test_client_joins_receives_snapshot_and_moves(session: HostSession) -> None:
 
 
 def test_held_input_continues_between_client_messages(session: HostSession) -> None:
-    client = Client("127.0.0.1", session.net.port, "Gast", "kestrel")
+    client = Client("127.0.0.1", session.net.port, "Guest", "kestrel")
     try:
         _wait(lambda: client.pid in session.match.players, session)
         session.start(team_size=1)
@@ -85,7 +85,7 @@ def test_held_input_continues_between_client_messages(session: HostSession) -> N
         client.send(Command(move_y=1.0, facing=session.match.players[client.pid].facing, buy=["speer"]))
         _wait(lambda: client.pid in session.last, session)
         before = session.match.players[client.pid].pos
-        for _ in range(20):  # keine neuen Nachrichten: der letzte gehaltene Befehl gilt weiter
+        for _ in range(20):  # no new messages: the last held command keeps applying
             session.step(1 / 64)
         assert (session.match.players[client.pid].pos - before).length() > 0.3
         assert session.last[client.pid].buy == []
@@ -94,7 +94,7 @@ def test_held_input_continues_between_client_messages(session: HostSession) -> N
 
 
 def test_disconnected_player_becomes_bot(session: HostSession) -> None:
-    client = Client("127.0.0.1", session.net.port, "Gast", "kestrel")
+    client = Client("127.0.0.1", session.net.port, "Guest", "kestrel")
     _wait(lambda: client.pid in session.match.players, session)
     client.close()
     _wait(lambda: session.match.players[client.pid].is_bot, session)
@@ -104,7 +104,7 @@ def test_disconnected_player_becomes_bot(session: HostSession) -> None:
 def test_join_rejected_after_start(session: HostSession) -> None:
     session.start(team_size=1)
     with pytest.raises(ConnectionError):
-        Client("127.0.0.1", session.net.port, "Spät", "kestrel")
+        Client("127.0.0.1", session.net.port, "Late", "kestrel")
 
 
 def test_oversized_message_is_refused() -> None:

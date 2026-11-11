@@ -1,6 +1,6 @@
 {
-  "name": "Werkhof",
-  "quelle": "eigener Entwurf (Claude Code), 11.11.2026; Maße in Metern",
+  "name": "Workyard",
+  "source": "own design (Claude Code), 11.11.2026; dimensions in metres",
   "width": 48,
   "height": 40,
   "walls": [
@@ -31,13 +31,13 @@
   "spawns": {"0": [[24, 2.5], [21, 3], [27, 3], [18, 3.5], [30, 3.5]], "1": [[24, 37.5], [21, 37], [27, 37], [18, 36.5], [30, 36.5]]},
   "spawn_zones": {"0": [14, 0, 34, 6], "1": [14, 34, 34, 40]},
   "callouts": [
-    {"name": "Angreifer-Spawn", "rect": [14, 0, 34, 6]},
-    {"name": "Verteidiger-Spawn", "rect": [14, 34, 34, 40]},
-    {"name": "Mitte", "rect": [14, 13, 34, 27]},
-    {"name": "A-Halle", "rect": [0, 13, 14, 27]},
-    {"name": "B-Halle", "rect": [34, 13, 48, 27]},
-    {"name": "A-Platz", "rect": [0, 28, 14, 40]},
-    {"name": "B-Platz", "rect": [34, 28, 48, 40]},
-    {"name": "Hof", "rect": [0, 0, 48, 12]}
+    {"name": "Attacker Spawn", "rect": [14, 0, 34, 6]},
+    {"name": "Defender Spawn", "rect": [14, 34, 34, 40]},
+    {"name": "Mid", "rect": [14, 13, 34, 27]},
+    {"name": "A Hall", "rect": [0, 13, 14, 27]},
+    {"name": "B Hall", "rect": [34, 13, 48, 27]},
+    {"name": "A Site", "rect": [0, 28, 14, 40]},
+    {"name": "B Site", "rect": [34, 28, 48, 40]},
+    {"name": "Yard", "rect": [0, 0, 48, 12]}
   ]
 }

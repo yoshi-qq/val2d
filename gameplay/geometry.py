@@ -40,7 +40,7 @@ class Vec:
 
 
 def heading(degrees: float) -> Vec:
-    """Einheitsvektor für Kompasswinkel (0° = +y, 90° = +x)."""
+    """Unit vector for a compass angle (0° = +y, 90° = +x)."""
     r = math.radians(degrees)
     return Vec(math.sin(r), math.cos(r))
 
@@ -71,7 +71,7 @@ class Rect:
         return Vec((self.x0 + self.x1) / 2, (self.y0 + self.y1) / 2)
 
     def ray_interval(self, origin: Vec, direction: Vec) -> tuple[float, float] | None:
-        """Ein- und Austrittsabstand eines Strahls (Slab-Verfahren), None ohne Treffer."""
+        """Entry and exit distance of a ray (slab method), None if it misses."""
         t_min, t_max = -math.inf, math.inf
         for o, d, lo, hi in ((origin.x, direction.x, self.x0, self.x1), (origin.y, direction.y, self.y0, self.y1)):
             if abs(d) < 1e-12:
@@ -89,7 +89,7 @@ class Rect:
         return max(t_min, 0.0), t_max
 
     def circle_push(self, p: Vec, radius: float) -> Vec | None:
-        """Verschiebung, die einen Kreis aus dem Rechteck schiebt, None ohne Überlappung."""
+        """Offset that pushes a circle out of the rectangle, None without overlap."""
         cx = min(max(p.x, self.x0), self.x1)
         cy = min(max(p.y, self.y0), self.y1)
         dx, dy = p.x - cx, p.y - cy
@@ -99,7 +99,7 @@ class Rect:
         if dist2 > 1e-12:
             dist = math.sqrt(dist2)
             return Vec(dx / dist * (radius - dist), dy / dist * (radius - dist))
-        # Mittelpunkt im Rechteck: kürzester Weg hinaus
+        # centre inside the rectangle: shortest way out
         options = [
             Vec(self.x0 - radius - p.x, 0.0), Vec(self.x1 + radius - p.x, 0.0),
             Vec(0.0, self.y0 - radius - p.y), Vec(0.0, self.y1 + radius - p.y),

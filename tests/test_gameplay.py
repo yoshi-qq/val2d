@@ -1,4 +1,4 @@
-"""Tests für den Spielkern (ohne pygame)."""
+"""Tests for the game core (without pygame)."""
 from __future__ import annotations
 
 import sys
@@ -70,7 +70,7 @@ def test_first_shot_standing_is_exact_and_kills_with_headshots() -> None:
     m, a, b = duel()
     pa, pb = m.players[a], m.players[b]
     run(m, 31)
-    pa.pos, pb.pos = Vec(24, 16), Vec(24, 24)  # Mitte, freie Sicht? Säule bei 22-26/18-22 blockiert
+    pa.pos, pb.pos = Vec(24, 16), Vec(24, 24)  # mid, clear sight? the pillar at 22-26/18-22 blocks
     pa.pos, pb.pos = Vec(17, 15), Vec(17, 25)
     pa.facing = 0.0
     d = m.weapons["spatz"]
@@ -97,11 +97,11 @@ def test_wall_penetration_by_level() -> None:
     pa, pb = m.players[a], m.players[b]
     run(m, 31)
     pa.pos, pb.pos = Vec(12, 20), Vec(17, 20)
-    # Ziel hinter dünner Wand (x 14..15, 1 m dick): Spatz (Stufe 0) durchschlägt Stufe 0
+    # target behind a thin wall (x 14..15, 1 m thick): the sidearm (level 0) penetrates level 0
     m.tick(1 / 64, {a: Command(facing=90.0, cursor_depth=5.0, fire=True)})
     assert pb.hp < 100
     hp = pb.hp
-    # dicke Säule (Stufe 3) hält alles auf
+    # thick pillar (level 3) stops everything
     pa.pos, pb.pos = Vec(20, 20), Vec(28, 20)
     m.tick(0.5, {a: Command(facing=90.0, cursor_depth=8.0)})
     m.tick(1 / 64, {a: Command(facing=90.0, cursor_depth=8.0, fire=True)})

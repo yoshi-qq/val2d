@@ -1,15 +1,15 @@
-"""Val2d spielen: Übungspartie gegen Bots auf dem eigenen Spielkern (gameplay).
+"""Play Val2d: practice match against bots on the own game core (gameplay).
 
-Aufruf:  python play.py [--agent kestrel|marrow] [--team-size 1..5] [--rounds 13] [--map werkhof|gasse]
+Usage:  python play.py [--agent kestrel|marrow] [--team-size 1..5] [--rounds 13] [--map werkhof|gasse]
                         [--all-around] [--sound-rings]
-Im Netz:  python play.py --host            Partie öffnen (Host = Spieler 1), Enter startet
-          python play.py --find            Partie im lokalen Netz suchen und beitreten
+Network:  python play.py --host            open a match (host = player 1), Enter starts
+          python play.py --find            find a match on the local network and join
           python play.py --join 192.168.1.20[:9009]
-Eigener Server-Prozess: python server.py (siehe dort).
-Steuerung: WASD laufen, Umschalt gehen, Strg ducken, Leertaste springen, Maus links schießen,
-Maus waagerecht drehen, Maus senkrecht Zieltiefe, R nachladen, 1/2/3 Waffe, C/Q/E/X Fähigkeiten,
-F halten Spike legen/entschärfen, B Kaufmenü, Tab Punktestand, Esc beenden.
-Grafik: Platzhalter (Kreise und Flächen), bis die Design-Sitzung Sprites liefert (docs/SPRITES.md).
+Dedicated server process: python server.py (see there).
+Controls: WASD run, Shift walk, Ctrl crouch, Space jump, left mouse shoot,
+mouse horizontal turn, mouse vertical aim depth, R reload, 1/2/3 weapon, C/Q/E/X abilities,
+hold F plant/defuse the bomb, B buy menu, Tab scoreboard, Esc quit.
+Graphics: sprites from the design session (docs/SPRITES.md); placeholders where a file is missing.
 """
 from __future__ import annotations
 
@@ -76,7 +76,7 @@ class UiState:
 
 
 class Sound:
-    """Synthetische Platzhalter-Töne mit Stereo-Panorama und Entfernungsdämpfung."""
+    """Synthetic placeholder sounds with stereo panning and distance attenuation."""
 
     def __init__(self) -> None:
         self.ok = False
@@ -95,8 +95,8 @@ class Sound:
             self.sounds = {"shot": tone(140, 0.18, 0.8, 22), "step": tone(70, 0.06, 0.6, 50),
                            "plant": tone(880, 0.25, 0.0, 6), "kill": tone(520, 0.12, 0.1, 18), "ability": tone(320, 0.3, 0.4, 8)}
             self.ok = True
-        except Exception as exc:  # Ton ist nicht spielentscheidend
-            warnings.warn(f"Ton deaktiviert: {exc}")
+        except Exception as exc:  # sound is not essential to play
+            warnings.warn(f"Sound disabled: {exc}")
 
     def play(self, kind: str, listener: PlayerState | None, pos: Vec | None, radius: float = 40.0) -> None:
         if not self.ok or kind not in self.sounds:
@@ -126,7 +126,7 @@ class Game:
             self.font = pygame.font.Font(str(FONT_PATH), 18)
             self.big = pygame.font.Font(str(FONT_PATH), 36)
         except (OSError, FileNotFoundError):
-            warnings.warn("Schrift fixed_sys.ttf fehlt; nutze Standardschrift.")
+            warnings.warn("Font fixed_sys.ttf missing; using the default font.")
             self.font = pygame.font.Font(None, 22)
             self.big = pygame.font.Font(None, 44)
         base = load_config()
@@ -152,12 +152,12 @@ class Game:
             self.me = self.match.add_player(args.name, 0, args.agent).pid
         else:
             self.match = Match(load_map(args.map), cfg)
-            self.me = self.match.add_player("Du", 0, args.agent).pid
+            self.me = self.match.add_player("You", 0, args.agent).pid
             others = [a for a in self.match.agents if a != args.agent] or [args.agent]
             for i in range(args.team_size - 1):
                 self.match.add_player(f"Bot {i + 1}", 0, others[i % len(others)], is_bot=True)
             for i in range(args.team_size):
-                self.match.add_player(f"Gegner {i + 1}", 1, list(self.match.agents)[i % len(self.match.agents)], is_bot=True)
+                self.match.add_player(f"Enemy {i + 1}", 1, list(self.match.agents)[i % len(self.match.agents)], is_bot=True)
         self.bots = BotDirector(self.match)
         self.bank = SpriteBank()
         self.map_surface = build_map_surface(self.match.world, self.bank, self.scale)
@@ -186,7 +186,7 @@ class Game:
             dt = self.clock.tick(120) / 1000.0
             cmd = Command()
             me = self.match.players.get(self.me)
-            if me is None:  # Client vor dem ersten Abbild
+            if me is None:  # client before the first snapshot
                 me = PlayerState(pid=self.me, name="", team=0, agent="kestrel")
             for ev in pygame.event.get():
                 if ev.type == pygame.QUIT or (ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE):
@@ -227,12 +227,12 @@ class Game:
                     cmd.ability = ab
             events = self.step(dt, cmd)
             if self.match.round_no != self.seen_round and self.me in self.match.players:
-                self.seen_round = self.match.round_no  # neue Runde: Blick vom Spawn übernehmen
+                self.seen_round = self.match.round_no  # new round: take the facing from the spawn
                 self.local_facing = self.match.players[self.me].facing
             self.handle_events(events)
             self.draw()
             if self.client and not self.client.connected:
-                self.status = "Verbindung zum Host verloren"
+                self.status = "Lost connection to host"
         if self.session:
             self.session.close()
         if self.client:
@@ -256,7 +256,7 @@ class Game:
                     apply_snapshot(self.match, msg["snap"], self.me)
                     events += events_from_json(msg.get("events", []))
                 except (KeyError, TypeError, ValueError) as exc:
-                    warnings.warn(f"Abbild vom Host unlesbar: {exc}")
+                    warnings.warn(f"Snapshot from host unreadable: {exc}")
         return events
 
     def handle_events(self, events: list[GameEvent]) -> None:
@@ -278,17 +278,17 @@ class Game:
             elif e.kind == "kill":
                 killer = m.players.get(d["by"]) if d["by"] else None
                 victim = m.players.get(d["pid"])
-                by = killer.name if killer else "Spike"
-                self.ui.feed.append((t + 5, f"{by} → {victim.name if victim else '?'}{' (Kopf)' if d['head'] else ''}"))
+                by = killer.name if killer else "Bomb"
+                self.ui.feed.append((t + 5, f"{by} → {victim.name if victim else '?'}{' (head)' if d['head'] else ''}"))
                 self.sound.play("kill", None, None)
             elif e.kind == "plant":
-                self.ui.banner = (t + 2.5, f"Spike gelegt auf {d['site']}")
+                self.ui.banner = (t + 2.5, f"Bomb planted on {d['site']}")
                 self.sound.play("plant", None, None)
             elif e.kind == "ability":
                 self.sound.play("ability", me, Vec(*d["pos"]), 30)
             elif e.kind == "round_end":
                 won = d["winner"] == me.team
-                self.ui.banner = (t + 5, f"{'Runde gewonnen' if won else 'Runde verloren'}: {d['reason']}  {d['score'][0]}:{d['score'][1]}")
+                self.ui.banner = (t + 5, f"{'Round won' if won else 'Round lost'}: {d['reason']}  {d['score'][0]}:{d['score'][1]}")
 
     # ------------------------------------------------------------ Zeichnen
     def to_screen(self, p: Vec, me: PlayerState) -> tuple[float, float]:
@@ -327,7 +327,7 @@ class Game:
                 s.blit(img, (px - size / 2, py - size / 2))
             else:
                 pygame.draw.rect(s, C_ENEMY if blink else (90, 40, 40), (px - 6, py - 6, 12, 12))
-        # Sichtkegel: Außenbereich abdunkeln
+        # sight cone: darken everything outside
         if not m.cfg.lobby.all_around_sight and me.alive:
             shade = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
             shade.fill((0, 0, 0, 150))
@@ -397,7 +397,7 @@ class Game:
         pygame.display.flip()
 
     def draw_map_texture(self, me: PlayerState) -> None:
-        """Kartenbild um den Spieler ausschneiden und mit der Kamera drehen."""
+        """Cut the map image around the player and rotate it with the camera."""
         assert self.map_surface is not None
         cx, cy = self.to_screen(me.pos, me)
         radius = math.ceil(math.hypot(max(cx, self.w - cx), max(cy, self.h - cy))) + 2
@@ -469,9 +469,9 @@ class Game:
     def draw_lobby(self) -> None:
         s = self.screen
         s.fill(C_BG)
-        title = {"host": "Lobby – du bist Host", "client": "Lobby – beigetreten"}.get(self.mode, "Lobby")
+        title = {"host": "Lobby – you are the host", "client": "Lobby – joined"}.get(self.mode, "Lobby")
         self.text(title, (self.w / 2, 80), C_TEXT, big=True, center=True)
-        self.text(f"Karte {self.match.world.name}", (self.w / 2, 130), C_MUTED, center=True)
+        self.text(f"Map {self.match.world.name}", (self.w / 2, 130), C_MUTED, center=True)
         y = 190
         for team in (0, 1):
             self.text(f"Team {team + 1}", (self.w / 2 - 300 + team * 340, y), C_ALLY if team == 0 else C_ENEMY)
@@ -480,9 +480,9 @@ class Game:
                 self.text(f"{p.name}  ({self.match.agents.get(p.agent, {}).get('name', p.agent)})", (self.w / 2 - 300 + team * 340, row))
                 row += 26
         if self.mode == "host":
-            hint = f"Enter startet · freie Plätze bis {self.team_size} je Team füllen Bots · Port {self.session.net.port if self.session else ''}"
+            hint = f"Enter starts · bots fill free slots up to {self.team_size} per team · port {self.session.net.port if self.session else ''}"
         else:
-            hint = "Warte auf den Start durch den Host …"
+            hint = "Waiting for the host to start …"
         self.text(hint, (self.w / 2, self.h - 90), C_SITE, center=True)
         if self.status:
             self.text(self.status, (self.w / 2, self.h - 60), C_ENEMY, center=True)
@@ -506,17 +506,17 @@ class Game:
     def draw_hud(self, me: PlayerState) -> None:
         m = self.match
         left = m.phase_time_left()
-        phase = {"buy": "Kaufphase", "live": "", "planted": "Spike", "end": "Rundenende", "over": "Partie vorbei"}.get(m.phase, "")
+        phase = {"buy": "Buy phase", "live": "", "planted": "Bomb planted", "end": "Round over", "over": "Match over"}.get(m.phase, "")
         mine, theirs = m.score[me.team], m.score[1 - me.team]
         self.text(f"{mine}  {int(left) // 60}:{int(left) % 60:02d}  {theirs}", (self.w / 2, 12), big=True, center=True)
-        side = "Angriff" if m.side(me.team) == "attack" else "Verteidigung"
-        self.text(f"Runde {m.round_no} · {side} {('· ' + phase) if phase else ''}", (self.w / 2, 54), C_MUTED, center=True)
-        self.text(f"Leben {max(me.hp, 0)}   Schild {me.armor}", (20, self.h - 40))
+        side = "Attack" if m.side(me.team) == "attack" else "Defense"
+        self.text(f"Round {m.round_no} · {side} {('· ' + phase) if phase else ''}", (self.w / 2, 54), C_MUTED, center=True)
+        self.text(f"Health {max(me.hp, 0)}   Shield {me.armor}", (20, self.h - 40))
         if me.weapon:
             d = m.weapons.get(me.weapon.key)
             name = d.name if d else me.weapon.key
             ammo = "" if not d or not d.is_gun else f"  {me.weapon.mag} / {me.weapon.reserve}"
-            self.text(f"{name}{ammo}{'  lädt…' if me.reload_until > m.time else ''}", (self.w - 320, self.h - 40))
+            self.text(f"{name}{ammo}{'  reloading…' if me.reload_until > m.time else ''}", (self.w - 320, self.h - 40))
         self.text(f"{me.credits} ¤", (self.w - 320, self.h - 70), C_SITE)
         abil = m.agents[me.agent]["abilities"]
         parts = [f"{k} {abil[k]['name']} ×{me.charges.get(k, 0)}" for k in ("C", "Q", "E")]
@@ -524,7 +524,7 @@ class Game:
         self.text("   ".join(parts), (20, self.h - 70), C_MUTED)
         self.text(f"{m.agents[me.agent]['name']} · {m.world.callout_at(me.pos)}", (20, 16), C_MUTED)
         if m.spike_carrier == self.me:
-            self.text("Du trägst den Spike (F auf A oder B halten)", (20, 40), C_SITE)
+            self.text("You carry the bomb (hold F on A or B)", (20, 40), C_SITE)
         prog = me.plant_progress / 4.0 if me.plant_progress else me.defuse_progress / 7.0
         if prog > 0:
             pygame.draw.rect(self.screen, C_MUTED, (self.w / 2 - 100, self.h / 2 + 60, 200, 10), 1)
@@ -541,9 +541,9 @@ class Game:
         if m.time < self.ui.banner[0]:
             self.text(self.ui.banner[1], (self.w / 2, self.h / 3), C_SITE, big=True, center=True)
         if not me.alive and m.phase in ("live", "planted"):
-            self.text("Ausgeschaltet – warte auf die nächste Runde", (self.w / 2, self.h / 2 - 80), C_ENEMY, center=True)
+            self.text("Eliminated – waiting for the next round", (self.w / 2, self.h / 2 - 80), C_ENEMY, center=True)
         if m.phase == "buy":
-            self.text("B: Kaufmenü", (20, 64), C_MUTED)
+            self.text("B: buy menu", (20, 64), C_MUTED)
 
     def buy_layout(self) -> list[tuple[pygame.Rect, str, str]]:
         m = self.match
@@ -575,24 +575,24 @@ class Game:
         overlay.fill((10, 10, 16, 215))
         self.screen.blit(overlay, (0, 0))
         open_ = self.match.phase == "buy"
-        self.text("Kaufmenü" + ("" if open_ else " (nur in der Kaufphase im Spawn)"), (140, 70), C_TEXT, big=True)
+        self.text("Buy menu" + ("" if open_ else " (only in the buy phase, in spawn)"), (140, 70), C_TEXT, big=True)
         mouse = pygame.mouse.get_pos()
         for r, key, label in self.buy_layout():
             hover = r.collidepoint(mouse)
             pygame.draw.rect(self.screen, (60, 58, 72) if hover else (36, 35, 45), r)
             pygame.draw.rect(self.screen, C_MUTED, r, 1)
             self.text(label, (r.x + 10, r.y + 9))
-        self.text(f"Guthaben {me.credits} ¤ · Klick kauft · B schließt", (140, self.h - 60), C_SITE)
+        self.text(f"Credits {me.credits} ¤ · click buys · B closes", (140, self.h - 60), C_SITE)
 
     def draw_scores(self) -> None:
         m = self.match
         overlay = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
         overlay.fill((10, 10, 16, 200))
         self.screen.blit(overlay, (0, 0))
-        title = "Partie vorbei" if m.phase == "over" else "Punktestand"
+        title = "Match over" if m.phase == "over" else "Scoreboard"
         if m.phase == "over":
             me = m.players[self.me]
-            title += ": gewonnen" if m.match_winner == me.team else ": verloren"
+            title += ": won" if m.match_winner == me.team else ": lost"
         self.text(f"{title}   {m.score[0]} : {m.score[1]}", (self.w / 2, 80), C_TEXT, big=True, center=True)
         y = 150
         for team in (0, 1):
@@ -604,35 +604,35 @@ class Game:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Val2d gegen Bots spielen")
+    ap = argparse.ArgumentParser(description="Play Val2d against bots or online")
     ap.add_argument("--agent", default="kestrel", choices=["kestrel", "marrow"])
     ap.add_argument("--team-size", type=int, default=5, choices=range(1, 6))
     ap.add_argument("--rounds", type=int, default=13)
     ap.add_argument("--map", default="werkhof")
-    ap.add_argument("--all-around", action="store_true", help="Lobby-Regel Rundumsicht")
-    ap.add_argument("--sound-rings", action="store_true", help="Lobby-Regel Schallringe")
-    ap.add_argument("--name", default="Spieler", help="Name in der Partie (bis 16 Zeichen)")
+    ap.add_argument("--all-around", action="store_true", help="Lobby rule: all-around sight")
+    ap.add_argument("--sound-rings", action="store_true", help="Lobby rule: sound rings")
+    ap.add_argument("--name", default="Player", help="Name in the match (up to 16 characters)")
     net = ap.add_mutually_exclusive_group()
-    net.add_argument("--host", action="store_true", help="Partie im Netz öffnen (Host = Spieler 1)")
-    net.add_argument("--join", metavar="ADRESSE[:PORT]", help="Einer Partie beitreten")
-    net.add_argument("--find", action="store_true", help="Partie im lokalen Netz suchen und beitreten")
+    net.add_argument("--host", action="store_true", help="Open a network match (host = player 1)")
+    net.add_argument("--join", metavar="ADDRESS[:PORT]", help="Join a match")
+    net.add_argument("--find", action="store_true", help="Find a match on the local network and join")
     ap.add_argument("--port", type=int, default=DEFAULT_PORT)
     args = ap.parse_args()
     if args.find:
-        print("Suche Partien im lokalen Netz …")
+        print("Looking for matches on the local network …")
         found = discover()
         if not found:
-            print("Keine Partie gefunden. Läuft beim Host play.py --host oder server.py, und sind beide im selben Netz?")
+            print("No match found. Is the host running play.py --host or server.py, and are both on the same network?")
             return
         for address, port, host_name in found:
             print(f"  {host_name}  {address}:{port}")
         address, port, host_name = found[0]
-        print(f"Trete {host_name} bei …")
+        print(f"Joining {host_name} …")
         args.join = f"{address}:{port}"
     try:
         game = Game(args)
     except (OSError, ConnectionError) as exc:
-        print(f"Keine Verbindung: {exc}")
+        print(f"No connection: {exc}")
         pygame.quit()
         return
     game.run()

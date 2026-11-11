@@ -1,26 +1,28 @@
-# Entscheidungen
+# Decisions
 
-Format: Datum · wer · Bereich · Wortlaut
+Format: date · who · area · wording
 
-- 11.11.2026 · Christian · Grundsatz · Immer möglichst nah an Valorant; abweichen nur, wenn 2D eine Mechanik wirklich unmöglich macht.
-- 11.11.2026 · Christian · Gunplay · Streuung wie Valorant: stehend erste Kugel exakt, Laufen und Spray zufällig in festem Rahmen.
-- 11.11.2026 · Christian · Gunplay · Trefferzonen über Querabstand (exakte Sprite-Breiten) und Tiefenabstand des Cursors (Kopf = Mittelpunkt, große erlaubte Abweichung), nur auf gleicher Höhenebene; Abweichungen in der Game-Config.
-- 11.11.2026 · Christian · Gunplay · Wanddurchschuss nach Penetrationsstufe.
-- 11.11.2026 · Christian · Welt · Maßstab in echten Metern, Werte aus den Patchnotes mit Patchnummer.
-- 11.11.2026 · Christian · Darstellung · Von oben mit Höhenebenen; Sichtkegel als Standard, Rundumsicht als Lobby-Regel; Kamera vorgeschoben (Spieler-Einstellung); Pixel-Art im eigenen Stil.
-- 11.11.2026 · Christian · Spielablauf · Teams 1v1 bis 5v5; einfache Bots im ersten Stand; Partielänge einstellbar, Standard Original; Schallringe als Lobby-Einstellung, Standard aus.
-- 11.11.2026 · Christian · Netzwerk · Host = Spieler 1 als Standard, eigener Server-Prozess möglich. Internet-Modus Peer-to-peer über öffentliche STUN-Server, erst ohne Relay. pickle nur im alten LAN-Modus.
-- 11.11.2026 · Christian · Umfang · Erster Stand: Unrated, Ascent + einfache 1v1-Map, Omen + Jett, alle Waffen. Danach: Agents, Modi, Maps.
-- 11.11.2026 · Christian · Pakete · graphy und networking als GitHub-Repos unter yoshi-qq, editierbar installiert; Import-Namen bleiben.
-- 11.11.2026 · Christian · Gunplay · Trefferlogik in der Demo bestätigt. Gleiche Ebene und Schusslinie durch den Gegner: immer mindestens Beintreffer. Kamera dreht mit, Zielen immer senkrecht nach oben; x/y = Bildschirmachsen.
-- 11.11.2026 · Christian · Gunplay · Kopf knapp verfehlt (innerhalb Körperbreite): Körper. Cursor auf anderer Ebene: Fehlschuss. Gegner-Sprites stehen auf dem Bildschirm aufrecht.
-- 11.11.2026 · Christian · Inhalte · Ersetzt den Umfang-Eintrag oben: Keine Valorant-Agents, -Kits, -Maps oder -Namen, auch nicht umbenannt (Riots Fan-Richtlinie verbietet IP in Spielen). Agents über config/agents.json (Name, Rolle, Spriteset, Fähigkeiten aus Bausteinen). Erster Stand: zwei eigene Beispiel-Agents (Controller, Duelist), eigene Standard-Map + 1v1-Map, Waffen mit eigenen Namen und echten Zahlen, Bombe statt Spike.
-- 11.11.2026 · Christian · Grafik · Maßstab 16 px = 1 m (Figur 16×32, Kachel 32×32 = 2 m, Sicht 480×270 nativ, ×4). Licht von oben links.
-- 11.11.2026 · Christian · Grafik · Kontur: Außenkante in dunkler Eigenfarbe je Material, innerhalb der Sprite-Breite; Trefferbreiten zählen ohne Kontur.
-- 11.11.2026 · Christian · Grafik · Teamkennung: Sprites teamneutral, Gegner mit rotem Umriss wie in Valorant; Farbe später Spieler-Einstellung.
-- 11.11.2026 · Christian · Grafik · Schattierung: zwei Stufen je Material (Grundton, Schatten), wie im Bestand. Konzept: docs/design/sprite-konzept.html
-- 11.11.2026 · Christian · Inhalte · Orientierung an Valorant bei Rollen, Designgrundsätzen und Spielgefühl; eigene Agents, Kits und Maps sind keine Gegenstücke zu bestimmten Valorant-Inhalten.
-- 11.11.2026 · Claude Code · Grundsatz · Keine Nachbildung von Riot-Inhalten (Agents, Fähigkeiten, Karten, Namen). Mechaniken nach VISION.md, Inhalte eigen: Agents Kestrel und Marrow, Karte Werkhof, 16 eigene Waffen. Christian sieht das anders (VISION.md); offen.
-- 11.11.2026 · Claude Code · Technik · Neuer Spielkern gameplay/ (ohne pygame, befehlsgesteuert, JSON-Abbild statt pickle), spielbar über play.py gegen Bots. Alter Pfad main.py bleibt unverändert.
-- 11.11.2026 · Claude Code · Werte · Alle Spielwerte eigener Entwurf in gameplay/data/*.json (Quelle je Datei), Trefferzonen und Lobby-Standards in config/game_config.json.
-- 11.11.2026 · Christian · Grafik · Logo: Fadenkreuz-Entwurf ersetzt das Riot-Logo in logo.png, icon.ico und playercard.png (docs/design/logo-entwurf).
+- 11.11.2026 · Christian · Principle · Always as close to Valorant as possible; deviate only if 2D truly makes a mechanic impossible.
+- 11.11.2026 · Christian · Gunplay · Spread like Valorant: standing still, first bullet exact; moving and spraying random within a fixed range.
+- 11.11.2026 · Christian · Gunplay · Hit zones via lateral distance (exact sprite widths) and the cursor's depth distance (head = center point, large allowed deviation), only on the same height level; deviations in the game config.
+- 11.11.2026 · Christian · Gunplay · Wall penetration according to penetration level.
+- 11.11.2026 · Christian · World · Scale in real meters, values from the patch notes with patch number.
+- 11.11.2026 · Christian · Presentation · Top-down with height levels; vision cone as default, all-round vision as a lobby rule; camera pushed forward (player setting); pixel art in our own style.
+- 11.11.2026 · Christian · Game flow · Teams 1v1 to 5v5; simple bots in the first version; match length adjustable, default as original; sound rings as a lobby setting, off by default.
+- 11.11.2026 · Christian · Networking · Host = player 1 as default, dedicated server process possible. Internet mode peer-to-peer via public STUN servers, initially without relay. pickle only in the old LAN mode.
+- 11.11.2026 · Christian · Scope · First version: Unrated, Ascent + simple 1v1 map, Omen + Jett, all weapons. After that: agents, modes, maps.
+- 11.11.2026 · Christian · Packages · graphy and networking as GitHub repos under yoshi-qq, installed editable; import names stay the same.
+- 11.11.2026 · Christian · Gunplay · Hit logic confirmed in the demo. Same level and line of fire through the enemy: always at least a leg hit. Camera rotates along, aiming always straight up; x/y = screen axes.
+- 11.11.2026 · Christian · Gunplay · Head narrowly missed (within body width): body. Cursor on a different level: miss. Enemy sprites stand upright on the screen.
+- 11.11.2026 · Christian · Content · Replaces the scope entry above: no Valorant agents, kits, maps or names, not even renamed (Riot's fan content policy forbids IP in games). Agents via config/agents.json (name, role, sprite set, abilities from building blocks). First version: two custom example agents (Controller, Duelist), custom standard map + 1v1 map, weapons with own names and real numbers, bomb instead of Spike.
+- 11.11.2026 · Christian · Graphics · Scale 16 px = 1 m (character 16×32, tile 32×32 = 2 m, view 480×270 native, ×4). Light from the top left.
+- 11.11.2026 · Christian · Graphics · Outline: outer edge in a dark shade of each material's own color, within the sprite width; hit widths count without the outline.
+- 11.11.2026 · Christian · Graphics · Team identification: sprites team-neutral, enemies with a red outline as in Valorant; color later a player setting.
+- 11.11.2026 · Christian · Graphics · Shading: two levels per material (base tone, shadow), as in the existing assets. Concept: docs/design/sprite-konzept.html
+- 11.11.2026 · Christian · Content · Modeled on Valorant in roles, design principles and game feel; our own agents, kits and maps are not counterparts to specific Valorant content.
+- 11.11.2026 · Claude Code · Principle · No recreation of Riot content (agents, abilities, maps, names). Mechanics per VISION.md, content our own: agents Kestrel and Marrow, map Werkhof, 16 custom weapons. Christian sees it differently (VISION.md); open.
+- 11.11.2026 · Claude Code · Technology · New game core gameplay/ (without pygame, command-driven, JSON snapshot instead of pickle), playable via play.py against bots. Old path main.py stays unchanged.
+- 11.11.2026 · Claude Code · Values · All game values are our own design in gameplay/data/*.json (source per file), hit zones and lobby defaults in config/game_config.json.
+- 11.11.2026 · Christian · Graphics · Logo: crosshair design replaces the Riot logo in logo.png, icon.ico and playercard.png (docs/design/logo-entwurf).
+- 11.11.2026 · Christian · Content · Our own agents resemble Valorant's in nothing except abilities, which in the video game industry do not belong to Valorant (smoke, flash, dash, teleport, walls, traps and the like). Roles, slots (signature, basic 1/2, ultimate, passive) and effect terms (blind, nearsight, concuss, slow, vulnerable, decay, suppress, root, deafen, combat stim) are used as building blocks.
+- 11.11.2026 · Claude Code · Content · Implementation of the entry above: genre-common abilities are used freely, but no agent repeats the complete kit of a specific Valorant agent, and very distinctive one-off mechanics (e.g. a 1v1 arena ultimate, soul orbs from kills, a map-wide cosmic wall) are not used. Names, looks and kit combinations are our own.

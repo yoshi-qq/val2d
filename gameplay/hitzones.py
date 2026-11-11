@@ -1,7 +1,7 @@
-"""Trefferzonen in 2D nach docs/VISION.md, Abschnitt „Trefferzonen in 2D“.
+"""Hit zones in 2D after docs/VISION.md, section "Hit zones in 2D".
 
-Querabstand zur tatsächlichen Schusslinie entscheidet über die Breite der Zone,
-der Tiefenabstand zwischen Cursor und Ziel entlang der Zielrichtung über die Höhe am Körper.
+The lateral distance to the actual line of fire decides the width of the zone,
+the depth distance between cursor and target along the aim direction decides the height on the body.
 """
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from gameplay.geometry import Vec
 
 @dataclass(frozen=True)
 class ZoneResult:
-    zone: str | None  # "head", "body", "legs" oder None (verfehlt)
+    zone: str | None  # "head", "body", "legs" or None (missed)
     lateral: float
     along: float
 
@@ -30,8 +30,8 @@ def resolve_zone(
 ) -> ZoneResult:
     """Zone eines Treffers.
 
-    shot_dir: tatsächliche Flugrichtung (mit Streuung), aim_dir: Zielrichtung ohne Streuung,
-    cursor_depth: Abstand des Cursors vor dem Schützen entlang aim_dir (Meter).
+    shot_dir: actual flight direction (with spread), aim_dir: aim direction without spread,
+    cursor_depth: distance of the cursor ahead of the shooter along aim_dir (metres).
     """
     rel = target - shooter
     along = rel.dot(shot_dir)

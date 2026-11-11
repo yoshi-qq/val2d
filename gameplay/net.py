@@ -1,8 +1,8 @@
-"""LAN-Spiel über TCP mit JSON (kein pickle) und Spielsuche per UDP-Broadcast.
+"""LAN play over TCP with JSON (no pickle) and game discovery via UDP broadcast.
 
-Übergangslösung bis netplay: Der Host führt Match aus, Clients senden Command,
-der Host verteilt je Betrachter gefilterte Abbilder (Match.snapshot) und Ereignisse.
-Nachricht = 4 Byte Länge (big endian) + JSON in UTF-8, höchstens MAX_MESSAGE Byte.
+Interim solution until netplay: the host runs the Match, clients send Commands,
+the host sends per-viewer filtered snapshots (Match.snapshot) and events.
+Message = 4-byte length (big endian) + JSON in UTF-8, at most MAX_MESSAGE bytes.
 """
 from __future__ import annotations
 
@@ -24,11 +24,11 @@ MAX_MESSAGE = 512 * 1024
 PROTOCOL = 1
 
 
-# ------------------------------------------------------------------ Übertragung
+# ------------------------------------------------------------------ Transport
 def send_msg(sock: socket.socket, obj: dict[str, Any]) -> None:
     data = json.dumps(obj, separators=(",", ":")).encode("utf-8")
     if len(data) > MAX_MESSAGE:
-        raise ValueError(f"Nachricht zu groß ({len(data)} Byte)")
+        raise ValueError(f"Message too large ({len(data)} bytes)")
     sock.sendall(struct.pack(">I", len(data)) + data)
 
 
@@ -48,22 +48,22 @@ def recv_msg(sock: socket.socket) -> dict[str, Any] | None:
         return None
     (size,) = struct.unpack(">I", head)
     if size > MAX_MESSAGE:
-        raise ValueError(f"Nachricht zu groß ({size} Byte)")
+        raise ValueError(f"Message too large ({size} bytes)")
     body = _recv_exact(sock, size)
     if body is None:
         return None
     obj = json.loads(body.decode("utf-8"))
     if not isinstance(obj, dict):
-        raise ValueError("Nachricht ist kein Objekt")
+        raise ValueError("Message is not an object")
     return obj
 
 
-# ------------------------------------------------------------------ Befehle prüfen
+# ------------------------------------------------------------------ Command validation
 _BOOL = ("fire", "walk", "crouch", "jump", "reload", "interact")
 
 
 def command_from_json(raw: dict[str, Any]) -> Command:
-    """Baut einen Command aus ungeprüften Daten; Unpassendes wird verworfen."""
+    """Builds a Command from unchecked data; anything invalid is dropped."""
     cmd = Command()
     for key in ("move_x", "move_y"):
         v = raw.get(key, 0.0)
@@ -87,7 +87,7 @@ def command_from_json(raw: dict[str, Any]) -> Command:
 
 
 def merge_commands(old: Command | None, new: Command) -> Command:
-    """Einmalige Eingaben zwischen zwei Host-Ticks nicht verlieren."""
+    """Do not lose one-shot inputs between two host ticks."""
     if old is None:
         return new
     new.buy = old.buy + new.buy
@@ -125,7 +125,7 @@ class Host:
                 try:
                     sock.sendto(msg, ("<broadcast>", DISCOVERY_PORT))
                 except OSError as exc:
-                    warnings.warn(f"Spielsuche-Ankündigung fehlgeschlagen: {exc}")
+                    warnings.warn(f"Game announcement failed: {exc}")
             time.sleep(1.0)
 
     def _accept_loop(self) -> None:
@@ -142,12 +142,12 @@ class Host:
         try:
             hello = recv_msg(conn)
             if not hello or hello.get("type") != "hello" or hello.get("protocol") != PROTOCOL:
-                send_msg(conn, {"type": "error", "reason": "Falsche Version oder kein Gruß"})
+                send_msg(conn, {"type": "error", "reason": "Wrong version or no greeting"})
                 return
             if not self.accepting:
-                send_msg(conn, {"type": "error", "reason": "Partie läuft schon"})
+                send_msg(conn, {"type": "error", "reason": "Match already running"})
                 return
-            name = str(hello.get("name", "Gast"))[:16] or "Gast"
+            name = str(hello.get("name", "Guest"))[:16] or "Guest"
             agent = str(hello.get("agent", "kestrel"))
             with self.lock:
                 count = [sum(1 for p in self.match.players.values() if p.team == t) for t in (0, 1)]
@@ -166,13 +166,13 @@ class Host:
                     with self.lock:
                         self.pending[pid] = merge_commands(self.pending.get(pid), cmd)
         except (OSError, ValueError, json.JSONDecodeError) as exc:
-            warnings.warn(f"Verbindung zu {addr[0]} beendet: {exc}")
+            warnings.warn(f"Connection to {addr[0]} closed: {exc}")
         finally:
             with self.lock:
                 if pid is not None:
                     self.clients.pop(pid, None)
                     p = self.match.players.get(pid)
-                    if p:  # Getrennte Spieler übernimmt ein Bot
+                    if p:  # a bot takes over disconnected players
                         p.is_bot = True
                         p.name += " (Bot)"
             try:
@@ -197,7 +197,7 @@ class Host:
             try:
                 send_msg(conn, {"type": "state", "snap": self.match.snapshot(pid), "events": evs})
             except (OSError, ValueError) as exc:
-                warnings.warn(f"Senden an Spieler {pid} fehlgeschlagen: {exc}")
+                warnings.warn(f"Sending to player {pid} failed: {exc}")
 
     def _event_visible(self, viewer: PlayerState, e: GameEvent) -> bool:
         if e.kind in ("shot", "hit"):
@@ -227,14 +227,14 @@ def event_to_json(e: GameEvent) -> dict[str, Any]:
 
 # ------------------------------------------------------------------ Client
 def discover(timeout: float = 3.0) -> list[tuple[str, int, str]]:
-    """Sucht Spiele im lokalen Netz: Liste aus (Adresse, Port, Hostname)."""
+    """Looks for games on the local network: list of (address, port, host name)."""
     found: list[tuple[str, int, str]] = []
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
         sock.bind(("", DISCOVERY_PORT))
     except OSError as exc:
-        warnings.warn(f"Spielsuche nicht möglich: {exc}")
+        warnings.warn(f"Game discovery not possible: {exc}")
         return found
     sock.settimeout(0.3)
     end = time.time() + timeout
@@ -259,8 +259,8 @@ class Client:
         send_msg(self.sock, {"type": "hello", "protocol": PROTOCOL, "name": name, "agent": agent})
         welcome = recv_msg(self.sock)
         if not welcome or welcome.get("type") != "welcome":
-            reason = welcome.get("reason", "keine Antwort") if welcome else "keine Antwort"
-            raise ConnectionError(f"Beitritt abgelehnt: {reason}")
+            reason = welcome.get("reason", "no answer") if welcome else "no answer"
+            raise ConnectionError(f"Join refused: {reason}")
         self.sock.settimeout(None)
         self.pid = int(welcome["pid"])
         self.map_key = str(welcome["map"])
@@ -279,14 +279,14 @@ class Client:
                     self.inbox.append(msg)
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             if self.connected:
-                warnings.warn(f"Verbindung zum Host verloren: {exc}")
+                warnings.warn(f"Lost connection to host: {exc}")
         self.connected = False
 
     def send(self, cmd: Command) -> None:
         try:
             send_msg(self.sock, {"type": "cmd", "cmd": asdict(cmd)})
         except OSError as exc:
-            warnings.warn(f"Senden fehlgeschlagen: {exc}")
+            warnings.warn(f"Sending failed: {exc}")
             self.connected = False
 
     def take(self) -> list[dict[str, Any]]:
@@ -303,9 +303,9 @@ class Client:
             pass
 
 
-# ------------------------------------------------------------------ Abbild anwenden
+# ------------------------------------------------------------------ Applying snapshots
 def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int) -> None:
-    """Überträgt ein Host-Abbild in ein Schatten-Match zum Zeichnen (ohne eigene Simulation)."""
+    """Copies a host snapshot into a shadow match for drawing (no own simulation)."""
     new_round = int(snap["round"]) != m.round_no
     m.time = float(snap["time"])
     m.phase = snap["phase"]

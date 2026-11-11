@@ -1,6 +1,6 @@
 {
-  "stand": "11.11.2026",
-  "quelle": "eigener Entwurf (Claude Code), keine offiziellen Werte; Einheiten: Meter, Sekunden, Credits",
+  "as_of": "11.11.2026",
+  "source": "own design (Claude Code), no official values; units: metres, seconds, credits",
   "movement": {"run_speed": 6.0, "walk_mod": 0.55, "crouch_mod": 0.4, "air_mod": 0.9, "accel": 60.0, "decel": 45.0, "jump_velocity": 4.2, "gravity": 14.0, "radius": 0.4, "level_height": 1.0},
   "vitals": {"hp": 100, "armor_absorb": 0.66},
   "economy": {"start": 800, "pistol_round_credits": 800, "win": 3000, "loss": [1800, 2300, 2800], "kill": 200, "plant": 300, "max": 9000},

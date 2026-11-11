@@ -1,7 +1,7 @@
-"""Sprites der Design-Sitzung laden und skalieren (docs/SPRITES.md).
+"""Load and scale the design session's sprites (docs/SPRITES.md).
 
-Maßstab 16 px = 1 m. Skaliert wird nur nach nächstem Nachbarn (pygame.transform.scale), nie geglättet.
-Fehlt eine Datei, liefert die Bank None und play.py zeichnet den Platzhalter; gewarnt wird je Datei einmal.
+Scale 16 px = 1 m. Scaling is nearest neighbour only (pygame.transform.scale), never smoothed.
+If a file is missing, the bank returns None and play.py draws the placeholder; one warning per file.
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ class SpriteBank:
         self._warned: set[str] = set()
 
     def raw(self, rel: str) -> pygame.Surface | None:
-        """Bild relativ zu assets/, z. B. 'agents/kestrel/kestrel_idle.png'."""
+        """Image relative to assets/, e.g. 'agents/kestrel/kestrel_idle.png'."""
         if rel not in self._raw:
             path = ASSETS / rel
             try:
@@ -32,12 +32,12 @@ class SpriteBank:
             except (OSError, pygame.error, FileNotFoundError):
                 if rel not in self._warned:
                     self._warned.add(rel)
-                    warnings.warn(f"Sprite fehlt: assets/{rel}; Platzhalter wird gezeichnet.")
+                    warnings.warn(f"Sprite missing: assets/{rel}; drawing a placeholder.")
                 self._raw[rel] = None
         return self._raw[rel]
 
     def frame(self, rel: str, index: int, frame_w: int) -> pygame.Surface | None:
-        """Bild index aus einem waagerechten Streifen mit Bildbreite frame_w (in Pixeln der Datei)."""
+        """Frame index from a horizontal strip with frame width frame_w (in file pixels)."""
         img = self.raw(rel)
         if img is None:
             return None
@@ -64,9 +64,9 @@ class SpriteBank:
         img = self.raw(rel)
         return max(1, img.get_width() // frame_w) if img else 1
 
-    # ------------------------------------------------------------ Figuren
+    # ------------------------------------------------------------ Characters
     def agent(self, agent: str, pose: str, enemy: bool, scale: float, t: float) -> pygame.Surface | None:
-        """pose: idle, walk, crouch, jump, dead. Größe nach Maßstab, Lauf mit WALK_FPS Bildern je Sekunde."""
+        """pose: idle, walk, crouch, jump, dead. Size from the scale, walk cycle at WALK_FPS frames per second."""
         suffix = "_feind" if enemy else ""
         rel = f"agents/{agent}/{agent}_{pose}{suffix}.png"
         if pose == "dead":
@@ -78,9 +78,9 @@ class SpriteBank:
         return self.scaled(rel, size)
 
 
-# ------------------------------------------------------------ Karte
+# ------------------------------------------------------------ Map
 def _tile_rect(target: pygame.Surface, tile: pygame.Surface, rect: pygame.Rect) -> None:
-    """Kachelt tile über rect; Kachelraster am Kartenursprung, damit Nachbarflächen nahtlos passen."""
+    """Tiles tile over rect; the tile grid is anchored at the map origin so neighbouring areas line up."""
     tw, th = tile.get_size()
     clip = target.get_clip()
     target.set_clip(rect.clip(clip) if clip else rect)
@@ -93,15 +93,15 @@ def _tile_rect(target: pygame.Surface, tile: pygame.Surface, rect: pygame.Rect) 
 
 
 def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.Surface | None:
-    """Karte als ein Bild im Bildschirmmaßstab (scale Pixel je Meter), Norden (+y) oben.
+    """The map as one image at screen scale (scale pixels per metre), north (+y) up.
 
-    Pixel (0, 0) entspricht Welt (0, height). None, wenn die Bodenkachel fehlt.
+    Pixel (0, 0) is world (0, height). None if the floor tile is missing.
     """
-    from gameplay.world import WorldMap  # nur für Typen; gameplay bleibt pygame-frei
+    from gameplay.world import WorldMap  # for types only; gameplay stays free of pygame
 
     assert isinstance(world, WorldMap)
     folder = f"maps/{world.key}"
-    tile_px = max(1, round(2 * scale))  # Kachel 32 px = 2 m
+    tile_px = max(1, round(2 * scale))  # tile 32 px = 2 m
 
     def tile(name: str) -> pygame.Surface | None:
         own = bank.scaled(f"{folder}/{name}.png", (tile_px, tile_px))

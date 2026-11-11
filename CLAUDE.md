@@ -1,19 +1,19 @@
-# Val2d – Kontext für Claude Code
+# Val2d – Context for Claude Code
 
-VALORANT in 2D, Python + pygame. Lies vor jeder Arbeit:
-- docs/VISION.md – was Val2d sein soll (verbindlich)
-- docs/ENTSCHEIDUNGEN.md – getroffene Entscheidungen; neue mit Datum, wer, Bereich anhängen
-- roadmap.md – alter Arbeitsstand
+VALORANT in 2D, Python + pygame. Read before any work:
+- docs/VISION.md – what Val2d is meant to be (binding)
+- docs/ENTSCHEIDUNGEN.md – decisions made; append new ones with date, who, area
+- roadmap.md – old state of work
 
-## Arbeitsteilung
-Du bist die **Coding-Sitzung**. Grafik kommt aus der **Design-Sitzung** mit Christian (Chat in claude.ai). Übergabe über docs/SPRITES.md, Einzelheiten in docs/VISION.md, Abschnitt „Zwei Sitzungen“.
+## Division of work
+You are the **coding session**. Graphics come from the **design session** with Christian (chat in claude.ai). Handover via docs/SPRITES.md, details in docs/VISION.md, section "Two sessions".
 
-## Regeln
-- Möglichst nah an Valorant. Weicht etwas ab, Begründung in docs/ENTSCHEIDUNGEN.md.
-- Spielwerte nie im Code verstreuen: Datendatei mit Patchnummer und Quelle je Wert.
-- Werte, die Christian einstellt (z. B. Treffer-Toleranzen), gehören in die Game-Config.
-- Keine Riot-Inhalte nachbauen, auch nicht umbenannt: keine Valorant-Agents oder ihre Kits, keine Valorant-Maps, keine Namen von Agents, Maps oder Waffen. Systeme, Regeln und Waffenzahlen dürfen dem Original folgen. Agents laufen über config/agents.json mit Fähigkeiten-Bausteinen.
-- Grafik und Sprites liefert die Design-Sitzung mit Christian. Bis dahin Platzhalter, klar als solche benannt. Keine Riot-Grafiken, -Sounds oder -Logos.
-- graphy und networking kommen aus den Paketen (keine lokalen Kopien). Netzwerk im Spiel über den Wrapper netplay (Arbeitsname).
-- Neuer Code: snake_case, Type Hints, keine TODOs im fertigen Code. Nicht-fatale Fehler warnen, nie abstürzen. Zeit intern UTC.
-- Nie als geprüft melden, was nicht lief.
+## Rules
+- As close to Valorant as possible. If something deviates, put the reason in docs/ENTSCHEIDUNGEN.md.
+- Never scatter game values across the code: a data file with patch number and source per value.
+- Values that Christian tunes (e.g. hit tolerances) belong in the game config.
+- Do not recreate Riot content, not even renamed: no Valorant agents or their kits, no Valorant maps, no names of agents, maps or weapons. Systems, rules and weapon numbers may follow the original. Agents run via config/agents.json with ability building blocks.
+- Graphics and sprites are delivered by the design session with Christian. Until then, placeholders, clearly named as such. No Riot graphics, sounds or logos.
+- graphy and networking come from the packages (no local copies). Networking in the game goes through the wrapper netplay (working title).
+- New code: snake_case, type hints, no TODOs in finished code. Warn on non-fatal errors, never crash. Time is UTC internally.
+- Never report as tested what did not run.

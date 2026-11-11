@@ -1,6 +1,6 @@
 {
-  "name": "Gasse",
-  "quelle": "eigener Entwurf (Claude Code), 11.11.2026; kleine 1-gegen-1-Karte mit einem Bombenplatz; Maße in Metern",
+  "name": "Alley",
+  "source": "own design (Claude Code), 11.11.2026; small 1v1 map with one bomb site; dimensions in metres",
   "width": 24,
   "height": 32,
   "walls": [
@@ -26,13 +26,13 @@
   "spawns": {"0": [[12, 2], [9, 2.5], [15, 2.5], [6, 3], [18, 3]], "1": [[3, 30], [1.5, 28.5], [4.5, 28.5], [1.5, 31], [4.5, 31]]},
   "spawn_zones": {"0": [4, 0, 20, 4.5], "1": [0, 27, 6, 32]},
   "callouts": [
-    {"name": "Angreifer-Spawn", "rect": [4, 0, 20, 4.5]},
-    {"name": "Vorplatz", "rect": [0, 4.5, 24, 10]},
-    {"name": "Linke Gasse", "rect": [0, 11, 10, 21]},
-    {"name": "Rechte Gasse", "rect": [14, 11, 24, 21]},
+    {"name": "Attacker Spawn", "rect": [4, 0, 20, 4.5]},
+    {"name": "Forecourt", "rect": [0, 4.5, 24, 10]},
+    {"name": "Left Alley", "rect": [0, 11, 10, 21]},
+    {"name": "Right Alley", "rect": [14, 11, 24, 21]},
     {"name": "Block", "rect": [10, 11, 14, 21]},
-    {"name": "Platz", "rect": [6, 22, 18, 32]},
-    {"name": "Rampe", "rect": [15, 26, 24, 32]},
-    {"name": "Verteidiger-Spawn", "rect": [0, 22, 6, 32]}
+    {"name": "Site", "rect": [6, 22, 18, 32]},
+    {"name": "Ramp", "rect": [15, 26, 24, 32]},
+    {"name": "Defender Spawn", "rect": [0, 22, 6, 32]}
   ]
 }

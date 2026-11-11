@@ -1,4 +1,4 @@
-"""Einfache Bots: laufen zum Ziel, zielen mit Reaktionszeit, stoppen zum Schießen, legen und entschärfen."""
+"""Simple bots: walk to a goal, aim with reaction time, stop to shoot, plant and defuse."""
 from __future__ import annotations
 
 import random
@@ -13,7 +13,7 @@ class BotBrain:
     pid: int
     reaction: float = 0.35
     turn_speed: float = 420.0  # Grad pro Sekunde
-    aim_error: float = 1.2     # Grad Restfehler beim Schuss
+    aim_error: float = 1.2     # remaining aim error in degrees per shot
     seen_since: dict[int, float] = field(default_factory=dict)
     goal: Vec | None = None
     rng: random.Random = field(default_factory=random.Random)

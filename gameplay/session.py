@@ -1,8 +1,8 @@
-"""Host-Sitzung: Match, Netz-Host und Bots zusammen.
+"""Host session: match, network host and bots together.
 
-Genutzt von play.py (Host = Spieler 1) und server.py (eigener Server-Prozess).
-Ferne Spieler senden nicht in jedem Host-Tick einen Befehl; ihr letzter Befehl gilt
-weiter, einmalige Eingaben (Kauf, Nachladen, Waffenwechsel, Fähigkeit) nur einmal.
+Used by play.py (host = player 1) and server.py (dedicated server process).
+Remote players do not send a command every host tick; their last command keeps
+applying, one-shot inputs (buy, reload, weapon switch, ability) only once.
 """
 from __future__ import annotations
 
@@ -12,11 +12,11 @@ from gameplay.bots import BotDirector
 from gameplay.match import Command, GameEvent, Match
 from gameplay.net import DEFAULT_PORT, Host
 
-SNAPSHOT_RATE = 30.0  # Abbilder je Sekunde an die Clients
+SNAPSHOT_RATE = 30.0  # snapshots per second sent to clients
 
 
 def _held_part(cmd: Command) -> Command:
-    """Nur gehaltene Eingaben eines Befehls, ohne einmalige."""
+    """Only the held inputs of a command, without one-shot inputs."""
     return replace(cmd, buy=[], reload=False, slot=None, ability=None)
 
 
@@ -37,7 +37,7 @@ class HostSession:
         return [sum(1 for p in self.match.players.values() if p.team == t) for t in (0, 1)]
 
     def fill_bots(self, team_size: int) -> None:
-        """Füllt beide Teams mit Bots auf team_size auf."""
+        """Fills both teams with bots up to team_size."""
         agents = list(self.match.agents) or ["kestrel"]
         with self.net.lock:
             for team in (0, 1):
@@ -52,7 +52,7 @@ class HostSession:
         self.match.start()
 
     def step(self, dt: float, local: dict[int, Command] | None = None) -> list[GameEvent]:
-        """Ein Host-Tick. local: Befehle von Spielern an diesem Rechner."""
+        """One host tick. local: commands from players on this machine."""
         commands = self.bots.commands(dt)
         remote = self.net.take_commands()
         for pid, p in self.match.players.items():

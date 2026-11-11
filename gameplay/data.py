@@ -1,4 +1,4 @@
-"""Lädt Spielwerte (gameplay/data) und die Game-Config (config/game_config.json)."""
+"""Loads game values (gameplay/data) and the game config (config/game_config.json)."""
 from __future__ import annotations
 
 import json
@@ -17,7 +17,7 @@ def _load_json(path: Path) -> dict[str, Any]:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        warnings.warn(f"{path.name} nicht lesbar ({exc}); Standardwerte gelten.")
+        warnings.warn(f"{path.name} unreadable ({exc}); defaults apply.")
         return {}
 
 
@@ -103,7 +103,7 @@ def _pick(cls: type, raw: dict[str, Any] | None) -> Any:
     names = cls.__dataclass_fields__.keys()
     unknown = set(raw) - set(names)
     if unknown:
-        warnings.warn(f"Unbekannte Einträge in {cls.__name__}: {sorted(unknown)}")
+        warnings.warn(f"Unknown entries in {cls.__name__}: {sorted(unknown)}")
     return cls(**{k: v for k, v in raw.items() if k in names})
 
 
@@ -135,7 +135,7 @@ def load_weapons() -> dict[str, WeaponDef]:
                 burst=bool(w.get("burst", False)), silenced=bool(w.get("silenced", False)),
             )
         except (KeyError, TypeError, ValueError) as exc:
-            warnings.warn(f"Waffe {key} übersprungen: {exc}")
+            warnings.warn(f"Weapon {key} skipped: {exc}")
     return out
 
 

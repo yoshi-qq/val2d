@@ -1,7 +1,7 @@
-"""Autoritative Partie: Bewegung, Kampf, Economy, Runden, Spike, Fähigkeiten.
+"""Authoritative match: movement, combat, economy, rounds, bomb, abilities.
 
-Steuerung nur über Command je Spieler und Tick. Ein Host (Spieler 1 oder eigener
-Server-Prozess) führt Match.tick aus und verteilt Match.snapshot() an alle.
+Controlled only through one Command per player and tick. A host (player 1 or a dedicated
+server process) runs Match.tick and sends Match.snapshot() to everyone.
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from gameplay.hitzones import resolve_zone
 from gameplay.world import Wall, WorldMap
 
 SLOTS = ("primary", "sidearm", "melee")
-PEN_DAMAGE = {0: 0.8, 1: 0.6, 2: 0.45}  # Schadensfaktor nach Durchschlagen eines Materials (eigener Wert)
+PEN_DAMAGE = {0: 0.8, 1: 0.6, 2: 0.45}  # damage factor after passing through a material (own value)
 INTERACT_RANGE = 1.5
 PICKUP_RANGE = 1.2
 
@@ -29,16 +29,16 @@ def load_agents() -> dict[str, dict[str, Any]]:
     try:
         return json.loads((DATA_DIR / "agents.json").read_text(encoding="utf-8"))["agents"]
     except (OSError, KeyError, json.JSONDecodeError) as exc:
-        warnings.warn(f"agents.json nicht lesbar ({exc}); keine Agents verfügbar.")
+        warnings.warn(f"agents.json unreadable ({exc}); no agents available.")
         return {}
 
 
 @dataclass
 class Command:
-    move_x: float = 0.0          # seitlich, -1 links … 1 rechts (relativ zur Blickrichtung)
-    move_y: float = 0.0          # vor/zurück, 1 vorwärts
-    facing: float | None = None  # Kompasswinkel in Grad
-    cursor_depth: float = 8.0    # Abstand des Cursors vor dem Spieler (Meter)
+    move_x: float = 0.0          # sideways, -1 left … 1 right (relative to facing)
+    move_y: float = 0.0          # forward/back, 1 forward
+    facing: float | None = None  # compass angle in degrees
+    cursor_depth: float = 8.0    # distance of the cursor ahead of the player (metres)
     fire: bool = False
     walk: bool = False
     crouch: bool = False
@@ -46,7 +46,7 @@ class Command:
     reload: bool = False
     slot: str | None = None
     ability: str | None = None   # "C", "Q", "E", "X"
-    interact: bool = False       # Spike legen oder entschärfen (halten)
+    interact: bool = False       # plant or defuse the bomb (hold)
     buy: list[str] = field(default_factory=list)
 
 
@@ -100,7 +100,7 @@ class PlayerState:
     defuse_progress: float = 0.0
     prev_ability: str | None = None
     prev_interact: bool = False
-    visible: bool = True  # nur im Schatten-Match eines Clients von Bedeutung
+    visible: bool = True  # only meaningful in a client's shadow match
 
     @property
     def weapon(self) -> WeaponState | None:
@@ -174,10 +174,10 @@ class Match:
         self._hp = int(rule("vitals", "hp", 100))
         self._sound = {k: rule("sound", k, d) for k, d in (("run_radius", 18.0), ("shot_radius", 45.0), ("silenced_radius", 12.0))}
 
-    # ------------------------------------------------------------------ Aufbau
+    # ------------------------------------------------------------------ Setup
     def add_player(self, name: str, team: int, agent: str, is_bot: bool = False) -> PlayerState:
         if agent not in self.agents:
-            warnings.warn(f"Agent {agent} unbekannt; nutze {next(iter(self.agents), 'kestrel')}.")
+            warnings.warn(f"Unknown agent {agent}; using {next(iter(self.agents), 'kestrel')}.")
             agent = next(iter(self.agents), "kestrel")
         pid = max(self.players, default=0) + 1
         p = PlayerState(pid=pid, name=name, team=team, agent=agent, is_bot=is_bot, credits=int(self._eco["start"]))
@@ -191,7 +191,7 @@ class Match:
         self.attacking_team = 0
         self._start_round()
 
-    # ------------------------------------------------------------------ Runden
+    # ------------------------------------------------------------------ Rounds
     def side(self, team: int) -> str:
         return "attack" if team == self.attacking_team else "defense"
 
@@ -295,7 +295,7 @@ class Match:
             return abs(a - b) >= int(self._r["overtime_margin"])
         return True
 
-    # ------------------------------------------------------------------ Kauf
+    # ------------------------------------------------------------------ Buying
     def buy(self, p: PlayerState, item: str) -> bool:
         if self.phase != "buy" or not p.alive:
             return False
@@ -323,7 +323,7 @@ class Match:
             p.credits -= int(ab["price"])
             p.charges[item] = p.charges.get(item, 0) + 1
         else:
-            warnings.warn(f"Unbekannter Kaufwunsch: {item}")
+            warnings.warn(f"Unknown buy request: {item}")
             return False
         self.events.append(GameEvent("buy", self.time, {"pid": p.pid, "item": item}))
         return True
@@ -369,15 +369,15 @@ class Match:
         defense_team = 1 - self.attacking_team
         if self.phase == "live":
             if has_att and not att:
-                self._end_round(defense_team, "Angreifer ausgeschaltet")
+                self._end_round(defense_team, "Attackers eliminated")
             elif has_dfn and not dfn:
-                self._end_round(self.attacking_team, "Verteidiger ausgeschaltet")
+                self._end_round(self.attacking_team, "Defenders eliminated")
             elif self.time >= self.phase_until:
-                self._end_round(defense_team, "Zeit abgelaufen")
+                self._end_round(defense_team, "Time ran out")
         elif self.phase == "planted" and has_dfn and not dfn:
-            self._end_round(self.attacking_team, "Verteidiger ausgeschaltet")
+            self._end_round(self.attacking_team, "Defenders eliminated")
 
-    # ------------------------------------------------------------------ Befehle
+    # ------------------------------------------------------------------ Commands
     def _apply_command(self, p: PlayerState, cmd: Command, dt: float) -> None:
         if cmd.facing is not None:
             p.facing = cmd.facing % 360.0
@@ -394,14 +394,14 @@ class Match:
         if cmd.reload:
             self._start_reload(p)
         busy = p.plant_progress > 0 or p.defuse_progress > 0
-        # Bewegung
+        # movement
         speed = self._max_speed(p)
         wish = Vec(cmd.move_x, cmd.move_y)
         if wish.length() > 1:
             wish = wish.normalized()
         if busy:
             wish = Vec(0, 0)
-        world_wish = wish.rotated(p.facing) * speed  # vorwärts = Blickrichtung
+        world_wish = wish.rotated(p.facing) * speed  # forward = facing
         if self.time < p.dash_until:
             p.vel = p.dash_vel
         else:
@@ -411,10 +411,10 @@ class Match:
             p.vel = world_wish if diff.length() <= step else p.vel + diff.normalized() * step
         if cmd.jump and p.z <= 0.001 and p.vz == 0:
             p.vz = float(self._mv["jump_velocity"])
-        # Fähigkeit (nur bei neuem Tastendruck)
+        # ability (only on a new key press)
         if cmd.ability and cmd.ability != p.prev_ability and self.phase in ("buy", "live", "planted"):
             self._use_ability(p, cmd.ability)
-        # Schießen
+        # shooting
         if self.time >= p.reload_until > 0:
             self._finish_reload(p)
         if self.phase in ("live", "planted") and not busy:
@@ -425,7 +425,7 @@ class Match:
             p.spray = max(0.0, p.spray - recovery * dt)
 
     def _pickup(self, p: PlayerState, cmd: Command) -> None:
-        """Leerer Platz: automatisch aufheben. F (ohne Spike-Aufgabe): tauschen."""
+        """Empty slot: pick up automatically. F (when not planting or defusing): swap."""
         pressed = cmd.interact and not p.prev_interact
         p.prev_interact = cmd.interact
         for drop in list(self.drops):
@@ -464,12 +464,12 @@ class Match:
         radius = float(self._mv["radius"])
         lh = float(self._mv["level_height"])
         zone = self.world.spawn_zones.get(0 if self.side(p.team) == "attack" else 1) if self.phase == "buy" else None
-        # vertikal
+        # vertical
         p.vz -= float(self._mv["gravity"]) * dt
         p.z = max(0.0, p.z + p.vz * dt)
         if p.z <= 0.0:
             p.vz = 0.0
-        # waagerecht mit Kollision gegen alles, was höher ist als die aktuelle Höhe
+        # horizontal, colliding with everything higher than the current height
         height_level = p.level + int(p.z / lh + 0.5)
         new = p.pos + p.vel * dt
         for _ in range(3):
@@ -488,7 +488,7 @@ class Match:
             if self.time >= p.dash_until:
                 p.vel = (new - p.pos) * (1.0 / dt)
         p.pos = new
-        # Ebenen: Rampe hebt auf Ebene 1, Landen auf Kiste/Plattform, Herunterfallen
+        # levels: ramp lifts to level 1, landing on crate/platform, falling down
         floor = self.world.floor_level(p.pos)
         if self.world.on_ramp(p.pos):
             p.level = max(1, floor)
@@ -498,7 +498,7 @@ class Match:
             p.z += lh * (p.level - floor)
             p.level = floor
 
-    # ------------------------------------------------------------------ Waffen
+    # ------------------------------------------------------------------ Weapons
     def _weapon_def(self, p: PlayerState) -> WeaponDef | None:
         ws = p.weapon
         return self.weapons.get(ws.key) if ws else None
@@ -553,7 +553,7 @@ class Match:
         return float(self.agents[p.agent]["abilities"].get("X", {}).get(key, 1.0))
 
     def current_spread(self, p: PlayerState, d: WeaponDef) -> float:
-        """Streuung in Grad für den nächsten Schuss. 0 = exakt (stehend, erster Schuss)."""
+        """Spread in degrees for the next shot. 0 = exact (standing, first shot)."""
         speed = p.vel.length()
         run = float(self._mv["run_speed"])
         moving = 0.0 if self.time < p.overdrive_until else d.spread_run * min(1.0, speed / run)
@@ -652,7 +652,7 @@ class Match:
                     attacker.charges["E"] = min(int(ab["max"]), attacker.charges.get("E", 0) + 1)
         self.events.append(GameEvent("kill", self.time, {"by": attacker.pid if attacker else None, "pid": target.pid, "weapon": source, "head": zone == "head"}))
 
-    # ------------------------------------------------------------------ Fähigkeiten
+    # ------------------------------------------------------------------ Abilities
     def _use_ability(self, p: PlayerState, key: str) -> None:
         ab = self.agents[p.agent]["abilities"].get(key)
         if not ab:
@@ -693,7 +693,7 @@ class Match:
             target = self._clip_to_walls(p.pos, target, p.level)
             self.effects.append(Effect("slow_field", p.pid, p.team, target, self.time + float(ab["duration"]), radius=float(ab["radius"]), data={"slow": float(ab["slow"])}))
         else:
-            warnings.warn(f"Fähigkeitsart {kind} unbekannt")
+            warnings.warn(f"Unknown ability kind {kind}")
             return
         self.events.append(GameEvent("ability", self.time, {"pid": p.pid, "key": key, "kind": kind, "pos": (target.x, target.y)}))
 
@@ -739,7 +739,7 @@ class Match:
                     p.sig_timer = 0.0
                     p.charges["E"] = p.charges.get("E", 0) + 1
 
-    # ------------------------------------------------------------------ Sicht
+    # ------------------------------------------------------------------ Sight
     def _line_clear(self, a: Vec, b: Vec, level: int, ignore_effects: bool = False) -> bool:
         direction = b - a
         dist = direction.length()
@@ -778,7 +778,7 @@ class Match:
                 return False
         return self._line_clear(viewer.pos, target.pos, min(viewer.level, target.level))
 
-    # ------------------------------------------------------------------ Spike
+    # ------------------------------------------------------------------ Bomb
     def _tick_spike(self, dt: float, commands: dict[int, Command]) -> None:
         if self.phase in ("live",) and self.spike_carrier is None and self.spike_pos is not None:
             for p in self.players.values():
@@ -806,7 +806,7 @@ class Match:
                     if p.defuse_progress >= float(self._spike["defuse_time"]):
                         p.ult_points += int(self._ult["per_defuse"])
                         self.events.append(GameEvent("defuse", self.time, {"pid": p.pid}))
-                        self._end_round(p.team, "Spike entschärft")
+                        self._end_round(p.team, "Bomb defused")
                         return
                 else:
                     cp = float(self._spike["defuse_checkpoint"])
@@ -816,7 +816,7 @@ class Match:
                     if t.alive and (t.pos - self.spike_pos).length() <= float(self._spike["blast_radius"]):
                         self._kill(None, t, "spike", "body")
                 self.events.append(GameEvent("explode", self.time, {"pos": (self.spike_pos.x, self.spike_pos.y)}))
-                self._end_round(self.attacking_team, "Spike detoniert")
+                self._end_round(self.attacking_team, "Bomb detonated")
 
     def _plant(self, p: PlayerState, site: str) -> None:
         self.phase = "planted"
@@ -831,7 +831,7 @@ class Match:
                 t.credits = min(int(self._eco["max"]), t.credits + int(self._eco["plant"]))
         self.events.append(GameEvent("plant", self.time, {"pid": p.pid, "site": site}))
 
-    # ------------------------------------------------------------------ Abbild
+    # ------------------------------------------------------------------ Snapshot
     def spike_time_left(self) -> float:
         if self.phase != "planted":
             return 0.0
@@ -843,7 +843,7 @@ class Match:
         return max(0.0, self.phase_until - self.time)
 
     def snapshot(self, viewer_pid: int | None = None) -> dict[str, Any]:
-        """JSON-fähiges Abbild. Mit viewer_pid fehlen Gegner, die der Betrachter nicht sieht."""
+        """JSON-ready snapshot. With viewer_pid, enemies the viewer cannot see are left out."""
         viewer = self.players.get(viewer_pid) if viewer_pid else None
         players = []
         for p in self.players.values():

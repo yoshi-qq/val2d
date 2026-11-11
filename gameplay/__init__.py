@@ -1,5 +1,5 @@
-"""Spielkern von Val2d: reine Spiellogik ohne pygame, befehlsgesteuert und testbar.
+"""Val2d game core: pure game logic without pygame, command-driven and testable.
 
 Einstieg: gameplay.match.Match. Werte stehen in gameplay/data/*.json,
-von Christian einstellbare Werte in config/game_config.json.
+values tuned by Christian in config/game_config.json.
 """

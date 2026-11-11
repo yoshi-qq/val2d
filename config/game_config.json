@@ -1,5 +1,5 @@
 {
-  "_hinweis": "Von Christian einzustellen. Trefferzonen: halbe Breiten quer zur Schusslinie (Meter, aus Sprite-Breite 16 px = 1 m), erlaubte Tiefenabweichung des Cursors (Meter).",
+  "_note": "Set by Christian. Hit zones: half widths across the line of fire (metres, from sprite width 16 px = 1 m), allowed depth deviation of the cursor (metres).",
   "hit_zones": {
     "head_half_width": 0.25,
     "body_half_width": 0.375,

@@ -1,4 +1,4 @@
-"""Karte: Wände, Kisten, Ebenen, Bombenplätze, Spawns. Eigene Karten, keine Nachbauten."""
+"""Map: walls, crates, levels, bomb sites, spawns. Own maps, no recreations."""
 from __future__ import annotations
 
 import json
@@ -14,14 +14,14 @@ MAP_DIR = Path(__file__).resolve().parent / "data" / "maps"
 @dataclass(frozen=True)
 class Wall:
     rect: Rect
-    penetration: int  # Material: 0 dünn, 1 mittel, 2 dick, 3 undurchdringlich
+    penetration: int  # material: 0 thin, 1 medium, 2 thick, 3 impenetrable
     blocks_sight: bool = True
-    height: int = 2  # Ebenen; Kisten haben 1 und lassen sich besteigen
+    height: int = 2  # levels; crates have 1 and can be climbed
 
 
 @dataclass(frozen=True)
 class Platform:
-    """Erhöhte Fläche (Ebene 1). Ramps verbinden sie mit dem Boden."""
+    """Raised area (level 1). Ramps connect it to the ground."""
     rect: Rect
     level: int = 1
 
@@ -47,7 +47,7 @@ class WorldMap:
     callouts: list[tuple[str, Rect]] = field(default_factory=list)
 
     def floor_level(self, p: Vec) -> int:
-        """Ebene der Oberfläche unter einem Punkt (Kisten zählen als Ebene 1)."""
+        """Level of the surface under a point (crates count as level 1)."""
         level = 0
         for pl in self.platforms:
             if pl.rect.contains(p):
@@ -73,7 +73,7 @@ class WorldMap:
         return ""
 
     def blocking_walls(self, level: int) -> list[Wall]:
-        """Wände, die auf dieser Ebene Bewegung blockieren."""
+        """Walls that block movement on this level."""
         return [w for w in self.walls if w.height > level]
 
     def sight_walls(self, level: int) -> list[Wall]:
@@ -90,8 +90,8 @@ def load_map(key: str) -> WorldMap:
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        warnings.warn(f"Karte {key} nicht lesbar ({exc}); nutze leere Übungsfläche.")
-        return WorldMap(key="leer", name="Leere Fläche", width=40, height=40,
+        warnings.warn(f"Map {key} unreadable ({exc}); using an empty practice area.")
+        return WorldMap(key="empty", name="Empty area", width=40, height=40,
                         spawns={0: [Vec(20, 4)], 1: [Vec(20, 36)]},
                         spawn_zones={0: Rect(15, 0, 25, 8), 1: Rect(15, 32, 25, 40)},
                         sites=[Site("A", Rect(16, 16, 24, 24))])
