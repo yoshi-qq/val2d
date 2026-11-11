@@ -506,7 +506,7 @@ class Match:
         new = p.pos + p.vel * dt
         for _ in range(3):
             for w in self.world.walls:
-                if w.height <= height_level:
+                if w.height <= height_level or (w.buy_phase_only and self.phase != "buy"):
                     continue
                 push = w.rect.circle_push(new, radius)
                 if push:
@@ -623,7 +623,7 @@ class Match:
         origin = p.pos
         hits: list[tuple[float, str, Any]] = []
         for w in self.world.walls:
-            if w.height <= p.level:
+            if w.height <= p.level or (w.buy_phase_only and self.phase != "buy"):
                 continue
             iv = w.rect.ray_interval(origin, direction)
             if iv and iv[0] <= d.range:

@@ -370,6 +370,7 @@ class Game:
             self.draw_map_texture(me)
         else:
             self.draw_map_placeholder(me)
+        self.draw_live_objects(me)
         for site in wm.sites:
             sx, sy = self.to_screen(site.rect.center, me)
             lbl = self.big.render(site.name, True, C_SITE)
@@ -672,6 +673,36 @@ class Game:
         north = math.degrees(math.atan2(-(ny - cy), nx - cx))
         rotated = pygame.transform.rotate(self._crop, north - 90)
         self.screen.blit(rotated, (cx - rotated.get_width() / 2, cy - rotated.get_height() / 2))
+
+    def draw_live_objects(self, me: PlayerState) -> None:
+        """Animated or phase-dependent map objects (spawn barrier), rotated with the camera."""
+        from gameplay.world import load_things
+        objects = load_things()[0]
+        for o in self.match.world.objects:
+            spec = objects.get(o.key, {})
+            if not (int(spec.get("frames", 1)) > 1 or spec.get("buy_phase_only")):
+                continue
+            if spec.get("buy_phase_only") and self.match.phase != "buy":
+                continue
+            frames = int(spec.get("frames", 1))
+            index = int(self.match.time * float(spec.get("fps", 4))) % frames
+            w_m, h_m = spec.get("size", (1.0, 1.0))
+            tile = self.bank.scaled(str(spec.get("tile", "")), (max(1, round(w_m * self.scale)), max(1, round(h_m * self.scale))),
+                                    index, self.bank.raw(str(spec.get("tile", ""))).get_width() // frames if self.bank.raw(str(spec.get("tile", ""))) else 0)
+            if tile is None:
+                continue
+            w_px = max(1, round((o.rect.x1 - o.rect.x0) * self.scale))
+            h_px = max(1, round((o.rect.y1 - o.rect.y0) * self.scale))
+            strip = pygame.Surface((w_px, h_px), pygame.SRCALPHA)
+            for y in range(0, h_px, tile.get_height()):
+                for x in range(0, w_px, tile.get_width()):
+                    strip.blit(tile, (x, y))
+            cx, cy = self.to_screen(me.pos, me)
+            nx, ny = self.to_screen(me.pos + Vec(0, 1), me)
+            north = math.degrees(math.atan2(-(ny - cy), nx - cx))
+            rotated = pygame.transform.rotate(strip, north - 90)
+            ox, oy = self.to_screen(o.rect.center, me)
+            self.screen.blit(rotated, (ox - rotated.get_width() / 2, oy - rotated.get_height() / 2))
 
     def draw_map_placeholder(self, me: PlayerState) -> None:
         from gameplay.geometry import Rect

@@ -33,3 +33,4 @@ Format: date · who · area · wording
 - 11.11.2026 · Claude Code · Agents · Eight new own agents with own combinations: Vesper, Rook (Duelist), Tamsin, Okoro (Initiator), Juniper, Nyx (Controller), Harrow, Sable (Sentinel); Kestrel and Marrow kept.
 - 11.11.2026 · Claude Code · Wording · The objective is called "bomb" in all player-facing text; code identifiers and file names with "spike" stay.
 - 12.11.2026 · Claude Code · Maps · Material per wall and floor: config/materials.py (WALLS with tile, penetration, sight, height; FLOORS with tile). Map files use "mat" per wall and "floor"/"floors"; walls without material keep the old Werkhof tiles. Gasse uses the common set.
+- 12.11.2026 · Claude Code · Maps · Map objects and decals: config/materials.py OBJECTS and DECALS; map files use "objects" (pos or rect, rot in 90° steps) and "decals". Blocking objects become walls; the spawn barrier blocks only during the buy phase and does not block sight.

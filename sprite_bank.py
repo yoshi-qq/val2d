@@ -165,8 +165,9 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
     layers += [("plattform", to_px(p.rect)) for p in world.platforms]
     layers += [("rampe", to_px(r)) for r in world.ramps]
     platform_rects = {p.rect for p in world.platforms}
+    object_rects = {o.rect for o in world.objects}
     for wall in world.walls:
-        if wall.rect in platform_rects:
+        if wall.rect in platform_rects or wall.rect in object_rects:
             continue
         if wall.rect.x0 < -0.5 or wall.rect.y0 < -0.5 or wall.rect.x1 > world.width + 0.5 or wall.rect.y1 > world.height + 0.5:
             continue
@@ -184,11 +185,40 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
             pygame.draw.rect(surf, (110, 106, 120), rect)
         else:
             _tile_rect(surf, t, rect)
+    # decals, then static objects (animated ones are drawn live by play.py)
+    from gameplay.world import load_things
+    objects, decals = load_things()
+
+    def place(spec: dict, thing: object) -> None:
+        img = bank.raw(str(spec.get("tile", "")))
+        if img is None:
+            return
+        r = to_px(thing.rect)  # type: ignore[attr-defined]
+        rot = int(thing.rot)  # type: ignore[attr-defined]
+        frames = int(spec.get("frames", 1))
+        src = img.subsurface((0, 0, img.get_width() // frames, img.get_height())) if frames > 1 else img
+        if rot:
+            src = pygame.transform.rotate(src, -rot)
+        if spec.get("tiled"):
+            w_m, h_m = spec.get("size", (1.0, 1.0))
+            if rot in (90, 270):
+                w_m, h_m = h_m, w_m
+            piece = pygame.transform.scale(src, (max(1, round(w_m * scale)), max(1, round(h_m * scale))))
+            _tile_rect(surf, piece, r)
+        else:
+            surf.blit(pygame.transform.scale(src, (r.w, r.h)), r.topleft)
+
+    for d in world.decals:
+        place(decals.get(d.key, {}), d)
+    for o in world.objects:
+        spec = objects.get(o.key, {})
+        if int(spec.get("frames", 1)) == 1 and not spec.get("buy_phase_only"):
+            place(spec, o)
     # shadow under the south edge of full-height walls, edge strip on platforms
     shadow = bank.scaled("maps/common/wall_shadow.png", (tile_px, max(1, round(tile_px / 4))))
     edge = bank.scaled("maps/common/platform_edge.png", (tile_px, max(1, round(tile_px / 8))))
     for wall in world.walls:
-        if shadow is None or wall.rect in platform_rects or wall.height < 2:
+        if shadow is None or wall.rect in platform_rects or wall.rect in object_rects or wall.height < 2:
             continue
         if wall.rect.y0 <= 0 or wall.rect.x1 <= 0 or wall.rect.x0 >= world.width:
             continue

@@ -18,6 +18,15 @@ class Wall:
     blocks_sight: bool = True
     height: int = 2  # levels; crates have 1 and can be climbed
     material: str = ""  # key in config/materials.py WALLS (decides the tile)
+    buy_phase_only: bool = False  # blocks only during the buy phase (spawn barrier)
+
+
+@dataclass(frozen=True)
+class MapThing:
+    """Placed object or decal: key from config/materials.py, rect in metres, rotation in 90° steps."""
+    key: str
+    rect: Rect
+    rot: int = 0
 
 
 @dataclass(frozen=True)
@@ -48,6 +57,8 @@ class WorldMap:
     callouts: list[tuple[str, Rect]] = field(default_factory=list)
     floor: str = ""  # key in config/materials.py FLOORS for the whole map
     floors: list[tuple[str, Rect]] = field(default_factory=list)  # floor material patches
+    objects: list[MapThing] = field(default_factory=list)
+    decals: list[MapThing] = field(default_factory=list)
 
     def floor_level(self, p: Vec) -> int:
         """Level of the surface under a point (crates count as level 1)."""
@@ -90,6 +101,29 @@ def load_materials() -> tuple[dict[str, dict], dict[str, str]]:
     return dict(_load_py(path, "WALLS") or {}), dict(_load_py(path, "FLOORS") or {})
 
 
+def load_things() -> tuple[dict[str, dict], dict[str, dict]]:
+    """(OBJECTS, DECALS) from config/materials.py; empty if unreadable."""
+    from gameplay.data import ROOT, _load_py
+    path = ROOT / "config" / "materials.py"
+    return dict(_load_py(path, "OBJECTS") or {}), dict(_load_py(path, "DECALS") or {})
+
+
+def _thing(item: dict, table: dict[str, dict], map_key: str) -> MapThing | None:
+    key = str(item.get("key", ""))
+    spec = table.get(key)
+    if spec is None:
+        warnings.warn(f"Map {map_key}: unknown object or decal {key!r}")
+        return None
+    rot = int(item.get("rot", 0)) % 360 // 90 * 90
+    if "rect" in item:
+        return MapThing(key, _rect(item["rect"]), rot)
+    w, h = spec.get("size", (1.0, 1.0))
+    if rot in (90, 270):
+        w, h = h, w
+    x, y = item["pos"]
+    return MapThing(key, Rect(x - w / 2, y - h / 2, x + w / 2, y + h / 2), rot)
+
+
 def _rect(v: list[float]) -> Rect:
     x0, y0, x1, y1 = v
     return Rect(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
@@ -117,6 +151,17 @@ def load_map(key: str) -> WorldMap:
             warnings.warn(f"Map {key}: unknown wall material {mat!r}")
         m.walls.append(Wall(_rect(wl["rect"]), int(wl.get("pen", base.get("pen", 2))), bool(wl.get("sight", base.get("sight", True))),
                             int(wl.get("height", base.get("height", 2))), mat))
+    objects, decals = load_things()
+    for kind, table, target in (("objects", objects, m.objects), ("decals", decals, m.decals)):
+        for item in raw.get(kind, []):
+            thing = _thing(item, table, key)
+            if thing is None:
+                continue
+            target.append(thing)
+            spec = table[thing.key]
+            if kind == "objects" and spec.get("blocks"):
+                m.walls.append(Wall(thing.rect, int(spec.get("pen", 1)), bool(spec.get("sight", True)),
+                                    int(spec.get("height", 2)), "", bool(spec.get("buy_phase_only", False))))
     m.floor = str(raw.get("floor", ""))
     m.floors = [(str(f["mat"]), _rect(f["rect"])) for f in raw.get("floors", [])]
     for b in raw.get("crates", []):

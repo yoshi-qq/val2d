@@ -241,3 +241,24 @@ def test_map_materials_set_wall_properties() -> None:
     glass = [w for w in m.walls if w.material == "glass"]
     assert glass and not glass[0].blocks_sight and glass[0].height == 2 and glass[0].penetration == 0
     assert m.floor == "concrete" and any(mat == "tiles" for mat, _ in m.floors)
+
+
+def test_map_objects_block_and_spawn_barrier_only_in_buy_phase() -> None:
+    m = load_map("gasse")
+    keys = {o.key for o in m.objects}
+    assert {"door", "barrel", "spawn_barrier", "bench"} <= keys and m.decals
+    barrier_walls = [w for w in m.walls if w.buy_phase_only]
+    assert barrier_walls
+    match = Match(m, seed=1)
+    a = match.add_player("A", 0, "kestrel").pid
+    match.add_player("B", 1, "kestrel")
+    match.start()
+    p = match.players[a]
+    p.pos = Vec(12, 4.0)
+    for _ in range(64):
+        match.tick(1 / 64, {a: Command(facing=0.0, move_y=1.0)})
+    assert p.pos.y < 4.7  # held back by the barrier during the buy phase
+    match.phase, match.phase_until = "live", match.time + 90
+    for _ in range(64):
+        match.tick(1 / 64, {a: Command(facing=0.0, move_y=1.0)})
+    assert p.pos.y > 5.5
