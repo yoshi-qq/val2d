@@ -83,7 +83,10 @@ def build() -> str:
             img(f"{a}_dead.png", 5, "Dead"),
             anim(f"{a}_shoot.png", 2, 5, "Shoot", 12),
             anim(f"{a}_reload.png", 4, 5, "Reload", 6),
-            anim(f"{a}_cast.png", 3, 5, "Cast ability"),
+            anim(f"{a}_cast_c.png", 3, 5, "Ability C"),
+            anim(f"{a}_cast_q.png", 3, 5, "Ability Q"),
+            anim(f"{a}_cast_e.png", 3, 5, "Ability E"),
+            anim(f"{a}_cast_x.png", 5, 5, "Ultimate X"),
             img(f"{a}_idle_feind.png", 5, "As enemy"),
             anim(f"{a}_walk_feind.png", 4, 5, "Enemy walking"),
         ]))
