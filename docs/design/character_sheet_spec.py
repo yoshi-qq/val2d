@@ -1,6 +1,8 @@
 """Single source for the character sprite sheet blueprint (docs/design/CHARACTER_SHEETS.md).
 
 Every state is one Aseprite tag and one exported strip assets/agents/{key}/{key}_{state}.png.
+play.py reads STATES at start: keep the State fields tag, fps, loop and fallback stable
+(add new states or fields, but don't rename or remove them without telling the coding session).
 """
 from __future__ import annotations
 
