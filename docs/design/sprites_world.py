@@ -103,44 +103,43 @@ def make_menu() -> None:
 
 
 def make_title_background() -> None:
-    """480x270 menu background: an abstract top-down yard at night, original."""
-    rng = random.Random(5)
+    """480x270 menu background: the Workyard at night, built from the real tiles, two own agents in a view cone."""
     w, h = 480, 270
+    A = base.ASSETS
+    tile = lambda rel: Image.open(A / rel).convert("RGBA")  # noqa: E731
+    floor, wall, thin = tile("maps/werkhof/boden_stein.png"), tile("maps/werkhof/wand.png"), tile("maps/werkhof/wand_duenn.png")
+    crate, wood = tile("maps/werkhof/kiste_metall.png"), tile("maps/wood_box.png")
+    shadow, site = tile("maps/common/wall_shadow.png"), tile("maps/common/decals/site_a.png")
     im = Image.new("RGBA", (w, h), hexc("#16151c"))
-    p = im.load()
     for y in range(0, h, 32):
         for x in range(0, w, 32):
-            tone = rng.choice((0, 2, 4))
-            rect(im, x, y, x + 31, y + 31, (26 + tone, 25 + tone, 33 + tone, 255))
-            for i in range(32):
-                if x + i < w and y < h:
-                    p[x + i, y] = (31, 30, 39, 255)
-                if y + i < h and x < w:
-                    p[x, y + i] = (31, 30, 39, 255)
-    for _ in range(9):  # walls
-        x, y = rng.randrange(0, w - 120), rng.randrange(0, h - 20)
-        horizontal = rng.random() < 0.6
-        x1, y1 = (x + rng.randrange(60, 160), y + 7) if horizontal else (x + 7, y + rng.randrange(40, 110))
-        rect(im, x, y, x1, y1, "#3a3743")
-        rect(im, x, y, x1, y, "#4b4855")
-    for _ in range(14):  # crates
-        x, y = rng.randrange(0, w - 16), rng.randrange(0, h - 16)
-        rect(im, x, y, x + 15, y + 15, "#2b3c45")
-        rect(im, x + 1, y + 1, x + 14, y + 14, "#36505c")
-        rect(im, x + 1, y + 1, x + 14, y + 1, "#4d6a77")
-    cx, cy = 330, 240  # view cone, teal and faint
+            im.alpha_composite(floor, (x, y))
+    for x in list(range(0, 160, 32)) + list(range(256, 416, 32)):  # wall row with a gap
+        im.alpha_composite(wall, (x, 64))
+        im.alpha_composite(shadow, (x, 96))
+    for y in (128, 160):
+        im.alpha_composite(thin, (416, y))
+    for x, y in ((96, 192), (352, 160), (192, 0)):
+        im.alpha_composite(crate, (x, y))
+    im.alpha_composite(wood, (128, 192))
+    big_site = site.resize((32, 32), Image.NEAREST)
+    im.alpha_composite(big_site, (240, 192))
+    me = tile("agents/kestrel/kestrel_idle.png").crop((0, 0, 16, 32))
+    enemy = tile("agents/marrow/marrow_idle_feind.png").crop((0, 0, 16, 32))
+    im.alpha_composite(me, (322, 222))
+    im.alpha_composite(enemy, (310, 116))
+    p_ = im.load()
+    cx, cy = 330, 238
     for y in range(h):
         for x in range(w):
+            r, g, b, a = p_[x, y]
             dx, dy = x - cx, cy - y
-            if dy > 0 and abs(math.atan2(dx, dy)) < 0.75 and math.hypot(dx, dy) < 230:
-                r, g, b, a = p[x, y]
-                f = 1 - math.hypot(dx, dy) / 230
-                p[x, y] = (int(r + (79 - r) * 0.10 * f), int(g + (214 - g) * 0.10 * f), int(b + (200 - b) * 0.10 * f), 255)
-    for y in range(h):  # vignette on the left for the menu buttons
-        for x in range(0, 200):
-            r, g, b, a = p[x, y]
-            f = 0.55 + 0.45 * x / 200
-            p[x, y] = (int(r * f), int(g * f), int(b * f), 255)
+            in_cone = dy > 0 and abs(math.atan2(dx, dy)) < 0.9 and math.hypot(dx, dy) < 260
+            f = 0.62 if in_cone else 0.26  # night: everything dark, the cone brighter
+            if in_cone:
+                f += 0.18 * (1 - math.hypot(dx, dy) / 260)
+            f *= 0.55 + 0.45 * min(1.0, x / 220)  # darker on the left for the menu buttons
+            p_[x, y] = (int(r * f + 6), int(g * f + 6), int(b * f + 12), 255)
     save(im, "ui/menu/title_background.png")
 
 

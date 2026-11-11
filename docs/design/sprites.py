@@ -304,10 +304,10 @@ def make_weapons() -> None:
 # ------------------------------------------------------------------ tiles
 def make_tiles() -> None:
     rng = random.Random(11)
-    base = hexc("#c4ae88")
+    base = hexc("#a99c84")
     stone = Image.new("RGBA", (32, 32), base)
     px = stone.load()
-    tones = [[rng.uniform(-10, 10) for _ in range(2)] for _ in range(2)]
+    tones = [[rng.uniform(-5, 5) for _ in range(2)] for _ in range(2)]
     for row in range(2):
         off = 8 if row else 0
         for i in range(-1, 3):
@@ -317,11 +317,11 @@ def make_tiles() -> None:
                     if 0 <= x < 32:
                         c = tuple(int(max(0, min(255, b + v))) for b in base[:3]) + (255,)
                         if y == sy or x == sx:
-                            c = lighter(c, 0.12)  # type: ignore[arg-type]
+                            c = lighter(c, 0.06)  # type: ignore[arg-type]
                         if y == sy + 15 or x == sx + 15:
-                            c = darker(c, 0.78)  # type: ignore[arg-type]
+                            c = darker(c, 0.88)  # type: ignore[arg-type]
                         px[x, y] = c
-    for _ in range(16):
+    for _ in range(8):
         x, y = rng.randrange(32), rng.randrange(32)
         px[x, y] = darker(px[x, y], 0.88) if rng.random() < 0.5 else lighter(px[x, y], 0.1)
     save(stone, "maps/werkhof/boden_stein.png")

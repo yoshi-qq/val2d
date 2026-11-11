@@ -62,11 +62,11 @@ SPECS: dict[str, dict] = {
     "sirene":   {"kind": "long", "L": 48, "B": 10, "stock": "wire", "mag": "stick", "accent": "#4f6b73", "vents": True},
     "brecher":  {"kind": "long", "L": 58, "B": 22, "stock": "full", "mag": "pump", "accent": "#7a5233"},
     "faecher":  {"kind": "long", "L": 56, "B": 16, "stock": "full", "mag": "box", "accent": "#a8521f", "vents": True},
-    "falke":    {"kind": "long", "L": 56, "B": 14, "stock": "full", "mag": "curve", "accent": "#5b6b3a", "vents": True},
-    "lanze":    {"kind": "long", "L": 60, "B": 16, "stock": "full", "mag": "box", "accent": "#5b6b3a", "scope": 18},
-    "speer":    {"kind": "long", "L": 60, "B": 12, "stock": "full", "mag": "curve", "accent": "#36454c", "silencer": 12, "vents": True},
-    "hammer":   {"kind": "long", "L": 58, "B": 14, "stock": "full", "mag": "curve", "accent": "#7a5233"},
-    "heron":    {"kind": "long", "L": 58, "B": 14, "stock": "full", "mag": "curve", "accent": "#5a6b7a", "scope": 11, "vents": True},
+    "falke":    {"kind": "long", "L": 56, "B": 14, "stock": "full", "mag": "curve", "accent": "#5b6b3a", "vents": True, "carry_handle": True},
+    "lanze":    {"kind": "long", "L": 60, "B": 16, "stock": "thumbhole", "mag": "box", "accent": "#5b6b3a", "scope": 18},
+    "speer":    {"kind": "long", "L": 60, "B": 12, "stock": "none", "mag": "curve", "accent": "#36454c", "silencer": 12, "bullpup": True},
+    "hammer":   {"kind": "long", "L": 58, "B": 14, "stock": "full", "mag": "curve", "accent": "#7a5233", "wood_guard": True, "sloped": True},
+    "heron":    {"kind": "long", "L": 58, "B": 14, "stock": "skeleton", "mag": "curve", "accent": "#5a6b7a", "scope": 11, "vents": True},
     "elster":   {"kind": "long", "L": 60, "B": 20, "stock": "full", "mag": "box_small", "accent": "#4f6b73", "scope": 18, "bolt": True},
     "crane":    {"kind": "long", "L": 62, "B": 24, "stock": "full", "mag": "none", "accent": "#6b4a2e", "scope": 16, "double": True},
     "adler":    {"kind": "long", "L": 64, "B": 22, "stock": "full", "mag": "box", "accent": "#3e4a3a", "scope": 22, "bipod": True, "brake": True},
@@ -85,6 +85,16 @@ def draw_long(d: ImageDraw.ImageDraw, s: dict) -> None:
         d.polygon([(x0, 8), (x0 + 12, 8), (x0 + 13, 15), (x0 + 6, 15), (x0, 18)], fill=2)
         d.rectangle((x0, 8, x0 + 1, 18), fill=3)
         rx = x0 + 12
+    elif stock == "thumbhole":
+        d.polygon([(x0, 8), (x0 + 14, 8), (x0 + 15, 16), (x0 + 6, 16), (x0, 18)], fill=2)
+        d.rectangle((x0, 8, x0 + 1, 18), fill=3)
+        d.ellipse((x0 + 7, 10, x0 + 11, 13), fill=0)
+        rx = x0 + 14
+    elif stock == "skeleton":
+        d.line([(x0 + 1, 8), (x0 + 12, 8)], fill=2, width=2)
+        d.line([(x0 + 1, 17), (x0 + 12, 14)], fill=2, width=2)
+        d.rectangle((x0, 8, x0 + 2, 18), fill=3)
+        rx = x0 + 12
     elif stock == "wire":
         d.line([(x0 + 1, 9), (x0 + 10, 9)], fill=3, width=2)
         d.line([(x0 + 1, 15), (x0 + 10, 13)], fill=3, width=2)
@@ -92,8 +102,31 @@ def draw_long(d: ImageDraw.ImageDraw, s: dict) -> None:
         rx = x0 + 10
     else:
         rx = x0
+    if s.get("bullpup"):
+        d.rectangle((x0, 7, x0 + 1, 16), fill=3)  # butt pad
+        d.rectangle((x0 + 2, 7, body_end, 16), fill=2)  # long one-piece body in the accent colour
+        d.rectangle((x0 + 2, 7, body_end, 9), fill=1)
+        d.rectangle((x0 + 6, 16, x0 + 10, 22), fill=1)  # magazine behind the grip
+        gx2 = x0 + 24
+        d.polygon([(gx2, 16), (gx2 + 5, 16), (gx2 + 3, 22), (gx2 - 2, 22)], fill=3)
+        d.arc((gx2 + 4, 13, gx2 + 11, 20), 0, 180, fill=3, width=1)
+        d.rectangle((x0 + 8, 4, body_end - 2, 6), fill=3)  # rail on top
+        d.rectangle((body_end, 9, end, 11), fill=3)
+        n = s.get("silencer", 0)
+        if n:
+            d.rectangle((end - n + 1, 8, end, 12), fill=3)
+            for x in range(end - n + 3, end, 3):
+                d.line([(x, 8), (x, 12)], fill=1)
+        return
     # receiver and top rail
     d.rectangle((rx, 7, body_end, 14), fill=1)
+    if s.get("sloped"):
+        d.polygon([(body_end - 6, 7), (body_end, 7), (body_end, 10)], fill=0)
+    if s.get("carry_handle"):
+        hx = rx + 4
+        d.rectangle((hx, 2, hx + 12, 3), fill=1)
+        d.rectangle((hx, 3, hx + 1, 6), fill=1)
+        d.rectangle((hx + 11, 3, hx + 12, 6), fill=1)
     d.rectangle((rx + 2, 5, body_end - 2, 6), fill=3)
     for x in range(rx + 3, body_end - 2, 3):
         d.point((x, 5), fill=1)
@@ -103,6 +136,9 @@ def draw_long(d: ImageDraw.ImageDraw, s: dict) -> None:
     if s.get("double"):
         d.rectangle((body_end, 12, end, 14), fill=3)
         d.ellipse((body_end - 2, 10, body_end + 2, 14), fill=5)
+    if s.get("wood_guard"):
+        d.rectangle((body_end, 8, body_end + B // 2 + 2, 13), fill=2)
+        d.rectangle((body_end + B // 2 + 1, 6, body_end + B // 2 + 2, 8), fill=3)
     if s.get("vents") or s.get("foregrip"):
         hg_end = body_end + max(4, B // 2)
         d.rectangle((body_end, 8, hg_end, 13), fill=1)
