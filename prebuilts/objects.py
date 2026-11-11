@@ -22,7 +22,7 @@ boxes: list[SpecificObject] = [
 ]
 cylinders: list[SpecificObject] = []
 stairs: list[SpecificObject] = [
-    Stair(sprite="wood_stair", size=Position(2, 4, 2), penetrationLevel=PenetrationLevel.MEDIUM)
+    Stair(sprite="wood_stairs", size=Position(2, 4, 2), penetrationLevel=PenetrationLevel.MEDIUM)
 ]
 decorations: list[SpecificObject] = []
 breakableDoors: list[SpecificObject] = []
