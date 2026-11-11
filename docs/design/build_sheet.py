@@ -82,15 +82,15 @@ def build() -> str:
         ("kiste_metall.png", "Metal crate"), ("plattform.png", "Platform"), ("rampe.png", "Ramp"),
         ("platz_rand.png", "Site border"))]))
     fx = "assets/fx/"
-    parts.append(section("Spike and effects", "", [
-        anim(fx + "spike.png", 2, 6, "Spike blinking", 4), anim(fx + "muendung.png", 3, 10, "Muzzle flash", 15),
+    parts.append(section("Bomb and effects", "", [
+        anim(fx + "spike.png", 2, 6, "Bomb blinking", 4), anim(fx + "muendung.png", 3, 10, "Muzzle flash", 15),
         img(fx + "dunst.png", 3, "Smoke"), img(fx + "bann.png", 3, "Slow field"), img(fx + "schleier.png", 6, "Vapor wall segment"),
         img(fx + "funke.png", 6, "Flash"), img(fx + "lauscher.png", 10, "Sensor")]))
     parts.append(section("Effect animations", "", [
         anim(fx + "dunst_aufbau.png", 4, 2, "Smoke forming"), anim(fx + "bann_puls.png", 3, 2, "Slow field pulse", 4),
         anim(fx + "lauscher_puls.png", 3, 3, "Sensor pulse", 6), anim(fx + "funke_explosion.png", 3, 6, "Flash going off", 10),
         anim(fx + "gleiten_spur.png", 3, 4, "Dash trail", 12), anim(fx + "satz_staub.png", 3, 6, "Hop dust", 10),
-        anim(fx + "schleier_aufbau.png", 3, 6, "Vapor wall forming"), anim(fx + "spike_explosion.png", 6, 2, "Spike explosion", 10),
+        anim(fx + "schleier_aufbau.png", 3, 6, "Vapor wall forming"), anim(fx + "spike_explosion.png", 6, 2, "Bomb explosion", 10),
         anim(fx + "einschlag_wand.png", 3, 10, "Wall impact", 15), anim(fx + "treffer_koerper.png", 3, 10, "Body hit", 15)]))
     icons = []
     for key in ("kestrel", "marrow"):
@@ -102,18 +102,18 @@ def build() -> str:
     hud = "assets/ui/hud/"
     parts.append(section("HUD", "icons 8×8, frames 12×12 nine-slice, bars 48×6", [img(hud + f, 8 if f.endswith(("rahmen.png", "rahmen_aktiv.png")) or len(f) < 16 else 4, l) for f, l in (
         ("leben.png", "Health"), ("schild.png", "Shield"), ("credits.png", "Credits"), ("munition.png", "Ammo"),
-        ("kopfschuss.png", "Headshot (kill feed)"), ("spike_klein.png", "Spike (HUD)"), ("uhr.png", "Round timer"),
+        ("kopfschuss.png", "Headshot (kill feed)"), ("spike_klein.png", "Bomb (HUD)"), ("uhr.png", "Round timer"),
         ("tot.png", "Eliminated"), ("rahmen.png", "Frame"), ("rahmen_aktiv.png", "Frame selected"),
         ("balken_leben.png", "Health bar"), ("balken_schild.png", "Shield bar"),
         ("balken_fortschritt.png", "Plant/defuse bar"), ("balken_leer.png", "Empty bar"))]))
     mm = "assets/ui/minimap/"
     parts.append(section("Minimap", "8×8", [img(mm + f"{k}.png", 8, l) for k, l in (
-        ("selbst", "You"), ("verbuendet", "Ally"), ("feind", "Enemy"), ("tot", "Eliminated"), ("spike", "Spike"),
+        ("selbst", "You"), ("verbuendet", "Ally"), ("feind", "Enemy"), ("tot", "Eliminated"), ("spike", "Bomb"),
         ("dunst", "Smoke"), ("bann", "Slow field"), ("schleier", "Vapor wall"))]))
     bn = "assets/ui/banner/"
     parts.append(section("Round banners", "height 21 px, own 5×7 pixel font", [img(bn + f"{k}.png", 3, l) for k, l in (
         ("sieg", "Victory"), ("niederlage", "Defeat"), ("seitenwechsel", "Switching sides"),
-        ("spike_gelegt", "Spike planted"), ("entschaerft", "Spike defused"), ("verlaengerung", "Overtime"))]))
+        ("spike_gelegt", "Bomb planted"), ("entschaerft", "Bomb defused"), ("verlaengerung", "Overtime"))]))
     logo = section("Logo", "chosen: crosshair; replaces the former Riot logo", [
         img("assets/logo.png", 4, "Logo 48×48"), img("assets/menu/lobby/playercard.png", 2, "Player card"),
         img("assets/logo.png", 1, "Actual size")])

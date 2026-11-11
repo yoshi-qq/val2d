@@ -556,6 +556,7 @@ MINIMAP: dict[str, tuple[list[str], dict[str, str]]] = {
 FONT5: dict[str, list[str]] = {
     "A": [".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
     "Ä": [".#.#.", ".....", ".###.", "#...#", "#####", "#...#", "#...#"],
+    "B": ["####.", "#...#", "#...#", "####.", "#...#", "#...#", "####."],
     "C": [".####", "#....", "#....", "#....", "#....", "#....", ".####"],
     "D": ["####.", "#...#", "#...#", "#...#", "#...#", "#...#", "####."],
     "E": ["#####", "#....", "#....", "####.", "#....", "#....", "#####"],
@@ -583,8 +584,8 @@ BANNERS = {
     "sieg": ("VICTORY", "#4fd6c8"),
     "niederlage": ("DEFEAT", "#ee4c4a"),
     "seitenwechsel": ("SWITCHING SIDES", "#e0b437"),
-    "spike_gelegt": ("SPIKE PLANTED", "#ee4c4a"),
-    "entschaerft": ("SPIKE DEFUSED", "#4fd6c8"),
+    "spike_gelegt": ("BOMB PLANTED", "#ee4c4a"),
+    "entschaerft": ("BOMB DEFUSED", "#4fd6c8"),
     "verlaengerung": ("OVERTIME", "#e0b437"),
 }
 
