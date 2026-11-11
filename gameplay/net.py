@@ -165,6 +165,8 @@ class Host:
                     cmd = command_from_json(msg.get("cmd", {}))
                     with self.lock:
                         self.pending[pid] = merge_commands(self.pending.get(pid), cmd)
+                elif msg.get("type") == "agent":
+                    self.choose_agent(pid, msg.get("agent"))
         except (OSError, ValueError, json.JSONDecodeError) as exc:
             warnings.warn(f"Connection to {addr[0]} closed: {exc}")
         finally:
@@ -179,6 +181,15 @@ class Host:
                 conn.close()
             except OSError:
                 pass
+
+    def choose_agent(self, pid: int, agent: object) -> bool:
+        """Agent change, only in the lobby and only to a known agent."""
+        with self.lock:
+            p = self.match.players.get(pid)
+            if p is None or self.match.phase != "lobby" or not isinstance(agent, str) or agent not in self.match.agents:
+                return False
+            p.agent = agent
+            return True
 
     def take_commands(self) -> dict[int, Command]:
         with self.lock:
@@ -287,6 +298,13 @@ class Client:
     def send(self, cmd: Command) -> None:
         try:
             send_msg(self.sock, {"type": "cmd", "cmd": asdict(cmd)})
+        except OSError as exc:
+            warnings.warn(f"Sending failed: {exc}")
+            self.connected = False
+
+    def choose_agent(self, agent: str) -> None:
+        try:
+            send_msg(self.sock, {"type": "agent", "agent": agent})
         except OSError as exc:
             warnings.warn(f"Sending failed: {exc}")
             self.connected = False

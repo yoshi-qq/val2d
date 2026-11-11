@@ -125,3 +125,19 @@ def test_fill_bots_balances_teams(session: HostSession) -> None:
     session.start(team_size=3)
     assert session.team_counts() == [3, 3]
     assert session.match.phase == "buy"
+
+
+def test_client_picks_agent_in_lobby_only(session: HostSession) -> None:
+    client = Client("127.0.0.1", session.net.port, "Guest", "kestrel")
+    try:
+        _wait(lambda: client.pid in session.match.players, session)
+        client.choose_agent("sable")
+        _wait(lambda: session.match.players[client.pid].agent == "sable", session)
+        client.choose_agent("not-an-agent")
+        session.start(team_size=1)
+        client.choose_agent("rook")
+        for _ in range(20):
+            session.step(1 / 64)
+        assert session.match.players[client.pid].agent == "sable"
+    finally:
+        client.close()

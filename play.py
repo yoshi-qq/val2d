@@ -71,7 +71,7 @@ class UiState:
     show_scores: bool = False
     tracers: list[Tracer] = field(default_factory=list)
     rings: list[Ring] = field(default_factory=list)
-    feed: list[tuple[float, str]] = field(default_factory=list)
+    feed: list[tuple[float, str, str | None, str | None, bool]] = field(default_factory=list)  # until, text, killer agent, victim agent, head
     banner: tuple[float, str] = (0.0, "")
     hit_marker: float = 0.0
     last_shot: dict[int, float] = field(default_factory=dict)
@@ -185,11 +185,11 @@ class Game:
         self.sens = base.player.sensitivity
         self.camera_push = base.player.camera_push
         self.clock = pygame.time.Clock()
-        self.grab(True)
-        if self.mode == "local":
-            self.match.start()
+        self.grab(False)
+        self.agent_cards: list[tuple[pygame.Rect, str]] = []
 
     def grab(self, on: bool) -> None:
+        self.grabbed = on
         pygame.event.set_grab(on)
         pygame.mouse.set_visible(not on)
         pygame.mouse.get_rel()
@@ -207,8 +207,11 @@ class Game:
                 if ev.type == pygame.QUIT or (ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE):
                     running = False
                 elif ev.type == pygame.KEYDOWN:
-                    if ev.key == pygame.K_RETURN and self.session and not self.session.started:
-                        self.session.start(self.team_size)
+                    if ev.key == pygame.K_RETURN and self.match.phase == "lobby":
+                        if self.session:
+                            self.session.start(self.team_size)
+                        elif self.mode == "local":
+                            self.match.start()
                     elif ev.key == pygame.K_b:
                         self.ui.buy_open = not self.ui.buy_open
                         self.grab(not self.ui.buy_open)
@@ -216,6 +219,8 @@ class Game:
                         cmd.slot = {pygame.K_1: "primary", pygame.K_2: "sidearm", pygame.K_3: "melee"}[ev.key]
                     elif ev.key == pygame.K_r:
                         cmd.reload = True
+                elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1 and self.match.phase == "lobby":
+                    self.pick_agent_at(ev.pos)
                 elif ev.type == pygame.MOUSEBUTTONDOWN and self.ui.buy_open and ev.button == 1:
                     item = self.buy_item_at(ev.pos)
                     if item:
@@ -241,6 +246,8 @@ class Game:
                 if keys[key]:
                     cmd.ability = ab
             events = self.step(dt, cmd)
+            if self.match.phase != "lobby" and not self.grabbed and not self.ui.buy_open:
+                self.grab(True)
             if self.match.round_no != self.seen_round and self.me in self.match.players:
                 self.seen_round = self.match.round_no  # new round: take the facing from the spawn
                 self.local_facing = self.match.players[self.me].facing
@@ -300,7 +307,8 @@ class Game:
                 killer = m.players.get(d["by"]) if d["by"] else None
                 victim = m.players.get(d["pid"])
                 by = killer.name if killer else "Bomb"
-                self.ui.feed.append((t + 5, f"{by} → {victim.name if victim else '?'}{' (head)' if d['head'] else ''}"))
+                self.ui.feed.append((t + 5, f"{by} → {victim.name if victim else '?'}", killer.agent if killer else None,
+                                     victim.agent if victim else None, bool(d["head"])))
                 self.sound.play("kill", None, None)
             elif e.kind == "plant":
                 self.ui.banner = (t + 2.5, f"Bomb planted on {d['site']}")
@@ -310,7 +318,7 @@ class Game:
                 self.ui.blasts.append((Vec(*d["pos"]), float(d["radius"]), t))
             elif e.kind == "revive":
                 revived = m.players.get(d["pid"])
-                self.ui.feed.append((t + 4, f"{revived.name if revived else '?'} revived"))
+                self.ui.feed.append((t + 4, f"{revived.name if revived else '?'} revived", None, revived.agent if revived else None, False))
             elif e.kind == "ability" and d.get("kind") == "wave":
                 self.ui.last_cast[d["pid"]] = (t, str(d.get("key", "C")))
                 self.ui.waves.append((d["pid"], Vec(*d["pos"]), t))
@@ -665,26 +673,95 @@ class Game:
             mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
             s.blit(rotated, (mid[0] - rotated.get_width() / 2, mid[1] - rotated.get_height() / 2))
 
+    def pick_agent_at(self, pos: tuple[int, int]) -> None:
+        for rect, key in self.agent_cards:
+            if rect.collidepoint(pos):
+                if self.client:
+                    self.client.choose_agent(key)
+                elif self.session:
+                    self.session.net.choose_agent(self.me, key)
+                elif self.me in self.match.players:
+                    self.match.players[self.me].agent = key
+                return
+
     def draw_lobby(self) -> None:
         s = self.screen
         s.fill(C_BG)
-        title = {"host": "Lobby – you are the host", "client": "Lobby – joined"}.get(self.mode, "Lobby")
-        self.text(title, (self.w / 2, 80), C_TEXT, big=True, center=True)
-        self.text(f"Map {self.match.world.name}", (self.w / 2, 130), C_MUTED, center=True)
-        y = 190
-        for team in (0, 1):
-            self.text(f"Team {team + 1}", (self.w / 2 - 300 + team * 340, y), C_ALLY if team == 0 else C_ENEMY)
-            row = y + 34
-            for p in (p for p in self.match.players.values() if p.team == team):
-                self.text(f"{p.name}  ({self.match.agents.get(p.agent, {}).get('name', p.agent)})", (self.w / 2 - 300 + team * 340, row))
-                row += 26
+        title = {"host": "Lobby – you are the host", "client": "Lobby – joined"}.get(self.mode, "Choose your agent")
+        self.text(title, (self.w / 2, 30), C_TEXT, big=True, center=True)
+        self.text(f"Map {self.match.world.name}", (self.w / 2, 72), C_MUTED, center=True)
+        mine = self.match.players.get(self.me)
+        self.agent_cards = []
+        keys = list(self.match.agents)
+        card_w, card_h, gap = 104, 196, 12
+        per_row = max(1, min(len(keys), (self.w - 80) // (card_w + gap)))
+        left = (self.w - per_row * (card_w + gap) + gap) / 2
+        mouse = pygame.mouse.get_pos()
+        for i, key in enumerate(keys):
+            rect = pygame.Rect(left + (i % per_row) * (card_w + gap), 104 + (i // per_row) * (card_h + gap), card_w, card_h)
+            self.agent_cards.append((rect, key))
+            chosen = mine is not None and mine.agent == key
+            frame = "ui/hud/rahmen_aktiv.png" if chosen else "ui/hud/rahmen.png"
+            self.nine_slice(frame, rect) if self.bank.raw(frame) else pygame.draw.rect(s, C_SITE if chosen else C_MUTED, rect, 1)
+            if rect.collidepoint(mouse) and not chosen:
+                pygame.draw.rect(s, C_TEXT, rect, 1)
+            pic = self.bank.scaled(f"agents/{key}/{key}_select.png", (64, 128)) or self.bank.scaled(f"agents/{key}/{key}_portrait.png", (64, 64))
+            if pic is not None:
+                s.blit(pic, (rect.centerx - pic.get_width() / 2, rect.y + 10))
+            agent = self.match.agents[key]
+            self.text(agent["name"], (rect.centerx, rect.bottom - 48), C_SITE if chosen else C_TEXT, center=True)
+            self.text(agent.get("role", ""), (rect.centerx, rect.bottom - 26), C_MUTED, center=True)
+        y = 104 + ((len(keys) - 1) // per_row + 1) * (card_h + gap) + 6
+        if mine is not None:
+            abil = self.match.agents.get(mine.agent, {}).get("abilities", {})
+            x = self.w / 2 - 2 * 230
+            for k in ("C", "Q", "E", "X"):
+                ab = abil.get(k, {})
+                icon = self.bank.scaled(f"ui/faehigkeit_{mine.agent}_{k}.png", (32, 32))
+                if icon is not None:
+                    s.blit(icon, (x, y))
+                self.text(f"{k} {ab.get('name', '')}", (x + 40, y + 2), C_TEXT)
+                self.text(str(ab.get("kind", "")), (x + 40, y + 22), C_MUTED)
+                x += 230
+            y += 64
+        if self.mode != "local":
+            for team in (0, 1):
+                row = y
+                self.text(f"Team {team + 1}", (self.w / 2 - 300 + team * 340, row), C_ALLY if team == 0 else C_ENEMY)
+                for p in (p for p in self.match.players.values() if p.team == team):
+                    row += 24
+                    self.text(f"{p.name}  ({self.match.agents.get(p.agent, {}).get('name', p.agent)})", (self.w / 2 - 300 + team * 340, row))
         if self.mode == "host":
-            hint = f"Enter starts · bots fill free slots up to {self.team_size} per team · port {self.session.net.port if self.session else ''}"
+            hint = f"Click an agent · Enter starts · bots fill free slots up to {self.team_size} per team · port {self.session.net.port if self.session else ''}"
+        elif self.mode == "local":
+            hint = f"Click an agent · Enter starts ({self.team_size} vs {self.team_size} with bots)"
         else:
-            hint = "Waiting for the host to start …"
+            hint = "Click an agent · waiting for the host to start …"
         self.text(hint, (self.w / 2, self.h - 90), C_SITE, center=True)
         if self.status:
             self.text(self.status, (self.w / 2, self.h - 60), C_ENEMY, center=True)
+
+    def nine_slice(self, rel: str, rect: pygame.Rect, corner: int = 4) -> None:
+        """Draws a 9-slice frame (corners 4 px in the file) scaled to whole pixels."""
+        img = self.bank.raw(rel)
+        if img is None:
+            return
+        k = 2  # display scale of the frame pixels
+        w, h = img.get_size()
+        c = corner
+        dst_c = c * k
+        parts = [((0, 0, c, c), (rect.x, rect.y, dst_c, dst_c)),
+                 ((w - c, 0, c, c), (rect.right - dst_c, rect.y, dst_c, dst_c)),
+                 ((0, h - c, c, c), (rect.x, rect.bottom - dst_c, dst_c, dst_c)),
+                 ((w - c, h - c, c, c), (rect.right - dst_c, rect.bottom - dst_c, dst_c, dst_c)),
+                 ((c, 0, w - 2 * c, c), (rect.x + dst_c, rect.y, rect.w - 2 * dst_c, dst_c)),
+                 ((c, h - c, w - 2 * c, c), (rect.x + dst_c, rect.bottom - dst_c, rect.w - 2 * dst_c, dst_c)),
+                 ((0, c, c, h - 2 * c), (rect.x, rect.y + dst_c, dst_c, rect.h - 2 * dst_c)),
+                 ((w - c, c, c, h - 2 * c), (rect.right - dst_c, rect.y + dst_c, dst_c, rect.h - 2 * dst_c)),
+                 ((c, c, w - 2 * c, h - 2 * c), (rect.x + dst_c, rect.y + dst_c, rect.w - 2 * dst_c, rect.h - 2 * dst_c))]
+        for src, dst in parts:
+            if dst[2] > 0 and dst[3] > 0:
+                self.screen.blit(pygame.transform.scale(img.subsurface(src), (dst[2], dst[3])), (dst[0], dst[1]))
 
     def draw_crosshair(self, me: PlayerState) -> None:
         cx, cy = self.to_screen(me.pos + heading(me.facing) * self.cursor_depth, me)
@@ -754,12 +831,20 @@ class Game:
             pygame.draw.rect(self.screen, C_MUTED, (self.w / 2 - 100, self.h / 2 + 60, 200, 10), 1)
             pygame.draw.rect(self.screen, C_SITE, (self.w / 2 - 100, self.h / 2 + 60, 200 * min(prog, 1), 10))
         y = 90
-        for until, msg in list(self.ui.feed):
-            if m.time > until:
-                self.ui.feed.remove((until, msg))
-                continue
-            self.text(msg, (self.w - 360, y))
-            y += 22
+        self.ui.feed = [f for f in self.ui.feed if m.time <= f[0]]
+        for _, msg, killer, victim, head in self.ui.feed:
+            x = self.w - 420
+            for agent in (killer, victim):
+                icon = self.bank.scaled(f"agents/{agent}/{agent}_killfeed.png", (24, 24)) if agent else None
+                if icon is not None:
+                    self.screen.blit(icon, (x, y - 2))
+                x += 28
+            self.text(msg, (x + 4, y))
+            if head:
+                mark = self.bank.scaled("ui/hud/kopfschuss.png", (16, 16))
+                if mark is not None:
+                    self.screen.blit(mark, (x + 8 + self.font.size(msg)[0], y + 2))
+            y += 28
         if self.status:
             self.text(self.status, (self.w / 2, self.h / 2 - 110), C_ENEMY, center=True)
         if m.time < self.ui.banner[0]:
