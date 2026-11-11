@@ -61,7 +61,7 @@ def test_buy_phase_then_live() -> None:
     m, a, _ = duel()
     assert m.phase == "buy"
     assert m.buy(m.players[a], "hornisse")
-    assert m.players[a].credits == 800 - 150
+    assert m.players[a].credits == 800 - m.weapons["hornisse"].price
     run(m, 31)
     assert m.phase == "live"
 
@@ -209,3 +209,28 @@ def test_bot_match_runs_to_end() -> None:
             break
     assert m.phase == "over"
     assert max(m.score) == 3
+
+
+def test_weapons_come_from_python_config() -> None:
+    weapons = load_weapons()
+    assert len([w for w in weapons.values() if w.slot != "melee"]) == 20
+    assert weapons["heron"].mag == 18 and weapons["heron"].price == 2900
+    assert weapons["walze"].rate_ramp is not None
+
+
+def test_rate_ramp_speeds_up_held_fire() -> None:
+    m, a, _ = duel()
+    run(m, 31)
+    p = m.players[a]
+    p.weapons["primary"] = m._new_weapon("walze")
+    p.slot = "primary"
+    p.equip_until = 0.0
+    shots_early = shots_late = 0
+    for i in range(int(3.0 * 64)):
+        events = m.tick(1 / 64, {a: Command(facing=180.0, fire=True)})
+        fired = sum(1 for e in events if e.kind == "shot")
+        if i < 32:
+            shots_early += fired
+        elif i >= 128:
+            shots_late += fired
+    assert shots_late > shots_early * 1.2

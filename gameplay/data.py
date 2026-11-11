@@ -11,6 +11,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(__file__).resolve().parent / "data"
 CONFIG_PATH = ROOT / "config" / "game_config.json"
+WEAPONS_PATH = ROOT / "config" / "weapons.py"
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -19,6 +20,16 @@ def _load_json(path: Path) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError) as exc:
         warnings.warn(f"{path.name} unreadable ({exc}); defaults apply.")
         return {}
+
+
+def _load_py(path: Path, name: str) -> Any:
+    """Reads a variable from a Python config file (config/*.py). Errors warn and give None."""
+    import runpy
+    try:
+        return runpy.run_path(str(path)).get(name)
+    except Exception as exc:  # a broken config file must not crash the game
+        warnings.warn(f"{path.name} unreadable ({exc}); {name} empty.")
+        return None
 
 
 @dataclass(frozen=True)
@@ -45,6 +56,7 @@ class WeaponDef:
     spray_recovery: float
     burst: bool = False
     silenced: bool = False
+    rate_ramp: tuple[float, float] | None = None  # (max_rate, seconds of held fire to reach it)
 
     def damage_at(self, distance: float, zone: str) -> int:
         idx = {"head": 1, "body": 2, "legs": 3}[zone]
@@ -119,7 +131,7 @@ def load_config() -> GameConfig:
 
 @lru_cache(maxsize=1)
 def load_weapons() -> dict[str, WeaponDef]:
-    raw = _load_json(DATA_DIR / "weapons.json").get("weapons", {})
+    raw = _load_py(WEAPONS_PATH, "WEAPONS") or {}
     out: dict[str, WeaponDef] = {}
     for key, w in raw.items():
         try:
@@ -133,6 +145,7 @@ def load_weapons() -> dict[str, WeaponDef]:
                 spread_first=float(w["spread_first"]), spread_run=float(w["spread_run"]),
                 spray_step=float(step), spray_max=float(top), spray_recovery=float(rec),
                 burst=bool(w.get("burst", False)), silenced=bool(w.get("silenced", False)),
+                rate_ramp=(float(w["rate_ramp"][0]), float(w["rate_ramp"][1])) if w.get("rate_ramp") else None,
             )
         except (KeyError, TypeError, ValueError) as exc:
             warnings.warn(f"Weapon {key} skipped: {exc}")
@@ -141,7 +154,7 @@ def load_weapons() -> dict[str, WeaponDef]:
 
 @lru_cache(maxsize=1)
 def load_armor() -> dict[str, ArmorDef]:
-    raw = _load_json(DATA_DIR / "weapons.json").get("armor", {})
+    raw = _load_py(WEAPONS_PATH, "ARMOR") or {}
     return {k: ArmorDef(k, a["name"], int(a["price"]), int(a["points"])) for k, a in raw.items()}
 
 
@@ -153,6 +166,6 @@ def load_rules() -> dict[str, Any]:
 def rule(section: str, key: str, default: Any) -> Any:
     value = load_rules().get(section, {}).get(key)
     if value is None:
-        warnings.warn(f"Regelwert {section}.{key} fehlt; nutze {default}.")
+        warnings.warn(f"Rule value {section}.{key} missing; using {default}.")
         return default
     return value

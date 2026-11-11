@@ -83,6 +83,7 @@ class PlayerState:
     reload_until: float = 0.0
     equip_until: float = 0.0
     spray: float = 0.0
+    fire_held: float = 0.0  # seconds of continuous fire (for rate_ramp)
     burst_left: int = 0
     prev_fire: bool = False
     charges: dict[str, int] = field(default_factory=dict)
@@ -423,6 +424,9 @@ class Match:
         recovery = self._weapon_def(p).spray_recovery if self._weapon_def(p) else 5.0
         if not cmd.fire:
             p.spray = max(0.0, p.spray - recovery * dt)
+            p.fire_held = 0.0
+        else:
+            p.fire_held += dt
 
     def _pickup(self, p: PlayerState, cmd: Command) -> None:
         """Empty slot: pick up automatically. F (when not planting or defusing): swap."""
@@ -535,7 +539,11 @@ class Match:
             self._start_reload(p)
             p.burst_left = 0
             return
-        rate = d.rate * (self._ult_ability(p, "rate_mult") if self.time < p.overdrive_until else 1.0)
+        rate = d.rate
+        if d.rate_ramp:
+            top, ramp_time = d.rate_ramp
+            rate += (top - d.rate) * min(1.0, p.fire_held / max(ramp_time, 1e-6))
+        rate *= self._ult_ability(p, "rate_mult") if self.time < p.overdrive_until else 1.0
         if d.burst:
             if p.burst_left == 0:
                 p.burst_left = d.pellets

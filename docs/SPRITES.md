@@ -7,7 +7,8 @@ Status: needed · in progress · done · integrated
 |---|---|---|---|---|---|---|
 | figur_kestrel | 16×32 | Agent Kestrel (Duelist), custom character | Idle, Walk 4, Crouch, Jump, Dead 32×16 | play.py: grey circle with facing line | done | assets/agents/kestrel/kestrel_{idle,walk,crouch,jump,dead,portrait}.png; enemy: *_feind.png; walk = strip 4×16×32 |
 | figur_marrow | 16×32 | Agent Marrow (Controller), custom character | Idle, Walk 4, Crouch, Jump, Dead 32×16 | play.py: grey circle with facing line | done | assets/agents/marrow/marrow_{idle,walk,crouch,jump,dead,portrait}.png; enemy: *_feind.png; walk = strip 4×16×32 |
-| waffe_{key} | 16×8 | 16 weapons from gameplay/data/weapons.json, held in hand | – | name only in the HUD | done | assets/weapons/val2d/{key}.png, knife: messer.png |
+| waffe_{key} | 16×8 | weapons from config/weapons.py, held in hand | – | name only in the HUD | done | assets/weapons/val2d/{key}.png, knife: messer.png |
+| waffe_{lynx,kite,heron,crane} + {key}_kauf | 16×8 and 32×12 | New weapons in config/weapons.py: lynx = silenced pistol, kite = precision pistol, heron = rifle with fixed 2× scope, crane = double-barrel break-action sniper rifle. Also re-check hornisse: now a fully automatic machine pistol | – | name only in the HUD | needed | |
 | kauf_{key} | 32×12 | Weapon icons in the buy menu | – | text buttons | done | assets/weapons/val2d/{key}_kauf.png |
 | spike | 16×16 | Spike carried, planted | Blink 2 | red square | done | assets/fx/spike.png (strip 2×16×16: on, off) |
 | boden_stein, wand, kiste_metall | 32×32 | Werkhof tiles | – | single-color areas | done | assets/maps/werkhof/{boden_stein,wand,wand_duenn,kiste_metall,plattform,rampe,platz_rand}.png |
