@@ -131,6 +131,16 @@ def build() -> str:
     st = "assets/ui/status/"
     parts.append(section("Status icons", "8×8", [img(st + f"{k}.png", 8, k.title()) for k in (
         "nearsight", "concuss", "slow", "vulnerable", "decay", "suppress", "detain", "deaf", "stim")]))
+    for folder, title in (("ui/menu", "Menus"), ("ui/icons", "Interface icons"), ("ui/buy", "Buy menu"),
+                          ("maps/common", "Map tiles: common set"), ("maps/common/props", "Map props"),
+                          ("maps/common/decals", "Map decals"), ("fx/ability", "Ability sprites")):
+        items = []
+        for f in sorted((ROOT / "assets" / folder).glob("*.png")):
+            rel = str(f.relative_to(ROOT)).replace("\\", "/")
+            w, h = size(rel)
+            scale = 1 if w > 200 else 8 if h <= 8 else 5 if h <= 16 else 3 if h <= 32 else 2
+            items.append(img(rel, scale, f.stem.replace("_", " ")))
+        parts.append(section(title, "", items))
     parts.append(section("Minimap", "8×8", [img(mm + f"{k}.png", 8, l) for k, l in (
         ("selbst", "You"), ("verbuendet", "Ally"), ("feind", "Enemy"), ("tot", "Eliminated"), ("spike", "Bomb"),
         ("dunst", "Smoke"), ("bann", "Slow field"), ("schleier", "Vapor wall"))]))

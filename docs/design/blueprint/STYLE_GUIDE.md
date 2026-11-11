@@ -17,7 +17,6 @@ Decisions behind these rules are recorded in `docs/ENTSCHEIDUNGEN.md`.
 | Outline | 1 px around figures and items, in a darker shade (about 45 %) of the colour it borders. No black outline. Tiles and flat UI have no outline |
 | Darkest colour | about `#16151b`; never pure black |
 | Colours | Figures ≤ 20 drawn colours; tiles 3–10; icons 1–3 |
-| Originals only | No characters, logos, weapons, maps or UI from other games, even renamed or slightly changed |
 
 Colours: `palette.png`. The neutrals have a slight blue-violet tint, as in the existing art.
 

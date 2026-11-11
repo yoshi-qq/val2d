@@ -110,3 +110,140 @@ white cross = centre/anchor, white line = ground row, white ring = maximum radiu
 | `ui/banner.png` | [example](examples/banner.example.png) | `assets/ui/banner/{name}.png` | 96×21 | 1 | still | round banner, width follows the text (12 px padding each side), 5 × 7 pixel font |
 | `ui/logo.png` | [example](examples/logo.example.png) | `assets/logo.png (+ icon.ico 16/32/48)` | 48×48 | 1 | still | game logo, also program icon |
 | `ui/player_card.png` | [example](examples/player_card.example.png) | `assets/menu/lobby/playercard.png` | 64×128 | 1 | still | lobby player card with logo at (8, 10) |
+
+## Interface: menus
+
+| Template | Example | Target file | Frame size | Frames | Speed | Purpose |
+|---|---|---|---|---|---|---|
+| `ui_menu/button.png` | [example](examples/button.example.png) | `assets/ui/menu/button.png` | 16×16 | 1 | still | button |
+| `ui_menu/button_disabled.png` | [example](examples/button_disabled.example.png) | `assets/ui/menu/button_disabled.png` | 16×16 | 1 | still | button disabled |
+| `ui_menu/button_hover.png` | [example](examples/button_hover.example.png) | `assets/ui/menu/button_hover.png` | 16×16 | 1 | still | button hover |
+| `ui_menu/button_pressed.png` | [example](examples/button_pressed.example.png) | `assets/ui/menu/button_pressed.png` | 16×16 | 1 | still | button pressed |
+| `ui_menu/checkbox.png` | [example](examples/checkbox.example.png) | `assets/ui/menu/checkbox.png` | 8×8 | 1 | still | checkbox |
+| `ui_menu/checkbox_on.png` | [example](examples/checkbox_on.example.png) | `assets/ui/menu/checkbox_on.png` | 8×8 | 1 | still | checkbox on |
+| `ui_menu/cursor.png` | [example](examples/cursor.example.png) | `assets/ui/menu/cursor.png` | 12×13 | 1 | still | cursor |
+| `ui_menu/panel.png` | [example](examples/panel.example.png) | `assets/ui/menu/panel.png` | 24×24 | 1 | still | panel |
+| `ui_menu/slider_fill.png` | [example](examples/slider_fill.example.png) | `assets/ui/menu/slider_fill.png` | 16×6 | 1 | still | slider fill |
+| `ui_menu/slider_knob.png` | [example](examples/slider_knob.example.png) | `assets/ui/menu/slider_knob.png` | 6×6 | 1 | still | slider knob |
+| `ui_menu/slider_track.png` | [example](examples/slider_track.example.png) | `assets/ui/menu/slider_track.png` | 16×6 | 1 | still | slider track |
+| `ui_menu/tab.png` | [example](examples/tab.example.png) | `assets/ui/menu/tab.png` | 16×16 | 1 | still | tab |
+| `ui_menu/tab_active.png` | [example](examples/tab_active.example.png) | `assets/ui/menu/tab_active.png` | 16×16 | 1 | still | tab active |
+| `ui_menu/textfield.png` | [example](examples/textfield.example.png) | `assets/ui/menu/textfield.png` | 16×16 | 1 | still | textfield |
+| `ui_menu/title_background.png` | [example](examples/title_background.example.png) | `assets/ui/menu/title_background.png` | 480×270 | 1 | still | menu background, full native screen 480 × 270, left 200 px darker for the menu buttons |
+
+## Interface: icons
+
+| Template | Example | Target file | Frame size | Frames | Speed | Purpose |
+|---|---|---|---|---|---|---|
+| `ui_icons/arrow_down.png` | [example](examples/arrow_down.example.png) | `assets/ui/icons/arrow_down.png` | 8×8 | 1 | still | arrow down |
+| `ui_icons/arrow_left.png` | [example](examples/arrow_left.example.png) | `assets/ui/icons/arrow_left.png` | 8×8 | 1 | still | arrow left |
+| `ui_icons/arrow_right.png` | [example](examples/arrow_right.example.png) | `assets/ui/icons/arrow_right.png` | 8×8 | 1 | still | arrow right |
+| `ui_icons/arrow_up.png` | [example](examples/arrow_up.example.png) | `assets/ui/icons/arrow_up.png` | 8×8 | 1 | still | arrow up |
+| `ui_icons/check.png` | [example](examples/check.example.png) | `assets/ui/icons/check.png` | 8×8 | 1 | still | check |
+| `ui_icons/close.png` | [example](examples/close.example.png) | `assets/ui/icons/close.png` | 8×8 | 1 | still | close |
+| `ui_icons/credits_large.png` | [example](examples/credits_large.example.png) | `assets/ui/icons/credits_large.png` | 12×12 | 1 | still | credits large |
+| `ui_icons/gear.png` | [example](examples/gear.example.png) | `assets/ui/icons/gear.png` | 8×8 | 1 | still | gear |
+| `ui_icons/lock.png` | [example](examples/lock.example.png) | `assets/ui/icons/lock.png` | 8×8 | 1 | still | lock |
+| `ui_icons/mic.png` | [example](examples/mic.example.png) | `assets/ui/icons/mic.png` | 8×8 | 1 | still | mic |
+| `ui_icons/minus.png` | [example](examples/minus.example.png) | `assets/ui/icons/minus.png` | 8×8 | 1 | still | minus |
+| `ui_icons/person.png` | [example](examples/person.example.png) | `assets/ui/icons/person.png` | 8×8 | 1 | still | person |
+| `ui_icons/ping_0.png` | [example](examples/ping_0.example.png) | `assets/ui/icons/ping_0.png` | 8×8 | 1 | still | ping 0 |
+| `ui_icons/ping_1.png` | [example](examples/ping_1.example.png) | `assets/ui/icons/ping_1.png` | 8×8 | 1 | still | ping 1 |
+| `ui_icons/ping_2.png` | [example](examples/ping_2.example.png) | `assets/ui/icons/ping_2.png` | 8×8 | 1 | still | ping 2 |
+| `ui_icons/ping_3.png` | [example](examples/ping_3.example.png) | `assets/ui/icons/ping_3.png` | 8×8 | 1 | still | ping 3 |
+| `ui_icons/plus.png` | [example](examples/plus.example.png) | `assets/ui/icons/plus.png` | 8×8 | 1 | still | plus |
+| `ui_icons/role_controller.png` | [example](examples/role_controller.example.png) | `assets/ui/icons/role_controller.png` | 16×16 | 1 | still | role controller |
+| `ui_icons/role_duelist.png` | [example](examples/role_duelist.example.png) | `assets/ui/icons/role_duelist.png` | 16×16 | 1 | still | role duelist |
+| `ui_icons/role_initiator.png` | [example](examples/role_initiator.example.png) | `assets/ui/icons/role_initiator.png` | 16×16 | 1 | still | role initiator |
+| `ui_icons/role_sentinel.png` | [example](examples/role_sentinel.example.png) | `assets/ui/icons/role_sentinel.png` | 16×16 | 1 | still | role sentinel |
+| `ui_icons/round_empty.png` | [example](examples/round_empty.example.png) | `assets/ui/icons/round_empty.png` | 6×6 | 1 | still | round empty |
+| `ui_icons/round_loss.png` | [example](examples/round_loss.example.png) | `assets/ui/icons/round_loss.png` | 6×6 | 1 | still | round loss |
+| `ui_icons/round_win.png` | [example](examples/round_win.example.png) | `assets/ui/icons/round_win.png` | 6×6 | 1 | still | round win |
+| `ui_icons/side_attack.png` | [example](examples/side_attack.example.png) | `assets/ui/icons/side_attack.png` | 16×16 | 1 | still | side attack |
+| `ui_icons/side_defense.png` | [example](examples/side_defense.example.png) | `assets/ui/icons/side_defense.png` | 16×16 | 1 | still | side defense |
+| `ui_icons/skull.png` | [example](examples/skull.example.png) | `assets/ui/icons/skull.png` | 8×8 | 1 | still | skull |
+| `ui_icons/sound_off.png` | [example](examples/sound_off.example.png) | `assets/ui/icons/sound_off.png` | 8×8 | 1 | still | sound off |
+| `ui_icons/sound_on.png` | [example](examples/sound_on.example.png) | `assets/ui/icons/sound_on.png` | 8×8 | 1 | still | sound on |
+| `ui_icons/trophy.png` | [example](examples/trophy.example.png) | `assets/ui/icons/trophy.png` | 8×8 | 1 | still | trophy |
+
+## Interface: buy menu
+
+| Template | Example | Target file | Frame size | Frames | Speed | Purpose |
+|---|---|---|---|---|---|---|
+| `ui_buy/cat_abilities.png` | [example](examples/cat_abilities.example.png) | `assets/ui/buy/cat_abilities.png` | 16×16 | 1 | still | cat abilities |
+| `ui_buy/cat_armor.png` | [example](examples/cat_armor.example.png) | `assets/ui/buy/cat_armor.png` | 16×16 | 1 | still | cat armor |
+| `ui_buy/cat_heavy.png` | [example](examples/cat_heavy.example.png) | `assets/ui/buy/cat_heavy.png` | 16×16 | 1 | still | cat heavy |
+| `ui_buy/cat_rifle.png` | [example](examples/cat_rifle.example.png) | `assets/ui/buy/cat_rifle.png` | 16×16 | 1 | still | cat rifle |
+| `ui_buy/cat_shotgun.png` | [example](examples/cat_shotgun.example.png) | `assets/ui/buy/cat_shotgun.png` | 16×16 | 1 | still | cat shotgun |
+| `ui_buy/cat_sidearm.png` | [example](examples/cat_sidearm.example.png) | `assets/ui/buy/cat_sidearm.png` | 16×16 | 1 | still | cat sidearm |
+| `ui_buy/cat_smg.png` | [example](examples/cat_smg.example.png) | `assets/ui/buy/cat_smg.png` | 16×16 | 1 | still | cat smg |
+| `ui_buy/cat_sniper.png` | [example](examples/cat_sniper.example.png) | `assets/ui/buy/cat_sniper.png` | 16×16 | 1 | still | cat sniper |
+| `ui_buy/vest_heavy.png` | [example](examples/vest_heavy.example.png) | `assets/ui/buy/vest_heavy.png` | 32×12 | 1 | still | vest heavy |
+| `ui_buy/vest_light.png` | [example](examples/vest_light.example.png) | `assets/ui/buy/vest_light.png` | 32×12 | 1 | still | vest light |
+
+## Map tiles: common set
+
+| Template | Example | Target file | Frame size | Frames | Speed | Purpose |
+|---|---|---|---|---|---|---|
+| `maps_common/door_closed.png` | [example](examples/door_closed.example.png) | `assets/maps/common/door_closed.png` | 32×32 | 1 | still | door closed |
+| `maps_common/door_open.png` | [example](examples/door_open.example.png) | `assets/maps/common/door_open.png` | 32×32 | 1 | still | door open |
+| `maps_common/fence_wood.png` | [example](examples/fence_wood.example.png) | `assets/maps/common/fence_wood.png` | 32×32 | 1 | still | fence wood |
+| `maps_common/floor_concrete.png` | [example](examples/floor_concrete.example.png) | `assets/maps/common/floor_concrete.png` | 32×32 | 1 | still | floor concrete |
+| `maps_common/floor_dirt.png` | [example](examples/floor_dirt.example.png) | `assets/maps/common/floor_dirt.png` | 32×32 | 1 | still | floor dirt |
+| `maps_common/floor_grate.png` | [example](examples/floor_grate.example.png) | `assets/maps/common/floor_grate.png` | 32×32 | 1 | still | floor grate |
+| `maps_common/floor_sand.png` | [example](examples/floor_sand.example.png) | `assets/maps/common/floor_sand.png` | 32×32 | 1 | still | floor sand |
+| `maps_common/floor_stone_cracked.png` | [example](examples/floor_stone_cracked.example.png) | `assets/maps/common/floor_stone_cracked.png` | 32×32 | 1 | still | floor stone cracked |
+| `maps_common/floor_tiles.png` | [example](examples/floor_tiles.example.png) | `assets/maps/common/floor_tiles.png` | 32×32 | 1 | still | floor tiles |
+| `maps_common/platform_edge.png` | [example](examples/platform_edge.example.png) | `assets/maps/common/platform_edge.png` | 32×4 | 1 | still | platform edge |
+| `maps_common/spawn_barrier.png` | [example](examples/spawn_barrier.example.png) | `assets/maps/common/spawn_barrier.png` | 32×32 | 2 | 4 fps | spawn barrier |
+| `maps_common/wall_brick.png` | [example](examples/wall_brick.example.png) | `assets/maps/common/wall_brick.png` | 32×32 | 1 | still | wall brick |
+| `maps_common/wall_concrete.png` | [example](examples/wall_concrete.example.png) | `assets/maps/common/wall_concrete.png` | 32×32 | 1 | still | wall concrete |
+| `maps_common/wall_shadow.png` | [example](examples/wall_shadow.example.png) | `assets/maps/common/wall_shadow.png` | 32×8 | 1 | still | wall shadow |
+| `maps_common/window_glass.png` | [example](examples/window_glass.example.png) | `assets/maps/common/window_glass.png` | 32×32 | 1 | still | window glass |
+
+## Map props
+
+| Template | Example | Target file | Frame size | Frames | Speed | Purpose |
+|---|---|---|---|---|---|---|
+| `maps_common_props/barrel.png` | [example](examples/barrel.example.png) | `assets/maps/common/props/barrel.png` | 12×12 | 1 | still | barrel |
+| `maps_common_props/bench.png` | [example](examples/bench.example.png) | `assets/maps/common/props/bench.png` | 32×8 | 1 | still | bench |
+| `maps_common_props/cone.png` | [example](examples/cone.example.png) | `assets/maps/common/props/cone.png` | 10×6 | 1 | still | cone |
+| `maps_common_props/crate_small.png` | [example](examples/crate_small.example.png) | `assets/maps/common/props/crate_small.png` | 12×12 | 1 | still | crate small |
+| `maps_common_props/debris.png` | [example](examples/debris.example.png) | `assets/maps/common/props/debris.png` | 10×7 | 1 | still | debris |
+| `maps_common_props/lamp.png` | [example](examples/lamp.example.png) | `assets/maps/common/props/lamp.png` | 8×6 | 1 | still | lamp |
+| `maps_common_props/pallet.png` | [example](examples/pallet.example.png) | `assets/maps/common/props/pallet.png` | 16×9 | 1 | still | pallet |
+| `maps_common_props/plant.png` | [example](examples/plant.example.png) | `assets/maps/common/props/plant.png` | 10×8 | 1 | still | plant |
+
+## Map decals
+
+| Template | Example | Target file | Frame size | Frames | Speed | Purpose |
+|---|---|---|---|---|---|---|
+| `maps_common_decals/arrow.png` | [example](examples/arrow.example.png) | `assets/maps/common/decals/arrow.png` | 16×16 | 1 | still | arrow |
+| `maps_common_decals/crack.png` | [example](examples/crack.example.png) | `assets/maps/common/decals/crack.png` | 32×32 | 1 | still | crack |
+| `maps_common_decals/drain.png` | [example](examples/drain.example.png) | `assets/maps/common/decals/drain.png` | 16×9 | 1 | still | drain |
+| `maps_common_decals/hazard_stripe.png` | [example](examples/hazard_stripe.example.png) | `assets/maps/common/decals/hazard_stripe.png` | 32×8 | 1 | still | hazard stripe |
+| `maps_common_decals/oil_stain.png` | [example](examples/oil_stain.example.png) | `assets/maps/common/decals/oil_stain.png` | 32×32 | 1 | still | oil stain |
+| `maps_common_decals/scorch.png` | [example](examples/scorch.example.png) | `assets/maps/common/decals/scorch.png` | 32×32 | 1 | still | scorch |
+| `maps_common_decals/site_a.png` | [example](examples/site_a.example.png) | `assets/maps/common/decals/site_a.png` | 16×16 | 1 | still | site a |
+| `maps_common_decals/site_b.png` | [example](examples/site_b.example.png) | `assets/maps/common/decals/site_b.png` | 16×16 | 1 | still | site b |
+| `maps_common_decals/site_c.png` | [example](examples/site_c.example.png) | `assets/maps/common/decals/site_c.png` | 16×16 | 1 | still | site c |
+
+## Ability sprites (generic)
+
+| Template | Example | Target file | Frame size | Frames | Speed | Purpose |
+|---|---|---|---|---|---|---|
+| `fx_ability/anchor_marker.png` | [example](examples/anchor_marker.example.png) | `assets/fx/ability/anchor_marker.png` | 10×8 | 2 | 4 fps | anchor marker |
+| `fx_ability/arc_dot.png` | [example](examples/arc_dot.example.png) | `assets/fx/ability/arc_dot.png` | 3×3 | 1 | still | arc dot |
+| `fx_ability/beacon.png` | [example](examples/beacon.example.png) | `assets/fx/ability/beacon.png` | 16×16 | 2 | 4 fps | beacon |
+| `fx_ability/decoy_step.png` | [example](examples/decoy_step.example.png) | `assets/fx/ability/decoy_step.png` | 8×8 | 1 | still | decoy step |
+| `fx_ability/grenade.png` | [example](examples/grenade.example.png) | `assets/fx/ability/grenade.png` | 6×5 | 1 | still | grenade |
+| `fx_ability/heal.png` | [example](examples/heal.example.png) | `assets/fx/ability/heal.png` | 16×32 | 3 | 10 fps | heal |
+| `fx_ability/immunity_aura.png` | [example](examples/immunity_aura.example.png) | `assets/fx/ability/immunity_aura.png` | 16×32 | 2 | 4 fps | immunity aura |
+| `fx_ability/impact_puff.png` | [example](examples/impact_puff.example.png) | `assets/fx/ability/impact_puff.png` | 16×16 | 3 | 10 fps | impact puff |
+| `fx_ability/mine.png` | [example](examples/mine.example.png) | `assets/fx/ability/mine.png` | 8×6 | 2 | 4 fps | mine |
+| `fx_ability/projectile_dart.png` | [example](examples/projectile_dart.example.png) | `assets/fx/ability/projectile_dart.png` | 8×5 | 1 | still | projectile dart |
+| `fx_ability/projectile_orb.png` | [example](examples/projectile_orb.example.png) | `assets/fx/ability/projectile_orb.png` | 6×6 | 2 | 4 fps | projectile orb |
+| `fx_ability/reveal_marker.png` | [example](examples/reveal_marker.example.png) | `assets/fx/ability/reveal_marker.png` | 7×7 | 2 | 4 fps | reveal marker |
+| `fx_ability/revive.png` | [example](examples/revive.example.png) | `assets/fx/ability/revive.png` | 16×32 | 4 | 10 fps | revive |
+| `fx_ability/shield_shell.png` | [example](examples/shield_shell.example.png) | `assets/fx/ability/shield_shell.png` | 16×32 | 3 | 10 fps | shield shell |
+| `fx_ability/teleport.png` | [example](examples/teleport.example.png) | `assets/fx/ability/teleport.png` | 16×32 | 4 | 10 fps | teleport |

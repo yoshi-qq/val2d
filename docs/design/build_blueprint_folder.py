@@ -305,7 +305,52 @@ def catalogue() -> list[Entry]:
         Entry("ui/player_card.png", "assets/menu/lobby/playercard.png", (64, 128), 1, "still",
               "lobby player card with logo at (8, 10)", g_box(4), "Interface", "assets/menu/lobby/playercard.png"),
     ]
+    e += batch_three()
     return e
+
+
+MULTI_FRAME = {"spawn_barrier": 2, "beacon": 2, "mine": 2, "anchor_marker": 2, "reveal_marker": 2, "projectile_orb": 2,
+               "impact_puff": 3, "teleport": 4, "heal": 3, "revive": 4, "shield_shell": 3, "immunity_aura": 2}
+BATCH_THREE = [
+    ("ui/menu", "Interface: menus", "assets/ui/menu/{name}.png"),
+    ("ui/icons", "Interface: icons", "assets/ui/icons/{name}.png"),
+    ("ui/buy", "Interface: buy menu", "assets/ui/buy/{name}.png"),
+    ("maps/common", "Map tiles: common set", "assets/maps/common/{name}.png"),
+    ("maps/common/props", "Map props", "assets/maps/common/props/{name}.png"),
+    ("maps/common/decals", "Map decals", "assets/maps/common/decals/{name}.png"),
+    ("fx/ability", "Ability sprites (generic)", "assets/fx/ability/{name}.png"),
+]
+
+
+def batch_three() -> list[Entry]:
+    """One template per file of the third batch, sized from the finished sprite."""
+    out: list[Entry] = []
+    for folder, category, target in BATCH_THREE:
+        for f in sorted((ROOT / "assets" / folder).glob("*.png")):
+            name = f.stem
+            with Image.open(f) as im:
+                w, h = im.size
+            frames = MULTI_FRAME.get(name, 1)
+            fw = w // frames
+            if folder == "maps/common" and (fw, h) == (32, 32):
+                guide: Guide = g_tile
+            elif (fw, h) == (16, 32):
+                guide = g_agent
+            elif name.startswith(("button", "panel", "textfield", "tab", "checkbox")):
+                guide = g_nine
+            elif fw >= 24 and h >= 24 and fw == h:
+                guide = g_circle
+            else:
+                guide = g_corners
+            fps = "still" if frames == 1 else ("4 fps" if frames == 2 else "10 fps")
+            purpose = name.replace("_", " ")
+            if name == "title_background":
+                purpose = "menu background, full native screen 480 × 270, left 200 px darker for the menu buttons"
+                guide = g_corners
+            short = folder.replace("/", "_")
+            out.append(Entry(f"{short}/{name}.png", target.format(name=name), (fw, h), frames, fps, purpose, guide,
+                             category, str(f.relative_to(ROOT)).replace("\\", "/")))
+    return out
 
 
 # ------------------------------------------------------------------ output
