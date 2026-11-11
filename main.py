@@ -1,7 +1,7 @@
 from typing import Union, Callable
 from time import sleep, time as now
 from config.constants import TICK_RATE, debug, D, SERVER_NAME, DebugProblem as P, DebugReason as R, DebugDetails as DD
-from dependencies.communications import Request, Event
+from networking.communications import Request, Event
 from classes.heads import EventHead, RequestHead, MessageHead
 from classes.keys import MenuKey
 from classes.types import Null, Message, Input, AutoMessageTrigger

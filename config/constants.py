@@ -1,6 +1,6 @@
 from enum import Enum
 from classes.heads import DebugProblem, DebugReason, DebugDetails, debugProblems, debugReasons, debugDetails
-from dependencies.console import Console
+from graphy.terminal import Console
 # GENERAL
 VERSION = (0,10,6)
 STABLE = False

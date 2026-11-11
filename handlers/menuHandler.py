@@ -3,7 +3,7 @@ from handlers.graphicsHandler import g
 from classes.types import Input, Message, agents, MessageHead
 from classes.keys import MenuKey, AgentKey
 from handlers.config import CONFIG
-from dependencies.helpers import distributeObjects
+from graphy.layout import distributeObjects
 
 K = MenuKey
 

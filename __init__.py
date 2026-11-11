@@ -1,6 +1,6 @@
 import os
 from config.constants import debug, D
-from dependencies.communications import Event, Request
+from networking.communications import Event, Request
 from typing import Union, Callable
 from classes.heads import EventHead, RequestHead, MessageHead, DebugProblem as P, DebugReason as R, DebugDetails as DD
 from classes.types import Message

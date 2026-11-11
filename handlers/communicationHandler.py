@@ -2,7 +2,7 @@ from typing import Union, Callable, Any, Literal
 from config.constants import DATA_SIZE
 from classes.heads import EventHead, RequestHead, MessageHead
 from classes.types import Message, Connection
-from dependencies.communications import Request, Event, CommunicationsHandler as Comm, setOnConnect, setOnDisconnect
+from networking.communications import Request, Event, CommunicationsHandler as Comm, setOnConnect, setOnDisconnect
 from handlers.config import CONFIG
 
 # TODO 7: host being a player as well

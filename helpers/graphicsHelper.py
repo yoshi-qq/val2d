@@ -2,7 +2,7 @@ from typing import Sequence
 from math import sqrt, sin, cos, tan, atan2, radians
 from config.constants import VIEW_WIDTH, VIEW_HEIGHT, VIEW_ANGLE, ZOOM_IN, HEIGHT_TO_Z_OFFSET, THREE_D_LEVEL, DISTANCE_SCALING
 from classes.types import Pose, Position, Angle
-from dependencies import graphy as g
+import graphy as g
 
 HORIZONTAL_MIDDLE = VIEW_WIDTH / 2
 VERTICAL_MIDDLE = VIEW_HEIGHT / 2

@@ -1,6 +1,6 @@
 from typing import Union, Any, Callable, Optional
 from math import sqrt, degrees, radians, cos, sin, atan2
-from dependencies.communications import Event, Request
+from networking.communications import Event, Request
 from classes.heads import MessageHead
 from classes.keys import MapKey, EffectKey, AbilityKey, MeleeKey, SidearmKey, GunKey, AgentKey, SpriteSetKey, InputKey
 from classes.categories import HoldableCategory

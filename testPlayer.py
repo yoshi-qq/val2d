@@ -1,6 +1,6 @@
 import os
 from typing import Callable
-from dependencies.communications import Event, Request
+from networking.communications import Event, Request
 from config.constants import TESTING_WINDOW_POSITIONS, DEFAULT_IP, DEFAULT_PORT
 from classes.heads import MessageHead, EventHead
 

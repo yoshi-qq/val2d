@@ -3,7 +3,7 @@ from config.constants import debug, D, DebugProblem as P, DebugReason as R, Debu
 from classes.types import Input
 from classes.keys import KeyInputKey
 from prebuilts.keybinds import keybinds
-from dependencies import graphy as g
+import graphy as g
 class InputHandler:
     def __init__(self):
         self.__lastKeys: list[int] = []

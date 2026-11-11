@@ -1,6 +1,6 @@
 from typing import Callable, Optional
 from config.constants import ZOOM_IN
-from dependencies import graphy as g
+import graphy as g
 from classes.types import Pose, Position
 from classes.mapTypes import Object, Wall, Box, Cylinder, Stair, Decoration, BreakableDoor, Switch, Bike, UltOrb, Zipline, Teleporter, TPDoor, RotatingDoor, Abyss, SpawnPoint, PlantSite
 from helpers.graphicsHelper import getPoseAndSizeFromPerspective

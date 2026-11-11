@@ -14,7 +14,7 @@ from handlers.mapHandler import createObjectRenders
 from prebuilts.agents import agents
 from prebuilts.weapons import melees, sidearms, guns
 from prebuilts.abilities import abilities
-from dependencies import graphy as g
+import graphy as g
 class GraphicsHandler:
     def __init__(self, root: str) -> None:
         ASSETS_FOLDER = os.path.join(root, "assets")

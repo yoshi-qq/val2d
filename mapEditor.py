@@ -4,7 +4,7 @@ from typing import Optional, Callable, Type
 from typing import Sequence # type: ignore
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, asksaveasfilename
-from dependencies import graphy as g
+import graphy as g
 from config.constants import RESOLUTION, MAP_SKY, ABYSS_HEIGHT
 from classes.categories import PenetrationLevel as P
 from classes.types import Rect, Position as Pos, Angle, Pose, Position

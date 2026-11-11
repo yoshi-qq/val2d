@@ -1,7 +1,7 @@
 from typing import Union, Any
 from time import time as now
 from math import atan2, degrees
-from dependencies.communications import Request
+from networking.communications import Request
 from config.constants import AGENT_SELECT_TIME, PING_INTERVAL, debug, D, DEFAULT_ACCELERATION, DEFAULT_SENSITIVITY, DebugProblem as P, DebugReason as R, DebugDetails as DD, DEFAULT_JUMP_VELOCITY
 from classes.heads import MessageHead, RequestHead
 from classes.types import Message, Input, Ping, Angle, Position
