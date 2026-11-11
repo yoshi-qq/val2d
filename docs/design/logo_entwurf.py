@@ -1,8 +1,8 @@
-"""Erzeugt die Logo-Entwürfe für Val2d als Pixel-Art (48×48) und je eine Spielerkarte (64×128).
+"""Generates the Val2d logo drafts as pixel art (48x48) plus one player card each (64x128).
 
-Aufruf: python docs/design/logo_entwurf.py
-Ausgabe: docs/design/logo-entwurf/
-Regeln: docs/ENTSCHEIDUNGEN.md (Kontur dunkle Eigenfarbe, zwei Schattenstufen, Licht oben links).
+Usage: python docs/design/logo_entwurf.py
+Output: docs/design/logo-entwurf/ (chosen: crosshair, copied to assets/logo.png, icon.ico, playercard.png)
+Rules: docs/ENTSCHEIDUNGEN.md (darker-shade outline, two shading steps, light from the top left).
 """
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def rounded_plate(size: int = 48, r: int = 4) -> Image.Image:
             if (x - cx) ** 2 + (y - cy) ** 2 <= r * r:
                 px[x, y] = BG
     outline(im, EDGE)
-    # Licht oben links: erste Innenzeile/-spalte heller
+    # light from the top left: first inner row/column brighter
     for y in range(size):
         for x in range(size):
             if px[x, y] == BG and (px[x, y - 1] == EDGE or px[x - 1, y] == EDGE):
@@ -51,7 +51,7 @@ def rounded_plate(size: int = 48, r: int = 4) -> Image.Image:
 
 
 def outline(im: Image.Image, color: Color | None = None) -> None:
-    """Kontur außen: feste Farbe oder dunkle Eigenfarbe des Nachbarn."""
+    """Outer outline: fixed colour or a darker shade of the neighbouring pixel."""
     px = im.load()
     w, h = im.size
     src = im.copy().load()
@@ -142,7 +142,6 @@ def logo_schrift() -> Image.Image:
                             x = x0 + gi * 18 + rx * s + xx + off
                             y = y0 + ry * s + yy + off
                             px[x, y] = col
-    # Schatten der Vorderfläche: untere Zeile je Strich dunkler (zwei Stufen)
     return im
 
 
@@ -171,7 +170,7 @@ def main() -> None:
         logo = fn()
         logo.save(OUT / f"logo_{name}.png")
         playercard(logo).save(OUT / f"playercard_{name}.png")
-        print(name, "gespeichert")
+        print(name, "saved")
 
 
 if __name__ == "__main__":

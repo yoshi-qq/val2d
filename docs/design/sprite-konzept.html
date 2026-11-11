@@ -1,9 +1,9 @@
-<title>Val2d Sprite-Konzept</title>
+<title>Val2d Sprite Concept</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: eine Werkbank-Spalte; oben Live-Szene, darunter Entscheidungen als Kartenreihen, dann Beispiele, Bestand, Bedarf */
+/* Layout: one workbench column; live scene on top, then decisions as card rows, samples, inventory, needs */
 :root{
   --bg:#16151c; --panel:#1f1e27; --panel2:#272631; --line:#363443;
   --fg:#e8e6ef; --muted:#9b98aa; --accent:#4fd6c8; --enemy:#ee4c4a; --gold:#e0b437;
@@ -73,82 +73,82 @@ ul{margin:0;padding-left:18px}
 
 <div class="wrap">
 <header>
-  <div class="eyebrow">Design-Sitzung · Stand 11.11.2026</div>
-  <h1>Val2d Sprite-Konzept</h1>
-  <p class="muted">Regeln, nach denen alle restlichen Sprites entstehen. Jede Wahl unten ändert die Beispielsprites und die Szene sofort. Die Testfigur ist eine neutrale eigene Figur, kein Agent.</p>
+  <div class="eyebrow">Design session · as of 11.11.2026</div>
+  <h1>Val2d Sprite Concept</h1>
+  <p class="muted">Rules for all remaining sprites. Every choice below updates the sample sprites and the scene immediately. The test figure is a neutral original figure, not an agent.</p>
 </header>
 
 <section>
-  <h2>Grundmaß</h2>
+  <h2>Base scale</h2>
   <div class="facts">
-    <div class="fact"><b>16 px = 1 m</b><span>Agent 1 × 2 m im Code, Sprite 16 × 32 px</span></div>
-    <div class="fact"><b>32 px = 2 m</b><span>Kachel, wie vorhandener Boden</span></div>
-    <div class="fact"><b>480 × 270 px</b><span>30 m Sichtbreite, ×4 auf 1920 × 1080</span></div>
-    <div class="fact"><b>Licht oben links</b><span>wie Holzboden und Omen-Bestand</span></div>
-    <div class="fact"><b>≤ 20 Farben</b><span>je Figur; Kacheln 3 bis 10</span></div>
-    <div class="fact"><b>Kopf 8 · Körper 12 · Beine 7 px</b><span>Trefferbreiten der Testfigur, ohne Kontur</span></div>
+    <div class="fact"><b>16 px = 1 m</b><span>Agent 1 × 2 m in code, sprite 16 × 32 px</span></div>
+    <div class="fact"><b>32 px = 2 m</b><span>tile, like the existing floor</span></div>
+    <div class="fact"><b>480 × 270 px</b><span>30 m view width, ×4 to 1920 × 1080</span></div>
+    <div class="fact"><b>Light top left</b><span>like the existing wood floor and figures</span></div>
+    <div class="fact"><b>≤ 20 colours</b><span>per figure; tiles 3 to 10</span></div>
+    <div class="fact"><b>Head 8 · body 12 · legs 7 px</b><span>hit widths of the test figure, without outline</span></div>
   </div>
 </section>
 
 <section>
-  <h2>So wirkt es im Spiel</h2>
+  <h2>How it looks in game</h2>
   <div class="scene">
-    <canvas id="scene" width="720" height="408" aria-label="Spielszene von oben mit eigener Figur, Gegner, Kisten und Sichtkegel"></canvas>
+    <canvas id="scene" width="720" height="408" aria-label="Top-down game scene with own figure, enemy, crates and view cone"></canvas>
     <div class="legend">
-      <div><i style="background:var(--accent)"></i><span>Eigene Figur unten Mitte, zielt immer nach oben (Kamera dreht mit).</span></div>
-      <div><i style="background:var(--enemy)"></i><span>Gegner steht aufrecht im Sichtkegel, Leuchtspur trifft.</span></div>
-      <div><i style="background:#3a3743"></i><span>Außerhalb des Kegels abgedunkelt, 103° wie Valorants Sichtfeld.</span></div>
-      <div><i style="background:#8a6a45"></i><span>Holzboden und Holzkiste sind Bestand, Steinboden, Wand, Metallkiste und Spike-Entwurf neu.</span></div>
-      <p class="muted mono">Ausschnitt 240 × 136 px, dreifach vergrößert.</p>
+      <div><i style="background:var(--accent)"></i><span>Own figure bottom centre, always aims up (camera rotates).</span></div>
+      <div><i style="background:var(--enemy)"></i><span>Enemy stands upright in the view cone, the tracer hits.</span></div>
+      <div><i style="background:#3a3743"></i><span>Darkened outside the cone, 103° field of view.</span></div>
+      <div><i style="background:#8a6a45"></i><span>Wood floor and wood crate are existing assets; stone floor, wall, metal crate and spike draft are new.</span></div>
+      <p class="muted mono">Crop 240 × 136 px, scaled ×3.</p>
     </div>
   </div>
 </section>
 
 <section id="decisions">
-  <h2>Entscheidungen</h2>
-  <p class="muted">Klick wählt eine Möglichkeit. Gold markiert den heutigen Stand, Türkis die Empfehlung.</p>
+  <h2>Decisions</h2>
+  <p class="muted">Click picks an option. Gold marks the previous state, teal the recommendation.</p>
 </section>
 
 <section>
-  <h2>Beispielsprites nach gewählten Regeln</h2>
+  <h2>Sample sprites with the chosen rules</h2>
   <div class="samples" id="samples"></div>
 </section>
 
 <section>
-  <h2>Bestand</h2>
+  <h2>Inventory</h2>
   <div class="alert">
-    <b>Muss ersetzt werden</b>
-    <span>Programmsymbol (icon.ico), Logo (logo.png) und Spielerkarte (playercard.png) zeigen das Valorant-Logo. Das verbietet CLAUDE.md.</span>
+    <b>Replaced since</b>
+    <span>Program icon (icon.ico), logo (logo.png) and player card (playercard.png) showed the Valorant logo; they now use the crosshair logo.</span>
   </div>
   <div class="stock" id="stock"></div>
 </section>
 
 <section>
-  <h2>Bedarf nach Wichtigkeit</h2>
+  <h2>Needs by priority</h2>
   <div class="tbl"><table>
-    <thead><tr><th>Sprite</th><th>Größe</th><th>Bilder</th><th>Stand</th></tr></thead>
+    <thead><tr><th>Sprite</th><th>Size</th><th>Frames</th><th>Status</th></tr></thead>
     <tbody>
-      <tr class="tier"><td colspan="4">Stufe 1 · ohne das nicht spielbar</td></tr>
-      <tr><td>Ersatz für Programmsymbol, Logo, Spielerkarte</td><td class="mono">48×48, 64×128</td><td>je 1</td><td class="st bad">ersetzen</td></tr>
-      <tr><td>Grundregeln dieser Seite (Kontur, Teamkennung, Licht, Palette)</td><td class="mono">–</td><td>–</td><td class="st part">in Arbeit</td></tr>
-      <tr><td>Omen: Laufen</td><td class="mono">16×32</td><td>4</td><td class="st part">Rest vorhanden</td></tr>
-      <tr><td>Jett: Stehen, Laufen, Ducken, Springen, Fallen, Landen, Tot</td><td class="mono">16×32</td><td>10</td><td class="st no">fehlt</td></tr>
-      <tr><td>Waffen in der Hand, 17 Waffen und Messer</td><td class="mono">16×8</td><td>je 1</td><td class="st part">2 von 18</td></tr>
-      <tr><td>Spike: getragen, gelegt mit Blinken, entschärft</td><td class="mono">16×16</td><td>4</td><td class="st no">fehlt</td></tr>
-      <tr><td>Schuss: Mündungsfeuer, Leuchtspur, Einschlag Wand, Treffer am Körper</td><td class="mono">8×8</td><td>je 3</td><td class="st no">fehlt</td></tr>
-      <tr><td>Ascent-Kacheln: Steinboden, Wandoberseite, Kisten in zwei Höhen, Türen A und B, Spike-Zone, Spawn-Barriere</td><td class="mono">32×32</td><td>ca. 14</td><td class="st part">Holz, Gras, Kisten, Treppe</td></tr>
-      <tr><td>HUD: Leben und Schild, Munition, Credits, Rundenzeit, Punktestand, Fähigkeitenleiste, Killfeed</td><td class="mono">Oberfläche</td><td>–</td><td class="st no">fehlt</td></tr>
-      <tr class="tier"><td colspan="4">Stufe 2 · erster Stand vollständig</td></tr>
-      <tr><td>Omen-Fähigkeiten: Shrouded Step, From the Shadows</td><td class="mono">32–64</td><td>4–6</td><td class="st part">Dark Cover, Paranoia vorhanden</td></tr>
-      <tr><td>Jett-Fähigkeiten: Cloudburst, Updraft, Tailwind, Blade Storm</td><td class="mono">16–64</td><td>je 3–6</td><td class="st no">fehlt</td></tr>
-      <tr><td>Fähigkeiten-Symbole</td><td class="mono">16×16</td><td>8</td><td class="st no">fehlt</td></tr>
-      <tr><td>Kaufmenü: Waffen-Symbole, Schilde, Rahmen</td><td class="mono">32×12</td><td>20</td><td class="st no">fehlt</td></tr>
-      <tr><td>Agentenwahl: Porträts</td><td class="mono">32×32</td><td>2</td><td class="st part">Omen vorhanden</td></tr>
-      <tr><td>Minimap: Spieler, Spike, Rauch</td><td class="mono">8×8</td><td>ca. 6</td><td class="st no">fehlt</td></tr>
-      <tr class="tier"><td colspan="4">Stufe 3 · Feinschliff</td></tr>
-      <tr><td>Rundenbanner: Sieg, Niederlage, Seitenwechsel</td><td class="mono">Oberfläche</td><td>3</td><td class="st no">fehlt</td></tr>
-      <tr><td>Schallringe (Lobby-Einstellung)</td><td class="mono">Effekt</td><td>3</td><td class="st no">fehlt</td></tr>
-      <tr><td>Menüs: Hauptmenü, Lobby, Einstellungen</td><td class="mono">Oberfläche</td><td>–</td><td class="st part">Knöpfe vorhanden</td></tr>
+      <tr class="tier"><td colspan="4">Tier 1 · not playable without</td></tr>
+      <tr><td>Replacement for program icon, logo, player card</td><td class="mono">48×48, 64×128</td><td>1 each</td><td class="st ok">replaced</td></tr>
+      <tr><td>Base rules of this page (outline, team marking, light, palette)</td><td class="mono">–</td><td>–</td><td class="st ok">decided</td></tr>
+      <tr><td>Agent 1: walk</td><td class="mono">16×32</td><td>4</td><td class="st part">rest existed</td></tr>
+      <tr><td>Agent 2: idle, walk, crouch, jump, fall, land, dead</td><td class="mono">16×32</td><td>10</td><td class="st no">needed</td></tr>
+      <tr><td>Weapons in hand, 17 weapons and knife</td><td class="mono">16×8</td><td>1 each</td><td class="st part">2 of 18</td></tr>
+      <tr><td>Spike: carried, planted with blinking, defused</td><td class="mono">16×16</td><td>4</td><td class="st no">needed</td></tr>
+      <tr><td>Shots: muzzle flash, tracer, wall impact, body hit</td><td class="mono">8×8</td><td>3 each</td><td class="st no">needed</td></tr>
+      <tr><td>Map tiles: stone floor, wall top, crates in two heights, doors, spike zone, spawn barrier</td><td class="mono">32×32</td><td>about 14</td><td class="st part">wood, grass, crates, stairs</td></tr>
+      <tr><td>HUD: health and shield, ammo, credits, round timer, score, ability bar, kill feed</td><td class="mono">interface</td><td>–</td><td class="st no">needed</td></tr>
+      <tr class="tier"><td colspan="4">Tier 2 · first release complete</td></tr>
+      <tr><td>Agent 1 abilities</td><td class="mono">32–64</td><td>4–6</td><td class="st part">2 of 4 existed</td></tr>
+      <tr><td>Agent 2 abilities</td><td class="mono">16–64</td><td>3–6 each</td><td class="st no">needed</td></tr>
+      <tr><td>Ability icons</td><td class="mono">16×16</td><td>8</td><td class="st no">needed</td></tr>
+      <tr><td>Buy menu: weapon icons, shields, frames</td><td class="mono">32×12</td><td>20</td><td class="st no">needed</td></tr>
+      <tr><td>Agent select: portraits</td><td class="mono">32×32</td><td>2</td><td class="st part">1 existed</td></tr>
+      <tr><td>Minimap: players, spike, smoke</td><td class="mono">8×8</td><td>about 6</td><td class="st no">needed</td></tr>
+      <tr class="tier"><td colspan="4">Tier 3 · polish</td></tr>
+      <tr><td>Round banners: victory, defeat, switching sides</td><td class="mono">interface</td><td>3</td><td class="st no">needed</td></tr>
+      <tr><td>Sound rings (lobby setting)</td><td class="mono">effect</td><td>3</td><td class="st no">needed</td></tr>
+      <tr><td>Menus: main menu, lobby, settings</td><td class="mono">interface</td><td>–</td><td class="st part">buttons existed</td></tr>
     </tbody>
   </table></div>
 </section>
@@ -159,12 +159,12 @@ const A = {"omen_smoke": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABA
 const IMG = {};
 for (const k in A){ const im = new Image(); im.onload = () => { IMG[k] = im; renderAll(); }; im.src = A[k]; }
 
-/* ---------- Farbe ---------- */
+/* ---------- colour ---------- */
 const hex2 = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16));
 const rgb = a => '#' + a.map(v => Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
 const mix = (a,b,t) => { const x=hex2(a), y=hex2(b); return rgb(x.map((v,i)=>v+(y[i]-v)*t)); };
 
-/* ---------- Testfigur ---------- */
+/* ---------- test figure ---------- */
 const PX = {H:'#d9772b',h:'#a8521f',S:'#e2ad88',s:'#b97d5e',J:'#4f5b5e',j:'#3a4447',G:'#6a7375',g:'#4d5658',P:'#2d2c31',p:'#1f1e23',B:'#1b1a1a'};
 const SHADE_OF = {h:'H',s:'S',j:'J',g:'G',p:'P'};
 const TEAM = {ally:{c:'#4fd6c8',l:'#b4fff6'}, enemy:{c:'#ee4c4a',l:'#ffb4a8'}};
@@ -228,7 +228,7 @@ function applyOutline(g, team, st){
   return g;
 }
 
-/* ---------- Raster zu Canvas ---------- */
+/* ---------- grid to canvas ---------- */
 function mk(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; return c; }
 function gridCanvas(g){
   const h=g.length, w=g[0].length, c=mk(w,h), x=c.getContext('2d'), d=x.createImageData(w,h);
@@ -238,7 +238,7 @@ function gridCanvas(g){
 function mapGrid(rows, pal){ return rows.map(r=>[...r].map(ch=>ch==='.'?null:pal[ch])); }
 function scaled(src, s){ const c=mk(src.width*s, src.height*s), x=c.getContext('2d'); x.imageSmoothingEnabled=false; x.drawImage(src,0,0,c.width,c.height); return c; }
 
-/* ---------- Kacheln ---------- */
+/* ---------- tiles ---------- */
 function rng(seed){ return () => { seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; }; }
 function tilePlaza(st){
   const c=mk(32,32), x=c.getContext('2d'), r=rng(11), base=hex2('#c4ae88');
@@ -279,7 +279,7 @@ function tileCrate(st){
   return c;
 }
 
-/* ---------- Gegenstände ---------- */
+/* ---------- items ---------- */
 const RIFLE = ["........................","........RRRRRRRR........","rrrr..rrrrrrrrrrrrrrrrrk","rrrrrrrrrrrrrrrrrrkkkk..","rrrr...kkrr..rr.........","rr.....kk...rr..........",".......kk...rr..........","..............r........."];
 const CHARGE = ["................","................","...oooooooooo...","...oMMMMMMMMo...","...oMmmmmmmMo...","...oMmCCCCmMo...","...oMmCLLCmMo...","...oMmCLLCmMo...","...oMmCCCCmMo...","...oMmmmmmmMo...","...oYkYkYkYkYo..","...oMMMMMMMMo...","...oooooooooo...","....kk....kk....","................","................"];
 const FLASH = [
@@ -296,20 +296,20 @@ function chargeCanvas(st, on){
 }
 const flashCanvas = i => gridCanvas(mapGrid(FLASH[i],{Y:'#ffd75e',W:'#fffbe8',O:'#f08a24',G:'#8a8893',g:'#5d5c66'}));
 
-/* ---------- Zustand ---------- */
+/* ---------- state ---------- */
 const DECISIONS = [
-  {key:'outline', title:'Kontur', note:'Heute ohne Kontur.', opts:[
-    {v:'none', t:'Keine Kontur', d:'Wie die vorhandenen Omen-Sprites. Auf dunklem Boden verschwimmt die Figur.', now:true},
-    {v:'sel', t:'Kontur in dunkler Eigenfarbe', d:'Außenkante je Material abgedunkelt. Hebt sich von jedem Boden ab und bleibt weich.', rec:true},
-    {v:'full', t:'Schwarze Kontur', d:'Am klarsten lesbar, wirkt aber comichaft und härter als der Bestand.'}]},
-  {key:'team', title:'Teamkennung', note:'Heute gibt es keine.', opts:[
-    {v:'kontur', t:'Gegner mit rotem Umriss', d:'Wie Valorants Gegner-Hervorhebung. Farbe später als Spieler-Einstellung (rot, gelb, lila).', rec:true},
-    {v:'akzent', t:'Teamfarbe an Schultern und Visier', d:'Jede Figur zeigt ihr Team selbst. Zwei Farbvarianten je Sprite nötig.'},
-    {v:'balken', t:'Balken über dem Kopf', d:'Sprite bleibt neutral. Im Gefecht klein und schwer zu lesen.'}]},
-  {key:'shade', title:'Schattierung', note:'Heute zwei Stufen, Licht von oben links.', opts:[
-    {v:'2', t:'Zwei Stufen', d:'Grundton und Schatten je Material. Passt zum Bestand.', now:true, rec:true},
-    {v:'flat', t:'Flach', d:'Ein Ton je Material. Sehr klar, verliert aber Form und Tiefe.'},
-    {v:'3', t:'Drei Stufen mit Glanzkante', d:'Zusätzliches Licht oben links. Plastischer, mehr Farben und Arbeit je Sprite.'}]}
+  {key:'outline', title:'Outline', note:'Previously no outline.', opts:[
+    {v:'none', t:'No outline', d:'Like the existing figure sprites. The figure blurs into dark floors.', now:true},
+    {v:'sel', t:'Darker-shade outline', d:'Outer edge darkened per material. Stands out on any floor and stays soft.', rec:true},
+    {v:'full', t:'Black outline', d:'Most readable, but looks cartoonish and harsher than the existing art.'}]},
+  {key:'team', title:'Team marking', note:'Previously none.', opts:[
+    {v:'kontur', t:'Enemies with red outline', d:'Enemy highlight; colour later as a player setting (red, yellow, purple).', rec:true},
+    {v:'akzent', t:'Team colour on shoulders and visor', d:'Each figure shows its own team. Needs two colour variants per sprite.'},
+    {v:'balken', t:'Bar above the head', d:'Sprite stays neutral. Small and hard to read in a fight.'}]},
+  {key:'shade', title:'Shading', note:'Previously two steps, light from top left.', opts:[
+    {v:'2', t:'Two steps', d:'Base tone and shadow per material. Matches the existing art.', now:true, rec:true},
+    {v:'flat', t:'Flat', d:'One tone per material. Very clear, but loses shape and depth.'},
+    {v:'3', t:'Three steps with highlight', d:'Extra light top left. More volume, more colours and work per sprite.'}]}
 ];
 const state = {outline:'sel', team:'kontur', shade:'2'};
 try { const s = JSON.parse(localStorage.getItem('val2d-konzept')||'null'); if (s) Object.assign(state, s); } catch(e){}
@@ -330,47 +330,47 @@ DECISIONS.forEach(dec => {
   dec.opts.forEach(o => {
     const b = document.createElement('button'); b.className='card'; b.id=`opt-${dec.key}-${o.v}`;
     b.dataset.key=dec.key; b.dataset.v=o.v;
-    b.innerHTML = `<div class="badges">${o.now?'<span class="badge now">heute</span>':''}${o.rec?'<span class="badge rec">Empfehlung</span>':''}<span class="badge sel" hidden>gewählt</span></div><div class="cv"></div><h3>${o.t}</h3><p>${o.d}</p>`;
+    b.innerHTML = `<div class="badges">${o.now?'<span class="badge now">previous</span>':''}${o.rec?'<span class="badge rec">recommended</span>':''}<span class="badge sel" hidden>selected</span></div><div class="cv"></div><h3>${o.t}</h3><p>${o.d}</p>`;
     b.addEventListener('click', () => { state[dec.key]=o.v; try{localStorage.setItem('val2d-konzept',JSON.stringify(state));}catch(e){} renderAll(); });
     cards.appendChild(b);
   });
   decEl.appendChild(box);
 });
 
-/* ---------- Beispiele ---------- */
+/* ---------- samples ---------- */
 const sampEl = document.getElementById('samples');
 function sample(title, size, tag, canvases){
   const d=document.createElement('div'); d.className='sample';
-  d.innerHTML=`<span class="tag ${tag==='neu'?'new':''}">${tag}</span><div class="pix"></div><h3>${title}</h3><small>${size}</small>`;
+  d.innerHTML=`<span class="tag ${tag==='new'?'new':''}">${tag}</span><div class="pix"></div><h3>${title}</h3><small>${size}</small>`;
   const p=d.querySelector('.pix'); canvases.forEach(c=>p.appendChild(c)); return d;
 }
 let walkEl=null, ledEl=null;
 function renderSamples(){
   sampEl.innerHTML='';
   walkEl = mk(64,128);
-  sampEl.appendChild(sample('Laufen, 4 Bilder', '16×32 · 8 Bilder/s', 'neu', [walkEl]));
+  sampEl.appendChild(sample('Walk, 4 frames', '16×32 · 8 fps', 'new', [walkEl]));
   const strip=mk(4*18,32), sx=strip.getContext('2d');
   WALK.forEach((_,i)=>sx.drawImage(gridCanvas(figureGrid(i,'ally',state)),i*18,0));
-  sampEl.appendChild(sample('Laufzyklus als Streifen', '4 × 16×32, Aseprite-Export', 'neu', [scaled(strip,2)]));
+  sampEl.appendChild(sample('Walk cycle as strip', '4 × 16×32, Aseprite export', 'new', [scaled(strip,2)]));
   const dead=mk(32,16); dead.getContext('2d').drawImage((()=>{const c=mk(32,16),x=c.getContext('2d');x.translate(32,0);x.rotate(Math.PI/2);x.drawImage(gridCanvas(figureGrid(0,'enemy',state)),0,0);return c;})(),0,0);
-  sampEl.appendChild(sample('Tot, liegend', '32×16 wie Bestand', 'neu', [scaled(dead,3)]));
-  sampEl.appendChild(sample('Steinboden (Ascent-Platz)', '32×32 · 2 m', 'neu', [scaled(tilePlaza(state),3)]));
-  sampEl.appendChild(sample('Wand, Oberseite', '32×32 · undurchschießbar', 'neu', [scaled(tileWall(state),3)]));
-  sampEl.appendChild(sample('Metallkiste', '32×32 · Penetration hoch', 'neu', [scaled(tileCrate(state),3)]));
-  sampEl.appendChild(sample('Gewehr, eigene Form', '24×8', 'neu', [scaled(rifleCanvas(state),4)]));
+  sampEl.appendChild(sample('Dead, lying', '32×16 like existing', 'new', [scaled(dead,3)]));
+  sampEl.appendChild(sample('Stone floor', '32×32 · 2 m', 'new', [scaled(tilePlaza(state),3)]));
+  sampEl.appendChild(sample('Wall, top', '32×32 · impenetrable', 'new', [scaled(tileWall(state),3)]));
+  sampEl.appendChild(sample('Metal crate', '32×32 · high penetration', 'new', [scaled(tileCrate(state),3)]));
+  sampEl.appendChild(sample('Rifle, own shape', '24×8', 'new', [scaled(rifleCanvas(state),4)]));
   ledEl = mk(48,48);
-  sampEl.appendChild(sample('Spike-Entwurf, blinkt', '16×16 · 2 Bilder', 'neu', [ledEl]));
-  sampEl.appendChild(sample('Mündungsfeuer', '8×8 · 3 Bilder', 'neu', [0,1,2].map(i=>scaled(flashCanvas(i),5))));
+  sampEl.appendChild(sample('Spike draft, blinking', '16×16 · 2 frames', 'new', [ledEl]));
+  sampEl.appendChild(sample('Muzzle flash', '8×8 · 3 frames', 'new', [0,1,2].map(i=>scaled(flashCanvas(i),5))));
 }
 
-/* ---------- Bestand ---------- */
+/* ---------- inventory ---------- */
 const STOCK = [
-  ['Agenten', 'Omen: Stehen, Ducken, Springen, Fallen, Landen, Tot (16×32), Logo (32×32). Vorlage character.aseprite ohne PNG.', []],
-  ['Fähigkeiten', 'Omen: Dark Cover (Rauch) und Paranoia, je 64×64.', ['omen_smoke']],
-  ['Waffen', 'Messer und Classic, je 16×8.', ['knife','classic']],
-  ['Map', 'Holzboden ×2, Holzkiste, Gras, drei Kisten, Holztreppe 64×64; einfarbige Platzhalter-Flächen; Hintergrund 1024×512.', ['wood_floor','wood_floor_2','wood_box','grass_tile','box1','wood_stairs']],
-  ['Menü', 'Knöpfe Host, Join, Practice, Leave, Start; Spielerkarte; Agent-Rahmen; Map-Editor-Oberfläche (10 Teile).', ['host','start']],
-  ['Schrift', 'fixed_sys.ttf (Pixelschrift).', []]
+  ['Agents', 'Agent 1: idle, crouch, jump, fall, land, dead (16×32), logo (32×32). Template character.aseprite without PNG.', []],
+  ['Abilities', 'Agent 1: smoke and a second effect, 64×64 each.', ['omen_smoke']],
+  ['Weapons', 'Knife and starter pistol, 16×8 each.', ['knife','classic']],
+  ['Map', 'Wood floor ×2, wood crate, grass, three crates, wood stairs 64×64; flat placeholder tiles; background 1024×512.', ['wood_floor','wood_floor_2','wood_box','grass_tile','box1','wood_stairs']],
+  ['Menu', 'Buttons Host, Join, Practice, Leave, Start; player card; agent frame; map editor interface (10 parts).', ['host','start']],
+  ['Font', 'fixed_sys.ttf (pixel font).', []]
 ];
 function renderStock(){
   const el=document.getElementById('stock'); el.innerHTML='';
@@ -384,7 +384,7 @@ function renderStock(){
   });
 }
 
-/* ---------- Szene ---------- */
+/* ---------- scene ---------- */
 const sceneEl=document.getElementById('scene');
 let frame=0;
 function renderScene(){
@@ -398,14 +398,14 @@ function renderScene(){
   if (IMG.wood_box) x.drawImage(IMG.wood_box,34,70);
   x.drawImage(chargeCanvas(state, frame%8<4),58,112);
   x.drawImage(gridCanvas(figureGrid(0,'enemy',state)),112,22);
-  // Sichtkegel
+  // view cone
   const cx=120, cy=110, half=103/2*Math.PI/180, d=x.getImageData(0,0,W,H);
   for(let yy=0;yy<H;yy++) for(let xx=0;xx<W;xx++){
     const a=Math.atan2(xx-cx, cy-yy);
     if (Math.abs(a)>half){ const i=(yy*W+xx)*4; d.data[i]*=.34; d.data[i+1]*=.34; d.data[i+2]=d.data[i+2]*.34+14; }
   }
   x.putImageData(d,0,0);
-  // Leuchtspur und Mündungsfeuer
+  // tracer and muzzle flash
   if (frame%8<3){
     const g=x.createLinearGradient(0,96,0,40); g.addColorStop(0,'rgba(255,230,140,.95)'); g.addColorStop(1,'rgba(255,230,140,.15)');
     x.fillStyle=g; x.fillRect(120,40,1,56);

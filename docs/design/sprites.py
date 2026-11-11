@@ -1,9 +1,10 @@
-"""Erzeugt die Val2d-Sprites der Design-Sitzung als PNG unter assets/.
+"""Generates the Val2d sprites of the design session as PNG files under assets/.
 
-Aufruf: python docs/design/sprites.py
-Regeln (docs/ENTSCHEIDUNGEN.md, Sprite-Konzept): 16 px = 1 m, Figur 16×32, Kachel 32×32,
-Kontur in dunkler Eigenfarbe, zwei Schattenstufen, Licht von oben links, Sprites teamneutral;
-Gegner-Variante mit rotem Umriss (*_feind.png). Alle Figuren und Gegenstände sind eigene Entwürfe.
+Usage: python docs/design/sprites.py
+Rules (docs/ENTSCHEIDUNGEN.md, sprite concept): 16 px = 1 m, figure 16x32, tile 32x32,
+outline in a darker shade of the neighbouring colour, two shading steps, light from the top left,
+sprites are team-neutral; enemy variant with a red outline (*_feind.png). All figures and items
+are original designs. File names stay German so existing code keeps working.
 """
 from __future__ import annotations
 
@@ -37,7 +38,7 @@ def from_rows(rows: list[str], pal: dict[str, str]) -> Image.Image:
     im = Image.new("RGBA", (w, len(rows)), CLEAR)
     px = im.load()
     for y, row in enumerate(rows):
-        assert len(row) == w, f"Zeile {y} hat {len(row)} statt {w} Zeichen: {row!r}"
+        assert len(row) == w, f"row {y} has {len(row)} instead of {w} characters: {row!r}"
         for x, ch in enumerate(row):
             if ch != ".":
                 px[x, y] = hexc(pal[ch])
@@ -45,7 +46,7 @@ def from_rows(rows: list[str], pal: dict[str, str]) -> Image.Image:
 
 
 def outline(im: Image.Image, color: Color | None = None) -> Image.Image:
-    """Kontur außen: feste Farbe oder dunkle Eigenfarbe des Nachbarn."""
+    """Outer outline: fixed colour or a darker shade of the neighbouring pixel."""
     out = im.copy()
     src, dst = im.load(), out.load()
     w, h = im.size
@@ -62,7 +63,7 @@ def outline(im: Image.Image, color: Color | None = None) -> Image.Image:
 
 
 def enemy_variant(im: Image.Image) -> Image.Image:
-    """Ersetzt die Kontur (äußerste Pixel) durch Rot."""
+    """Replaces the outline (outermost pixels) with red."""
     out = im.copy()
     src, dst = im.load(), out.load()
     w, h = im.size
@@ -81,7 +82,7 @@ def save(im: Image.Image, rel: str) -> None:
     path = ASSETS / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     im.save(path)
-    print("geschrieben:", rel, im.size)
+    print("written:", rel, im.size)
 
 
 def strip(frames: list[Image.Image]) -> Image.Image:
@@ -92,9 +93,9 @@ def strip(frames: list[Image.Image]) -> Image.Image:
     return out
 
 
-# ------------------------------------------------------------------ Agents
+# ------------------------------------------------------------------ agents
 def legs(left: int, right: int, hip: str, rows_total: int = 11, coat_rows: int = 0) -> list[str]:
-    """Beine ab Zeile 21: Hüfte, Hosenbeine (P/p), Stiefel (B). Länge 5 = gestreckt."""
+    """Legs from row 21: hip, trouser legs (P/p), boots (B). Length 5 = fully extended."""
     out = []
     for i in range(rows_total):
         y = 21 + i
@@ -185,7 +186,7 @@ def agent_frames(top: list[str], pal: dict[str, str], hip: str, coat_rows: int) 
     crouch = figure(crouch_rows[:32])
     jump = figure(top + legs(3, 3, hip, coat_rows=coat_rows))
     dead = idle.rotate(90, expand=True)
-    dead = Image.eval(dead, lambda v: v)  # gleiche Farben
+    dead = Image.eval(dead, lambda v: v)  # same colours
     px = dead.load()
     for y in range(dead.size[1]):
         for x in range(dead.size[0]):
@@ -214,9 +215,9 @@ def make_agents() -> None:
         save(portrait(top, pal), f"agents/{key}/{key}_portrait.png")
 
 
-# ------------------------------------------------------------------ Waffen
+# ------------------------------------------------------------------ weapons
 GUN_SPECS: dict[str, dict[str, object]] = {
-    # Länge in px (von 16), Lauf, Magazin, Schaft, Zielfernrohr, Akzentfarbe
+    # length in px (of 16), barrel, magazine, stock, scope, accent colour
     "spatz":    {"len": 9,  "barrel": 3, "mag": "pistol", "stock": None, "scope": False, "accent": "#6c6b75"},
     "hornisse": {"len": 9,  "barrel": 3, "mag": "pistol", "stock": None, "scope": False, "accent": "#c9a227"},
     "bulle":    {"len": 10, "barrel": 4, "mag": "drum",   "stock": None, "scope": False, "accent": "#8a5a43"},
@@ -237,7 +238,7 @@ GUN_SPECS: dict[str, dict[str, object]] = {
 
 
 def draw_gun(spec: dict[str, object], w: int, h: int) -> Image.Image:
-    """Seitenansicht, Mündung rechts; skaliert in Raster-Einheiten auf w×h."""
+    """Side view, muzzle to the right; drawn in grid units scaled to w x h."""
     body, dark, light = hexc("#46454d"), hexc("#232228"), hexc("#6c6b75")
     accent = hexc(str(spec["accent"]))
     u = w / 16.0
@@ -267,7 +268,7 @@ def draw_gun(spec: dict[str, object], w: int, h: int) -> Image.Image:
     rect(body_end, 3, 16, 4, dark)
     if spec.get("silencer"):
         rect(16 - 3, 2.5, 16, 4.5, dark)
-    rect(rstart + 1, 5, rstart + 2.5, 7, dark)  # Griff
+    rect(rstart + 1, 5, rstart + 2.5, 7, dark)  # grip
     mag = spec["mag"]
     mx = rstart + 3
     if mag == "pistol":
@@ -300,7 +301,7 @@ def make_weapons() -> None:
     save(knife, "weapons/val2d/messer.png")
 
 
-# ------------------------------------------------------------------ Kacheln
+# ------------------------------------------------------------------ tiles
 def make_tiles() -> None:
     rng = random.Random(11)
     base = hexc("#c4ae88")
@@ -400,7 +401,7 @@ def make_tiles() -> None:
     save(site, "maps/werkhof/platz_rand.png")
 
 
-# ------------------------------------------------------------------ Spike, Effekte, Symbole
+# ------------------------------------------------------------------ spike, effects, icons
 SPIKE_ROWS = ["................", "................", "...oooooooooo...", "...oMMMMMMMMo...", "...oMmmmmmmMo...",
               "...oMmCCCCmMo...", "...oMmCLLCmMo...", "...oMmCLLCmMo...", "...oMmCCCCmMo...", "...oMmmmmmmMo...",
               "...oYkYkYkYkYo..", "...oMMMMMMMMo...", "...oooooooooo...", "....kk....kk....", "................",
@@ -501,7 +502,7 @@ HUD_ICONS: dict[str, tuple[list[str], dict[str, str]]] = {
 
 
 def panel(size: int, fill: str, edge: str, light: str) -> Image.Image:
-    """9-Teile-Rahmen: Ecken 4 px, Mitte dehnbar (für Leisten und Kaufmenü)."""
+    """Nine-slice frame: 4 px corners, stretchable centre (bars and buy menu)."""
     im = Image.new("RGBA", (size, size), CLEAR)
     p = im.load()
     for y in range(size):
@@ -564,6 +565,9 @@ FONT5: dict[str, list[str]] = {
     "I": ["###", ".#.", ".#.", ".#.", ".#.", ".#.", "###"],
     "K": ["#...#", "#..#.", "#.#..", "##...", "#.#..", "#..#.", "#...#"],
     "L": ["#....", "#....", "#....", "#....", "#....", "#....", "#####"],
+    "M": ["#...#", "##.##", "#.#.#", "#.#.#", "#...#", "#...#", "#...#"],
+    "O": [".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
+    "Y": ["#...#", "#...#", ".#.#.", "..#..", "..#..", "..#..", "..#.."],
     "N": ["#...#", "##..#", "#.#.#", "#..##", "#...#", "#...#", "#...#"],
     "P": ["####.", "#...#", "#...#", "####.", "#....", "#....", "#...."],
     "R": ["####.", "#...#", "#...#", "####.", "#.#..", "#..#.", "#...#"],
@@ -576,12 +580,12 @@ FONT5: dict[str, list[str]] = {
 }
 
 BANNERS = {
-    "sieg": ("SIEG", "#4fd6c8"),
-    "niederlage": ("NIEDERLAGE", "#ee4c4a"),
-    "seitenwechsel": ("SEITENWECHSEL", "#e0b437"),
-    "spike_gelegt": ("SPIKE GELEGT", "#ee4c4a"),
-    "entschaerft": ("ENTSCHÄRFT", "#4fd6c8"),
-    "verlaengerung": ("VERLÄNGERUNG", "#e0b437"),
+    "sieg": ("VICTORY", "#4fd6c8"),
+    "niederlage": ("DEFEAT", "#ee4c4a"),
+    "seitenwechsel": ("SWITCHING SIDES", "#e0b437"),
+    "spike_gelegt": ("SPIKE PLANTED", "#ee4c4a"),
+    "entschaerft": ("SPIKE DEFUSED", "#4fd6c8"),
+    "verlaengerung": ("OVERTIME", "#e0b437"),
 }
 
 
@@ -645,17 +649,17 @@ def _hands_off(top: list[str]) -> list[str]:
 
 
 def action_frames(top: list[str], pal: dict[str, str], hip: str, coat: int, glow: str) -> dict[str, list[Image.Image]]:
-    """Schießen (2), Nachladen (4), Fähigkeit (3). Waffe und Mündungsfeuer zeichnet das Spiel getrennt."""
+    """Shoot (2), reload (4), cast (3). The game draws weapon and muzzle flash separately."""
     pal = {**pal, "*": glow}
     base_legs = legs(5, 5, hip, coat_rows=coat)
 
     def fig(rows: list[str]) -> Image.Image:
         return outline(from_rows(rows + base_legs, pal))
 
-    # Schießen: Rückstoß, Oberkörper 1 px tiefer
+    # shoot: recoil, upper body 1 px lower
     recoil = ["................"] + top[:-1]
     shoot = [fig(top), fig(recoil)]
-    # Nachladen: Hände zur Mitte (Gürtel) und zurück
+    # reload: hands to the belt and back
     r1 = _hands_off(top)
     for x, ch in ((4, "S"), (11, "s")):
         _set(r1, 17, x, ch)
@@ -663,7 +667,7 @@ def action_frames(top: list[str], pal: dict[str, str], hip: str, coat: int, glow
     for x, ch in ((6, "S"), (7, "S"), (8, "S"), (9, "s")):
         _set(r2, 16, x, ch)
     reload = [fig(top), fig(r1), fig(r2), fig(r1)]
-    # Fähigkeit: rechte Hand hoch, Leuchten
+    # cast: right hand up, glow
     c1 = list(top)
     for y in (18, 19):
         _set(c1, y, 12, ".")
