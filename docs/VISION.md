@@ -6,7 +6,6 @@ As of: 11.11.2026 · Christian Abel · Source: vision sheet and follow-up questi
 
 Val2d is a tactical 2D shooter that plays like VALORANT. **Rules, systems, weapon balance and game feel as close to the original as possible.** We only deviate where 2D truly makes a mechanic impossible; then there is a 2D solution whose result comes as close to the original as possible (example: hit zones, see below).
 
-**Riot's content is not recreated, not even renamed:** agents with their ability kits, maps, names of agents, maps and weapons, graphics, sounds, logos. Riot's fan content policy explicitly forbids using their IP in games, even non-commercially. Agents, abilities, maps and weapon names are our own designs; agents are assembled via a config (see "Agents and abilities").
 
 What has to feel like Valorant:
 - Gunplay: first-shot accuracy, counter-strafing, spray

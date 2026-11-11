@@ -98,4 +98,3 @@ Full rules in `../CHARACTER_SHEETS.md`. In short:
 2. Outline, light direction and shading follow sections 1–2?
 3. Size and frame count match the template?
 4. For agents, `python docs/design/check_agent_sprites.py <key>` runs without problems?
-5. Original design, no borrowed look?

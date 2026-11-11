@@ -125,7 +125,3 @@ python docs/design/check_agent_sprites.py vesper
 3. `crouch`, `jump`, `shoot`, `reload`, `cast_c`, `cast_q`, `cast_e`, `cast_x`, `dead`, `portrait`.
 4. Run the check, commit, and enter the agent as done in `docs/SPRITES.md`.
 5. Later: special mechanics the agent needs (section 5), then optional states in this order: `plant`, `defuse`, `channel_*`, `dying`, the rest.
-
-## 9. Originals only
-
-Every agent is an original design. Do not draw characters, outfits or logos from other games, even renamed or changed in small ways.

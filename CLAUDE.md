@@ -12,8 +12,7 @@ You are the **coding session**. Graphics come from the **design session** with C
 - As close to Valorant as possible. If something deviates, put the reason in docs/ENTSCHEIDUNGEN.md.
 - Never scatter game values across the code: a data file with patch number and source per value.
 - Values that Christian tunes (e.g. hit tolerances) belong in the game config.
-- Do not recreate Riot content, not even renamed: no Valorant agents or their kits, no Valorant maps, no names of agents, maps or weapons. Systems, rules and weapon numbers may follow the original. Agents run via config/agents.json with ability building blocks.
-- Graphics and sprites are delivered by the design session with Christian. Until then, placeholders, clearly named as such. No Riot graphics, sounds or logos.
+- Graphics and sprites are delivered by the design session with Christian. Until then, placeholders, clearly named as such.
 - graphy and networking come from the packages (no local copies). Networking in the game goes through the wrapper netplay (working title).
 - New code: snake_case, type hints, no TODOs in finished code. Warn on non-fatal errors, never crash. Time is UTC internally.
 - Never report as tested what did not run.
