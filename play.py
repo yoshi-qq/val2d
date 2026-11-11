@@ -24,10 +24,11 @@ import pygame
 from gameplay.bots import BotDirector
 from gameplay.data import LobbySettings, load_config
 from gameplay.geometry import Vec, heading
-from gameplay.match import Command, GameEvent, Match, PlayerState
+from gameplay.match import Command, Effect, GameEvent, Match, PlayerState
 from gameplay.net import DEFAULT_PORT, Client, apply_snapshot, discover, events_from_json
 from gameplay.session import HostSession
 from gameplay.world import load_map
+from sprite_bank import SpriteBank, build_map_surface
 
 ROOT = Path(__file__).resolve().parent
 FONT_PATH = ROOT / "font" / "fixed_sys.ttf"
@@ -158,6 +159,9 @@ class Game:
             for i in range(args.team_size):
                 self.match.add_player(f"Gegner {i + 1}", 1, list(self.match.agents)[i % len(self.match.agents)], is_bot=True)
         self.bots = BotDirector(self.match)
+        self.bank = SpriteBank()
+        self.map_surface = build_map_surface(self.match.world, self.bank, self.scale)
+        self._crop: pygame.Surface | None = None
         self.local_facing = 0.0
         self.seen_round = -1
         self.ui = UiState()
@@ -304,37 +308,25 @@ class Game:
             return
         s.fill(C_BG)
         wm = m.world
-        from gameplay.geometry import Rect
-        pygame.draw.polygon(s, C_FLOOR, self.poly(Rect(0, 0, wm.width, wm.height), me))
+        if self.map_surface is not None:
+            self.draw_map_texture(me)
+        else:
+            self.draw_map_placeholder(me)
         for site in wm.sites:
-            pygame.draw.polygon(s, (70, 62, 40), self.poly(site.rect, me))
             sx, sy = self.to_screen(site.rect.center, me)
             lbl = self.big.render(site.name, True, C_SITE)
             s.blit(lbl, (sx - lbl.get_width() / 2, sy - lbl.get_height() / 2))
-        for r in wm.ramps:
-            pygame.draw.polygon(s, C_RAMP, self.poly(r, me))
-        for w in wm.walls:
-            if w.rect.x0 < -0.5 or w.rect.y0 < -0.5 or w.rect.x1 > wm.width + 0.5 or w.rect.y1 > wm.height + 0.5:
-                continue
-            col = C_CRATE if w.height == 1 and w.blocks_sight is False else (C_WALL_THIN if w.penetration == 0 else C_WALL)
-            if any(pl.rect == w.rect for pl in wm.platforms):
-                col = C_PLATFORM
-            pygame.draw.polygon(s, col, self.poly(w.rect, me))
         for e in m.effects:
-            ex, ey = self.to_screen(e.pos, me)
-            if e.kind == "smoke":
-                pygame.draw.circle(s, C_SMOKE, (ex, ey), e.radius * self.scale)
-            elif e.kind == "slow_field":
-                pygame.draw.circle(s, (120, 80, 170), (ex, ey), e.radius * self.scale, 3)
-            elif e.kind == "sensor":
-                pygame.draw.circle(s, C_ALLY if e.team == me.team else C_ENEMY, (ex, ey), 5)
-                pygame.draw.circle(s, (60, 90, 90), (ex, ey), e.radius * self.scale, 1)
-            elif e.kind == "vapor_wall" and e.a and e.b:
-                pygame.draw.line(s, (180, 190, 210), self.to_screen(e.a, me), self.to_screen(e.b, me), 8)
+            self.draw_effect(e, me)
         if m.spike_pos is not None:
             px, py = self.to_screen(m.spike_pos, me)
             blink = m.phase != "planted" or int(m.time * (2 + 6 * (1 - m.spike_time_left() / 45))) % 2 == 0
-            pygame.draw.rect(s, C_ENEMY if blink else (90, 40, 40), (px - 6, py - 6, 12, 12))
+            size = round(self.scale)
+            img = self.bank.scaled("fx/spike.png", (size, size), 0 if blink else 1, 16)
+            if img is not None:
+                s.blit(img, (px - size / 2, py - size / 2))
+            else:
+                pygame.draw.rect(s, C_ENEMY if blink else (90, 40, 40), (px - 6, py - 6, 12, 12))
         # Sichtkegel: Außenbereich abdunkeln
         if not m.cfg.lobby.all_around_sight and me.alive:
             shade = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
@@ -356,8 +348,19 @@ class Game:
                 self.ui.tracers.remove(tr)
                 continue
             pygame.draw.line(s, (255, 230, 140), self.to_screen(tr.a, me), self.to_screen(tr.b, me), 2 if tr.own else 1)
+            frame = max(0, min(2, int((0.08 - (tr.until - m.time)) / 0.08 * 3)))
+            size = max(1, round(self.scale * 0.5))
+            muzzle = self.bank.scaled("fx/muendung.png", (size, size), frame, 8)
+            if muzzle is not None and (tr.b - tr.a).length() > 0.7:
+                mx, my = self.to_screen(tr.a + (tr.b - tr.a).normalized() * 0.6, me)
+                s.blit(muzzle, (mx - size / 2, my - size / 2))
         for p in m.players.values():
             if not p.alive:
+                if p.visible or self.mode != "client":
+                    bx, by = self.to_screen(p.pos, me)
+                    body = self.bank.agent(p.agent, "dead", p.team != me.team, self.scale, m.time)
+                    if body is not None:
+                        s.blit(body, (bx - body.get_width() / 2, by - body.get_height() / 2))
                 continue
             seen = p.visible if self.mode == "client" else m.can_see(me, p)
             if p.team != me.team and not seen:
@@ -365,11 +368,17 @@ class Game:
             px, py = self.to_screen(p.pos, me)
             r = 0.4 * self.scale
             col = C_ALLY if p.team == me.team else C_ENEMY
-            if p.team != me.team:
-                pygame.draw.circle(s, C_ENEMY, (px, py), r + 3, 3)
-            pygame.draw.circle(s, (80, 90, 94) if p.pid != self.me else (110, 120, 124), (px, py), r)
-            fx, fy = self.to_screen(p.pos + heading(p.facing) * 0.6, me)
-            pygame.draw.line(s, col, (px, py), (fx, fy), 3)
+            fx, fy = self.to_screen(p.pos + heading(p.facing) * 0.9, me)
+            pygame.draw.line(s, col, (px, py), (fx, fy), 2)
+            pose = "jump" if p.z > 0.001 else "crouch" if p.crouching else "walk" if p.vel.length() > 0.5 else "idle"
+            img = self.bank.agent(p.agent, pose, p.team != me.team, self.scale, m.time)
+            if img is not None:
+                s.blit(img, (px - img.get_width() / 2, py - img.get_height() / 2))
+                r = img.get_height() / 2
+            else:
+                if p.team != me.team:
+                    pygame.draw.circle(s, C_ENEMY, (px, py), r + 3, 3)
+                pygame.draw.circle(s, (80, 90, 94) if p.pid != self.me else (110, 120, 124), (px, py), r)
             if p.level:
                 s.blit(self.font.render("▲", True, C_TEXT), (px + r, py - r))
             if p.pid != self.me:
@@ -386,6 +395,76 @@ class Game:
         if self.ui.show_scores or m.phase == "over":
             self.draw_scores()
         pygame.display.flip()
+
+    def draw_map_texture(self, me: PlayerState) -> None:
+        """Kartenbild um den Spieler ausschneiden und mit der Kamera drehen."""
+        assert self.map_surface is not None
+        cx, cy = self.to_screen(me.pos, me)
+        radius = math.ceil(math.hypot(max(cx, self.w - cx), max(cy, self.h - cy))) + 2
+        size = 2 * radius
+        if self._crop is None or self._crop.get_width() != size:
+            self._crop = pygame.Surface((size, size)).convert()
+        self._crop.fill(C_BG)
+        mx = me.pos.x * self.scale
+        my = (self.match.world.height - me.pos.y) * self.scale
+        self._crop.blit(self.map_surface, (radius - mx, radius - my))
+        nx, ny = self.to_screen(me.pos + Vec(0, 1), me)
+        north = math.degrees(math.atan2(-(ny - cy), nx - cx))
+        rotated = pygame.transform.rotate(self._crop, north - 90)
+        self.screen.blit(rotated, (cx - rotated.get_width() / 2, cy - rotated.get_height() / 2))
+
+    def draw_map_placeholder(self, me: PlayerState) -> None:
+        from gameplay.geometry import Rect
+        s, wm = self.screen, self.match.world
+        pygame.draw.polygon(s, C_FLOOR, self.poly(Rect(0, 0, wm.width, wm.height), me))
+        for site in wm.sites:
+            pygame.draw.polygon(s, (70, 62, 40), self.poly(site.rect, me))
+        for r in wm.ramps:
+            pygame.draw.polygon(s, C_RAMP, self.poly(r, me))
+        for w in wm.walls:
+            if w.rect.x0 < -0.5 or w.rect.y0 < -0.5 or w.rect.x1 > wm.width + 0.5 or w.rect.y1 > wm.height + 0.5:
+                continue
+            col = C_CRATE if w.height == 1 and w.blocks_sight is False else (C_WALL_THIN if w.penetration == 0 else C_WALL)
+            if any(pl.rect == w.rect for pl in wm.platforms):
+                col = C_PLATFORM
+            pygame.draw.polygon(s, col, self.poly(w.rect, me))
+
+    def draw_effect(self, e: Effect, me: PlayerState) -> None:
+        s = self.screen
+        ex, ey = self.to_screen(e.pos, me)
+        art = {"smoke": "fx/dunst.png", "slow_field": "fx/bann.png"}.get(e.kind)
+        if art:
+            d = max(1, round(2 * e.radius * self.scale))
+            img = self.bank.scaled(art, (d, d))
+            if img is not None:
+                s.blit(img, (ex - d / 2, ey - d / 2))
+            elif e.kind == "smoke":
+                pygame.draw.circle(s, C_SMOKE, (ex, ey), e.radius * self.scale)
+            else:
+                pygame.draw.circle(s, (120, 80, 170), (ex, ey), e.radius * self.scale, 3)
+        elif e.kind == "sensor":
+            size = max(1, round(self.scale * 0.6))
+            img = self.bank.scaled("fx/lauscher.png", (size, size))
+            if img is not None:
+                s.blit(img, (ex - size / 2, ey - size / 2))
+            else:
+                pygame.draw.circle(s, C_ALLY if e.team == me.team else C_ENEMY, (ex, ey), 5)
+            pygame.draw.circle(s, (60, 90, 90), (ex, ey), e.radius * self.scale, 1)
+        elif e.kind == "vapor_wall" and e.a and e.b:
+            a, b = self.to_screen(e.a, me), self.to_screen(e.b, me)
+            length = math.hypot(b[0] - a[0], b[1] - a[1])
+            tile_px = max(1, round(self.scale))
+            tile = self.bank.scaled("fx/schleier.png", (tile_px, tile_px))
+            if tile is None or length < 1:
+                pygame.draw.line(s, (180, 190, 210), a, b, 8)
+                return
+            strip = pygame.Surface((max(1, round(length)), tile_px), pygame.SRCALPHA)
+            for x in range(0, strip.get_width(), tile_px):
+                strip.blit(tile, (x, 0))
+            angle = math.degrees(math.atan2(-(b[1] - a[1]), b[0] - a[0]))
+            rotated = pygame.transform.rotate(strip, angle)
+            mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+            s.blit(rotated, (mid[0] - rotated.get_width() / 2, mid[1] - rotated.get_height() / 2))
 
     def draw_lobby(self) -> None:
         s = self.screen
