@@ -761,7 +761,8 @@ class Game:
             self.agent_cards.append((rect, key))
             chosen = mine is not None and mine.agent == key
             frame = "ui/hud/rahmen_aktiv.png" if chosen else "ui/hud/rahmen.png"
-            self.nine_slice(frame, rect) if self.bank.raw(frame) else pygame.draw.rect(s, C_SITE if chosen else C_MUTED, rect, 1)
+            if not draw_nine_slice(s, self.bank, frame, rect, 8, 1):
+                pygame.draw.rect(s, C_SITE if chosen else C_MUTED, rect, 1)
             if rect.collidepoint(mouse) and not chosen:
                 pygame.draw.rect(s, C_TEXT, rect, 1)
             pic = self.bank.scaled(f"agents/{key}/{key}_select.png", (64, 128)) or self.bank.scaled(f"agents/{key}/{key}_portrait.png", (64, 64))
@@ -800,28 +801,6 @@ class Game:
         if self.status:
             self.text(self.status, (self.w / 2, self.h - 60), C_ENEMY, center=True)
 
-    def nine_slice(self, rel: str, rect: pygame.Rect, corner: int = 4) -> None:
-        """Draws a 9-slice frame (corners 4 px in the file) scaled to whole pixels."""
-        img = self.bank.raw(rel)
-        if img is None:
-            return
-        k = 2  # display scale of the frame pixels
-        w, h = img.get_size()
-        c = corner
-        dst_c = c * k
-        parts = [((0, 0, c, c), (rect.x, rect.y, dst_c, dst_c)),
-                 ((w - c, 0, c, c), (rect.right - dst_c, rect.y, dst_c, dst_c)),
-                 ((0, h - c, c, c), (rect.x, rect.bottom - dst_c, dst_c, dst_c)),
-                 ((w - c, h - c, c, c), (rect.right - dst_c, rect.bottom - dst_c, dst_c, dst_c)),
-                 ((c, 0, w - 2 * c, c), (rect.x + dst_c, rect.y, rect.w - 2 * dst_c, dst_c)),
-                 ((c, h - c, w - 2 * c, c), (rect.x + dst_c, rect.bottom - dst_c, rect.w - 2 * dst_c, dst_c)),
-                 ((0, c, c, h - 2 * c), (rect.x, rect.y + dst_c, dst_c, rect.h - 2 * dst_c)),
-                 ((w - c, c, c, h - 2 * c), (rect.right - dst_c, rect.y + dst_c, dst_c, rect.h - 2 * dst_c)),
-                 ((c, c, w - 2 * c, h - 2 * c), (rect.x + dst_c, rect.y + dst_c, rect.w - 2 * dst_c, rect.h - 2 * dst_c))]
-        for src, dst in parts:
-            if dst[2] > 0 and dst[3] > 0:
-                self.screen.blit(pygame.transform.scale(img.subsurface(src), (dst[2], dst[3])), (dst[0], dst[1]))
-
     def draw_score_pips(self, me: PlayerState) -> None:
         """Round pips left (own wins) and right (enemy wins) of the timer, up to the rounds needed to win."""
         m = self.match
@@ -840,9 +819,9 @@ class Game:
                                      (x, 26, px, px), 0 if i < won else 1)
 
     def draw_bar(self, icon: str, fill: str, value: int, top: int, pos: tuple[int, int]) -> None:
-        """HUD bar: icon, empty bar, fill clipped to value/top, number (pixel art at 3x)."""
+        """HUD bar: icon (16x16), empty bar, fill clipped to value/top (96x12), number; native size at k = 2."""
         x, y = pos
-        k = 3
+        k = 2
         sym = self.bank.scaled(f"ui/hud/{icon}.png", (8 * k, 8 * k))
         empty = self.bank.scaled("ui/hud/balken_leer.png", (48 * k, 6 * k))
         full = self.bank.scaled(f"ui/hud/{fill}.png", (48 * k, 6 * k))
@@ -996,7 +975,7 @@ class Game:
             art = self.bank.raw(f"ui/banner/{self.ui.banner_art}.png") if self.ui.banner_art else None
             y = 96
             if art is not None:
-                k = 3
+                k = 2  # banners are 32 px high
                 img = self.bank.scaled(f"ui/banner/{self.ui.banner_art}.png", (art.get_width() * k, art.get_height() * k))
                 if img is not None:
                     self.screen.blit(img, (self.w / 2 - img.get_width() / 2, y))
