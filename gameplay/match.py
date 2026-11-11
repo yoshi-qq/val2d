@@ -871,7 +871,7 @@ class Match:
             "spike": {"carrier": self.spike_carrier, "pos": (self.spike_pos.x, self.spike_pos.y) if self.spike_pos else None, "site": self.spike_site},
             "effects": [{"kind": e.kind, "team": e.team, "x": e.pos.x, "y": e.pos.y, "r": e.radius,
                          "a": (e.a.x, e.a.y) if e.a else None, "b": (e.b.x, e.b.y) if e.b else None,
-                         "start": e.start, "until": e.until}
+                         "start": e.start, "until": e.until, "status": e.props.get("status")}
                         for e in self.effects if self._effect_visible(e, viewer)],
             "players": players,
             "roster": [{"pid": p.pid, "name": p.name, "team": p.team, "agent": p.agent, "kills": p.kills,

@@ -327,7 +327,7 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int) -> None:
     m.spike_site = sp["site"]
     m.effects = [Effect(e["kind"], 0, e["team"], Vec(e["x"], e["y"]), float(e.get("until", m.time + 1.0)), e["r"],
                         Vec(*e["a"]) if e["a"] else None, Vec(*e["b"]) if e["b"] else None,
-                        start=float(e.get("start", 0.0))) for e in snap["effects"]]
+                        start=float(e.get("start", 0.0)), props={"status": e.get("status")}) for e in snap["effects"]]
     m.drops = [Drop(d["key"], 0, 0, Vec(d["x"], d["y"])) for d in snap.get("drops", [])]
     for row in snap.get("roster", []):
         pid = int(row["pid"])

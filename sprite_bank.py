@@ -77,6 +77,36 @@ class SpriteBank:
             return self.scaled(rel, size, index, 16)
         return self.scaled(rel, size)
 
+    def agent_frame(self, agent: str, pose: str, enemy: bool, scale: float, progress: float) -> pygame.Surface | None:
+        """Action strip (shoot, reload, cast) at progress 0..1; None if the strip is missing."""
+        suffix = "_feind" if enemy else ""
+        rel = f"agents/{agent}/{agent}_{pose}{suffix}.png"
+        if self.raw(rel) is None:
+            return None
+        count = self.frames_in(rel, 16)
+        index = min(count - 1, max(0, int(progress * count)))
+        return self.scaled(rel, (round(scale), round(2 * scale)), index, 16)
+
+    def strip_frame(self, rel: str, size: tuple[int, int], progress: float, frame_w: int) -> pygame.Surface | None:
+        """Frame of an effect strip at progress 0..1 (clamped)."""
+        if self.raw(rel) is None:
+            return None
+        count = self.frames_in(rel, frame_w)
+        return self.scaled(rel, size, min(count - 1, max(0, int(progress * count))), frame_w)
+
+    def tinted(self, rel: str, size: tuple[int, int], index: int, frame_w: int, color: tuple[int, int, int]) -> pygame.Surface | None:
+        key = (f"{rel}#{color}", size[0], size[1], index)
+        hit = self._scaled.get(key)
+        if hit is not None:
+            return hit
+        base = self.scaled(rel, size, index, frame_w)
+        if base is None:
+            return None
+        out = base.copy()
+        out.fill((*color, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        self._scaled[key] = out
+        return out
+
 
 # ------------------------------------------------------------ Map
 def _tile_rect(target: pygame.Surface, tile: pygame.Surface, rect: pygame.Rect) -> None:

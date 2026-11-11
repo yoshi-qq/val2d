@@ -74,6 +74,15 @@ class UiState:
     feed: list[tuple[float, str]] = field(default_factory=list)
     banner: tuple[float, str] = (0.0, "")
     hit_marker: float = 0.0
+    last_shot: dict[int, float] = field(default_factory=dict)
+    last_cast: dict[int, float] = field(default_factory=dict)
+    blasts: list[tuple[Vec, float, float]] = field(default_factory=list)  # pos, radius, start
+    waves: list[tuple[int, Vec, float]] = field(default_factory=list)      # pid, end point, start
+
+
+STATUS_TINT = {"slow": (150, 110, 220), "decay": (120, 200, 90), "vulnerable": (230, 120, 80), "deaf": (120, 160, 230),
+               "suppress": (200, 80, 160), "nearsight": (90, 80, 120), "concuss": (230, 210, 90), "detain": (200, 200, 200),
+               "stim": (90, 220, 160)}
 
 
 class Sound:
@@ -268,6 +277,7 @@ class Game:
         for e in events:
             d = e.data
             if e.kind == "shot":
+                self.ui.last_shot[d["pid"]] = t
                 self.ui.tracers.append(Tracer(Vec(*d["from"]), Vec(*d["to"]), t + 0.08, d["pid"] == self.me))
             elif e.kind == "sound":
                 if me.status.get("deaf", 0.0) > t:
@@ -289,11 +299,15 @@ class Game:
                 self.sound.play("plant", None, None)
             elif e.kind == "blast":
                 self.sound.play("shot", me, Vec(*d["pos"]), 40)
-                self.ui.rings.append(Ring(Vec(*d["pos"]), d["radius"], t))
+                self.ui.blasts.append((Vec(*d["pos"]), float(d["radius"]), t))
             elif e.kind == "revive":
                 revived = m.players.get(d["pid"])
                 self.ui.feed.append((t + 4, f"{revived.name if revived else '?'} revived"))
+            elif e.kind == "ability" and d.get("kind") == "wave":
+                self.ui.last_cast[d["pid"]] = t
+                self.ui.waves.append((d["pid"], Vec(*d["pos"]), t))
             elif e.kind == "ability":
+                self.ui.last_cast[d["pid"]] = t
                 self.sound.play("ability", me, Vec(*d["pos"]), 30)
             elif e.kind == "round_end":
                 won = d["winner"] == me.team
@@ -379,8 +393,10 @@ class Game:
             col = C_ALLY if p.team == me.team else C_ENEMY
             fx, fy = self.to_screen(p.pos + heading(p.facing) * 0.9, me)
             pygame.draw.line(s, col, (px, py), (fx, fy), 2)
-            pose = "jump" if p.z > 0.001 else "crouch" if p.crouching else "walk" if p.vel.length() > 0.5 else "idle"
-            img = self.bank.agent(p.agent, pose, p.team != me.team, self.scale, m.time)
+            img = self.action_frame(p, me)
+            if img is None:
+                pose = "jump" if p.z > 0.001 else "crouch" if p.crouching else "walk" if p.vel.length() > 0.5 else "idle"
+                img = self.bank.agent(p.agent, pose, p.team != me.team, self.scale, m.time)
             if img is not None:
                 s.blit(img, (px - img.get_width() / 2, py - img.get_height() / 2))
                 r = img.get_height() / 2
@@ -393,6 +409,7 @@ class Game:
             if p.pid != self.me:
                 name = self.font.render(p.name, True, col)
                 s.blit(name, (px - name.get_width() / 2, py - r - 22))
+        self.draw_bursts(me)
         self.draw_crosshair(me)
         if me.status.get("nearsight", 0.0) > m.time:
             fog = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
@@ -410,6 +427,68 @@ class Game:
         if self.ui.show_scores or m.phase == "over":
             self.draw_scores()
         pygame.display.flip()
+
+    def action_frame(self, p: PlayerState, me: PlayerState) -> pygame.Surface | None:
+        """Reload, cast or shoot animation if one is running for p."""
+        m, t, enemy = self.match, self.match.time, p.team != me.team
+        if p.reload_until > t and p.weapon:
+            d = m.weapons.get(p.weapon.key)
+            total = d.reload if d else 2.0
+            return self.bank.agent_frame(p.agent, "reload", enemy, self.scale, 1 - (p.reload_until - t) / total)
+        cast = t - self.ui.last_cast.get(p.pid, -9.0)
+        if cast < 3 / 8:
+            return self.bank.agent_frame(p.agent, "cast", enemy, self.scale, cast / (3 / 8))
+        shot = t - self.ui.last_shot.get(p.pid, -9.0)
+        if shot < 2 / 12:
+            return self.bank.agent_frame(p.agent, "shoot", enemy, self.scale, shot / (2 / 12))
+        return None
+
+    def draw_bursts(self, me: PlayerState) -> None:
+        """Short-lived explosions and wave lines from events."""
+        s, t = self.screen, self.match.time
+        keep = []
+        for pos, radius, start in self.ui.blasts:
+            age = t - start
+            if age > 0.5:
+                continue
+            keep.append((pos, radius, start))
+            d = max(1, round(2 * radius * self.scale))
+            img = self.bank.strip_frame("fx/blast.png", (d, d), age / 0.5, 64)
+            x, y = self.to_screen(pos, me)
+            if img is not None:
+                s.blit(img, (x - d / 2, y - d / 2))
+            else:
+                pygame.draw.circle(s, C_SITE, (x, y), max(2, radius * self.scale * age / 0.5), 2)
+        self.ui.blasts = keep
+        waves = []
+        for pid, end, start in self.ui.waves:
+            age = t - start
+            owner = self.match.players.get(pid)
+            if age > 0.4 or owner is None:
+                continue
+            waves.append((pid, end, start))
+            a, b = self.to_screen(owner.pos, me), self.to_screen(end, me)
+            self.tile_line("fx/wave.png", a, b, 16, age / 0.4, (200, 220, 255), 4)
+        self.ui.waves = waves
+
+    def tile_line(self, rel: str, a: tuple[float, float], b: tuple[float, float], frame_w: int, progress: float,
+                  fallback: tuple[int, int, int], width: int) -> None:
+        """Tiles an effect strip along a screen line a→b (one tile = 1 m)."""
+        length = math.hypot(b[0] - a[0], b[1] - a[1])
+        tile_px = max(1, round(self.scale))
+        img = self.bank.raw(rel)
+        if img is None or length < 1:
+            pygame.draw.line(self.screen, fallback, a, b, width)
+            return
+        height = max(1, round(img.get_height() * self.scale / 16))
+        tile = self.bank.strip_frame(rel, (tile_px, height), progress, frame_w)
+        assert tile is not None
+        strip = pygame.Surface((max(1, round(length)), height), pygame.SRCALPHA)
+        for x in range(0, strip.get_width(), tile_px):
+            strip.blit(tile, (x, 0))
+        rotated = pygame.transform.rotate(strip, math.degrees(math.atan2(-(b[1] - a[1]), b[0] - a[0])))
+        mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+        self.screen.blit(rotated, (mid[0] - rotated.get_width() / 2, mid[1] - rotated.get_height() / 2))
 
     def draw_map_texture(self, me: PlayerState) -> None:
         """Cut the map image around the player and rotate it with the camera."""
@@ -456,13 +535,34 @@ class Game:
             pygame.draw.circle(s, C_SITE, (ex, ey), 4 + int(left * 6) % 4)
             return
         if e.kind == "alarm":
-            pygame.draw.circle(s, C_ALLY, (ex, ey), 5)
+            size = max(1, round(self.scale))
+            img = self.bank.scaled("fx/alarm.png", (size, size), int(self.match.time * 2) % 2, 16)
+            if img is not None:
+                s.blit(img, (ex - size / 2, ey - size / 2))
+            else:
+                pygame.draw.circle(s, C_ALLY, (ex, ey), 5)
             pygame.draw.circle(s, (60, 90, 90), (ex, ey), e.radius * self.scale, 1)
             return
         if e.kind == "tripwire" and e.a and e.b:
-            pygame.draw.line(s, C_ALLY, self.to_screen(e.a, me), self.to_screen(e.b, me), 1)
+            a, b = self.to_screen(e.a, me), self.to_screen(e.b, me)
+            self.tile_line("fx/tripwire.png", a, b, 16, 0.0, C_ALLY, 1)
+            node_px = max(1, round(self.scale * 6 / 16))
+            node = self.bank.scaled("fx/tripwire_node.png", (node_px, node_px))
+            if node is not None:
+                for x, y in (a, b):
+                    s.blit(node, (x - node_px / 2, y - node_px / 2))
             return
-        art = {"smoke": "fx/dunst.png", "zone": "fx/bann.png"}.get(e.kind)
+        if e.kind == "zone":
+            d = max(1, round(2 * e.radius * self.scale))
+            status = str(e.props.get("status") or "")
+            frame = int(self.match.time * 6) % 3
+            img = self.bank.tinted("fx/zone.png", (d, d), frame, 64, STATUS_TINT.get(status, (200, 200, 200)))
+            if img is not None:
+                s.blit(img, (ex - d / 2, ey - d / 2))
+            else:
+                pygame.draw.circle(s, (120, 80, 170), (ex, ey), e.radius * self.scale, 3)
+            return
+        art = {"smoke": "fx/dunst.png"}.get(e.kind)
         if art:
             d = max(1, round(2 * e.radius * self.scale))
             img = self.bank.scaled(art, (d, d))
@@ -551,10 +651,32 @@ class Game:
         abil = m.agents[me.agent]["abilities"]
         parts = [f"{k} {abil[k]['name']} ×{me.charges.get(k, 0)}" for k in ("C", "Q", "E")]
         parts.append(f"X {abil['X']['name']} {me.ult_points}/{abil['X']['cost']}")
-        self.text("   ".join(parts), (20, self.h - 70), C_MUTED)
-        active = [k for k, until in me.status.items() if until > m.time and k != "blind"]
-        if active:
-            self.text(" · ".join(sorted(active)), (20, self.h - 100), C_ENEMY if set(active) - {"stim"} else C_ALLY)
+        icon_px = 32
+        x = 20
+        for k in ("C", "Q", "E", "X"):
+            icon = self.bank.scaled(f"ui/faehigkeit_{me.agent}_{k}.png", (icon_px, icon_px))
+            if icon is None:
+                break
+            ready = me.ult_points >= int(abil["X"]["cost"]) if k == "X" else me.charges.get(k, 0) > 0
+            if not ready:
+                icon = icon.copy()
+                icon.fill((90, 90, 90, 255), special_flags=pygame.BLEND_RGBA_MULT)
+            self.screen.blit(icon, (x, self.h - 112))
+            label = f"{me.ult_points}/{abil['X']['cost']}" if k == "X" else str(me.charges.get(k, 0))
+            self.text(f"{k} {label}", (x, self.h - 76), C_MUTED)
+            x += icon_px + 40
+        else:
+            x = -1
+        if x != -1:
+            self.text("   ".join(parts), (20, self.h - 70), C_MUTED)
+        active = sorted(k for k, until in me.status.items() if until > m.time and k != "blind")
+        sx = 20
+        for k in active:
+            icon = self.bank.scaled(f"ui/status/{k}.png", (24, 24))
+            if icon is not None:
+                self.screen.blit(icon, (sx, self.h - 150))
+            self.text(k, (sx + 28, self.h - 147), C_ALLY if k == "stim" else C_ENEMY)
+            sx += 28 + self.font.size(k)[0] + 16
         self.text(f"{m.agents[me.agent]['name']} · {m.world.callout_at(me.pos)}", (20, 16), C_MUTED)
         if m.spike_carrier == self.me:
             self.text("You carry the bomb (hold F on A or B)", (20, 40), C_SITE)
