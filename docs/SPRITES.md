@@ -14,5 +14,5 @@ Status: benötigt · in Arbeit · fertig · eingebaut
 | fx_muendung | 8×8 | Mündungsfeuer | 3 | gelbe Leuchtspur | fertig | assets/fx/muendung.png (Streifen 3×8×8) |
 | fx_dunst, fx_schleier, fx_bann, fx_lauscher, fx_funke | 64×64 | Fähigkeiten Marrow und Kestrel | je 3–6 | Kreise und Linien | fertig | assets/fx/dunst.png 64, bann.png 64, schleier.png 16 (kacheln entlang der Wand), funke.png 16, lauscher.png 6; je 1 Bild |
 | icon_faehigkeit_{agent}_{C,Q,E,X} | 16×16 | Fähigkeitenleiste | – | Text | fertig | assets/ui/faehigkeit_{agent}_{C,Q,E,X}.png |
-| hud_* | Oberfläche | Leben, Schild, Munition, Credits, Zeit, Punktestand, Killfeed | – | Text in fixed_sys | benötigt | |
+| hud_* | Oberfläche | Leben, Schild, Munition, Credits, Zeit, Punktestand, Killfeed | – | Text in fixed_sys | fertig | assets/ui/hud/: leben, schild, credits, munition, kopfschuss, spike_klein, uhr, tot (8×8); rahmen, rahmen_aktiv (12×12, 9-Teile, Ecken 4 px); balken_leben, balken_schild, balken_fortschritt, balken_leer (48×6, waagerecht dehnbar) |
 | logo, icon, playercard | 48×48, 64×128 | Ersatz für Riot-Logo | – | – | fertig | assets/logo.png, assets/icon.ico (16/32/48), assets/menu/lobby/playercard.png (Fadenkreuz) |

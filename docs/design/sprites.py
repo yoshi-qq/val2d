@@ -488,12 +488,66 @@ def make_icons() -> None:
         save(from_rows(rows, pal), f"ui/faehigkeit_{key}.png")
 
 
+HUD_ICONS: dict[str, tuple[list[str], dict[str, str]]] = {
+    "leben": (["..WW....", "..WW....", "WWWWWW..", "WWWWWW..", "..WW....", "..WW....", "........", "........"], {"W": "#e8e6ef"}),
+    "schild": (["SSSSSS..", "SsSSsS..", "SSSSSS..", "SSSSSS..", ".SSSS...", "..SS....", "........", "........"], {"S": "#8fb3bd", "s": "#4f6b73"}),
+    "credits": (["..YYY...", ".YyyyY..", "YyYYyY..", "YyYYyY..", ".YyyyY..", "..YYY...", "........", "........"], {"Y": "#e0b437", "y": "#a8821f"}),
+    "munition": (["..Y.....", ".YYY....", ".WWW....", ".WWW....", ".WWW....", ".WWW....", ".ggg....", "........"], {"Y": "#e0b437", "W": "#c7ccd2", "g": "#8a9199"}),
+    "kopfschuss": (["..WWW...", ".W...W..", "W.W.W.W.", "W.....W.", ".W.W.W..", "..WWW...", "........", "........"], {"W": "#ee4c4a"}),
+    "spike_klein": (["oooooo..", "oMLLMo..", "oMLLMo..", "oYkYko..", "oooooo..", "........", "........", "........"], {"o": "#16151b", "M": "#6b7480", "L": "#ff5a4f", "Y": "#e0b437", "k": "#1b1a1a"}),
+    "uhr": (["..WWW...", ".W.W.W..", "W..W..W.", "W..WW.W.", "W.....W.", ".W...W..", "..WWW...", "........"], {"W": "#e8e6ef"}),
+    "tot": ([".WWWW...", "WWWWWW..", "W.WW.W..", "WWWWWW..", ".W.W.W..", "........", "........", "........"], {"W": "#9b98aa"}),
+}
+
+
+def panel(size: int, fill: str, edge: str, light: str) -> Image.Image:
+    """9-Teile-Rahmen: Ecken 4 px, Mitte dehnbar (für Leisten und Kaufmenü)."""
+    im = Image.new("RGBA", (size, size), CLEAR)
+    p = im.load()
+    for y in range(size):
+        for x in range(size):
+            corner = (x < 2 and y < 2) or (x >= size - 2 and y < 2) or (x < 2 and y >= size - 2) or (x >= size - 2 and y >= size - 2)
+            if corner and not ((x in (1, size - 2)) and (y in (1, size - 2))):
+                continue
+            if x == 0 or y == 0 or x == size - 1 or y == size - 1 or (x in (1, size - 2) and y in (1, size - 2)):
+                p[x, y] = hexc(edge)
+            elif x == 1 or y == 1:
+                p[x, y] = hexc(light)
+            else:
+                p[x, y] = hexc(fill)
+    return im
+
+
+def bar(width: int, fill: str, shade: str) -> Image.Image:
+    im = Image.new("RGBA", (width, 6), CLEAR)
+    p = im.load()
+    for x in range(width):
+        for y in range(6):
+            if y in (0, 5) or x in (0, width - 1):
+                p[x, y] = hexc("#16151b")
+            else:
+                p[x, y] = hexc(fill) if y < 3 else hexc(shade)
+    return im
+
+
+def make_hud() -> None:
+    for key, (rows, pal) in HUD_ICONS.items():
+        save(from_rows(rows, pal), f"ui/hud/{key}.png")
+    save(panel(12, "#1f1e27", "#0e0d12", "#2f2d3a"), "ui/hud/rahmen.png")
+    save(panel(12, "#2a2933", "#4fd6c8", "#3a3846"), "ui/hud/rahmen_aktiv.png")
+    save(bar(48, "#e8e6ef", "#9b98aa"), "ui/hud/balken_leben.png")
+    save(bar(48, "#8fb3bd", "#4f6b73"), "ui/hud/balken_schild.png")
+    save(bar(48, "#e0b437", "#a8821f"), "ui/hud/balken_fortschritt.png")
+    save(bar(48, "#3a3846", "#2a2933"), "ui/hud/balken_leer.png")
+
+
 def main() -> None:
     make_agents()
     make_weapons()
     make_tiles()
     make_fx()
     make_icons()
+    make_hud()
 
 
 if __name__ == "__main__":
