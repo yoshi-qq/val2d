@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import base64
 import json
+import runpy
 from pathlib import Path
 
 from PIL import Image
@@ -52,11 +53,24 @@ def load(rel: str) -> dict:
         return {}
 
 
+def config_dict(name: str, probe: str) -> dict:
+    """Finds the dict in config/{name}.py that contains the probe key."""
+    try:
+        data = runpy.run_path(str(ROOT / "config" / f"{name}.py"))
+    except Exception as exc:  # the sheet must still build without config
+        print(f"warning: config/{name}.py not readable: {exc}")
+        return {}
+    for value in data.values():
+        if isinstance(value, dict) and probe in value:
+            return value
+    return {}
+
+
 def build() -> str:
-    agents = load("gameplay/data/agents.json").get("agents", {})
-    weapons = load("gameplay/data/weapons.json").get("weapons", {})
+    agents = config_dict("agents", "kestrel")
+    weapons = config_dict("weapons", "spatz")
     parts: list[str] = []
-    for key in ("kestrel", "marrow"):
+    for key in agents or ("kestrel", "marrow"):
         info = agents.get(key, {})
         name, role = info.get("name", key.title()), info.get("role", "")
         a = f"assets/agents/{key}/{key}"
@@ -93,7 +107,7 @@ def build() -> str:
         anim(fx + "schleier_aufbau.png", 3, 6, "Vapor wall forming"), anim(fx + "spike_explosion.png", 6, 2, "Bomb explosion", 10),
         anim(fx + "einschlag_wand.png", 3, 10, "Wall impact", 15), anim(fx + "treffer_koerper.png", 3, 10, "Body hit", 15)]))
     icons = []
-    for key in ("kestrel", "marrow"):
+    for key in agents or ("kestrel", "marrow"):
         abil = agents.get(key, {}).get("abilities", {})
         for slot in "CQEX":
             label = f"{agents.get(key, {}).get('name', key)} {slot} · {abil.get(slot, {}).get('name', '')}"
@@ -107,6 +121,13 @@ def build() -> str:
         ("balken_leben.png", "Health bar"), ("balken_schild.png", "Shield bar"),
         ("balken_fortschritt.png", "Plant/defuse bar"), ("balken_leer.png", "Empty bar"))]))
     mm = "assets/ui/minimap/"
+    parts.append(section("Generic effects", "tint zone and blast in code per status", [
+        anim(fx + "zone.png", 3, 2, "Zone", 4), anim(fx + "blast.png", 6, 2, "Blast ring", 12),
+        img(fx + "tripwire.png", 8, "Tripwire (tile)"), img(fx + "tripwire_node.png", 10, "Tripwire node"),
+        anim(fx + "alarm.png", 2, 6, "Alarm", 3), anim(fx + "wave.png", 3, 6, "Wave (tile)", 10)]))
+    st = "assets/ui/status/"
+    parts.append(section("Status icons", "8×8", [img(st + f"{k}.png", 8, k.title()) for k in (
+        "nearsight", "concuss", "slow", "vulnerable", "decay", "suppress", "detain", "deaf", "stim")]))
     parts.append(section("Minimap", "8×8", [img(mm + f"{k}.png", 8, l) for k, l in (
         ("selbst", "You"), ("verbuendet", "Ally"), ("feind", "Enemy"), ("tot", "Eliminated"), ("spike", "Bomb"),
         ("dunst", "Smoke"), ("bann", "Slow field"), ("schleier", "Vapor wall"))]))
