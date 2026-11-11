@@ -19,7 +19,7 @@ from character_sheet_spec import CELL_H, CELL_W, MAX_COLOURS, RESERVED, STATES  
 from sprites import enemy_variant  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-NO_ENEMY_VARIANT = {"dead", "portrait", "killfeed", "select", "victory"}
+NO_ENEMY_VARIANT = {"dead", "portrait", "killfeed", "select"}  # the game uses the normal file for these
 
 
 def hex_to_rgb(h: str) -> tuple[int, int, int]:
