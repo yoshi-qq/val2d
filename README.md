@@ -2,7 +2,24 @@
 # Val2d 
 *An attempt at recreating all of VALORANT in 2 dimensions*
 
-## Available Content at the time
+## Play (current build)
+
+```bash
+pip install -r requirements.txt
+python play.py                 # main menu: practice vs bots, host LAN or online, join, settings
+python server.py --online      # dedicated server with a join code (LAN without --online)
+python map_editor.py gasse     # map editor for gameplay/data/maps/*.json
+```
+
+Controls: WASD run · Shift walk · Ctrl crouch · Space jump · mouse turn and aim depth · left click fire · right click
+alternate fire (zoom, burst, spread shot, spin-up) · R reload · 1/2/3 weapons · C/Q/E/X abilities · F plant/defuse,
+doors, swap weapons · G drop bomb/weapon · B buy menu · Tab scoreboard · Esc quit.
+
+Content (own designs): 10 agents in `config/agents.py`, 20 weapons in `config/weapons.py`, maps Werkhof and Gasse,
+materials, objects and decals in `config/materials.py`. Tests: `python -m pytest tests`.
+
+## Old roadmap (before the gameplay core)
+ Available Content at the time
 ### Game
 #### Game Modes
 - [ ] Range
