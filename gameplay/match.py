@@ -25,27 +25,35 @@ DOOR_RANGE = 1.6
 PICKUP_RANGE = 1.2
 
 
-AGENTS_PATH = ROOT / "config" / "agents.py"
+AGENTS_DIR = ROOT / "config" / "agents"
 
 
 @lru_cache(maxsize=1)
 def load_agents() -> dict[str, dict[str, Any]]:
-    """Agents from config/agents.py; broken entries are skipped with a warning."""
-    raw = _load_py(AGENTS_PATH, "AGENTS") or {}
-    out: dict[str, dict[str, Any]] = {}
-    for key, agent in raw.items():
+    """Agents from config/agents/*.py (one file per agent, key = file name; files starting with _ are skipped).
+    Broken agents and abilities are skipped with a warning naming the problem."""
+    from gameplay.kit import check_ability
+    found: list[tuple[int, str, dict[str, Any]]] = []
+    for path in sorted(AGENTS_DIR.glob("*.py")) if AGENTS_DIR.is_dir() else []:
+        if path.name.startswith("_"):
+            continue
+        agent = _load_py(path, "AGENT")
+        if not isinstance(agent, dict):
+            warnings.warn(f"Agent file {path.name} has no AGENT dict; skipped.")
+            continue
         try:
             abil = {slot: dict(agent["abilities"][slot]) for slot in ("C", "Q", "E", "X")}
-            out[key] = {"name": str(agent["name"]), "role": str(agent.get("role", "")), "abilities": abil,
-                        "sprites": dict(agent.get("sprites", {}))}
         except (KeyError, TypeError) as exc:
-            warnings.warn(f"Agent {key} skipped: {exc}")
-    return out
-
-
-@lru_cache(maxsize=1)
-def load_status_rules() -> dict[str, float]:
-    return dict(_load_py(AGENTS_PATH, "STATUS_RULES") or {})
+            warnings.warn(f"Agent {path.stem} skipped: {exc}")
+            continue
+        problems = [msg for ab in abil.values() for msg in check_ability(ab)]
+        if problems:
+            warnings.warn(f"Agent {path.stem} skipped: " + "; ".join(problems))
+            continue
+        found.append((int(agent.get("order", 999)), path.stem, {
+            "name": str(agent.get("name", path.stem.title())), "role": str(agent.get("role", "")), "abilities": abil,
+            "sprites": dict(agent.get("sprites", {})), "passives": list(agent.get("passives", []))}))
+    return {key: data for _, key, data in sorted(found, key=lambda f: (f[0], f[1]))}
 
 
 def spray_offset(d: WeaponDef, index: int) -> float:
@@ -132,6 +140,8 @@ class PlayerState:
     charges: dict[str, int] = field(default_factory=dict)
     sig_timer: float = 0.0
     sig_kills: int = 0
+    passive_state: dict[str, Any] = field(default_factory=dict)
+    status_drain: float = 0.0
     ult_points: int = 0
     kills: int = 0
     damage_total: int = 0
@@ -209,7 +219,7 @@ class Match:
         self.weapons = load_weapons()
         self.armor = load_armor()
         self.agents = load_agents()
-        self.status_rules = load_status_rules()
+        self.statuses = abilities.load_statuses()
         self.rng = random.Random(seed)
         self.players: dict[int, PlayerState] = {}
         self.effects: list[Effect] = []
@@ -260,7 +270,7 @@ class Match:
         return p
 
     def set_mode(self, mode: str) -> None:
-        """"standard", "quick" or "deathmatch" (values in rules.json "modes"); call before start()."""
+        """"standard", "quick" or "deathmatch" (values in config/rules.py "modes"); call before start()."""
         self.mode = mode if mode in ("standard", "quick", "deathmatch") else "standard"
         if self.mode == "quick":
             q = rule("modes", "quick", {})
@@ -738,7 +748,7 @@ class Match:
         return s * abilities.speed_factor(self, p)
 
     def _landing(self, p: PlayerState, speed: float) -> None:
-        """Fall damage above a safe landing speed (rules.json "fall"); never from ordinary jumps."""
+        """Fall damage above a safe landing speed (config/rules.py "fall"); never from ordinary jumps."""
         safe = float(rule("fall", "safe_speed", 7.0))
         if speed <= safe or not p.alive:
             return
@@ -811,7 +821,7 @@ class Match:
         ws, d = p.weapon, self._weapon_def(p)
         if not ws or not d or not d.is_gun or ws.mag >= d.mag or ws.reserve <= 0 or p.reload_until > self.time:
             return
-        p.reload_until = self.time + d.reload * (abilities.rule(self, "stim_reload") if abilities.has(self, p, "stim") else 1.0)
+        p.reload_until = self.time + d.reload * abilities.mult(self, p, "reload")
         p.burst_left = 0
 
     def _finish_reload(self, p: PlayerState) -> None:
@@ -847,8 +857,7 @@ class Match:
             top, ramp_time = d.rate_ramp
             rate += (top - d.rate) * min(1.0, p.fire_held / max(ramp_time, 1e-6))
         rate *= self._ult_ability(p, "rate_mult") if self.time < p.overdrive_until else 1.0
-        if abilities.has(self, p, "stim"):
-            rate *= abilities.rule(self, "stim_rate")
+        rate *= abilities.mult(self, p, "fire_rate")
         if alt_trigger and alt_kind == "spin" and d.rate_ramp:
             rate = d.rate_ramp[0] * (rate / max(d.rate, 1e-6))
         if p.burst_left > 0 or d.burst or (alt_trigger and alt_kind == "burst"):
@@ -891,8 +900,7 @@ class Match:
             base *= 0.8
         if p.zoomed:
             base *= float(d.alt_get("spread_mult", 1.0))
-        if abilities.has(self, p, "concuss"):
-            base += abilities.rule(self, "concuss_spread")
+        base += abilities.add(self, p, "spread_add")
         return base
 
     def _fire_bullet(self, p: PlayerState, d: WeaponDef, pellets: int, spread_mult: float = 1.0,
@@ -958,8 +966,9 @@ class Match:
     def _damage(self, attacker: PlayerState | None, target: PlayerState, dmg: int, zone: str, source: str) -> None:
         if not target.alive or dmg <= 0:
             return
-        if abilities.has(self, target, "vulnerable"):
-            dmg = int(round(dmg * abilities.rule(self, "vulnerable_mult")))
+        factor = abilities.mult(self, target, "damage_taken") * (abilities.mult(self, attacker, "damage_dealt") if attacker else 1.0)
+        if factor != 1.0:
+            dmg = int(round(dmg * factor))
         absorbed = min(target.armor, int(round(dmg * self._absorb)))
         target.armor -= absorbed
         dealt = min(dmg, max(0, target.hp + absorbed))
@@ -1010,7 +1019,7 @@ class Match:
     # ------------------------------------------------------------------ Abilities
     def _use_ability(self, p: PlayerState, key: str) -> None:
         ab = self.agents[p.agent]["abilities"].get(key)
-        if not ab or abilities.has(self, p, "suppress"):
+        if not ab or abilities.flag(self, p, "no_abilities"):
             return
         if key == "X":
             if p.ult_points < int(ab["cost"]):
@@ -1057,11 +1066,12 @@ class Match:
         if ignore_effects:
             return True
         for e in self.effects:
-            if e.kind == "smoke" and segment_circle_hit(a, b, e.pos, e.radius):
+            blocks = e.props.get("blocks_sight", e.kind in ("smoke", "wall"))
+            if blocks and e.a is None and e.radius > 0 and segment_circle_hit(a, b, e.pos, e.radius):
                 if (a - e.pos).length() > e.radius and (b - e.pos).length() > e.radius:
                     return False
                 return (a - e.pos).length() <= e.radius and (b - e.pos).length() <= e.radius
-            if e.kind == "wall" and e.a and e.b:
+            if blocks and e.a and e.b and e.kind != "tripwire":
                 from gameplay.geometry import segments_intersect
                 if segments_intersect(a, b, e.a, e.b):
                     return False
@@ -1093,7 +1103,11 @@ class Match:
             return True
         if viewer.blind_until > self.time or not viewer.alive:
             return False
-        if abilities.has(self, viewer, "nearsight") and (target.pos - viewer.pos).length() > abilities.rule(self, "nearsight_range"):
+        sight = abilities.lowest(self, viewer, "sight_range")
+        if sight is not None and (target.pos - viewer.pos).length() > sight:
+            return False
+        cloak = abilities.lowest(self, target, "seen_within")
+        if cloak is not None and (target.pos - viewer.pos).length() > cloak:
             return False
         if not self.cfg.lobby.all_around_sight:
             to = angle_of(target.pos - viewer.pos)
@@ -1177,9 +1191,10 @@ class Match:
 
     def _effect_visible(self, e: Effect, viewer: PlayerState | None) -> bool:
         """Flashes and decoys are never drawn; enemy traps only for their own team."""
-        if e.kind == "decoy":
+        hidden = e.props.get("hidden", {"decoy": "all", "alarm": "enemies", "tripwire": "enemies"}.get(e.kind))
+        if hidden == "all":
             return False
-        if e.kind in ("tripwire", "alarm") and viewer is not None and viewer.team != e.team:
+        if hidden == "enemies" and viewer is not None and viewer.team != e.team:
             return False
         return True
 

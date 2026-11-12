@@ -1,4 +1,4 @@
-"""Loads game values (gameplay/data) and the game config (config/game_config.json)."""
+"""Loads game values (config/rules.py, config/weapons.py) and the game config (config/game_config.py)."""
 from __future__ import annotations
 
 import json
@@ -10,7 +10,8 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(__file__).resolve().parent / "data"
-CONFIG_PATH = ROOT / "config" / "game_config.json"
+CONFIG_PATH = ROOT / "config" / "game_config.py"
+RULES_PATH = ROOT / "config" / "rules.py"
 WEAPONS_PATH = ROOT / "config" / "weapons.py"
 
 
@@ -126,7 +127,7 @@ def _pick(cls: type, raw: dict[str, Any] | None) -> Any:
 
 @lru_cache(maxsize=1)
 def load_config() -> GameConfig:
-    raw = _load_json(CONFIG_PATH)
+    raw = dict(_load_py(CONFIG_PATH, "CONFIG") or {})
     return GameConfig(
         hit_zones=_pick(HitZoneConfig, raw.get("hit_zones")),
         lobby=_pick(LobbySettings, raw.get("lobby_defaults")),
@@ -167,7 +168,7 @@ def load_armor() -> dict[str, ArmorDef]:
 
 @lru_cache(maxsize=1)
 def load_rules() -> dict[str, Any]:
-    return _load_json(DATA_DIR / "rules.json")
+    return dict(_load_py(RULES_PATH, "RULES") or {})
 
 
 def rule(section: str, key: str, default: Any) -> Any:

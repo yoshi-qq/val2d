@@ -15,8 +15,9 @@ Controls: WASD run · Shift walk · Ctrl crouch · Space jump · mouse turn and 
 alternate fire (zoom, burst, spread shot, spin-up) · R reload · 1/2/3 weapons · C/Q/E/X abilities · F plant/defuse,
 doors, swap weapons · G drop bomb/weapon · B buy menu · Tab scoreboard · Esc quit.
 
-Content: 30 agents in `config/agents.py`, 20 weapons in `config/weapons.py`, maps Werkhof, Gasse and
+Content: 30 agents in `config/agents/` (one file each), 20 weapons in `config/weapons.py`, maps Werkhof, Gasse and
 Harbour plus a practice range (`python play.py --range`), materials, objects and decals in `config/materials.py`.
+Own agents, abilities, statuses, mechanics and maps: [docs/MODDING.md](docs/MODDING.md).
 Tests: `python -m pytest tests`.
 
 ## Status (12.11.2026)

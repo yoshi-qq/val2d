@@ -1,0 +1,55 @@
+"""Game rules: movement, health, economy, rounds, spike, sound, falls, modes. Edit freely; read at start.
+
+As of 11.11.2026. Source: estimates by Claude Code; units: metres, seconds, credits.
+"""
+
+RULES = {
+    'movement': {
+        'run_speed': 6.0,
+        'walk_mod': 0.55,
+        'crouch_mod': 0.4,
+        'air_mod': 0.9,
+        'accel': 60.0,
+        'decel': 45.0,
+        'jump_velocity': 4.2,
+        'gravity': 14.0,
+        'radius': 0.4,
+        'level_height': 1.0,
+        'step_up': 0.4,
+        'step_down': 0.35,
+    },
+    'vitals': {'hp': 100, 'armor_absorb': 0.66},
+    'economy': {
+        'start': 800,
+        'pistol_round_credits': 800,
+        'win': 3000,
+        'loss': [1800, 2300, 2800],
+        'kill': 200,
+        'plant': 300,
+        'max': 9000,
+    },
+    'rounds': {
+        'buy_time': 30,
+        'round_time': 100,
+        'end_time': 6,
+        'half_after': 12,
+        'win_rounds': 13,
+        'overtime_margin': 2,
+        'overtime_credits': 5000,
+    },
+    'spike': {
+        'plant_time': 4.0,
+        'fuse_time': 45.0,
+        'defuse_time': 7.0,
+        'defuse_checkpoint': 3.5,
+        'blast_radius': 12.0,
+    },
+    'ultimate': {'per_kill': 1, 'per_plant': 1, 'per_defuse': 1, 'per_death': 1},
+    'sight': {'fov': 103.0},
+    'sound': {'run_radius': 18.0, 'shot_radius': 45.0, 'silenced_radius': 12.0},
+    'fall': {'safe_speed': 7.0, 'damage_per_speed': 15.0, 'max_damage': 60},
+    'modes': {
+        'quick': {'win_rounds': 4, 'half_after': 3, 'buy_time': 20, 'round_time': 80, 'overtime': False},
+        'deathmatch': {'kill_limit': 40, 'time_limit': 360, 'respawn': 3.0, 'spawn_shield': 50},
+    },
+}

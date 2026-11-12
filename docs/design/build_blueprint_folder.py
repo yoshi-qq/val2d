@@ -209,6 +209,11 @@ class Entry:
 
 
 def _config(name: str, probe: str) -> dict:
+    if name == "agents":  # one file per agent in config/agents/ since 12.11.2026
+        import sys as _sys
+        _sys.path.insert(0, str(ROOT))
+        from gameplay.match import load_agents
+        return dict(load_agents())
     try:
         data = runpy.run_path(str(ROOT / "config" / f"{name}.py"))
     except Exception as exc:  # the blueprint must still build

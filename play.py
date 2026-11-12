@@ -740,11 +740,12 @@ class Game:
         if self.aiming and me.pid == self.me and me.alive:
             self.draw_aim_preview(me, self.aiming)
         self.draw_crosshair(me)
-        if me.status.get("nearsight", 0.0) > m.time:
+        sight_range = abilities.lowest(m, me, "sight_range")
+        if sight_range is not None:
             fog = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
             fog.fill((10, 8, 14, 225))
             cx, cy = self.to_screen(me.pos, me)
-            pygame.draw.circle(fog, (0, 0, 0, 0), (cx, cy), abilities.rule(m, "nearsight_range") * self.scale)
+            pygame.draw.circle(fog, (0, 0, 0, 0), (cx, cy), sight_range * self.scale)
             s.blit(fog, (0, 0))
         if me.blind_until > m.time:
             flash = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
@@ -1361,17 +1362,23 @@ class Game:
 
     def needs_aim(self, me: PlayerState, slot: str) -> bool:
         ab = self.match.agents.get(me.agent, {}).get("abilities", {}).get(slot, {})
-        return str(ab.get("kind", "")) in self.AIM_KINDS
+        return self.preview_kind(ab) in self.AIM_KINDS
+
+    @staticmethod
+    def preview_kind(ab: dict) -> str:
+        """Composed abilities name the preset their aim preview looks like (preview=...)."""
+        return str(ab.get("preview") or ab.get("kind", "")) if ab.get("kind") == "custom" else str(ab.get("kind", ""))
 
     def draw_aim_preview(self, me: PlayerState, slot: str) -> None:
         """Where the held ability will land: ring, line or arc, clipped at walls like the real throw."""
         m, s = self.match, self.screen
         ab = m.agents.get(me.agent, {}).get("abilities", {}).get(slot, {})
-        kind = str(ab.get("kind", ""))
+        kind = self.preview_kind(ab)
         aim = heading(me.facing)
         reach = min(self.cursor_depth, float(ab.get("range", self.cursor_depth)))
         free_target = me.pos + aim * reach
-        clip = not (kind == "smoke" and ab.get("remote")) and not (kind == "flash" and ab.get("through_walls"))
+        clip = not (kind == "smoke" and ab.get("remote")) and not (kind == "flash" and ab.get("through_walls")) \
+            and ab.get("target") != "aim_free"
         target = m._clip_to_walls(me.pos, free_target, me.level) if clip else free_target
         color = (120, 255, 200)
         tx, ty = self.to_screen(target, me)
@@ -1780,7 +1787,7 @@ def main() -> None:
         report = Path(sys.argv[2]) if len(sys.argv) >= 3 else None
         sys.exit(0 if self_test.run(report) else 1)
     ap = argparse.ArgumentParser(description="Play Val2d against bots or online")
-    ap.add_argument("--agent", default="kestrel", help="agent key from config/agents.py")
+    ap.add_argument("--agent", default="kestrel", help="agent key (file name in config/agents/)")
     ap.add_argument("--team-size", type=int, default=5, choices=range(1, 6))
     ap.add_argument("--rounds", type=int, default=13)
     ap.add_argument("--map", default="werkhof")

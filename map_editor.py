@@ -19,7 +19,7 @@ from typing import Any
 
 import pygame
 
-from gameplay.world import MAP_DIR, load_materials, load_things, parse_map
+from gameplay.world import MAP_DIR, load_map_raw, load_materials, load_things, parse_map
 from sprite_bank import SpriteBank, build_map_surface
 
 TOOLS = {pygame.K_1: "wall", pygame.K_2: "floor", pygame.K_3: "object", pygame.K_4: "decal", pygame.K_5: "crate",
@@ -40,7 +40,8 @@ class Editor:
         self.key = key
         self.path = Path(MAP_DIR) / f"{key}.json"
         try:
-            self.data: dict[str, Any] = json.loads(self.path.read_text(encoding="utf-8")) if self.path.exists() else copy.deepcopy(EMPTY_MAP)
+            self.data: dict[str, Any] = load_map_raw(key) if self.path.exists() or (Path(MAP_DIR) / f"{key}.py").exists() \
+            else copy.deepcopy(EMPTY_MAP)  # a Python map is saved as .json next to it, which then wins
         except (OSError, json.JSONDecodeError) as exc:
             warnings.warn(f"{self.path.name} unreadable ({exc}); starting empty.")
             self.data = copy.deepcopy(EMPTY_MAP)

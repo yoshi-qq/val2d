@@ -1,4 +1,4 @@
-"""Tests for the ability building blocks and statuses (config/agents.py)."""
+"""Tests for the ability presets and statuses (config/agents/, config/statuses.py)."""
 from __future__ import annotations
 
 import sys

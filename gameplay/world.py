@@ -178,11 +178,30 @@ def _rect(v: list[float]) -> Rect:
     return Rect(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
 
 
-def load_map(key: str) -> WorldMap:
+def map_keys() -> list[str]:
+    """All maps: gameplay/data/maps/*.json (map editor) and *.py (built in Python, MAP = ...); _files are skipped."""
+    return sorted({p.stem for p in MAP_DIR.glob("*.json")} | {p.stem for p in MAP_DIR.glob("*.py") if not p.name.startswith("_")})
+
+
+def load_map_raw(key: str) -> dict:
+    """Map data of `key`: the .json if there is one (editor saves win), else MAP from the .py. Raises OSError/ValueError."""
     path = MAP_DIR / f"{key}.json"
+    if path.exists():
+        return json.loads(path.read_text(encoding="utf-8"))
+    py = MAP_DIR / f"{key}.py"
+    if py.exists():
+        from gameplay.data import _load_py
+        raw = _load_py(py, "MAP")
+        if isinstance(raw, dict):
+            return raw
+        raise ValueError(f"{py.name} defines no MAP dict")
+    raise OSError(f"no map file {key}.json or {key}.py")
+
+
+def load_map(key: str) -> WorldMap:
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        raw = load_map_raw(key)
+    except (OSError, ValueError) as exc:
         warnings.warn(f"Map {key} unreadable ({exc}); using an empty practice area.")
         return WorldMap(key="empty", name="Empty area", width=40, height=40,
                         spawns={0: [Vec(20, 4)], 1: [Vec(20, 36)]},
@@ -230,7 +249,8 @@ def parse_map(key: str, raw: dict) -> WorldMap:
     m.floors = [(str(f["mat"]), _rect(f["rect"])) for f in raw.get("floors", [])]
     for b in raw.get("crates", []):
         m.walls.append(Wall(_rect(b), 1, False, 1))
-    m.platforms = [Platform(_rect(p)) for p in raw.get("platforms", [])]
+    m.platforms = [Platform(_rect(p["rect"]), int(p.get("level", 1))) if isinstance(p, dict) else Platform(_rect(p))
+                   for p in raw.get("platforms", [])]
     m.walls += [Wall(pl.rect, 1, False, 1) for pl in m.platforms]
     m.ramps = [_rect(r) for r in raw.get("ramps", [])]
     m.sites = [Site(s["name"], _rect(s["rect"])) for s in raw.get("sites", [])]

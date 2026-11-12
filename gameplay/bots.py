@@ -47,6 +47,7 @@ class BotBrain:
     OFFENSIVE = {"flash", "blast", "wave", "zone", "slow_field"}
     SELF_BUFF = {"overdrive", "immunity", "stim", "reveal_all"}
     PLACE_AHEAD = {"smoke", "wall", "vapor_wall", "sensor", "alarm", "tripwire", "decoy"}
+    BOT_KIND = {"offense": "blast", "buff": "overdrive", "place": "smoke", "heal": "heal", "escape": "dash"}  # bot= of composed abilities
 
     def _usable(self, m: Match, p: PlayerState, key: str) -> dict | None:
         ab = m.agents.get(p.agent, {}).get("abilities", {}).get(key)
@@ -64,7 +65,7 @@ class BotBrain:
             ab = self._usable(m, p, key)
             if not ab:
                 continue
-            kind = str(ab.get("kind", ""))
+            kind = self.BOT_KIND.get(str(ab.get("bot", "")), "") if ab.get("kind") == "custom" else str(ab.get("kind", ""))
             use = False
             if enemy is not None:
                 dist = (enemy.pos - p.pos).length()

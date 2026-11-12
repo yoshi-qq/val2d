@@ -51,8 +51,8 @@ def run(report: Path | None = None) -> bool:
         return f"{len(weapons)} weapons, {len(agents)} agents, {len(walls)} walls, {len(objects)} objects"
 
     def maps() -> str:
-        from gameplay.world import MAP_DIR, load_map
-        keys = sorted(p.stem for p in Path(MAP_DIR).glob("*.json"))
+        from gameplay.world import load_map, map_keys
+        keys = map_keys()
         for key in keys:
             world = load_map(key)
             assert world.key == key and world.walls, key

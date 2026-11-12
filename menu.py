@@ -12,7 +12,7 @@ from pathlib import Path
 import pygame
 
 from gameplay.netgame import DEFAULT_PORT, discover
-from gameplay.world import MAP_DIR
+from gameplay.world import map_keys
 import user_settings
 from sprite_bank import SpriteBank, draw_nine_slice
 
@@ -34,7 +34,7 @@ class Button:
 
 
 def map_keys() -> list[str]:
-    return sorted(p.stem for p in Path(MAP_DIR).glob("*.json")) or ["werkhof"]
+    return map_keys() or ["werkhof"]
 
 
 class MainMenu:

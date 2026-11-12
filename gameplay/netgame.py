@@ -14,6 +14,7 @@ from typing import Any
 
 import netplay
 
+from gameplay import abilities
 from gameplay.match import Command, GameEvent, Match, PlayerState
 from gameplay.net import command_from_json, event_to_json, merge_commands
 
@@ -152,7 +153,7 @@ class NetHost:
         if e.kind in ("shot", "hit"):
             shooter = self.match.players.get(e.data.get("pid") if e.kind == "shot" else e.data.get("by"))
             return shooter is None or self.match.can_see(viewer, shooter) or e.data.get("by") == viewer.pid
-        if e.kind == "sound" and viewer.status.get("deaf", 0.0) > self.match.time:
+        if e.kind == "sound" and abilities.flag(self.match, viewer, "deaf"):
             return False
         if e.kind == "buy":
             buyer = self.match.players.get(e.data.get("pid"))

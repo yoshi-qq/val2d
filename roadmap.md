@@ -48,7 +48,7 @@ Status 12.11.2026. Items marked "(new core)" are done in the new gameplay core (
     - [x] wall Penetration (by material)
     - [x] damaging (by zone and distance)
     - [x] spread, spray pattern, alternate fire (zoom, burst, spread shot, spin-up)
-- [x] Abilities (new core: 21 building blocks, 10 statuses, 30 agents in config/agents.py)
+- [x] Abilities (ability kit: targets, triggers, effects, passives; 21 presets, 19 statuses; 30 agents in config/agents/)
 - [x] Worlds (standing in smoke -> only seeing inside smoke, standing outside -> only see outside)
 - [x] Stats (scoreboard: kills, deaths, credits, ping; range: accuracy and headshots)
 - [x] Buy Menu
@@ -72,7 +72,7 @@ Status 12.11.2026. Items marked "(new core)" are done in the new gameplay core (
 - [x] Join IP+Port choosing – join by LAN address, join code or LAN search
 
 ## Additions
-- [x] Replace all DEFAULTS with settings, config, etc. (config/*.py, config/game_config.json, ~/.val2d/settings.json)
+- [x] Replace all DEFAULTS with settings, config, etc. (config/*.py incl. rules.py and game_config.py, ~/.val2d/settings.json)
 - [x] More Weapons (20)
 - [x] More Agents (30)
 - [x] More Gamemodes (quick, team deathmatch, practice range)
@@ -83,7 +83,7 @@ Status 12.11.2026. Items marked "(new core)" are done in the new gameplay core (
 - [x] Own sound effects (tools/make_sounds.py, 52 WAVs) with stereo, distance and wall muffling
 - [x] Windows build: python build.py (dependency check, tests, Val2d.exe + Val2d-Server.exe, self test, zip)
 - [x] Ability aim preview (hold to aim, release to use, right click cancels)
-- [x] Fall damage (rules.json "fall")
+- [x] Fall damage (config/rules.py "fall")
 - [x] Round damage report, round history, combat score, MVP
 - [x] Team buy (request a weapon, buy for a teammate)
 - [x] Key bindings and crosshair settings

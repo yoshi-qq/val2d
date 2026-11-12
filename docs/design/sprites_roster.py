@@ -139,6 +139,11 @@ def icon(kind: str, ult: bool) -> Image.Image:
 
 
 def _config(name: str, probe: str) -> dict:
+    if name == "agents":  # one file per agent in config/agents/ since 12.11.2026
+        import sys as _sys
+        _sys.path.insert(0, str(ROOT))
+        from gameplay.match import load_agents
+        return dict(load_agents())
     data = runpy.run_path(str(ROOT / "config" / f"{name}.py"))
     for value in data.values():
         if isinstance(value, dict) and probe in value:

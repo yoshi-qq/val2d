@@ -40,7 +40,8 @@ DATA = ["assets", "config", "font", "gameplay/data", "docs/design/character_shee
 # modules loaded lazily (inside functions) or by path, so PyInstaller's import scan might miss them
 HIDDEN = ["menu", "map_editor", "server", "user_settings", "self_test", "sprite_bank",
           "gameplay.abilities", "gameplay.bots", "gameplay.data", "gameplay.match", "gameplay.nav", "gameplay.net",
-          "gameplay.netgame", "gameplay.session", "gameplay.world", "gameplay.geometry", "gameplay.hitzones"]
+          "gameplay.netgame", "gameplay.session", "gameplay.world", "gameplay.geometry", "gameplay.hitzones",
+          "gameplay.mapkit", "gameplay.kit", "gameplay.kit.dsl", "gameplay.kit.builtins", "gameplay.kit.presets"]  # config files import these
 COLLECT = ["netplay", "networking", "gameplay"]
 
 
