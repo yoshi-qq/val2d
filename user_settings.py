@@ -26,7 +26,7 @@ CROSSHAIR_COLORS = ["#78ffc8", "#ffffff", "#ffe14d", "#ff5ad2", "#5ad2ff", "#ff6
 
 def defaults() -> dict[str, Any]:
     cfg = load_config()
-    return {"sensitivity": cfg.player.sensitivity, "camera_push": cfg.player.camera_push, "volume": 0.8,
+    return {"sensitivity": cfg.player.sensitivity, "camera_push": cfg.player.camera_push, "volume": 0.55,
             "name": "Player", "all_around": cfg.lobby.all_around_sight, "sound_rings": cfg.lobby.sound_rings,
             "fullscreen": False, "keys": dict(DEFAULT_KEYS), "crosshair_color": CROSSHAIR_COLORS[0],
             "crosshair_size": 1.0, "crosshair_gap": 4.0, "crosshair_dot": True}

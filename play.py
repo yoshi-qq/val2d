@@ -149,15 +149,21 @@ class Sound:
                 self._warned.add(key)
                 warnings.warn(f"Sound missing: assets/sounds/{key}.wav")
             return
-        left = right = 0.7
+        left = right = 0.5
         if listener is not None and pos is not None:
-            rel = (pos - listener.pos).rotated(-listener.facing)
+            rel = (pos - listener.pos).rotated(-listener.facing)  # x: right of the view, y: ahead
             dist = rel.length()
-            vol = max(0.0, 1.0 - dist / max(radius, 1.0)) ** 1.3
+            vol = max(0.0, 1.0 - dist / max(radius, 1.0)) ** 1.6
             if occluded:
                 vol *= 0.45
-            pan = max(-1.0, min(1.0, rel.x / max(dist, 1.0)))
-            left, right = vol * (1 - max(0.0, pan) * 0.85), vol * (1 + min(0.0, pan) * 0.85)
+            if dist > 0.3:
+                side = max(-1.0, min(1.0, rel.x / dist))       # -1 full left … 1 full right
+                if rel.y < 0:
+                    vol *= 0.7 + 0.3 * abs(side)                # behind: a little quieter, so front and back differ
+                angle = (side + 1.0) * math.pi / 4.0            # equal-power pan, nearly full separation
+                left, right = vol * math.cos(angle) * 1.35, vol * math.sin(angle) * 1.35
+            else:
+                left = right = vol * 0.9
         left, right = left * gain * self.volume, right * gain * self.volume
         if left + right < 0.01:
             return
@@ -699,6 +705,12 @@ class Game:
             else:
                 pygame.draw.line(s, col, (px, py), (fx, fy), 2)
             img = self.character_frame(p, me)
+            if p.z > 0.01:  # airborne: shadow stays on the ground, the figure rises on screen
+                shadow_w = max(4, round(self.scale * (0.9 - min(p.z, 1.5) * 0.25)))
+                shadow = pygame.Surface((shadow_w, max(2, shadow_w // 3)), pygame.SRCALPHA)
+                pygame.draw.ellipse(shadow, (0, 0, 0, 110), shadow.get_rect())
+                s.blit(shadow, (px - shadow_w / 2, py + (img.get_height() / 2 if img else r) - shadow.get_height()))
+                py -= p.z * self.scale * 1.2
             if img is not None:
                 s.blit(img, (px - img.get_width() / 2, py - img.get_height() / 2))
                 walk_index = int(m.time * 8)

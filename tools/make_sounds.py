@@ -67,7 +67,11 @@ def at(x: np.ndarray, delay: float) -> np.ndarray:
 DEFAULT_CUTOFF = 2800.0  # every sound is softened above this (Hz) so nothing sounds sharp or bright
 
 
+MASTER = 0.6  # overall level of every file; the game's volume setting comes on top
+
+
 def save(name: str, x: np.ndarray, gain: float = 0.7, cutoff: float = DEFAULT_CUTOFF) -> None:
+    gain *= MASTER
     x = lowpass(lowpass(x, cutoff), cutoff * 1.3)  # two passes: gentle, darker top end
     fade = min(len(x), int(RATE * 0.01))
     if fade:
@@ -85,11 +89,11 @@ def save(name: str, x: np.ndarray, gain: float = 0.7, cutoff: float = DEFAULT_CU
 # ------------------------------------------------------------------ recipes
 def gunshot(body: float, crack: float, tail: float, dur: float, thump: float = 0.0) -> np.ndarray:
     n = noise(dur)
-    crack_part = highpass(n, crack) * env(dur, 0.0008, 70) * 0.35  # only a hint of crack
-    body_part = lowpass(n, body) * env(dur, 0.001, tail) * 1.6
+    crack_part = highpass(n, crack) * env(dur, 0.0008, 90) * 0.3  # only a hint of crack
+    body_part = lowpass(n, body) * env(dur, 0.001, tail * 1.6) * 1.4  # short, light tail
     out = crack_part + body_part
     if thump:
-        out = out + sine(np.linspace(thump, thump * 0.4, int(RATE * dur)), dur) * env(dur, 0.001, 18) * 0.8
+        out = out + sine(np.linspace(thump, thump * 0.5, int(RATE * dur)), dur) * env(dur, 0.001, 30) * 0.35
     return out
 
 
@@ -133,7 +137,7 @@ def build() -> None:
     save("ab_wall", lowpass(noise(0.9), 2500) * env(0.9, 0.02, 3.5) + sine(np.linspace(120, 80, int(RATE * 0.9)), 0.9) * env(0.9, 0.02, 4) * 0.4)
     save("ab_throw", highpass(noise(0.18), 1200) * env(0.18, 0.04, 14))
     save("ab_flash", mix(sine(np.linspace(700, 1100, int(RATE * 0.35)), 0.35) * env(0.35, 0.003, 9), lowpass(noise(0.35), 2000) * env(0.35, 0.002, 25)), gain=0.55)
-    save("ab_blast", mix(lowpass(noise(0.9), 600) * env(0.9, 0.001, 5) * 1.5, sine(np.linspace(90, 35, int(RATE * 0.9)), 0.9) * env(0.9, 0.001, 6)))
+    save("ab_blast", mix(lowpass(noise(0.6), 900) * env(0.6, 0.001, 8) * 1.3, sine(np.linspace(100, 50, int(RATE * 0.6)), 0.6) * env(0.6, 0.001, 9) * 0.5), gain=0.6)
     save("ab_wave", sine(np.linspace(140, 420, int(RATE * 0.6)), 0.6) * env(0.6, 0.02, 5) + lowpass(noise(0.6), 900) * env(0.6, 0.02, 6) * 0.5)
     save("ab_sensor", mix(sine(np.full(int(RATE * 0.15), 1200.0), 0.15) * env(0.15, 0.001, 18),
                           at(sine(np.full(int(RATE * 0.15), 1600.0), 0.15) * env(0.15, 0.001, 18), 0.12)))
@@ -156,7 +160,7 @@ def build() -> None:
     save("bomb_planted", mix(sine(np.full(int(RATE * 0.6), 660.0), 0.6) * env(0.6, 0.005, 5), at(sine(np.full(int(RATE * 0.6), 990.0), 0.6) * env(0.6, 0.005, 5), 0.2)))
     save("bomb_defuse", mix(*(at(highpass(noise(0.04), 3500) * env(0.04, 0.0005, 100), d) for d in np.arange(0, 0.8, 0.16))))
     save("bomb_defused", sine(np.linspace(900, 300, int(RATE * 0.7)), 0.7) * env(0.7, 0.005, 5))
-    save("bomb_explode", mix(lowpass(noise(2.5), 400) * env(2.5, 0.002, 2.2) * 2.0, sine(np.linspace(70, 25, int(RATE * 2.5)), 2.5) * env(2.5, 0.002, 2.0)))
+    save("bomb_explode", mix(lowpass(noise(1.4), 700) * env(1.4, 0.002, 3.5) * 1.5, sine(np.linspace(80, 40, int(RATE * 1.4)), 1.4) * env(1.4, 0.002, 4.0) * 0.6), gain=0.6)
     # match flow and interface
     save("round_start", mix(*(at(sine(np.full(int(RATE * 0.25), f), 0.25) * env(0.25, 0.005, 10), d) for f, d in ((440, 0), (660, 0.15)))))
     save("round_win", mix(*(at(sine(np.full(int(RATE * 0.5), f), 0.5) * env(0.5, 0.005, 5) * 0.5, d) for f, d in ((523, 0), (659, 0.15), (784, 0.3), (1047, 0.45)))))
