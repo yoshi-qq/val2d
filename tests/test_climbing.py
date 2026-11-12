@@ -66,6 +66,40 @@ def test_jumping_late_into_the_crate_side_does_not_pop_up() -> None:
     assert max(rises) < 0.2, "no sudden jump in height"
 
 
+def test_dash_stops_before_a_thin_wall_and_leaves_the_player_hittable() -> None:
+    from gameplay.geometry import Rect, heading
+    from gameplay.world import Wall
+
+    m, pid = setup()
+    p = m.players[pid]
+    shooter = next(other for other in m.players.values() if other is not p)
+    wall = Wall(Rect(5, 0, 5.1, 10), 3)
+    m.world.walls.append(wall)
+    p.pos, p.vel = Vec(4.5, 5), Vec(20, 0)
+    m._physics(p, 0.1)
+    assert p.pos.x <= wall.rect.x0 - float(m._mv["radius"]) + 1e-6
+    shooter.pos = Vec(2, 5)
+    shooter.cursor_depth = p.pos.x - shooter.pos.x
+    east = heading(90)
+    m._trace(shooter, m.weapons["classic"], east, east)
+    assert p.hp < 100
+
+
+def test_shot_hits_exposed_body_before_the_wall_at_the_target_centre() -> None:
+    from gameplay.geometry import Rect, heading
+    from gameplay.world import Wall
+
+    m, pid = setup()
+    shooter = m.players[pid]
+    target = next(other for other in m.players.values() if other is not shooter)
+    m.world.walls.append(Wall(Rect(4, 4, 6, 4.5), 3))
+    shooter.pos, target.pos = Vec(5, 2), Vec(5, 4.2)
+    shooter.cursor_depth = 2.2
+    north = heading(0)
+    m._trace(shooter, m.weapons["classic"], north, north)
+    assert target.hp < 100
+
+
 def _teleporter(m: Match, pid: int, reach: float) -> None:
     from gameplay.kit.dsl import agent, preset
     m.agents = {**m.agents, "porter": agent("Porter", C=preset("teleport", "Pas", range=reach),

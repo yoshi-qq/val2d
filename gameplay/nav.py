@@ -19,7 +19,8 @@ STEP_UP = 0.3  # levels a bot may rise between neighbouring cells (walking up a 
 
 
 class NavGrid:
-    def __init__(self, world: WorldMap, inactive: frozenset[Rect] = frozenset(), extra: tuple[Wall, ...] = ()) -> None:
+    def __init__(self, world: WorldMap, inactive: frozenset[Rect] = frozenset(), extra: tuple[Wall, ...] = (),
+                 *, buy_phase: bool = False) -> None:
         self.world = world
         self.cols = max(1, int(math.ceil(world.width / CELL)))
         self.rows = max(1, int(math.ceil(world.height / CELL)))
@@ -35,8 +36,9 @@ class NavGrid:
                         self.lower[c, r] = deck.lower
                         self.deck_height[c, r] = deck.level
         for w in (*world.walls, *extra):
-            if w.rect in inactive or w.height <= 0 or w.buy_phase_only or not w.solid or w.material == PLATFORM:
-                continue  # spawn barriers open after the buy phase; closed doors count as walls for bots
+            if (w.rect in inactive or w.height <= 0 or (w.buy_phase_only and not buy_phase)
+                    or not w.solid or w.material == PLATFORM):
+                continue
             x0 = max(0, int((w.rect.x0 - RADIUS) / CELL))
             x1 = min(self.cols - 1, int((w.rect.x1 + RADIUS) / CELL))
             y0 = max(0, int((w.rect.y0 - RADIUS) / CELL))
@@ -51,6 +53,19 @@ class NavGrid:
                             self.lower_blocked.add((c, r))
 
         self.ground = self._ground_grid(world)
+
+    def connected_cells(self, start: Vec) -> set[tuple[int, int]]:
+        """The enclosed horizontal area around start, including elevations reachable by teleport."""
+        first = self.nearest_free(self.cell(start))
+        seen = {first}
+        pending = [first]
+        while pending:
+            x, y = pending.pop()
+            for cell in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+                if cell not in seen and self.free(cell):
+                    seen.add(cell)
+                    pending.append(cell)
+        return seen
 
     def _ground_grid(self, world: WorldMap) -> list[list[float]]:
         """Ground height per cell, sampled at cell centres from the parts that raise the floor."""

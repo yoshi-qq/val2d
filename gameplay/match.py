@@ -9,13 +9,14 @@ import math
 import random
 import warnings
 from dataclasses import dataclass, field
-from functools import lru_cache
+from functools import cached_property, lru_cache
 from typing import Any
 
 from gameplay import abilities
 from gameplay.data import LEGACY_ITEM_KEYS, ROOT, GameConfig, WeaponDef, _load_py, load_armor, load_config, load_weapons, rule
 from gameplay.geometry import Rect, Vec, angle_diff, angle_of, heading, segment_circle_hit
 from gameplay.hitzones import resolve_zone
+from gameplay.nav import NavGrid
 from gameplay.skins import clean_loadout
 from gameplay.world import PLATFORM, Wall, WorldMap, head_height
 
@@ -663,13 +664,32 @@ class Match:
             return p.armor < armor.points or current.price <= armor.price
         return p.armor < armor.points or bool(armor.regen_pool)
 
+    def buy_spawn_zone(self, p: PlayerState) -> Rect | None:
+        if self.phase == "buy" and self.world.lock_spawn_during_buy:
+            return self.world.spawn_zones.get(0 if self.side(p.team) == "attack" else 1)
+        return None
+
+    @cached_property
+    def _buy_areas(self) -> tuple[NavGrid, dict[int, set[tuple[int, int]]]]:
+        # Doors can open during buy. Only the map's permanent walls and buy barriers define the areas.
+        doors = frozenset(w.rect for w in self.world.walls if w.door)
+        grid = NavGrid(self.world, doors, buy_phase=True)
+        return grid, {side: grid.connected_cells(points[0]) for side, points in self.world.spawns.items() if points}
+
+    def buy_phase_allows_landing(self, p: PlayerState, point: Vec) -> bool:
+        if self.phase != "buy" or self.world.lock_spawn_during_buy:
+            return True
+        grid, areas = self._buy_areas
+        side = 0 if self.side(p.team) == "attack" else 1
+        return grid.cell(point) in areas.get(side, ())
+
     def buy(self, p: PlayerState, item: str) -> bool:
         free_buy = self.practice or self.mode == "deathmatch"
         if not p.alive or (self.phase != "buy" and not free_buy):
             return False
         if item.startswith("gift:"):
             return self._gift(p, item)
-        zone = self.world.spawn_zones.get(0 if self.side(p.team) == "attack" else 1)
+        zone = self.buy_spawn_zone(p)
         if zone and not zone.contains(p.pos) and not free_buy:
             return False
         if item in ("sell:C", "sell:Q", "sell:E"):
@@ -1076,7 +1096,7 @@ class Match:
     def _physics(self, p: PlayerState, dt: float, hold_jump: bool = False) -> None:
         radius = float(self._mv["radius"])
         lh = float(self._mv["level_height"])
-        zone = self.world.spawn_zones.get(0 if self.side(p.team) == "attack" else 1) if self.phase == "buy" else None
+        zone = self.buy_spawn_zone(p)
         # vertical, relative to the ground under the player
         p.vz -= float(self._mv["gravity"]) * dt
         if hold_jump and p.vz < 0 and p.z > 0 and not abilities.flag(self, p, "no_abilities"):
@@ -1116,17 +1136,9 @@ class Match:
             dist = gap.length()
             if 1e-6 < dist < 2 * radius:
                 new = new + gap.normalized() * (2 * radius - dist) * 0.5
-        walls = self.combat_walls()
-        for _ in range(3):
-            for w in walls:
-                if (not self.wall_active(w) or (w.on_deck and w.base > reach)
-                        or (not w.full and w.top * lh <= feet + tolerance)):
-                    continue
-                push = w.rect.circle_push(new, radius)
-                if push:
-                    new = new + push
-        if zone:
-            new = Vec(min(max(new.x, zone.x0 + radius), zone.x1 - radius), min(max(new.y, zone.y0 + radius), zone.y1 - radius))
+        walls = [w.rect for w in self.combat_walls() if (w.full or w.top > reach)
+                 and (not w.on_deck or w.base <= reach) and self.wall_active(w)]
+        new = self._move_against_walls(p.pos, new, radius, walls, zone)
         if dt > 0:
             speed = (new - p.pos).length() / dt
             if speed > float(self._mv["run_speed"]) * 0.7 and p.z <= 0 and int(self.time * 3) != int((self.time - dt) * 3):
@@ -1153,6 +1165,32 @@ class Match:
                 p.z, p.vz = clearance, min(0.0, p.vz)
         if self.world.teleporters and self.phase in ("live", "planted") and p.alive:
             self._map_teleport(p, radius, lh)
+
+    @staticmethod
+    def _move_against_walls(start: Vec, end: Vec, radius: float, walls: list[Rect], zone: Rect | None) -> Vec:
+        travel = end - start
+        # Keep the centre from crossing a thin wall before the circle can make contact.
+        steps = max(1, math.ceil(travel.length() / (radius * 0.5))) if radius > 0 else 1
+        step = travel * (1.0 / steps)
+        pos = start
+        for _ in range(steps):
+            candidate = pos + step
+            for _ in range(3):
+                before = candidate
+                for wall in walls:
+                    push = wall.circle_push(candidate, radius)
+                    if push is not None:
+                        candidate = candidate + push
+                if zone is not None:
+                    candidate = Vec(min(max(candidate.x, zone.x0 + radius), zone.x1 - radius),
+                                    min(max(candidate.y, zone.y0 + radius), zone.y1 - radius))
+                if candidate == before:
+                    break
+            # A wall push or the buy-zone clamp can move the circle into another wall at a corner.
+            if any(wall.circle_push(candidate, max(0.0, radius - 1e-6)) is not None for wall in walls):
+                break
+            pos = candidate
+        return pos
 
     def _map_teleport(self, p: PlayerState, radius: float, level_height: float) -> None:
         for entry, destination in self.world.teleporters:
@@ -1411,7 +1449,10 @@ class Match:
             res = resolve_zone(origin, direction, aim, p.cursor_depth, t.pos, t.level == p.level,
                                cursor_level == t.level, self.cfg.hit_zones)
             if res.zone and res.along <= d.range:
-                hits.append((res.along, "player", (t, res.zone)))
+                # Compare the first contact with the body to the wall entry, just like for devices.
+                half_width = self.cfg.hit_zones.body_half_width
+                entry = max(0.0, res.along - math.sqrt(max(0.0, half_width ** 2 - res.lateral ** 2)))
+                hits.append((entry, "player", (t, res.zone)))
         for device in self.effects:
             radius = device.props.get("hit_radius")
             if (not radius or device.team == p.team or device.props.get("ended") or self.time >= device.until
@@ -1690,11 +1731,12 @@ class Match:
         if ignore_effects:
             return True
         for e in self.effects:
+            if e.props.get("ended") or not e.start <= self.time < e.until:
+                continue
             blocks = e.props.get("blocks_sight", e.kind in ("smoke", "wall"))
             if blocks and e.a is None and e.radius > 0 and segment_circle_hit(a, b, e.pos, e.radius):
-                if (a - e.pos).length() > e.radius and (b - e.pos).length() > e.radius:
+                if (a - e.pos).length() > e.radius or (b - e.pos).length() > e.radius:
                     return False
-                return (a - e.pos).length() <= e.radius and (b - e.pos).length() <= e.radius
             if blocks and e.a and e.b and e.kind != "tripwire":
                 from gameplay.geometry import segments_intersect
                 if segments_intersect(a, b, e.a, e.b):
@@ -1913,10 +1955,14 @@ class Match:
                 "slot": p.slot, "weapon": p.weapon.key if p.weapon else None,
                 "skin": p.weapon.skin if p.weapon else "",
                 "mag": p.weapon.mag if p.weapon else 0, "reserve": p.weapon.reserve if p.weapon else 0,
+                "inventory": {slot: {"key": ws.key, "mag": ws.mag, "reserve": ws.reserve, "skin": ws.skin}
+                              for slot, ws in p.weapons.items()}
+                if viewer is None or viewer.pid == p.pid else {},
                 "charges": dict(p.charges), "ult": p.ult_points, "kills": p.kills, "deaths": p.deaths, "assists": p.assists,
                 "sellable": [b["item"] for b in p.purchases if self.sellable(p, b["item"])] if viewer is None or viewer.pid == p.pid else [],
                 "orb": p.orb_progress, "crouch": p.crouching,
                 "blind": p.blind_until > self.time, "reloading": p.reload_until > self.time,
+                "revealed_until": p.revealed_until if p.revealed_until > self.time else 0.0,
                 "plant": p.plant_progress, "defuse": p.defuse_progress,
                 "status": sorted(k for k, v in p.status.items() if v > self.time)
                 if viewer is None or viewer.team == p.team else [],
@@ -1941,6 +1987,7 @@ class Match:
             "effects": [{"kind": e.kind, "team": e.team, "x": e.pos.x, "y": e.pos.y, "r": e.radius,
                          "a": (e.a.x, e.a.y) if e.a else None, "b": (e.b.x, e.b.y) if e.b else None,
                          "start": e.start, "until": e.until, "status": e.props.get("status"),
+                         "blocks_sight": e.props.get("blocks_sight", e.kind in ("smoke", "wall")),
                          "sprite": e.props.get("sprite"), "sprite_width": e.props.get("sprite_width"),
                          "warning_sprite": e.props.get("warning_sprite"), "owner": e.owner,
                          "barrier": ([wall.rect.x0, wall.rect.y0, wall.rect.x1, wall.rect.y1]

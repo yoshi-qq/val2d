@@ -14,7 +14,7 @@ from client.buy import BuyMixin
 from client.scoreboard import ScoreboardMixin
 from client.overlays import NO_KEYS, OverlaysMixin
 from client.ui import Ui
-from gameplay.match import DEFAULT_AGENT, playable_agents
+from gameplay.match import DEFAULT_AGENT, SLOTS, playable_agents
 from gameplay.world import load_playable_map
 
 
@@ -108,6 +108,8 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
         self.ui = UiState()
         self.sound = Sound()
         self.cursor_depth = 8.0
+        self._requested_slot: str | None = None
+        self._switched_at = -9.0
         self.sens = float(getattr(args, "sensitivity", base.player.sensitivity))
         self.camera_push = float(getattr(args, "camera_push", base.player.camera_push))
         self.sound.volume = float(getattr(args, "volume", 0.8))
@@ -135,6 +137,33 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
         pygame.event.set_grab(on)
         pygame.mouse.set_visible(not on)
         pygame.mouse.get_rel()
+
+    def move_cursor(self, me: PlayerState, dy: float = 0.0) -> None:
+        """Clamp the virtual cursor itself, so reversing at the edge responds immediately."""
+        pull = self.camera_aim_pull(me)
+        origin_y = self.h * (0.5 + self.camera_push * 0.5)
+        pixels_per_meter = self.scale * (1 - pull)
+        if pull == 1:  # the scope follows the cursor; use the unzoomed view to bound its travel
+            pixels_per_meter = self.w / VIEW_METERS
+        else:
+            origin_y += (self.h / 2 - origin_y) * pull
+        max_depth = (origin_y - 1) / pixels_per_meter
+        self.cursor_depth = min(max(0.5, self.cursor_depth - dy * 0.03), max_depth)
+
+    def select_weapon(self, cmd: Command, slot: str) -> None:
+        self.set_aim(None)
+        self._switched_at = self.match.time
+        self._requested_slot = cmd.slot = slot
+
+    def scroll_weapons(self, me: PlayerState, cmd: Command, scroll: int) -> None:
+        slots = [slot for slot in SLOTS if slot in me.weapons]
+        if not slots or not scroll:
+            return
+        selected = cmd.slot or self._requested_slot
+        if selected not in slots:
+            selected = me.slot
+        index = slots.index(selected) if selected in slots else 0
+        self.select_weapon(cmd, slots[(index - scroll) % len(slots)])
 
     def run(self) -> None:
         running = True
@@ -189,14 +218,14 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
                             self.set_aim(None)
                             cmd.ability = slot
                     elif ev.key in (self.keys["primary"], self.keys["sidearm"], self.keys["melee"]):
-                        self.set_aim(None)
-                        self._switched_at = self.match.time  # show the inventory for a moment
-                        cmd.slot = {self.keys["primary"]: "primary", self.keys["sidearm"]: "sidearm",
-                                    self.keys["melee"]: "melee"}[ev.key]
+                        self.select_weapon(cmd, next(slot for slot in SLOTS if self.keys[slot] == ev.key))
                     elif ev.key == self.keys["reload"]:
                         cmd.reload = True
                     elif ev.key == self.keys["drop"]:
                         cmd.drop = True
+                elif ev.type == pygame.MOUSEWHEEL and me.alive and not self.ui.buy_open \
+                        and not self.tactical_ability(me) and self.match.phase in ("buy", "live", "planted"):
+                    self.scroll_weapons(me, cmd, ev.y)
                 elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button in (1, 3) and self.aiming and me.alive \
                         and not self.ui.buy_open and self.match.phase in ("buy", "live", "planted"):
                     self.aim_click(me, cmd, ev.button, ev.pos)
@@ -227,7 +256,7 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
                 dx, dy = pygame.mouse.get_rel()
                 self.local_facing = (self.local_facing + dx * self.sens) % 360
                 me.facing = self.local_facing
-                self.cursor_depth = max(0.5, min(VIEW_METERS, self.cursor_depth - dy * 0.03))
+                self.move_cursor(me, dy)
                 cmd.fire = buttons[0] and self.aiming is None and 1 not in self.swallow_buttons
                 cmd.alt_fire = buttons[2] and self.aiming is None and 3 not in self.swallow_buttons
             self.swallow_buttons.intersection_update(b for b in (1, 3) if buttons[b - 1])
@@ -245,6 +274,9 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
             cmd.interact = keys[kb["interact"]]
             events = self.step(dt, cmd)
             me_now = self.match.players.get(self.me)
+            if me_now is None or me_now.slot == self._requested_slot or self.match.time - self._switched_at > 0.5 \
+                    or self.match.round_no != self.seen_round:
+                self._requested_slot = None
             if me_now is None or not me_now.alive or self.match.phase not in ("buy", "live", "planted") \
                     or self.match.round_no != self.seen_round:
                 self.set_aim(None)
@@ -368,6 +400,7 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
         self.scoped = bool(self.zoom_level and d is not None and d.alt_get("scope"))
         factor = levels[self.zoom_level - 1] if self.zoom_level else 1.0
         self.scale = self.w / (VIEW_METERS / factor)  # the map image stays at the base scale; zoom crops and enlarges it
+        self.move_cursor(me)
 
     def rejoin(self) -> None:
         """Connect again after a drop; the host gives the old slot back (same token or name)."""

@@ -101,6 +101,7 @@ class WorldMap:
     ramp_spans: dict[int, tuple[str, bool, float, float]] = field(default_factory=dict)
     decks: list[Deck] = field(default_factory=list)
     teleporters: list[tuple[Rect, Vec]] = field(default_factory=list)  # one-way entry area and destination
+    lock_spawn_during_buy: bool = True  # maps with complete barriers can use them as the buy-phase boundary
 
     def deck_at(self, p: Vec) -> Deck | None:
         return next((deck for deck in self.decks if deck.rect.contains(p)), None)
@@ -388,5 +389,6 @@ def parse_map(key: str, raw: dict) -> WorldMap:
     m.teleporters = [(_rect(t["entry"]), Vec(*t["exit"])) for t in raw.get("teleporters", [])]
     m.spawns = {int(t): [Vec(*p) for p in pts] for t, pts in raw.get("spawns", {}).items()}
     m.spawn_zones = {int(t): _rect(r) for t, r in raw.get("spawn_zones", {}).items()}
+    m.lock_spawn_during_buy = bool(raw.get("lock_spawn_during_buy", True))
     m.callouts = [(c["name"], _rect(c["rect"])) for c in raw.get("callouts", [])]
     return m

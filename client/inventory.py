@@ -21,6 +21,10 @@ class Inventory:
     def open(self, equipped: dict[str, str]) -> None:
         self.preview = equipped.get(self.weapon, "")
 
+    def turn_page(self, steps: int) -> None:
+        last_page = (len(self.weapons) - 1) // WEAPONS_PER_PAGE
+        self.page = max(0, min(last_page, self.page + steps))
+
     def activate(self, action: str, equipped: dict[str, str]) -> bool:
         """Update the selection. Return True when the saved loadout changed."""
         if action.startswith("inventory:weapon:"):
@@ -29,7 +33,7 @@ class Inventory:
         elif action.startswith("inventory:skin:"):
             self.preview = action.removeprefix("inventory:skin:")
         elif action.startswith("inventory:page:"):
-            self.page += int(action.removeprefix("inventory:page:"))
+            self.turn_page(int(action.removeprefix("inventory:page:")))
         elif action == "inventory:equip" and self.preview != equipped.get(self.weapon, ""):
             if self.preview:
                 equipped[self.weapon] = self.preview

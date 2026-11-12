@@ -38,6 +38,44 @@ def test_levels_of_the_main_areas() -> None:
     assert at(20, 35) == 0.0 and at(30, 47) == 1.0 and at(55, 38) == 2.0     # B site below B Lane, Market
 
 
+def test_buy_phase_allows_leaving_spawn_and_opens_barriers_at_round_start() -> None:
+    m = Match(load_map("ascent"))
+    player = m.add_player("A", 0, "omen")
+    m.start()
+    place(m, player.pid, 97, 81)  # A Lobby, just outside the A Main barrier
+    assert not m.world.spawn_zones[0].contains(player.pos)
+    walk(m, player.pid, 0, 1.0)
+    assert 78.0 <= m.world.height - player.pos.y <= 79.0
+    assert m.buy(player, "frenzy")
+
+    m.phase_until = m.time
+    walk(m, player.pid, 0, 1.0)
+    assert m.phase == "live"
+    assert m.world.height - player.pos.y < 77.25
+
+
+def test_buy_barriers_separate_the_teams_and_neutral_lanes_for_teleports() -> None:
+    from gameplay.kit.builtins import can_land
+
+    m = Match(load_map("ascent"))
+    attacker = m.add_player("A", 0, "omen")
+    defender = m.add_player("B", 1, "omen")
+    m.start()
+
+    def point(x: float, top: float) -> Vec:
+        return Vec(x, m.world.height - top)
+
+    assert sum(w.buy_phase_only for w in m.world.walls) == 10
+    for p in (point(31, 75), point(97, 80), point(84, 90)):
+        assert can_land(m, attacker, p)
+        assert not can_land(m, defender, p)
+    for p in (point(115, 46), point(34, 46), point(88, 56)):
+        assert can_land(m, defender, p)
+        assert not can_land(m, attacker, p)
+    for p in (point(27, 60), point(65, 53), point(113, 65), point(49, 70)):
+        assert not can_land(m, attacker, p) and not can_land(m, defender, p)
+
+
 def test_stairs_climb_and_heaven_needs_its_stairs() -> None:
     m, pid = setup()
     p = m.players[pid]

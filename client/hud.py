@@ -5,6 +5,7 @@ from __future__ import annotations
 from client.common import *  # noqa: F403  (pygame, colours, types)
 from client.ui import color
 from gameplay.kit.describe import alt_text
+from gameplay.match import SLOTS
 
 
 class HudMixin:
@@ -12,13 +13,13 @@ class HudMixin:
     def hud_cfg(self) -> dict:
         return HUD
 
-    def draw_hud(self, me: PlayerState) -> None:
+    def draw_hud(self, me: PlayerState, ground_sight: list[Vec], sight_range: float | None) -> None:
         """Valorant layout, with the top bar moved: minimap top left, kill feed top right, own team down the left side,
         enemies down the right side, timer and score bottom centre above health and abilities, weapon bottom right."""
         ui = self.kit
         ui.begin()
         self.draw_bottom_shade()
-        self.draw_minimap(me)
+        self.draw_minimap(me, ground_sight, sight_range)
         self.draw_team_column(me, own=True)
         self.draw_team_column(me, own=False)
         self.draw_score_box(me)
@@ -227,7 +228,7 @@ class HudMixin:
                 ui.text(d.name if d else me.weapon.key, (right, y + 14), "m", "text", "right", upper=True, bold=True)
         switched = m.time - getattr(self, "_switched_at", -9.0) < 2.0
         if switched or self.ui.buy_open or m.phase == "buy":
-            slots = [sl for sl in ("primary", "sidearm", "melee") if sl in me.weapons]
+            slots = [sl for sl in SLOTS if sl in me.weapons]
             yy = y - 30 - 26 * len(slots)
             for i, sl in enumerate(slots):
                 ws = me.weapons[sl]
@@ -235,7 +236,7 @@ class HudMixin:
                 row = pygame.Rect(right - 200, yy + i * 26, 200, 22)
                 active = me.slot == sl
                 ui.fill(row, "panel_light" if active else "panel")
-                ui.text(str(i + 1), (row.x + 8, row.y + 3), "xs", "muted")
+                ui.text(pygame.key.name(self.keys[sl]).upper(), (row.x + 8, row.y + 3), "xs", "muted")
                 ui.text(dd.name if dd else ws.key, (row.right - 8, row.y + 3), "xs", "text" if active else "muted", "right",
                         upper=True, bold=active)
         if m.phase == "buy" or self.ui.buy_open or m.mode == "deathmatch":

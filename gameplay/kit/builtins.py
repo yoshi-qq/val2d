@@ -471,6 +471,7 @@ def can_land(m: Match, p: PlayerState, point: Vec) -> bool:
         return False
     level = m.world.floor_level(point, p.level)
     return ((point - p.pos).length() >= 0.5
+            and m.buy_phase_allows_landing(p, point)
             and not any(m.wall_active(w) and w.top > level and (not w.on_deck or w.base <= level)
                         and w.rect.circle_push(point, radius)
                         for w in m.combat_walls())

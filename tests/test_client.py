@@ -127,6 +127,116 @@ def test_crosshair_is_symmetric_for_any_size_and_gap() -> None:
                 assert right.size == left.size and down.size == up.size and right.w == down.h
 
 
+@pytest.mark.parametrize("zoom,scoped", [(0, False), (1, False), (1, True)])
+def test_cursor_stops_at_the_view_edge_and_reverses_immediately(zoom, scoped) -> None:
+    from gameplay.geometry import heading
+
+    game = Game(args())
+    me = game.match.players[game.me]
+    game.zoom_level, game.scoped = zoom, scoped
+    game.scale *= 1.5 if zoom else 1.0
+    game.move_cursor(me, -100_000)
+    _, y = game.to_screen(me.pos + heading(me.facing) * game.cursor_depth, me)
+    assert y == pytest.approx(game.h / 2 if scoped else 1)
+    limit = game.cursor_depth
+    game.move_cursor(me, -100_000)
+    assert game.cursor_depth == limit
+    game.move_cursor(me, 1)
+    assert game.cursor_depth == pytest.approx(limit - 0.03)
+
+
+@pytest.mark.parametrize("level", [1, 2])
+def test_scoped_map_rotates_with_world_positions(level) -> None:
+    from client.common import VIEW_METERS
+    from gameplay.geometry import Vec
+    from gameplay.match import WeaponState
+
+    game = Game(args())
+    me = game.match.players[game.me]
+    me.pos = Vec(10, game.match.world.height - 20)
+    me.weapons["primary"] = WeaponState("operator", 5, 10)
+    me.slot, me.zoom_level = "primary", level
+    game.cursor_depth = 5.0
+    game.apply_zoom(me, holding_alt=False)
+    assert game.scoped
+    base = game.w / VIEW_METERS
+    game.map_surface = pygame.Surface((round(25 * base), round(25 * base)))
+    marker = Vec(13, me.pos.y + 5)
+    color = (240, 40, 140)
+    pygame.draw.circle(game.map_surface, color,
+                       (round(marker.x * base), round((game.match.world.height - marker.y) * base)), 10)
+    previous_x = game.w
+    for facing in (25.0, 35.0):
+        me.facing = facing
+        game.screen.fill((0, 0, 0))
+        game.draw_map_texture(me)
+        x, y = map(round, game.to_screen(marker, me))
+        assert x < previous_x
+        assert game.screen.get_at((x, y))[:3] == color
+        previous_x = x
+
+
+@pytest.mark.parametrize("mode", ["local", "client"])
+def test_minimap_contacts_require_the_players_own_view(mode) -> None:
+    from gameplay.geometry import Rect, Vec
+    from gameplay.world import Wall
+
+    game = Game(args())
+    game.mode = mode
+    match = game.match
+    me = match.players[game.me]
+    ally = next(p for p in match.players.values() if p.team == me.team and p is not me)
+    enemy = next(p for p in match.players.values() if p.team != me.team)
+    me.pos, me.facing = Vec(15, 10), 0
+    ally.pos, ally.facing = Vec(15, 16), 0
+    enemy.visible = True
+    match.world.walls = [Wall(Rect(14, 14, 16, 15), 3)]
+    enemy.pos = Vec(15, 17)
+    assert match.can_see(ally, enemy)
+    assert not game.minimap_sees_enemy(me, enemy)
+    enemy.pos = Vec(15, 12)
+    assert game.minimap_sees_enemy(me, enemy)
+    match.world.walls = []
+    enemy.pos = Vec(15, 32)
+    assert match.can_see(me, enemy)
+    assert not game.minimap_sees_enemy(me, enemy)
+
+
+def test_weapon_wheel_skips_empty_slots_and_hud_shows_the_actual_keys(monkeypatch) -> None:
+    from gameplay.match import Command
+
+    game = Game(args(keys={"sidearm": "8"}))
+    game.match.start()
+    me = game.match.players[game.me]
+    assert me.slot == "sidearm" and "primary" not in me.weapons
+    cmd = Command()
+    game.scroll_weapons(me, cmd, -1)
+    assert cmd.slot == "melee"
+    game.scroll_weapons(me, cmd, -1)
+    assert cmd.slot == "sidearm"
+
+    labels = []
+    monkeypatch.setattr(game.kit, "text", lambda label, *args, **kwargs: labels.append(label))
+    game.draw_weapon_box(me)
+    assert "8" in labels and "3" in labels and "1" not in labels
+
+
+def test_main_menu_inventory_scrolls_between_pages(monkeypatch) -> None:
+    from menu import MainMenu
+
+    monkeypatch.setattr("client.inventory.WEAPONS_PER_PAGE", 2)
+    pygame.init()
+    screen = pygame.display.set_mode((1280, 720))
+    font = pygame.font.Font(None, 22)
+    menu = MainMenu(screen, font, font, args())
+    menu.activate("tab:inventory")
+    menu.inventory.page = 0
+    menu.handle(pygame.event.Event(pygame.MOUSEWHEEL, y=-1))
+    assert menu.inventory.page == 1
+    menu.handle(pygame.event.Event(pygame.MOUSEWHEEL, y=5))
+    assert menu.inventory.page == 0
+
+
 def _post_key(key: int) -> None:
     pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=key, mod=0, unicode="", scancode=0))
 

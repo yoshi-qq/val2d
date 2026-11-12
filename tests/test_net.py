@@ -51,6 +51,28 @@ def test_command_from_json_clamps_and_drops_junk() -> None:
     assert cmd.buy[0] == "phantom" and len(cmd.buy) == 8
 
 
+def test_snapshot_syncs_inventory_and_resets_interpolation_for_new_contacts() -> None:
+    from gameplay.geometry import Vec
+
+    match = Match(load_archived_map("workyard"))
+    own = match.add_player("A", 0, "omen")
+    enemy = match.add_player("B", 1, "omen")
+    match.start()
+    own.pos, own.facing = Vec(17, 15), 0
+    enemy.pos = Vec(17, 14)
+    shadow = Match(match.world)
+    positions = {}
+    apply_snapshot(shadow, match.snapshot(own.pid), own.pid, server_pos=positions)
+    assert shadow.players[own.pid].weapons.keys() == own.weapons.keys()
+    remote = shadow.players[enemy.pid]
+    assert not remote.visible
+    remote.pos = Vec(17, 14)
+
+    enemy.pos = Vec(17, 18)
+    apply_snapshot(shadow, match.snapshot(own.pid), own.pid, server_pos=positions)
+    assert remote.visible and remote.pos == enemy.pos
+
+
 def test_client_joins_receives_snapshot_and_moves(session: HostSession) -> None:
     client = NetClient(f"127.0.0.1:{session.net.port}", "Guest", "sage",
                        weapon_skins={"classic": "prime", "tactical_knife": "reaver", "warden": "oni"})

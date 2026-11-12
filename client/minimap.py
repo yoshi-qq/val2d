@@ -3,6 +3,8 @@ team, seen enemies, bomb, smokes, the field of view and the own noise circle (ho
 heard, like the sound circle of a real tactical shooter). Values: config/client/hud.py."""
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from client.common import *  # noqa: F403  (pygame, colours, types)
 from client.ui import color
 
@@ -36,6 +38,7 @@ class MinimapMixin:
 
         clip = self.screen.get_clip()
         self.screen.set_clip(rect)
+        self.draw_minimap_barriers(self.screen, project)
         if not ab.get("global_target"):
             origin = project(me.pos)
             radius = float(ab["range"]) * scale
@@ -90,7 +93,8 @@ class MinimapMixin:
             pygame.draw.rect(panel, (81, 77, 60, 255), bounds)
             pygame.draw.rect(panel, (147, 129, 86, 255), bounds, 1)
         for w in wm.walls:
-            if w.rect.x0 < -0.5 or w.rect.y0 < -0.5 or w.rect.x1 > wm.width + 0.5 or w.rect.y1 > wm.height + 0.5:
+            if (w.buy_phase_only or w.rect.x0 < -0.5 or w.rect.y0 < -0.5
+                    or w.rect.x1 > wm.width + 0.5 or w.rect.y1 > wm.height + 0.5):
                 continue
             x0, y0 = pad + w.rect.x0 * k, pad + (wm.height - w.rect.y1) * k
             rect = pygame.Rect(round(x0), round(y0), max(1, round((w.rect.x1 - w.rect.x0) * k)), max(1, round((w.rect.y1 - w.rect.y0) * k)))
@@ -101,7 +105,16 @@ class MinimapMixin:
                 pygame.draw.rect(panel, (150, 160, 168, 255) if w.height > 1 else (84, 104, 116, 255), rect)
         return panel
 
-    def draw_minimap(self, me: PlayerState) -> None:
+    def draw_minimap_barriers(self, surface: pygame.Surface, project: Callable[[Vec], tuple[float, float]]) -> None:
+        if self.match.phase != "buy":
+            return
+        for wall in self.match.world.walls:
+            if wall.buy_phase_only:
+                rect = wall.rect
+                corners = ((rect.x0, rect.y0), (rect.x1, rect.y0), (rect.x1, rect.y1), (rect.x0, rect.y1))
+                pygame.draw.polygon(surface, (105, 187, 219), [project(Vec(x, y)) for x, y in corners])
+
+    def draw_minimap(self, me: PlayerState, ground_sight: list[Vec], sight_range: float | None) -> None:
         m, wm, s = self.match, self.match.world, self.screen
         r = int(HUD["minimap_radius"])
         k = self.minimap_scale()
@@ -127,28 +140,53 @@ class MinimapMixin:
                 rel = rel.rotated(-me.facing)
             return r + rel.x * k, r - rel.y * k
 
-        # field of view and own noise circle
-        fov = 360.0 if m.cfg.lobby.all_around_sight else m.fov
-        if fov < 359:
-            cone = pygame.Surface((2 * r, 2 * r), pygame.SRCALPHA)
-            reach = r * 1.5
-            pts = [(r, r)]
-            for i in range(13):
-                a = math.radians(me.facing - fov / 2 + fov * i / 12)
-                rel = Vec(math.sin(a), math.cos(a))
-                if rotate:
-                    rel = rel.rotated(-me.facing)
-                pts.append((r + rel.x * reach, r - rel.y * reach))
-            pygame.draw.polygon(cone, (236, 232, 225, 26), pts)
-            view.blit(cone, (0, 0))
+        self.draw_minimap_barriers(view, pt)
+
+        sight = pygame.Surface(view.get_size(), pygame.SRCALPHA)
+        white = (255, 255, 255, 255)
+        if ground_sight and me.blind_until <= m.time:
+            pygame.draw.polygon(sight, white, [pt(p) for p in ground_sight])
+            camera, (screen_x, screen_y) = self.camera(me)
+
+            def screen_point(x: float, y: float) -> tuple[float, float]:
+                offset = Vec((x - screen_x) / self.scale, (screen_y - y) / self.scale)
+                return pt(camera + offset.rotated(me.facing))
+
+            clip = pygame.Surface(view.get_size(), pygame.SRCALPHA)
+            if self.scoped and me.pid == self.me:
+                pygame.draw.circle(clip, white, screen_point(self.w // 2, self.h // 2),
+                                   self.scope_radius() * k / self.scale)
+            else:
+                pygame.draw.polygon(clip, white, [screen_point(x, y) for x, y in
+                                                  ((0, 0), (self.w, 0), (self.w, self.h), (0, self.h))])
+            sight.blit(clip, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+            if sight_range is not None:
+                clip.fill((0, 0, 0, 0))
+                pygame.draw.circle(clip, white, (r, r), sight_range * k)
+                sight.blit(clip, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+            clip.fill((236, 232, 225, 26))
+            clip.blit(sight, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+            view.blit(clip, (0, 0))
+
+        contacts = pygame.Surface(view.get_size(), pygame.SRCALPHA)
         for e in m.effects:
+            if self.mode != "client" and not m._effect_visible(e, me):
+                continue
+            layer = view if e.team == me.team else contacts
             if e.kind == "snapshot" and e.team == me.team and m.time < e.until:
                 pygame.draw.circle(view, color("ult"), pt(e.pos), 4, 1)
             elif e.kind in ("smoke", "zone") and e.radius > 0:
                 col = (160, 170, 190, 150) if e.kind == "smoke" else (255, 70, 85, 70)
-                pygame.draw.circle(view, col, pt(e.pos), max(2, e.radius * k))
+                pygame.draw.circle(layer, col, pt(e.pos), max(2, e.radius * k))
             elif e.kind == "wall" and e.a is not None and e.b is not None:
-                pygame.draw.line(view, (160, 170, 190, 200), pt(e.a), pt(e.b), 3)
+                pygame.draw.line(layer, (160, 170, 190, 200), pt(e.a), pt(e.b), 3)
+        for orb in m.orbs:
+            x, y = pt(orb)
+            pygame.draw.polygon(contacts, color("ult"), [(x, y - 4), (x + 3, y), (x, y + 4), (x - 3, y)])
+        if m.spike_pos is not None:
+            self._mini_icon(contacts, pt(m.spike_pos), "spike", "enemy", 12)
+        contacts.blit(sight, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        view.blit(contacts, (0, 0))
         noise_life = float(HUD["sound_circle_seconds"])
         self.ui.noise = [(rad, t0) for rad, t0 in getattr(self.ui, "noise", []) if m.time - t0 < noise_life]
         if self.ui.noise:
@@ -159,12 +197,6 @@ class MinimapMixin:
             x, y = pt(site.rect.center)
             lbl = self.kit.font("s", bold=True).render(site.name, True, color("gold"))
             view.blit(lbl, (x - lbl.get_width() / 2, y - lbl.get_height() / 2))
-        for orb in m.orbs:
-            x, y = pt(orb)
-            pygame.draw.polygon(view, color("ult"), [(x, y - 4), (x + 3, y), (x, y + 4), (x - 3, y)])
-        if m.spike_pos is not None:
-            x, y = pt(m.spike_pos)
-            self._mini_icon(view, (x, y), "spike", "enemy", 12)
         for p in m.players.values():
             if p.pid == me.pid:
                 continue
@@ -172,7 +204,7 @@ class MinimapMixin:
             if p.team == me.team:
                 self._mini_icon(view, pt(p.pos), "ally" if p.alive else "eliminated", "ally" if p.alive else "muted",
                                 12, heading if p.alive else None)
-            elif p.alive and self.team_sees(me, p):
+            elif p.alive and self.minimap_sees_enemy(me, p):
                 self.ui.last_seen[p.pid] = (p.pos, m.time)
                 self._mini_icon(view, pt(p.pos), "enemy", "enemy", 12, heading)
             elif p.alive and p.pid in self.ui.last_seen and m.time - self.ui.last_seen[p.pid][1] < 5.0:
@@ -190,13 +222,11 @@ class MinimapMixin:
         if not rotate:
             self.kit.text("N", (cx, cy - r + 4), "xs", "muted", "center", bold=True)
 
-    def team_sees(self, me: PlayerState, p: PlayerState) -> bool:
-        """Enemies on the minimap: seen by you or any living teammate (shared vision). Clients only know what
-        the host sent them."""
-        m = self.match
-        if self.mode == "client":
-            return p.visible
-        return any(m.can_see(t, p) for t in m.players.values() if t.team == me.team and t.alive)
+    def minimap_sees_enemy(self, me: PlayerState, enemy: PlayerState) -> bool:
+        if not me.alive or me.blind_until > self.match.time or not self.sees_enemy(me, enemy):
+            return False
+        x, y = self.to_screen(enemy.pos, me)
+        return self.in_view((x, y - (enemy.ground + enemy.z) * self.scale * HEIGHT_DRAW), me)
 
     def _mini_icon(self, surf: pygame.Surface, at: tuple[float, float], key: str, fallback: str,
                    size: int, angle: float | None = None) -> None:

@@ -259,18 +259,19 @@ for top, bottom in ((65, 67), (74, 76)):
 for x0, x1 in ((24, 29), (30, 35)):
     b.wall(*m(x0, 49, x1, 50), mat="ascent_window")
 
-BARRIERS = (  # buy-phase barriers, traced from the red (defender) and green (attacker) lines of the reference
-    (349, 569, 569, 581), (772, 573, 855, 579), (1062, 671, 1098, 676), (1357, 697, 1416, 703),
-    (357, 762, 403, 767), (578, 770, 583, 900), (1131, 901, 1253, 906), (1022, 1020, 1027, 1102),
+# Tracker's Ascent buy-phase overlay, aligned to the openings in the metre grid.
+# Each strip extends into the jambs so the collision joins the permanent walls.
+BARRIERS = (
+    # Defenders: B Lane's three openings, Mid Bottom, A Tree and the A Site entrance.
+    (23.9, 48.85, 29.1, 49.35), (29.9, 48.85, 35.1, 49.35), (38.9, 48.85, 44.1, 49.35),
+    (59.9, 48.95, 68.1, 49.45), (85.9, 57.35, 89.1, 57.85), (110.9, 59.65, 116.1, 60.15),
+    # Attackers: B Lobby to B Main, B Lobby to Mid Link, A Lobby and Mid Top.
+    (24.9, 65.25, 29.1, 65.75), (44.0, 67.9, 44.5, 73.1),
+    (91.9, 77.25, 102.1, 77.75), (82.3, 86.9, 82.8, 95.1),
 )
-for x0, y0, x1, y1 in BARRIERS:
-    if x1 - x0 > y1 - y0:
-        cy = (y0 + y1) / 2
-        y0, y1 = cy - 3, cy + 3
-    else:
-        cx = (x0 + x1) / 2
-        x0, x1 = cx - 3, cx + 3
-    b.data["objects"].append({"key": "spawn_barrier", "rect": list(ref(x0, y0, x1, y1))})
+for bounds in BARRIERS:
+    b.data["objects"].append({"key": "spawn_barrier", "rect": list(m(*bounds))})
+b.data["lock_spawn_during_buy"] = False
 
 # ---------------------------------------------------------------- sites, spawns, callouts, floors
 b.site("A", *ref(1268, 403, 1505, 552))

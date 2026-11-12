@@ -123,6 +123,9 @@ class MainMenu:
         if ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE:
             self.close_top()
             return None
+        if ev.type == pygame.MOUSEWHEEL and self.tab == "inventory" and not self.dialog:
+            self.inventory.turn_page(-ev.y)
+            return None
         if ev.type == pygame.MOUSEBUTTONUP and ev.button == 1:
             hit = self.ui.hit_at(ev.pos)
             action, self.ui.pressed = self.ui.pressed, None

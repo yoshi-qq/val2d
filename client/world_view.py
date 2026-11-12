@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from client.common import *  # noqa: F403  (pygame, colours, types)
+from gameplay.world import Wall
 
 
 class WorldViewMixin:
@@ -19,11 +20,29 @@ class WorldViewMixin:
         """World point the camera looks at and where it sits on screen. Aiming down sights moves the view toward the
         crosshair (a scope all the way: the crosshair is the screen centre and the view follows it)."""
         normal = (self.w / 2, self.h * (0.5 + self.camera_push * 0.5))
-        if not getattr(self, "zoom_level", 0) or me.pid != self.me:
+        pull = self.camera_aim_pull(me)
+        if not pull:
             return me.pos, normal
-        pull = 1.0 if getattr(self, "scoped", False) else 0.45
         center = me.pos + heading(me.facing) * (self.cursor_depth * pull)
         return center, (normal[0], normal[1] + (self.h / 2 - normal[1]) * pull)
+
+    def camera_aim_pull(self, me: PlayerState) -> float:
+        if not self.zoom_level or me.pid != self.me:
+            return 0.0
+        return 1.0 if self.scoped else 0.45
+
+    def scope_radius(self) -> int:
+        return int(self.h * 0.44)
+
+    def in_view(self, point: tuple[float, float], me: PlayerState) -> bool:
+        x, y = point
+        if not (0 <= x < self.w and 0 <= y < self.h):
+            return False
+        return (not self.scoped or me.pid != self.me
+                or math.hypot(x - self.w // 2, y - self.h // 2) < self.scope_radius())
+
+    def sees_enemy(self, me: PlayerState, enemy: PlayerState) -> bool:
+        return (self.mode != "client" or enemy.visible) and self.match.can_see(me, enemy)
 
     def poly(self, rect, me: PlayerState) -> list[tuple[float, float]]:
         return [self.to_screen(Vec(x, y), me) for x, y in ((rect.x0, rect.y0), (rect.x1, rect.y0), (rect.x1, rect.y1), (rect.x0, rect.y1))]
@@ -94,7 +113,7 @@ class WorldViewMixin:
                 s.blit(img, (px - size / 2, py - size / 2))
             else:
                 pygame.draw.rect(s, C_ENEMY if blink else (90, 40, 40), (px - 6, py - 6, 12, 12))
-        self.draw_sight(me)
+        ground_sight = self.draw_sight(me)
         for e in m.effects:
             if e.kind == "snapshot" and e.team == me.team and m.time < e.until:
                 center = self.to_screen(e.pos, me)
@@ -125,6 +144,7 @@ class WorldViewMixin:
             if muzzle is not None and (tr.b - tr.a).length() > 0.7:
                 mx, my = self.to_screen(tr.a + (tr.b - tr.a).normalized() * 0.6, me)
                 s.blit(muzzle, (mx - size / 2, my - size / 2))
+        opaque_walls = [w for w in m.combat_walls() if w.full and w.blocks_sight and m.wall_active(w)]
         for p in m.players.values():
             if not p.alive:
                 if p.visible or self.mode != "client":
@@ -133,8 +153,7 @@ class WorldViewMixin:
                     if body is not None:
                         s.blit(body, (bx - body.get_width() / 2, by - body.get_height() / 2))
                 continue
-            seen = p.visible if self.mode == "client" else m.can_see(me, p)
-            if p.team != me.team and not seen:
+            if p.team != me.team and not self.sees_enemy(me, p):
                 continue
             px, py = self.to_screen(p.pos, me)
             r = 0.4 * self.scale
@@ -151,7 +170,8 @@ class WorldViewMixin:
                 s.blit(shadow, (px - shadow_w / 2, feet_y - lift_ground))
                 py -= lift
             if img is not None:
-                s.blit(img, (px - img.get_width() / 2, py - img.get_height() / 2))
+                bounds = img.get_rect(center=(round(px), round(py)))
+                s.blit(self.clip_figure(img, bounds, me, p, opaque_walls), bounds)
                 self.draw_held(p, me, (px, py), img.get_height())
                 walk_index = int(m.time * 8)
                 for layer in self.chars.overlays(p.agent, list(self.sprite_cfg(p).get("overlays", [])), p.team != me.team,
@@ -190,7 +210,7 @@ class WorldViewMixin:
             flash = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
             flash.fill((255, 255, 255, int(min(1.0, (me.blind_until - m.time) / 0.6) * 245)))
             s.blit(flash, (0, 0))
-        self.draw_hud(me)
+        self.draw_hud(me, ground_sight, sight_range)
         if tactical and self.aiming:
             self.draw_tactical_map(me, tactical, self.aiming)
         elif me.pid == self.me and me.alive and not self.aiming and not self.ui.buy_open \
@@ -210,6 +230,31 @@ class WorldViewMixin:
         if self.ui.show_scores or m.phase == "over":
             self.draw_scores()
 
+    def clip_figure(self, image: pygame.Surface, bounds: pygame.Rect, me: PlayerState,
+                    player: PlayerState, walls: list[Wall]) -> pygame.Surface:
+        """Keep billboard pixels from drawing over a solid wall next to the player."""
+        reach = max(bounds.size) / self.scale
+        mask = None
+        for wall in walls:
+            rect = wall.rect
+            if (wall.on_deck and wall.base > player.level
+                    or rect.x0 > player.pos.x + reach or rect.x1 < player.pos.x - reach
+                    or rect.y0 > player.pos.y + reach or rect.y1 < player.pos.y - reach):
+                continue
+            poly = self.poly(rect, me)
+            xs, ys = zip(*poly)
+            if min(xs) >= bounds.right or max(xs) < bounds.left or min(ys) >= bounds.bottom or max(ys) < bounds.top:
+                continue
+            if mask is None:
+                mask = pygame.Surface(bounds.size, pygame.SRCALPHA)
+                mask.fill((255, 255, 255, 255))
+            pygame.draw.polygon(mask, (255, 255, 255, 0), [(x - bounds.left, y - bounds.top) for x, y in poly])
+        if mask is None:
+            return image
+        image = image.copy()
+        image.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        return image
+
     def draw_facing_marker(self, p: PlayerState, me: PlayerState, col: tuple[int, int, int]) -> None:
         """Exact view direction on the ground: a dotted line from the feet and an arrow head at its end."""
         length = float(VIEW["facing_marker"])
@@ -225,7 +270,7 @@ class WorldViewMixin:
 
     def draw_scope(self) -> None:
         """Sniper scope: black outside a circle around the screen centre, thin reticle lines."""
-        r = int(self.h * 0.44)
+        r = self.scope_radius()
         cx, cy = self.w // 2, self.h // 2
         if getattr(self, "_scope_mask", None) is None or self._scope_mask.get_size() != (self.w, self.h):
             mask = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
@@ -241,12 +286,12 @@ class WorldViewMixin:
         pygame.draw.line(self.screen, line, (cx, cy + 18), (cx, cy + r), 2)
         pygame.draw.line(self.screen, line, (cx, cy - r), (cx, cy - 18), 1)
 
-    def draw_sight(self, me: PlayerState) -> None:
+    def draw_sight(self, me: PlayerState) -> list[Vec]:
         """Darkens everything the player cannot see: outside the field of view, behind walls and smokes."""
         from client.vision import body_circle, sight_polygon
         m = self.match
         if not me.alive:
-            return
+            return []
         fov = 360.0 if m.cfg.lobby.all_around_sight else m.fov
         reach = float(rule_value("sight", "view_distance", 60.0))
         rays = int(VIEW["sight_rays"])
@@ -260,6 +305,7 @@ class WorldViewMixin:
         pygame.draw.polygon(shade, clear, [self.to_screen(p, me) for p in low])
         pygame.draw.polygon(shade, clear, [self.to_screen(p, me) for p in body_circle(me.pos, float(VIEW["body_sight"]))])
         self.screen.blit(shade, (0, 0))
+        return low
 
     def projectile_point(self, start: Vec, end: Vec, progress: float, me: PlayerState) -> tuple[float, float]:
         x, y = self.to_screen(start + (end - start) * progress, me)
@@ -377,8 +423,7 @@ class WorldViewMixin:
     def draw_map_texture(self, me: PlayerState) -> None:
         """Cut the map image around the player and rotate it with the camera."""
         assert self.map_surface is not None
-        center = self.camera(me)[0]
-        cx, cy = self.to_screen(center, me)
+        center, (cx, cy) = self.camera(me)
         radius = math.ceil(math.hypot(max(cx, self.w - cx), max(cy, self.h - cy))) + 2
         base = self.w / VIEW_METERS          # scale of the cached map image
         zoom = self.scale / base
@@ -391,9 +436,7 @@ class WorldViewMixin:
         my = (self.match.world.height - center.y) * base
         self._crop.blit(self.map_surface, (src_r - mx, src_r - my))
         crop = self._crop if abs(zoom - 1.0) < 1e-6 else pygame.transform.scale(self._crop, (round(size * zoom), round(size * zoom)))
-        nx, ny = self.to_screen(me.pos + Vec(0, 1), me)
-        north = math.degrees(math.atan2(-(ny - cy), nx - cx))
-        rotated = pygame.transform.rotate(crop, north - 90)
+        rotated = pygame.transform.rotate(crop, me.facing)
         self.screen.blit(rotated, (cx - rotated.get_width() / 2, cy - rotated.get_height() / 2))
 
     def draw_live_objects(self, me: PlayerState) -> None:

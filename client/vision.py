@@ -19,7 +19,8 @@ if TYPE_CHECKING:
 def _wall_arrays(m: Match, level: int, origin: Vec, reach: float, low: bool = False) -> np.ndarray:
     """Sight-blocking walls near the eye; low=True also head-high cover (crates, platform edges) above the eye."""
     rects = []
-    walls = [w for w in m.combat_walls() if w.top > level and m.wall_active(w, for_sight=True)] if low \
+    walls = [w for w in m.combat_walls() if w.top > level and (not w.on_deck or w.base <= level)
+             and m.wall_active(w, for_sight=True)] if low \
         else m.active_sight_walls(level)
     for w in walls:
         r = w.rect
@@ -33,7 +34,8 @@ def _smokes(m: Match, origin: Vec, reach: float) -> np.ndarray:
     out = []
     for e in m.effects:
         blocks = e.props.get("blocks_sight", e.kind in ("smoke", "wall"))
-        if blocks and e.a is None and e.radius > 0 and e.start <= m.time and (e.pos - origin).length() < reach + e.radius:
+        if (blocks and e.a is None and e.radius > 0 and not e.props.get("ended")
+                and e.start <= m.time < e.until and (e.pos - origin).length() < reach + e.radius):
             out.append((e.pos.x, e.pos.y, e.radius))
     return np.array(out, dtype=float).reshape(-1, 3)
 
@@ -42,7 +44,7 @@ def _lines(m: Match) -> np.ndarray:
     out = []
     for e in m.effects:
         if e.a is not None and e.b is not None and e.kind != "tripwire" and e.props.get("blocks_sight", e.kind == "wall") \
-                and e.start <= m.time:
+                and not e.props.get("ended") and e.start <= m.time < e.until:
             out.append((e.a.x, e.a.y, e.b.x, e.b.y))
     return np.array(out, dtype=float).reshape(-1, 4)
 

@@ -153,6 +153,8 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
                                                           "recall_recharge")})
                  for e in snap["effects"]]
     for effect, row in zip(m.effects, snap["effects"]):
+        if "blocks_sight" in row:
+            effect.props["blocks_sight"] = bool(row["blocks_sight"])
         if row.get("barrier"):
             effect.props["barrier"] = Wall(Rect(*row["barrier"]), 3)
     m.drops = [Drop(d["key"], 0, 0, Vec(d["x"], d["y"]), skin_choice(d["key"], d.get("skin")))
@@ -162,6 +164,7 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
     m.remote_report = [r for r in snap.get("report", []) if isinstance(r, dict)]
     m.broken_cover = {Rect(*r) for r in snap.get("cover_broken", []) if isinstance(r, list) and len(r) == 4}
     m.open_doors = {Rect(*r) for r in snap.get("doors_open", []) if isinstance(r, list) and len(r) == 4}
+    previously_visible = {p.pid for p in m.players.values() if p.visible}
     for row in snap.get("roster", []):
         pid = int(row["pid"])
         p = m.players.get(pid)
@@ -188,8 +191,8 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
         host_pos = Vec(row["x"], row["y"])
         if server_pos is not None:
             server_pos[pid] = host_pos
-            if pid not in m.players or (p.pos - host_pos).length() > 6.0 or new_round:
-                p.pos = host_pos  # far off or a new round: jump instead of gliding
+            if pid not in previously_visible or (p.pos - host_pos).length() > 6.0 or new_round:
+                p.pos = host_pos  # reset interpolation for new contacts, teleports, and round starts
         else:
             p.pos = host_pos
         if not (predict_own and pid == own_pid):
@@ -206,6 +209,9 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
         p.slot = row["slot"]
         key = row["weapon"]
         p.weapons = {row["slot"]: WeaponState(key, row["mag"], row["reserve"], skin_choice(key, row.get("skin")))} if key else {}
+        for slot, item in row.get("inventory", {}).items():
+            key = item["key"]
+            p.weapons[slot] = WeaponState(key, item["mag"], item["reserve"], skin_choice(key, item.get("skin")))
         p.charges = dict(row["charges"])
         p.ult_points = row["ult"]
         p.kills, p.deaths = row["kills"], row["deaths"]
@@ -215,6 +221,7 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
         p.remote_sellable = list(row.get("sellable", []) or []) if pid == own_pid else []
         p.spray = row.get("spray", 0.0)
         p.blind_until = m.time + 0.3 if row["blind"] else 0.0
+        p.revealed_until = float(row.get("revealed_until", 0.0))
         p.reload_until = m.time + 0.3 if row["reloading"] else 0.0
         p.plant_progress, p.defuse_progress = row["plant"], row["defuse"]
         p.status = {k: m.time + 0.3 for k in row.get("status", [])}
