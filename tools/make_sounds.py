@@ -214,6 +214,13 @@ def build() -> None:
     work += [at(sine(np.full(n(0.06), 1400.0), 0.06) * env(0.06, 0.001, 50) * 0.3, t) for t in (1.2, 2.9, 4.7, 6.3)]
     save("spike_defuse", pad(mix(*work), 7.05), gain=0.45)
     save("spike_defuse_half", mix(*(at(sine(np.full(n(0.25), f), 0.25) * env(0.25, 0.005, 10) * 0.5, d) for f, d in ((880, 0), (1320, 0.12)))), gain=0.45)
+    # kill streak (1-5 kills in a round, rising), round titles, ultimate orb
+    for k in range(1, 6):
+        base_f = 440.0 * (2 ** ((k - 1) * 2 / 12))
+        save(f"kill_{k}", mix(sine(np.full(n(0.12), base_f), 0.12) * env(0.12, 0.003, 20),
+                              at(sine(np.full(n(0.18), base_f * 1.5), 0.18) * env(0.18, 0.003, 14), 0.07)), gain=0.45 + 0.03 * k)
+    save("round_title", mix(*(at(sine(np.full(n(0.4), f), 0.4) * env(0.4, 0.005, 6) * 0.45, d) for f, d in ((523, 0), (784, 0.12), (1047, 0.24), (1568, 0.36)))), gain=0.5)
+    save("orb_pickup", mix(sine(np.linspace(600, 1200, n(0.3)), 0.3) * env(0.3, 0.01, 9), at(sine(np.full(n(0.2), 1500.0), 0.2) * env(0.2, 0.005, 14) * 0.4, 0.15)), gain=0.45)
     # match flow and interface
     save("round_start", mix(*(at(sine(np.full(int(RATE * 0.25), f), 0.25) * env(0.25, 0.005, 10), d) for f, d in ((440, 0), (660, 0.15)))))
     save("round_win", mix(*(at(sine(np.full(int(RATE * 0.5), f), 0.5) * env(0.5, 0.005, 5) * 0.5, d) for f, d in ((523, 0), (659, 0.15), (784, 0.3), (1047, 0.45)))))

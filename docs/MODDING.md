@@ -15,6 +15,7 @@ changes. Broken entries are skipped with a warning that names the problem (the r
 | Hit zones, lobby defaults | `config/settings/` | – |
 | Weapons, armor | `config/content/weapons.py` | – |
 | Materials, props, decals | `config/content/materials.py` | – |
+| Prop heights (low props are seen and shot over) | `config/content/prop_heights.py` | – |
 
 Files starting with `_` are templates and are never loaded. In a match against bots or in the range, the escape
 menu has **Reload content**: agents, abilities, weapons, armor, statuses and patches are read again without

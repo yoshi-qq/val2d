@@ -4,7 +4,7 @@ from __future__ import annotations
 from client.common import *  # noqa: F403  (pygame, colours, types)
 from client.ui import color
 
-COLUMNS = (("Agent", 44), ("Ult", 268), ("K", 330), ("D", 380), ("Score", 430), ("Loadout", 510), ("Credits", 620), ("Ping", 700))
+COLUMNS = (("Agent", 44), ("Ult", 268), ("K", 330), ("D", 365), ("A", 400), ("Score", 440), ("Loadout", 510), ("Credits", 620), ("Ping", 700))
 
 
 class ScoreboardMixin:
@@ -112,8 +112,9 @@ class ScoreboardMixin:
                 ui.text(p.name, (x + 44, y + 8), "s", col, bold=p.pid == self.me)
                 ui.text(m.agents.get(p.agent, {}).get("name", p.agent), (x + 170, y + 9), "xs", "muted", upper=True)
                 ui.text(str(p.kills), (x + 330, y + 8), "s", col, bold=True)
-                ui.text(str(p.deaths), (x + 380, y + 8), "s", col)
-                ui.text(str(self.score_of(p)), (x + 430, y + 8), "s", col)
+                ui.text(str(p.deaths), (x + 365, y + 8), "s", col)
+                ui.text(str(p.assists), (x + 400, y + 8), "s", col)
+                ui.text(str(self.score_of(p)), (x + 440, y + 8), "s", col)
                 if own:
                     ui.text(str(p.credits), (x + 620, y + 8), "s", "gold")
                 if p.is_bot:

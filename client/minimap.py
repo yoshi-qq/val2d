@@ -87,6 +87,9 @@ class MinimapMixin:
             x, y = pt(site.rect.center)
             lbl = self.kit.font("s", bold=True).render(site.name, True, color("gold"))
             view.blit(lbl, (x - lbl.get_width() / 2, y - lbl.get_height() / 2))
+        for orb in m.orbs:
+            x, y = pt(orb)
+            pygame.draw.polygon(view, color("ult"), [(x, y - 4), (x + 3, y), (x, y + 4), (x - 3, y)])
         if m.spike_pos is not None:
             x, y = pt(m.spike_pos)
             pygame.draw.rect(view, color("enemy"), (x - 4, y - 4, 8, 8))
@@ -95,8 +98,14 @@ class MinimapMixin:
                 continue
             if p.team == me.team:
                 self._mini_dot(view, pt(p.pos), color("ally") if p.alive else color("muted"), p.facing - (me.facing if rotate else 0), p.alive)
-            elif p.alive and (p.visible if self.mode == "client" else m.can_see(me, p)):
+            elif p.alive and self.team_sees(me, p):
+                self.ui.last_seen[p.pid] = (p.pos, m.time)
                 self._mini_dot(view, pt(p.pos), color("enemy"), p.facing - (me.facing if rotate else 0), True)
+            elif p.alive and p.pid in self.ui.last_seen and m.time - self.ui.last_seen[p.pid][1] < 5.0:
+                x, y = pt(self.ui.last_seen[p.pid][0])  # last known position: a faded question mark
+                mark = self.kit.font("xs", bold=True).render("?", False, color("enemy"))
+                mark.set_alpha(int(220 * (1 - (m.time - self.ui.last_seen[p.pid][1]) / 5.0)))
+                view.blit(mark, (x - mark.get_width() / 2, y - mark.get_height() / 2))
         self._mini_dot(view, (r, r), color("text"), 0.0 if rotate else me.facing, True, big=True)
         mask = pygame.Surface((2 * r, 2 * r), pygame.SRCALPHA)
         pygame.draw.circle(mask, (255, 255, 255, 255), (r, r), r)
@@ -105,6 +114,14 @@ class MinimapMixin:
         pygame.draw.circle(s, color("line"), (cx, cy), r, 1)
         if not rotate:
             self.kit.text("N", (cx, cy - r + 4), "xs", "muted", "center", bold=True)
+
+    def team_sees(self, me: PlayerState, p: PlayerState) -> bool:
+        """Enemies on the minimap: seen by you or any living teammate (shared vision). Clients only know what
+        the host sent them."""
+        m = self.match
+        if self.mode == "client":
+            return p.visible
+        return any(m.can_see(t, p) for t in m.players.values() if t.team == me.team and t.alive)
 
     def _mini_dot(self, surf: pygame.Surface, at: tuple[float, float], col: pygame.Color, angle: float, alive: bool,
                   big: bool = False) -> None:

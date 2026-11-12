@@ -71,7 +71,7 @@ class OverlaysMixin:
                 self.overlay = "pause"
             return None
         if ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE:
-            if self.overlay in ("leave", "quit"):
+            if self.overlay in ("leave", "quit", "surrender"):
                 self.overlay = "pause" if getattr(self, "_from_pause", False) else ""
             else:
                 self.close_overlay()
@@ -93,6 +93,14 @@ class OverlaysMixin:
                 self.overlay = "settings"
             elif action == "reload":
                 self.reload_content()
+            elif action == "surrender":
+                self._from_pause = True
+                self.overlay = "surrender"
+            elif action == "surrender_yes":
+                me = self.match.players.get(self.me)
+                if me is not None:
+                    self.match.surrender(me.team)
+                self.close_overlay()
             elif action in ("leave", "quit"):
                 self._from_pause = self.overlay == "pause"
                 self.overlay = action
@@ -114,7 +122,7 @@ class OverlaysMixin:
         if self.overlay == "settings":
             self.settings_panel.draw()
             return
-        if self.overlay in ("pause", "leave", "quit"):
+        if self.overlay in ("pause", "leave", "quit", "surrender"):
             # like the real escape menu: dimmed game, a centred column of large text buttons
             ui.fill(self.screen.get_rect(), "#0f1923d0")
             ui.modal_from = len(ui.hits)
@@ -123,6 +131,8 @@ class OverlaysMixin:
             entries = list(ESCAPE_MENU)
             if self.mode == "local":  # own match: content files can be reloaded while playing
                 entries.insert(2, ("Reload content", "reload"))
+            if self.mode in ("local", "host") and self.match.phase in ("buy", "live", "planted", "end") and not self.match.practice:
+                entries.insert(-1, ("Surrender", "surrender"))
             for label, action in entries:
                 r = pygame.Rect(cx - 170, y, 340, 54)
                 hover = r.collidepoint(pygame.mouse.get_pos())
@@ -136,5 +146,7 @@ class OverlaysMixin:
         if self.overlay == "leave":
             ui.dialog("Leave match?", "You go back to the main menu." + (" The match ends for everyone." if self.session else ""),
                       [("Cancel", "cancel", False), ("Leave", "leave_yes", True)])
+        elif self.overlay == "surrender":
+            ui.dialog("Surrender?", "Your team loses the match now.", [("Cancel", "cancel", False), ("Surrender", "surrender_yes", True)])
         elif self.overlay == "quit":
             ui.dialog("Quit Val2d?", "Alt+F4 again quits at once.", [("Cancel", "cancel", False), ("Quit", "quit_yes", True)])

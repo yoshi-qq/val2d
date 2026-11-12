@@ -22,6 +22,7 @@ class Wall:
     buy_phase_only: bool = False  # blocks only during the buy phase (spawn barrier)
     door: bool = False  # can be opened; then it blocks nothing
     solid: bool = True  # False: blocks only sight (bushes), never movement or bullets
+    low: bool = False   # lower than head height: players see and shoot over it (barrels, benches)
 
 
 @dataclass(frozen=True)
@@ -139,7 +140,19 @@ class WorldMap:
         return [w for w in self.walls if w.height > level and w.solid]
 
     def sight_walls(self, level: int) -> list[Wall]:
-        return [w for w in self.walls if w.blocks_sight and w.height > level]
+        return [w for w in self.walls if w.blocks_sight and w.height > level and not w.low]
+
+
+@lru_cache(maxsize=1)
+def prop_heights() -> dict[str, float]:
+    """Prop heights in metres (config/content/prop_heights.py)."""
+    from gameplay.data import CONTENT_DIR, _load_py
+    return {str(k): float(v) for k, v in dict(_load_py(CONTENT_DIR / "prop_heights.py", "HEIGHTS") or {}).items()}
+
+
+def head_height() -> float:
+    from gameplay.data import rule
+    return float(rule("sight", "head_height", 1.4))
 
 
 @lru_cache(maxsize=1)
@@ -246,9 +259,11 @@ def parse_map(key: str, raw: dict) -> WorldMap:
                     c = rect.center
                     hw, hh = (rect.x1 - rect.x0) * share / 2, (rect.y1 - rect.y0) * share / 2
                     rect = Rect(c.x - hw, c.y - hh, c.x + hw, c.y + hh)
-                m.walls.append(Wall(rect, int(spec.get("pen", 1)), bool(spec.get("sight", True)),
+                height_m = prop_heights().get(thing.key)
+                low = height_m is not None and height_m < head_height()
+                m.walls.append(Wall(rect, int(spec.get("pen", 1)), bool(spec.get("sight", True)) and not low,
                                     int(spec.get("height", 2)), "obj:" + thing.key, bool(spec.get("buy_phase_only", False)),
-                                    bool(spec.get("door", False))))
+                                    bool(spec.get("door", False)), low=low))
             elif kind == "objects" and spec.get("sight_only"):
                 m.walls.append(Wall(thing.rect, 0, True, 2, "obj:" + thing.key, False, False, False))
     m.practice_targets = [(Vec(*t["pos"]), float(t.get("move", 0.0))) for t in raw.get("practice_targets", [])]

@@ -140,6 +140,7 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
                         start=float(e.get("start", 0.0)), props={"status": e.get("status")}) for e in snap["effects"]]
     m.drops = [Drop(d["key"], 0, 0, Vec(d["x"], d["y"])) for d in snap.get("drops", [])]
     m.history = [(int(w), str(r)) for w, r in snap.get("history", []) if isinstance(r, str)]
+    m.orbs = [Vec(float(x), float(y)) for x, y in snap.get("orbs", [])]
     m.remote_report = [r for r in snap.get("report", []) if isinstance(r, dict)]
     m.open_doors = {Rect(*r) for r in snap.get("doors_open", []) if isinstance(r, list) and len(r) == 4}
     for row in snap.get("roster", []):
@@ -150,6 +151,7 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
             m.players[pid] = p
         p.name, p.team, p.agent = row["name"], row["team"], row["agent"]
         p.kills, p.deaths, p.alive = row["kills"], row["deaths"], row["alive"]
+        p.assists = int(row.get("assists", p.assists) or 0)
         p.is_bot = bool(row.get("bot", p.is_bot))
         p.damage_total = int(row.get("damage", p.damage_total) or 0)
         p.remote_score = int(row.get("score", 0) or 0)
@@ -185,6 +187,10 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
         p.charges = dict(row["charges"])
         p.ult_points = row["ult"]
         p.kills, p.deaths = row["kills"], row["deaths"]
+        p.assists = int(row.get("assists", p.assists) or 0)
+        p.crouching = bool(row.get("crouch", False))
+        p.orb_progress = float(row.get("orb", 0.0) or 0.0)
+        p.remote_sellable = list(row.get("sellable", []) or []) if pid == own_pid else []
         p.spray = row.get("spray", 0.0)
         p.blind_until = m.time + 0.3 if row["blind"] else 0.0
         p.reload_until = m.time + 0.3 if row["reloading"] else 0.0

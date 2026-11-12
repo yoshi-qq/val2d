@@ -58,6 +58,12 @@ class WorldViewMixin:
                 mark.set_alpha(int(255 * min(1.0, (until - m.time) / 5)))
                 x, y = self.to_screen(pos, me)
                 s.blit(mark, (x - d / 2, y - d / 2))
+        for orb in m.orbs:  # ultimate orbs: a pale yellow diamond that pulses
+            ox, oy = self.to_screen(orb, me)
+            size = self.scale * (0.32 + 0.04 * math.sin(m.time * 5))
+            pts = [(ox, oy - size), (ox + size * 0.7, oy), (ox, oy + size), (ox - size * 0.7, oy)]
+            pygame.draw.polygon(s, (247, 240, 168), pts)
+            pygame.draw.polygon(s, (120, 110, 60), pts, 2)
         for e in m.effects:
             self.draw_effect(e, me)
         if m.spike_pos is not None:

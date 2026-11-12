@@ -224,12 +224,13 @@ class HudMixin:
         for until, msg, killer, victim, head, *rest in self.ui.feed[-6:]:
             weapon = rest[0] if rest else ""
             killer_team = rest[1] if len(rest) > 1 else None
+            wallbang = bool(rest[2]) if len(rest) > 2 else False
             mine = bool(me.name) and msg.startswith(me.name + " ")
             left_name, _, right_name = msg.partition(" → ")
             names = [left_name, right_name] if right_name else [msg]
             widths = [ui.size(n, "s", bold=True)[0] for n in names]
             gun = self.bank.scaled(f"weapons/val2d/{weapon}.png", (40, 20)) if weapon in m.weapons else None
-            w = sum(widths) + 2 * 28 + (48 if gun else 16) + (22 if head else 0) + 16
+            w = sum(widths) + 2 * 28 + (48 if gun else 16) + (22 if head else 0) + 26
             r = pygame.Rect(self.w - 16 - w, y, w, 28)
             tint = "ally" if killer_team == me.team else "enemy" if killer_team is not None else "muted"
             ui.fill(r, "panel")
@@ -251,6 +252,10 @@ class HudMixin:
                     if gun is not None:
                         s.blit(gun, (x, r.y + 4))
                         x += 46
+                    if wallbang:  # shot through a wall: two bars like a wall section
+                        for bx in (x - 4, x + 1):
+                            pygame.draw.rect(s, color("muted"), (bx, r.y + 7, 3, 14))
+                        x += 10
                     else:
                         pygame.draw.polygon(s, color("muted"), [(x, r.y + 9), (x + 8, r.y + 14), (x, r.y + 19)])
                         x += 14
@@ -280,6 +285,25 @@ class HudMixin:
         cx, base = self.w // 2, self.h - 190
         if m.spike_carrier == self.me:
             ui.text("Spike · hold F on a site", (self.w // 2 - 310, self.h - 132), "xs", "gold", upper=True, bold=True)
+        orb_time = float(rule_value("orbs", "pickup_time", 1.0))
+        if me.orb_progress > 0:
+            bar = pygame.Rect(cx - 90, base - 10, 180, 6)
+            ui.fill(bar, "panel")
+            pygame.draw.rect(self.screen, color("ult"), (bar.x, bar.y, round(bar.w * min(1.0, me.orb_progress / orb_time)), bar.h))
+            ui.text("ultimate orb", (cx, base - 30), "xs", "ult", "center", upper=True, bold=True)
+        elif any((o - me.pos).length() <= float(rule_value("orbs", "reach", 1.2)) for o in m.orbs) and me.alive:
+            ui.text("hold F: ultimate orb", (cx, base - 30), "xs", "ult", "center", upper=True, bold=True)
+        until, kills = self.ui.kill_flash
+        if m.time < until and kills:
+            for k in range(kills):  # kill counter like the real kill banner: one mark per kill this round
+                mx = cx - (kills - 1) * 14 + k * 28
+                pygame.draw.polygon(self.screen, color("enemy"), [(mx, base - 96), (mx + 9, base - 84), (mx, base - 72), (mx - 9, base - 84)])
+        until, title, ours = self.ui.title_banner
+        if m.time < until and title:
+            tw = ui.size(title, "xl", upper=True, bold=True, kind="title")[0]
+            y = int(self.h * 0.20)
+            ui.fill(pygame.Rect(cx - tw // 2 - 40, y - 8, tw + 80, 62), "#0f1923cc")
+            ui.text(title, (cx, y), "xl", "ult" if ours else "enemy", "center", upper=True, bold=True, kind="title")
         prog = me.plant_progress / 4.0 if me.plant_progress else me.defuse_progress / 7.0
         if prog > 0:
             bar = pygame.Rect(cx - 120, base - 10, 240, 8)

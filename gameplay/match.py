@@ -144,6 +144,13 @@ class PlayerState:
     zoomed: bool = False
     zoom_level: int = 0     # 0 = not aiming; 1.. = zoom factor index of the weapon
     defusing: bool = False
+    assists: int = 0
+    round_kills: int = 0
+    tagged_until: float = 0.0
+    tag_slow: float = 0.0
+    purchases: list = field(default_factory=list)  # this round: dicts with item, price, slot, weapon, previous, armor
+    orb_progress: float = 0.0
+    remote_sellable: list = field(default_factory=list)  # client copy: own items that can be sold
     burst_gap: float = 0.075
     burst_cool: float = 0.0
     burst_spread: float = 1.0
@@ -250,6 +257,9 @@ class Match:
         self.score = [0, 0]
         self.attacking_team = 0
         self.loss_streak = [0, 0]
+        self.orbs: list[Vec] = []          # ultimate orbs lying on the map this round
+        self.loadout_value = [0, 0]        # team loadout value at the start of the live phase (thrifty)
+        self.last_alive_vs: dict[int, int] = {}  # team -> enemies alive when it was down to its last player (clutch)
         self.spike_carrier: int | None = None
         self.spike_pos: Vec | None = None
         self.spike_planted_at = 0.0
@@ -261,7 +271,7 @@ class Match:
         self.overtime = self.cfg.lobby.overtime
         self._r = {k: rule("rounds", k, d) for k, d in (("buy_time", 30), ("round_time", 100), ("end_time", 6), ("half_after", 12), ("overtime_margin", 2), ("overtime_credits", 5000))}
         self._mv = {k: rule("movement", k, d) for k, d in (("run_speed", 6.0), ("walk_mod", 0.55), ("crouch_mod", 0.4), ("air_mod", 0.9), ("accel", 60.0), ("decel", 45.0), ("jump_velocity", 4.2), ("gravity", 14.0), ("radius", 0.4), ("level_height", 1.0), ("step_up", 0.25), ("step_up_air", 0.15), ("step_down", 0.35))}
-        self._eco = {k: rule("economy", k, d) for k, d in (("start", 800), ("win", 3000), ("loss", [1800, 2300, 2800]), ("kill", 200), ("plant", 300), ("max", 9000))}
+        self._eco = {k: rule("economy", k, d) for k, d in (("start", 800), ("win", 3000), ("loss", [1800, 2300, 2800]), ("kill", 200), ("plant", 300), ("max", 9000), ("survivor_loss", 1000), ("orb", 0))}
         self._spike = {k: rule("spike", k, d) for k, d in (("plant_time", 4.0), ("fuse_time", 45.0), ("defuse_time", 7.0), ("defuse_checkpoint", 3.5), ("blast_radius", 12.0))}
         self._ult = {k: rule("ultimate", k, d) for k, d in (("per_kill", 1), ("per_plant", 1), ("per_defuse", 1), ("per_death", 1))}
         self.fov = float(rule("sight", "fov", 103.0))
@@ -413,6 +423,21 @@ class Match:
                         p.charges[key] = int(ab.get("max", 1))
                 p.ult_points = max(p.ult_points, 99)
 
+    def _orb_spots(self) -> list[Vec]:
+        """Ultimate orb positions: the map's "orbs", else between the map centre and each site."""
+        if self.practice or self.mode == "deathmatch":
+            return []
+        spots = list(getattr(self.world, "orbs", []) or [])
+        if not spots:
+            centre = Vec(self.world.width / 2, self.world.height / 2)
+            for site in self.world.sites[: int(rule("orbs", "count", 2))]:
+                for share in (0.5, 0.4, 0.6, 0.3, 0.7):
+                    p = centre + (site.rect.center - centre) * share
+                    if self.world.ground_height(p) == 0.0 and not any(w.rect.contains(p) for w in self.world.walls):
+                        spots.append(p)
+                        break
+        return spots
+
     def _start_round(self) -> None:
         self.round_no += 1
         half = int(self._r["half_after"])
@@ -423,6 +448,8 @@ class Match:
         self.drops.clear()
         self.open_doors.clear()
         self.round_damage = {}
+        self.last_alive_vs = {}
+        self.orbs = self._orb_spots()
         self._first_kill_done = False
         self.round_winner = None
         self.round_reason = ""
@@ -463,6 +490,7 @@ class Match:
             p.status = {}
             p.anchor, p.anchor_until = None, 0.0
             p.heal_left = p.heal_rate = p.hp_frac = p.decay_pool = 0.0
+            p.round_kills, p.purchases, p.orb_progress, p.tagged_until = 0, [], 0.0, 0.0
             p.recharge_timers = {}
             p.last_pos = None
             p.plant_progress = p.defuse_progress = 0.0
@@ -491,12 +519,19 @@ class Match:
         self.loss_streak[winner_team] = 0
         self.loss_streak[loser] += 1
         losses = list(self._eco["loss"])
+        loser_side = self.side(loser)
+        survivors_paid_less = (reason == "Time ran out" and loser_side == "attack") or \
+            (reason == "Bomb detonated" and loser_side == "defense")
         for p in self.players.values():
             if p.team == winner_team:
                 p.credits += int(self._eco["win"])
+            elif survivors_paid_less and p.alive:
+                p.credits += int(self._eco["survivor_loss"])  # saved instead of finishing the objective
             else:
                 p.credits += int(losses[min(self.loss_streak[loser], len(losses)) - 1])
             p.credits = min(p.credits, int(self._eco["max"]))
+        self._round_titles(winner_team)
+        self.orbs = []
         self.history.append((winner_team, reason))
         self.events.append(GameEvent("round_end", self.time, {"winner": winner_team, "reason": reason, "score": list(self.score)}))
         if self._match_decided():
@@ -505,6 +540,34 @@ class Match:
             return
         self.phase = "end"
         self.phase_until = self.time + float(self._r["end_time"])
+
+    def _round_titles(self, winner: int) -> None:
+        """Round callouts like the real game: ace, clutch, flawless, thrifty (events "round_title")."""
+        if self.practice or self.mode == "deathmatch":
+            return
+        enemies = [p for p in self.players.values() if p.team != winner and not p.dummy]
+        team = [p for p in self.players.values() if p.team == winner and not p.dummy]
+        for p in self.players.values():
+            if len([e for e in self.players.values() if e.team != p.team]) >= 3 and p.round_kills >= \
+                    len([e for e in self.players.values() if e.team != p.team]):
+                self.events.append(GameEvent("round_title", self.time, {"title": "Ace", "pid": p.pid, "team": p.team}))
+        if team and all(p.alive for p in team) and len(team) >= 2:
+            self.events.append(GameEvent("round_title", self.time, {"title": "Flawless", "team": winner}))
+        elif self.last_alive_vs.get(winner, 0) >= 2:
+            last = next((p for p in team if p.alive), None)
+            self.events.append(GameEvent("round_title", self.time, {"title": "Clutch", "team": winner,
+                                                                   "pid": last.pid if last else None}))
+        if enemies and self.loadout_value[winner] + 2000 <= self.loadout_value[1 - winner]:
+            self.events.append(GameEvent("round_title", self.time, {"title": "Thrifty", "team": winner}))
+
+    def surrender(self, team: int) -> bool:
+        """The team gives up: the match ends as a loss for it (like a successful surrender vote)."""
+        if self.phase in ("lobby", "over"):
+            return False
+        self.match_winner = 1 - team
+        self.phase = "over"
+        self.events.append(GameEvent("round_end", self.time, {"winner": 1 - team, "reason": "Surrendered", "score": list(self.score)}))
+        return True
 
     def _match_decided(self) -> bool:
         a, b = self.score
@@ -534,12 +597,20 @@ class Match:
         zone = self.world.spawn_zones.get(0 if self.side(p.team) == "attack" else 1)
         if zone and not zone.contains(p.pos) and not free_buy:
             return False
+        if self.sellable(p, item):
+            return self.sell(p, item)
         if item in self.weapons:
             d = self.weapons[item]
             if d.slot == "melee" or p.credits < d.price:
                 return False
             p.credits -= d.price
-            p.weapons[d.slot] = self._new_weapon(item)
+            previous = p.weapons.get(d.slot)
+            if previous is not None and not (d.slot == "sidearm" and previous.key == "spatz"):
+                self.drops.append(Drop(previous.key, previous.mag, previous.reserve, p.pos))  # the old gun drops
+            new = self._new_weapon(item)
+            p.weapons[d.slot] = new
+            p.purchases.append({"item": item, "price": d.price, "slot": d.slot, "weapon": new, "previous": previous,
+                                "drop": self.drops[-1] if previous is not None and self.drops and self.drops[-1].key == previous.key else None})
             p.slot = d.slot
             p.equip_until = self.time + d.equip
         elif item in self.armor:
@@ -547,6 +618,7 @@ class Match:
             if p.credits < a.price or p.armor >= a.points:
                 return False
             p.credits -= a.price
+            p.purchases.append({"item": item, "price": a.price, "armor": p.armor})
             p.armor = a.points
         elif item in ("C", "Q", "E"):
             ab = self.agents[p.agent]["abilities"].get(item)
@@ -554,11 +626,57 @@ class Match:
                 return False
             p.credits -= int(ab["price"])
             p.charges[item] = p.charges.get(item, 0) + 1
+            p.purchases.append({"item": item, "price": int(ab["price"])})
         else:
             warnings.warn(f"Unknown buy request: {item}")
             return False
         self.events.append(GameEvent("buy", self.time, {"pid": p.pid, "item": item}))
         return True
+
+    def sellable(self, p: PlayerState, item: str) -> bool:
+        """Bought this buy phase and still held (not dropped, not given away): clicking it again sells it."""
+        if self.phase != "buy" and not (self.practice or self.mode == "deathmatch"):
+            return False
+        for buy in reversed(p.purchases):
+            if buy["item"] != item:
+                continue
+            if "weapon" in buy:
+                return p.weapons.get(buy["slot"]) is buy["weapon"]
+            if "armor" in buy:
+                return p.armor == self.armor[item].points
+            return p.charges.get(item, 0) > 0
+        return False
+
+    def sell(self, p: PlayerState, item: str) -> bool:
+        """Takes back an item bought this buy phase: full refund; a gun that was replaced comes back if still lying there."""
+        if not self.sellable(p, item):
+            return False
+        buy = next(b for b in reversed(p.purchases) if b["item"] == item)
+        p.purchases.remove(buy)
+        p.credits = min(int(self._eco["max"]), p.credits + int(buy["price"]))
+        if "weapon" in buy:
+            previous, drop = buy["previous"], buy.get("drop")
+            if previous is not None and drop is not None and drop in self.drops:
+                self.drops.remove(drop)
+                p.weapons[buy["slot"]] = previous
+            elif buy["slot"] == "sidearm":
+                p.weapons["sidearm"] = self._new_weapon("spatz")
+            else:
+                p.weapons.pop(buy["slot"], None)
+            if p.slot not in p.weapons:
+                p.slot = "primary" if "primary" in p.weapons else "sidearm"
+        elif "armor" in buy:
+            p.armor = int(buy["armor"])
+        else:
+            p.charges[item] = max(0, p.charges.get(item, 0) - 1)
+        self.events.append(GameEvent("sell", self.time, {"pid": p.pid, "item": item}))
+        return True
+
+    def _loadout(self, p: PlayerState) -> int:
+        """Credits worth of what a player carries (weapons and armor), for the thrifty title."""
+        value = sum(self.weapons[ws.key].price for ws in p.weapons.values() if ws.key in self.weapons)
+        armor = max((a.price for a in self.armor.values() if a.points <= p.armor), default=0)
+        return value + armor
 
     def _gift(self, buyer: PlayerState, item: str) -> bool:
         """Buy a primary weapon for a teammate; their old one drops at their feet."""
@@ -594,6 +712,9 @@ class Match:
         dt = max(0.0, min(dt, 0.1))
         self.time += dt
         if self.phase == "buy" and self.time >= self.phase_until:
+            self.loadout_value = [sum(self._loadout(p) for p in self.players.values() if p.team == t) for t in (0, 1)]
+            for p in self.players.values():
+                p.purchases = []  # selling ends with the buy phase
             self.phase = "live"
             self.phase_until = self.time + float(self._r["round_time"])
         elif self.phase == "end" and self.time >= self.phase_until:
@@ -695,6 +816,7 @@ class Match:
         if self.phase in ("live", "planted") and not busy:
             self._handle_fire(p, cmd)
         self._pickup(p, cmd)
+        self._orb_pickup(p, cmd, dt)
         recovery = self._weapon_def(p).spray_recovery if self._weapon_def(p) else 5.0
         if not cmd.fire:
             p.spray = max(0.0, p.spray - recovery * dt)
@@ -784,6 +906,21 @@ class Match:
                 self.events.append(GameEvent("pickup", self.time, {"pid": p.pid, "weapon": drop.key}))
                 return
 
+    def _orb_pickup(self, p: PlayerState, cmd: Command, dt: float) -> None:
+        """Hold F next to an ultimate orb: one ultimate point (and the orb credits, if any)."""
+        reach = float(rule("orbs", "reach", 1.2))
+        orb = next((o for o in self.orbs if (o - p.pos).length() <= reach), None)
+        if orb is None or not cmd.interact or p.z > 0.001 or self.phase not in ("live", "planted"):
+            p.orb_progress = 0.0
+            return
+        p.orb_progress += dt
+        if p.orb_progress >= float(rule("orbs", "pickup_time", 1.0)):
+            self.orbs.remove(orb)
+            p.orb_progress = 0.0
+            p.ult_points += 1
+            p.credits = min(int(self._eco["max"]), p.credits + int(self._eco["orb"]))
+            self.events.append(GameEvent("orb", self.time, {"pid": p.pid, "pos": (orb.x, orb.y)}))
+
     def _max_speed(self, p: PlayerState) -> float:
         d = self._weapon_def(p)
         s = float(self._mv["run_speed"]) * (d.speed_mod if d else 1.0)
@@ -795,6 +932,8 @@ class Match:
             s *= float(self._mv["walk_mod"])
         if p.z > 0.001:
             s *= float(self._mv["air_mod"])
+        if self.time < p.tagged_until:
+            s *= 1.0 - p.tag_slow  # tagging: slowed for a moment after being shot
         return s * abilities.speed_factor(self, p)
 
     def _landing(self, p: PlayerState, speed: float) -> None:
@@ -835,6 +974,13 @@ class Match:
                     break
             else:
                 new = p.pos
+        for other in self.players.values():  # bodies block each other (on the same height)
+            if other.pid == p.pid or not other.alive or other.dummy or abs((other.ground + other.z) - feet) > 1.2:
+                continue
+            gap = new - other.pos
+            dist = gap.length()
+            if 1e-6 < dist < 2 * radius:
+                new = new + gap.normalized() * (2 * radius - dist) * 0.5
         for _ in range(3):
             for w in self.world.walls:
                 if not self.wall_active(w) or (w.height < FULL_WALL and w.height * lh <= feet + tolerance):
@@ -1026,7 +1172,7 @@ class Match:
         origin = p.pos
         hits: list[tuple[float, str, Any]] = []
         for w in self.world.walls:
-            if w.height <= p.level or not self.wall_active(w):
+            if w.height <= p.level or w.low or not self.wall_active(w):  # bullets fly over low props
                 continue
             iv = w.rect.ray_interval(origin, direction)
             if iv and iv[0] <= d.range:
@@ -1041,12 +1187,17 @@ class Match:
             if res.zone and res.along <= d.range:
                 hits.append((res.along, "player", (t, res.zone)))
         hits.sort(key=lambda h: h[0])
+        head_over = {id(pl[0]) for _, kind, pl in hits if kind == "player" and pl[1] == "head" and not pl[0].crouching}
         mult = 1.0
         end = d.range
         stopped_by = ""
-        for dist, kind, payload in hits:
+        for i, (dist, kind, payload) in enumerate(hits):
             if kind == "wall":
                 wall, thickness = payload
+                cover = wall.height == p.level + 1  # head-high: a standing target's head shows above it
+                nxt = next((h for h in hits[i + 1:] if h[1] == "player"), None)
+                if cover and nxt is not None and id(nxt[2][0]) in head_over and nxt[0] - dist < 3.0:
+                    continue
                 if wall.penetration >= 3 or wall.penetration > d.penetration or thickness > 1.0 + d.penetration:
                     end = dist
                     stopped_by = "wall"
@@ -1055,7 +1206,13 @@ class Match:
                 continue
             target, zone = payload
             dmg = int(round(d.damage_at(dist, zone) * mult))
+            through = mult < 1.0
+            slow = float(rule("tagging", "through_walls" if through else "slow", 0.25 if through else 0.725))
+            target.tagged_until = self.time + float(rule("tagging", "seconds", 0.35))
+            target.tag_slow = max(slow, target.tag_slow if self.time < target.tagged_until else 0.0)
+            self._wallbang = through
             self._damage(p, target, dmg, zone, d.key)
+            self._wallbang = False
             end = dist
             stopped_by = "player"
             break
@@ -1103,6 +1260,12 @@ class Match:
                 break
         if attacker and attacker.team != target.team:
             attacker.kills += 1
+            attacker.round_kills += 1
+            for (dealer, victim), (dealt, _) in self.round_damage.items():
+                helper = self.players.get(dealer)
+                if victim == target.pid and dealt > 0 and helper is not None and helper.pid != attacker.pid \
+                        and helper.team == attacker.team:
+                    helper.assists += 1
             if not self._first_kill_done and not self.practice:
                 attacker.first_kills += 1
         if not self.practice:
@@ -1116,7 +1279,12 @@ class Match:
                 if attacker.sig_kills >= int(ab["kills_to_recharge"]):
                     attacker.sig_kills = 0
                     attacker.charges["E"] = min(int(ab["max"]), attacker.charges.get("E", 0) + 1)
-        self.events.append(GameEvent("kill", self.time, {"by": attacker.pid if attacker else None, "pid": target.pid, "weapon": source, "head": zone == "head"}))
+        self.events.append(GameEvent("kill", self.time, {"by": attacker.pid if attacker else None, "pid": target.pid, "weapon": source,
+                                                          "head": zone == "head", "wallbang": bool(getattr(self, "_wallbang", False)),
+                                                          "streak": attacker.round_kills if attacker else 0}))
+        alive_team = [q for q in self.players.values() if q.team == target.team and q.alive and not q.dummy]
+        if len(alive_team) == 1 and target.team not in self.last_alive_vs:
+            self.last_alive_vs[target.team] = len([q for q in self.players.values() if q.team != target.team and q.alive])
 
     # ------------------------------------------------------------------ Abilities
     def _use_ability(self, p: PlayerState, key: str, alt: bool = False) -> None:
@@ -1204,6 +1372,21 @@ class Match:
                 return False
         return True
 
+    def _behind_cover(self, viewer: PlayerState, target: PlayerState) -> bool:
+        """A head-high wall (one level above the target, not a low prop) lies between them, close to the target."""
+        direction = target.pos - viewer.pos
+        dist = direction.length()
+        if dist < 1e-6:
+            return False
+        unit = direction * (1.0 / dist)
+        for w in self.world.walls:
+            if w.height != target.level + 1 or w.low or w.height <= viewer.level:
+                continue
+            iv = w.rect.ray_interval(viewer.pos, unit)
+            if iv and iv[0] < dist and dist - iv[0] < 3.0:
+                return True
+        return False
+
     def can_see(self, viewer: PlayerState, target: PlayerState) -> bool:
         if not target.alive:
             return False
@@ -1216,6 +1399,8 @@ class Match:
         sight = abilities.lowest(self, viewer, "sight_range")
         if sight is not None and (target.pos - viewer.pos).length() > sight:
             return False
+        if target.crouching and self._behind_cover(viewer, target):
+            return False  # crouched behind head-high cover
         cloak = abilities.lowest(self, target, "seen_within")
         if cloak is not None and (target.pos - viewer.pos).length() > cloak:
             return False
@@ -1285,6 +1470,7 @@ class Match:
         self.spike_site = site
         self.spike_carrier = None
         self.spike_planted_at = self.time
+        self.orbs = []  # orbs vanish when the spike is planted
         p.plant_progress = 0.0
         p.plants += 1
         p.ult_points += int(self._ult["per_plant"])
@@ -1346,7 +1532,9 @@ class Match:
                 "credits": p.credits if viewer is None or viewer.team == p.team else None,
                 "slot": p.slot, "weapon": p.weapon.key if p.weapon else None,
                 "mag": p.weapon.mag if p.weapon else 0, "reserve": p.weapon.reserve if p.weapon else 0,
-                "charges": dict(p.charges), "ult": p.ult_points, "kills": p.kills, "deaths": p.deaths,
+                "charges": dict(p.charges), "ult": p.ult_points, "kills": p.kills, "deaths": p.deaths, "assists": p.assists,
+                "sellable": [b["item"] for b in p.purchases if self.sellable(p, b["item"])] if viewer is None or viewer.pid == p.pid else [],
+                "orb": p.orb_progress, "crouch": p.crouching,
                 "blind": p.blind_until > self.time, "reloading": p.reload_until > self.time,
                 "plant": p.plant_progress, "defuse": p.defuse_progress,
                 "status": sorted(k for k, v in p.status.items() if v > self.time)
@@ -1369,7 +1557,8 @@ class Match:
                          "start": e.start, "until": e.until, "status": e.props.get("status")}
                         for e in self.effects if self._effect_visible(e, viewer)],
             "players": players,
-            "roster": [{"pid": p.pid, "name": p.name, "team": p.team, "agent": p.agent, "kills": p.kills,
+            "orbs": [(o.x, o.y) for o in self.orbs],
+            "roster": [{"pid": p.pid, "name": p.name, "team": p.team, "agent": p.agent, "kills": p.kills, "assists": p.assists,
                         "deaths": p.deaths, "alive": p.alive, "bot": p.is_bot, "ping": p.ping_ms,
                         "score": self.combat_score(p), "damage": p.damage_total}
                        for p in self.players.values()],

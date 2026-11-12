@@ -211,3 +211,24 @@ def test_throwable_in_hand_draws_a_throw_cursor_only() -> None:
     assert game.is_throwable(ab) and game.needs_aim(me, "C")
     game.aiming = "C"
     game.draw()
+
+
+def test_buy_menu_sells_with_a_second_click_and_surrender_ends_the_match() -> None:
+    game = Game(args())
+    game.match.start()
+    me = game.match.players[game.me]
+    me.credits = 5000
+    game.match.buy(me, "hammer")
+    assert game.item_sellable(me, "hammer")
+    game.ui.buy_open = True
+    game.draw()
+    game.ui.buy_open = False
+    game.open_overlay("pause")
+    game.draw_overlay()
+    assert any(h.action == "surrender" for h in game.kit.hits)
+    game.overlay = "surrender"
+    game.draw_overlay()
+    yes = next(h for h in game.kit.hits if h.action == "surrender_yes")
+    for kind in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
+        game.overlay_event(pygame.event.Event(kind, button=1, pos=yes.rect.center))
+    assert game.match.phase == "over"

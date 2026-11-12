@@ -92,6 +92,9 @@ class UiState:
     pending_sounds: list[tuple[float, str, int, float, float]] = field(default_factory=list)  # due, key, pid, radius, gain
     damage_from: list[tuple[Vec, float]] = field(default_factory=list)    # attacker position, time (hit direction)
     spike_sounds: dict[int, Any] = field(default_factory=dict)            # pid -> channel of a running plant/defuse sound
+    kill_flash: tuple[float, int] = (0.0, 0)                             # until, kills this round (kill counter)
+    title_banner: tuple[float, str, bool] = (0.0, "", True)            # until, ace/clutch/flawless/thrifty, own team
+    last_seen: dict[int, tuple[Vec, float]] = field(default_factory=dict)  # enemy pid -> last seen position, time
 
 
 STATUS_TINT = {"slow": (150, 110, 220), "decay": (120, 200, 90), "vulnerable": (230, 120, 80), "deaf": (120, 160, 230),

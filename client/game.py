@@ -248,6 +248,10 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
                     self.ui.banner, self.ui.banner_art = (self.match.time + 3, "Sides switched"), "seitenwechsel"
                 elif self.match.round_no == 2 * half + 1:
                     self.ui.banner, self.ui.banner_art = (self.match.time + 3, "Overtime"), "verlaengerung"
+                elif self.match.mode != "deathmatch" and max(self.match.score) == self.match.win_rounds - 1:
+                    self.ui.banner, self.ui.banner_art = (self.match.time + 3, "Match point"), ""
+                elif half and self.match.round_no == half:
+                    self.ui.banner, self.ui.banner_art = (self.match.time + 3, "Last round of the half"), ""
             if self.match.round_no != self.seen_round and self.me in self.match.players:
                 self.seen_round = self.match.round_no  # new round: take the facing from the spawn
                 self.local_facing = self.match.players[self.me].facing

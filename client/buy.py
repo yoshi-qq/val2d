@@ -71,6 +71,12 @@ class BuyMixin:
             return m.armor[key].price
         return int(m.agents[me.agent]["abilities"].get(key, {}).get("price", 0))
 
+    def item_sellable(self, me: PlayerState, key: str) -> bool:
+        """Bought this buy phase and still held: a click sells it back."""
+        if self.mode == "client":
+            return key in me.remote_sellable
+        return self.match.sellable(me, key)
+
     def item_owned(self, me: PlayerState, key: str) -> bool:
         m = self.match
         if key in m.weapons:
@@ -111,8 +117,9 @@ class BuyMixin:
         for r, key, label in self.buy_layout():
             price = self.item_price(me, key)
             owned = self.item_owned(me, key)
+            sell = owned and self.item_sellable(me, key)
             affordable = me.credits >= price and open_
-            hover = r.collidepoint(mouse) and affordable and not owned
+            hover = r.collidepoint(mouse) and ((affordable and not owned) or sell)
             ui.fill(r, "text" if hover else "panel_light" if owned else "panel")
             ink = "bg" if hover else "text" if affordable or owned else "muted"
             pic = self.item_picture(me, key)
@@ -123,8 +130,9 @@ class BuyMixin:
                 s.blit(pic, (r.right - pic.get_width() - 10, r.y + (r.h - pic.get_height()) // 2))
             name = label.rsplit("  ", 1)[0]
             ui.text(name, (r.x + 10, r.bottom - 22), "xs", ink, upper=True, bold=True)
-            ui.text("owned" if owned else str(price), (r.x + 10, r.y + 8), "xs",
-                    "ally" if owned and not hover else ink if not affordable else "bg" if hover else "gold", bold=True)
+            label = f"sell +{price}" if sell else "owned" if owned else str(price)
+            ui.text(label, (r.x + 10, r.y + 8), "xs",
+                    "bg" if hover else "enemy" if sell else "ally" if owned else ink if not affordable else "gold", bold=True)
             if owned:
                 pygame.draw.rect(s, color("ally"), (r.x, r.y, 3, r.h))
         self.draw_team_strip(me, open_)
@@ -153,7 +161,7 @@ class BuyMixin:
                 ui.button(b, f"buy {d.name}", f"gift:{mate.pid}:{mate.request}", primary=affordable, enabled=affordable, size="xs")
                 self.request_cards.append((b, f"gift:{mate.pid}:{mate.request}"))
             x += 280
-        hint = "click buys · right click asks the team for a weapon · B or Esc closes"
+        hint = "click buys · click again sells (this buy phase) · right click asks the team · B or Esc closes"
         if me.request:
             asked = m.weapons.get(me.request)
             hint = f"you asked for {asked.name if asked else me.request} · " + hint

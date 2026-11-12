@@ -150,9 +150,11 @@ class EventsMixin:
                 by = killer.name if killer else "Bomb"
                 self.ui.feed.append((t + 5, f"{by} → {victim.name if victim else '?'}", killer.agent if killer else None,
                                      victim.agent if victim else None, bool(d["head"]), str(d.get("weapon", "")),
-                                     killer.team if killer else None))
+                                     killer.team if killer else None, bool(d.get("wallbang"))))
                 if d["by"] == self.me:
-                    self.sound.play("kill")
+                    streak = max(1, min(5, int(d.get("streak", 1) or 1)))
+                    self.sound.play(f"kill_{streak}" if f"kill_{streak}" in self.sound.sounds else "kill")
+                    self.ui.kill_flash = (t + 1.2, streak)
                 elif d["pid"] == self.me:
                     self.sound.play("death")
             elif e.kind == "plant":
@@ -203,6 +205,16 @@ class EventsMixin:
             elif e.kind == "flash":
                 self.sound.play("ab_flash", me, Vec(*d["pos"]), 35, occluded=self.occluded(me, Vec(*d["pos"])))
                 self.ui.oneshots.append(("fx/funke_explosion.png", Vec(*d["pos"]), t, 0.3, 16, (1.0, 1.0)))
+            elif e.kind == "round_title":
+                ours = d.get("team") == me.team
+                who = m.players.get(d["pid"]).name if d.get("pid") in m.players else ""
+                text = f"{d['title']} · {who}" if who and d["title"] in ("Ace", "Clutch") else str(d["title"])
+                self.ui.title_banner = (t + 3.5, text, ours)
+                self.sound.play("round_title" if ours else "round_loss", gain=0.7)
+            elif e.kind == "orb":
+                self.sound.play("orb_pickup", me, Vec(*d["pos"]), 25)
+            elif e.kind == "sell" and d.get("pid") == self.me:
+                self.sound.play("ui_click", gain=0.6)
             elif e.kind == "sound_fx":
                 pos = Vec(*d["pos"])
                 self.sound.play(str(d.get("key", "")), me, pos, float(d.get("radius", 30.0)), occluded=self.occluded(me, pos))

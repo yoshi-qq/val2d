@@ -139,7 +139,7 @@ def test_defuse_with_checkpoint() -> None:
 
 def test_loss_streak_economy() -> None:
     m, a, b = duel()
-    for expected in (1800, 2300, 2800, 2800):
+    for expected in (1900, 2400, 2900, 2900):  # Valorant loss streak
         before = m.players[b].credits
         m._end_round(0, "test")
         assert m.players[b].credits - before == expected or m.players[b].credits == 9000
