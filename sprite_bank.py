@@ -278,6 +278,7 @@ class CharacterSprites:
     def __init__(self, bank: SpriteBank) -> None:
         self.bank = bank
         self.states = load_states()
+        self._resolved: dict[tuple[str, str, bool, str | None], tuple[str, str] | None] = {}
 
     def _file(self, agent: str, name: str, enemy: bool) -> str:
         if enemy and name.endswith(SCREEN_STATES):  # screen pictures have no enemy outline
@@ -285,7 +286,13 @@ class CharacterSprites:
         return f"agents/{agent}/{name}{'_feind' if enemy else ''}.png"
 
     def resolve(self, agent: str, state: str, enemy: bool, form: str | None = None) -> tuple[str, str] | None:
-        """(file, state actually used) after fallbacks, or None if not even idle exists."""
+        """(file, state actually used) after fallbacks, or None if not even idle exists (cached per call key)."""
+        key = (agent, state, enemy, form)
+        if key not in self._resolved:
+            self._resolved[key] = self._resolve(agent, state, enemy, form)
+        return self._resolved[key]
+
+    def _resolve(self, agent: str, state: str, enemy: bool, form: str | None) -> tuple[str, str] | None:
         seen: set[str] = set()
         tag: str | None = state
         while tag and tag not in seen:

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import warnings
+from functools import lru_cache
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -95,6 +96,7 @@ class WorldMap:
         return [w for w in self.walls if w.blocks_sight and w.height > level]
 
 
+@lru_cache(maxsize=1)
 def load_materials() -> tuple[dict[str, dict], dict[str, str]]:
     """(WALLS, FLOORS) from config/materials.py; empty if unreadable."""
     from gameplay.data import ROOT, _load_py
@@ -102,6 +104,7 @@ def load_materials() -> tuple[dict[str, dict], dict[str, str]]:
     return dict(_load_py(path, "WALLS") or {}), dict(_load_py(path, "FLOORS") or {})
 
 
+@lru_cache(maxsize=1)
 def load_things() -> tuple[dict[str, dict], dict[str, dict]]:
     """(OBJECTS, DECALS) from config/materials.py; empty if unreadable."""
     from gameplay.data import ROOT, _load_py

@@ -184,6 +184,7 @@ class Game:
         self.map_surface = build_map_surface(self.match.world, self.bank, self.scale)
         self.map_cache: dict[float, pygame.Surface | None] = {round(self.scale, 3): self.map_surface}
         self._crop: pygame.Surface | None = None
+        self._minimap_static: pygame.Surface | None = None
         self.local_facing = 0.0
         self.seen_round = -1
         self.spectate_index = 0
@@ -972,24 +973,18 @@ class Game:
             self.screen.blit(full, (x + 30, y + 3), (0, 0, width, full.get_height()))
         self.text(str(value), (x + 36 + empty.get_width(), y))
 
-    def draw_minimap(self, me: PlayerState) -> None:
-        """North-up overview in the top-left corner: walls, own team, visible enemies, bomb, smokes."""
-        m, wm = self.match, self.match.world
-        size = 190
-        k = size / max(wm.width, wm.height)
-        ox, oy = 12, 44
+    def build_minimap_static(self, k: float) -> pygame.Surface:
+        """Walls, crates and site letters of the minimap; drawn once per map."""
+        wm = self.match.world
         panel = pygame.Surface((round(wm.width * k), round(wm.height * k)), pygame.SRCALPHA)
-        framed = self.bank.raw("ui/minimap/frame.png") is not None
-        if framed:
-            draw_nine_slice(self.screen, self.bank, "ui/minimap/frame.png", pygame.Rect(ox - 6, oy - 6, panel.get_width() + 12, panel.get_height() + 12), 8, 1)
-        else:
+        if self.bank.raw("ui/minimap/frame.png") is None:
             panel.fill((20, 20, 28, 190))
-        wall_tile = self.bank.scaled("ui/minimap/wall.png", (4, 4))
-        crate_tile = self.bank.scaled("ui/minimap/crate.png", (4, 4))
 
         def pt(v: Vec) -> tuple[float, float]:
             return v.x * k, (wm.height - v.y) * k
 
+        wall_tile = self.bank.scaled("ui/minimap/wall.png", (4, 4))
+        crate_tile = self.bank.scaled("ui/minimap/crate.png", (4, 4))
         for w in wm.walls:
             if w.rect.x0 < -0.5 or w.rect.y0 < -0.5 or w.rect.x1 > wm.width + 0.5 or w.rect.y1 > wm.height + 0.5:
                 continue
@@ -1009,6 +1004,24 @@ class Game:
             x, y = pt(site.rect.center)
             lbl = self.font.render(site.name, True, C_SITE)
             panel.blit(lbl, (x - lbl.get_width() / 2, y - lbl.get_height() / 2))
+
+        return panel
+
+    def draw_minimap(self, me: PlayerState) -> None:
+        """North-up overview in the top-left corner: walls, own team, visible enemies, bomb, smokes."""
+        m, wm = self.match, self.match.world
+        size = 190
+        k = size / max(wm.width, wm.height)
+        ox, oy = 12, 44
+        if self._minimap_static is None:
+            self._minimap_static = self.build_minimap_static(k)
+        panel = self._minimap_static.copy()
+        framed = self.bank.raw("ui/minimap/frame.png") is not None
+        if framed:
+            draw_nine_slice(self.screen, self.bank, "ui/minimap/frame.png", pygame.Rect(ox - 6, oy - 6, panel.get_width() + 12, panel.get_height() + 12), 8, 1)
+
+        def pt(v: Vec) -> tuple[float, float]:
+            return v.x * k, (wm.height - v.y) * k
 
         def icon(name: str, at: Vec, px: int = 12, angle: float | None = None) -> None:
             img = self.bank.scaled(f"ui/minimap/{name}.png", (px, px))

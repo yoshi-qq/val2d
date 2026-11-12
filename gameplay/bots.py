@@ -74,7 +74,8 @@ class BotBrain:
                     use = True
             else:
                 near_goal = self.goal is not None and (self.goal - p.pos).length() < 14.0
-                if kind in self.PLACE_AHEAD and near_goal and self.rng.random() < 0.02:
+                attacking_site = near_goal and m.side(p.team) == "attack" and m.phase == "live"
+                if (kind in self.PLACE_AHEAD or (kind in self.OFFENSIVE and attacking_site)) and near_goal                         and self.rng.random() < 0.02:
                     cmd.cursor_depth = min(float(ab.get("range", 10.0)), (self.goal - p.pos).length())
                     use = True
                 elif kind == "heal" and p.hp < 60:
