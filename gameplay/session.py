@@ -71,6 +71,11 @@ class HostSession:
         self._since_broadcast += dt
         if self._since_broadcast >= 1.0 / SNAPSHOT_RATE:
             self._since_broadcast = 0.0
+            for pid in list(self.net.pid_of.values()):
+                rtt = self.net.ping(pid)
+                p = self.match.players.get(pid)
+                if p is not None:
+                    p.ping_ms = round(rtt * 1000) if rtt is not None else None
             self.net.broadcast(self._pending_events)
             self._pending_events = []
         return events

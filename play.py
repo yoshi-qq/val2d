@@ -215,6 +215,8 @@ class Game:
             for ev in pygame.event.get():
                 if ev.type == pygame.QUIT or (ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE):
                     running = False
+                elif ev.type == pygame.KEYDOWN and ev.key == pygame.K_RETURN and self.match.phase == "over":
+                    running = False  # back to the menu
                 elif ev.type == pygame.KEYDOWN:
                     if ev.key == pygame.K_RETURN and self.match.phase == "lobby":
                         if self.session:
@@ -1267,6 +1269,8 @@ class Game:
         overlay.fill((10, 10, 16, 200))
         self.screen.blit(overlay, (0, 0))
         title = "Match over" if m.phase == "over" else "Scoreboard"
+        if m.phase == "over":
+            self.text("Enter or Esc: back to the menu", (self.w / 2, self.h - 40), C_SITE, center=True)
         if m.phase == "over" and me is not None:
             title += ": won" if m.match_winner == me.team else ": lost"
         self.text(f"{title}   {m.score[0]} : {m.score[1]}", (self.w / 2, 92), C_TEXT, big=True, center=True)
@@ -1299,6 +1303,14 @@ class Game:
                 self.text(str(p.deaths), (x + 454, y + 9), col)
                 credits = "" if (me is not None and p.team != me.team) else str(p.credits)
                 self.text(credits, (x + 544, y + 9), C_SITE)
+                if p.is_bot:
+                    self.text("BOT", (x + 596, y + 9), C_MUTED)
+                elif p.ping_ms is not None:
+                    bars = 3 if p.ping_ms < 50 else 2 if p.ping_ms < 100 else 1 if p.ping_ms < 200 else 0
+                    icon = self.bank.scaled(f"ui/icons/ping_{bars}.png", (16, 16))
+                    if icon is not None:
+                        self.screen.blit(icon, (x + 596, y + 10))
+                    self.text(f"{p.ping_ms}", (x + 600 + (18 if icon else 0), y + 9), C_MUTED)
                 y += 40
             y += 18
 

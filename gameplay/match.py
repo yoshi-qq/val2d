@@ -153,6 +153,7 @@ class PlayerState:
     prev_ability: str | None = None
     prev_interact: bool = False
     visible: bool = True  # only meaningful in a client's shadow match
+    ping_ms: int | None = None  # round trip to the host; None for bots and the host itself
 
     @property
     def weapon(self) -> WeaponState | None:
@@ -992,7 +993,8 @@ class Match:
                         for e in self.effects if self._effect_visible(e, viewer)],
             "players": players,
             "roster": [{"pid": p.pid, "name": p.name, "team": p.team, "agent": p.agent, "kills": p.kills,
-                        "deaths": p.deaths, "alive": p.alive} for p in self.players.values()],
+                        "deaths": p.deaths, "alive": p.alive, "bot": p.is_bot, "ping": p.ping_ms}
+                       for p in self.players.values()],
             "drops": [{"key": d.key, "x": d.pos.x, "y": d.pos.y} for d in self.drops],
             "doors_open": [[r.x0, r.y0, r.x1, r.y1] for r in self.open_doors],
         }

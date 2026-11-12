@@ -131,6 +131,9 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int) -> None:
             m.players[pid] = p
         p.name, p.team, p.agent = row["name"], row["team"], row["agent"]
         p.kills, p.deaths, p.alive = row["kills"], row["deaths"], row["alive"]
+        p.is_bot = bool(row.get("bot", p.is_bot))
+        ping = row.get("ping")
+        p.ping_ms = int(ping) if isinstance(ping, (int, float)) else None
         p.visible = False
     for row in snap["players"]:
         pid = int(row["pid"])
