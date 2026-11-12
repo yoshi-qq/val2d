@@ -967,7 +967,7 @@ class Match:
     # ------------------------------------------------------------------ Snapshot
     def _effect_visible(self, e: Effect, viewer: PlayerState | None) -> bool:
         """Flashes and decoys are never drawn; enemy traps only for their own team."""
-        if e.kind in ("flash", "decoy"):
+        if e.kind == "decoy":
             return False
         if e.kind in ("tripwire", "alarm") and viewer is not None and viewer.team != e.team:
             return False

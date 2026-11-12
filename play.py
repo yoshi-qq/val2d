@@ -629,6 +629,31 @@ class Game:
                 form = str(name)
         return self.chars.frame(p.agent, state, p.team != me.team, self.scale, clock, form=form, speed=speed)
 
+    def draw_projectile(self, e: Effect, me: PlayerState) -> bool:
+        """Thrown ability in flight: moves from the thrower to the target on a small arc. True while flying."""
+        assert e.a is not None
+        flight = min(0.6, (e.until - e.start) * 0.8)  # lands shortly before it goes off
+        progress = (self.match.time - e.start) / max(flight, 1e-6)
+        if progress >= 1.0:
+            return False
+        pos = e.a + (e.pos - e.a) * progress
+        x, y = self.to_screen(pos, me)
+        y -= math.sin(progress * math.pi) * self.scale * 0.8  # lift on screen to read as a throw
+        rel, size_m = ("fx/ability/grenade.png", (6 / 16, 5 / 16)) if e.kind == "blast" else ("fx/ability/projectile_orb.png", (12 / 16, 6 / 16))
+        size = (max(1, round(size_m[0] * self.scale)), max(1, round(size_m[1] * self.scale)))
+        img = self.bank.scaled(rel, size)
+        if img is not None:
+            self.screen.blit(img, (x - size[0] / 2, y - size[1] / 2))
+        else:
+            pygame.draw.circle(self.screen, C_SITE, (x, y), 4)
+        dot = self.bank.scaled("fx/ability/arc_dot.png", (3, 3))
+        if dot is not None:
+            for i in range(1, 6):  # remaining path as dots
+                q = progress + (1 - progress) * i / 6
+                dx, dy = self.to_screen(e.a + (e.pos - e.a) * q, me)
+                self.screen.blit(dot, (dx - 1, dy - 1 - math.sin(q * math.pi) * self.scale * 0.8))
+        return True
+
     def radius_ring(self, pos: Vec, radius: float, color: tuple[int, int, int], me: PlayerState) -> None:
         x, y = self.to_screen(pos, me)
         d = max(2, round(2 * radius * self.scale))
@@ -830,6 +855,11 @@ class Game:
         if e.kind == "zone" and e.start > self.match.time:
             self.radius_ring(e.pos, e.radius, C_MUTED, me)
             return
+        if e.kind in ("blast", "flash") and e.a is not None and e.until > e.start:
+            if self.draw_projectile(e, me):
+                return
+        if e.kind == "flash":
+            return  # a flash without flight data is not drawn (it pops with its own effect)
         if e.kind == "blast":
             left = max(0.0, e.until - self.match.time)
             self.radius_ring(e.pos, e.radius, C_ENEMY if e.team != me.team else C_SITE, me)

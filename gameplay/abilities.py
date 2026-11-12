@@ -97,7 +97,7 @@ def use(m: Match, p: PlayerState, key: str, ab: dict[str, Any]) -> Vec | None:
         return pos
     if kind == "flash":
         pos = _target_point(m, p, ab, clip=not ab.get("through_walls", False))
-        m.effects.append(Effect("flash", p.pid, p.team, pos, now + float(ab["fuse"]),
+        m.effects.append(Effect("flash", p.pid, p.team, pos, now + float(ab["fuse"]), a=p.pos, start=now,
                                 data={"blind": float(ab["blind"]), "cone": float(ab["cone"])},
                                 props={"through_walls": bool(ab.get("through_walls", False))}))
         return pos
@@ -113,7 +113,8 @@ def use(m: Match, p: PlayerState, key: str, ab: dict[str, Any]) -> Vec | None:
     if kind == "blast":
         pos = _target_point(m, p, ab)
         props = {"damage": float(ab.get("damage", 0.0)), "status": ab.get("status"), "status_time": float(ab.get("status_time", 0.0))}
-        m.effects.append(Effect("blast", p.pid, p.team, pos, now + float(ab.get("delay", 0.0)), radius=float(ab["radius"]), props=props))
+        m.effects.append(Effect("blast", p.pid, p.team, pos, now + float(ab.get("delay", 0.0)), radius=float(ab["radius"]),
+                                a=p.pos, start=now, props=props))
         return pos
     if kind == "wave":
         _wave(m, p, ab)
