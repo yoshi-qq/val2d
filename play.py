@@ -98,7 +98,18 @@ STATUS_TINT = {"slow": (150, 110, 220), "decay": (120, 200, 90), "vulnerable": (
 
 
 SOUND_DIR = ROOT / "assets" / "sounds"
-ABILITY_KEYS = {pygame.K_c: "C", pygame.K_q: "Q", pygame.K_e: "E", pygame.K_x: "X"}
+def key_codes(names: dict[str, str]) -> dict[str, int]:
+    """Action -> pygame key code from the player's bindings; unknown names fall back to the default key."""
+    import user_settings
+    out: dict[str, int] = {}
+    for action, default in user_settings.DEFAULT_KEYS.items():
+        for name in (names.get(action, default), default):
+            try:
+                out[action] = pygame.key.key_code(name)
+                break
+            except (ValueError, pygame.error):
+                warnings.warn(f"Unknown key {name!r} for {action}; using {default}.")
+    return out
 STEP_SOUND = {"metal_plate": "step_metal", "grate": "step_metal", "grass": "step_soft", "dirt": "step_soft",
               "sand": "step_soft", "gravel": "step_soft", "carpet": "step_soft", "planks": "step_wood"}
 SHOT_SOUND = {"sidearm": "shot_pistol", "smg": "shot_smg", "shotgun": "shot_shotgun", "rifle": "shot_rifle",
@@ -221,6 +232,13 @@ class Game:
         self.local_facing = 0.0
         self.seen_round = -1
         self.spectate_index = 0
+        import user_settings
+        saved = user_settings.load()
+        self.keys = key_codes(dict(getattr(args, "keys", saved["keys"])))
+        self.crosshair = dict(getattr(args, "crosshair", {k: saved[k] for k in
+                                                          ("crosshair_color", "crosshair_size", "crosshair_gap", "crosshair_dot")}))
+        self.ability_keys = {self.keys["ability_c"]: "C", self.keys["ability_q"]: "Q", self.keys["ability_e"]: "E",
+                             self.keys["ability_x"]: "X"}
         self.aiming: str | None = None
         self.released_slot: str | None = None
         self._next_beep = 0.0
@@ -269,14 +287,15 @@ class Game:
                                     d.pos, d.facing = d.home, 180.0
                         elif self.mode == "local":
                             self.match.start()
-                    elif ev.key == pygame.K_b:
+                    elif ev.key == self.keys["buy"]:
                         self.ui.buy_open = not self.ui.buy_open
                         self.grab(not self.ui.buy_open)
-                    elif ev.key in (pygame.K_1, pygame.K_2, pygame.K_3):
-                        cmd.slot = {pygame.K_1: "primary", pygame.K_2: "sidearm", pygame.K_3: "melee"}[ev.key]
-                    elif ev.key == pygame.K_r:
+                    elif ev.key in (self.keys["primary"], self.keys["sidearm"], self.keys["melee"]):
+                        cmd.slot = {self.keys["primary"]: "primary", self.keys["sidearm"]: "sidearm",
+                                    self.keys["melee"]: "melee"}[ev.key]
+                    elif ev.key == self.keys["reload"]:
                         cmd.reload = True
-                    elif ev.key == pygame.K_g:
+                    elif ev.key == self.keys["drop"]:
                         cmd.drop = True
                 elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1 and self.match.phase == "lobby":
                     self.pick_agent_at(ev.pos)
@@ -297,7 +316,7 @@ class Game:
                         self.sound.play("ui_buy", gain=0.6)
             keys = pygame.key.get_pressed()
             buttons = pygame.mouse.get_pressed()
-            self.ui.show_scores = keys[pygame.K_TAB]
+            self.ui.show_scores = keys[self.keys["scoreboard"]]
             if not self.ui.buy_open:
                 dx, dy = pygame.mouse.get_rel()
                 self.local_facing = (self.local_facing + dx * self.sens) % 360
@@ -307,13 +326,14 @@ class Game:
                 cmd.alt_fire = buttons[2] and self.aiming is None
             cmd.facing = me.facing
             cmd.cursor_depth = self.cursor_depth
-            cmd.move_y = (1 if keys[pygame.K_w] else 0) - (1 if keys[pygame.K_s] else 0)
-            cmd.move_x = (1 if keys[pygame.K_d] else 0) - (1 if keys[pygame.K_a] else 0)
-            cmd.walk = keys[pygame.K_LSHIFT]
-            cmd.crouch = keys[pygame.K_LCTRL]
-            cmd.jump = keys[pygame.K_SPACE]
-            cmd.interact = keys[pygame.K_f]
-            for key, slot in ABILITY_KEYS.items():
+            kb = self.keys
+            cmd.move_y = (1 if keys[kb["forward"]] else 0) - (1 if keys[kb["back"]] else 0)
+            cmd.move_x = (1 if keys[kb["right"]] else 0) - (1 if keys[kb["left"]] else 0)
+            cmd.walk = keys[kb["walk"]]
+            cmd.crouch = keys[kb["crouch"]]
+            cmd.jump = keys[kb["jump"]]
+            cmd.interact = keys[kb["interact"]]
+            for key, slot in self.ability_keys.items():
                 if keys[key] and self.aiming is None and slot != self.released_slot:
                     if self.needs_aim(me, slot):
                         self.aiming = slot  # show the preview while held
@@ -1370,6 +1390,18 @@ class Game:
         d = self.match.weapons.get(me.weapon.key) if me.weapon else None
         gap = 4 + (self.match.current_spread(me, d) * self.cursor_depth * math.pi / 180 * self.scale if d else 0)
         hit = "_hit" if self.match.time < self.ui.hit_marker else ""
+        ch = self.crosshair
+        gap += float(ch.get("crosshair_gap", 4.0)) - 4.0
+        size = float(ch.get("crosshair_size", 1.0))
+        custom = str(ch.get("crosshair_color", "#78ffc8")).lower() != "#78ffc8" or abs(size - 1.0) > 1e-6
+        if custom or not ch.get("crosshair_dot", True):
+            color = C_ENEMY if hit else pygame.Color(str(ch.get("crosshair_color", "#78ffc8")))
+            length = 7 * size
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                pygame.draw.line(self.screen, color, (cx + dx * gap, cy + dy * gap), (cx + dx * (gap + length), cy + dy * (gap + length)), 2)
+            if ch.get("crosshair_dot", True):
+                pygame.draw.circle(self.screen, color, (cx, cy), 2)
+            return
         dot = self.bank.scaled(f"ui/crosshair/dot{hit}.png", (8, 8))
         arm = self.bank.scaled(f"ui/crosshair/arm{hit}.png", (4, 16))
         if dot is None or arm is None:

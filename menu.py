@@ -55,6 +55,7 @@ class MainMenu:
         self.settings = user_settings.load()
         self.dragging: str | None = None
         self.typing_name = False
+        self.binding: str | None = None
         self.apply_settings()
 
     def apply_settings(self) -> None:
@@ -63,25 +64,82 @@ class MainMenu:
         a.name = st["name"]
         a.all_around, a.sound_rings = st["all_around"] or a.all_around, st["sound_rings"] or a.sound_rings
         a.fullscreen = bool(st.get("fullscreen", False))
+        a.keys = dict(st["keys"])
+        a.crosshair = {k: st[k] for k in ("crosshair_color", "crosshair_size", "crosshair_gap", "crosshair_dot")}
 
     # ------------------------------------------------------------ settings view
-    SLIDERS = (("sensitivity", "Mouse sensitivity"), ("camera_push", "Camera ahead"), ("volume", "Volume"))
+    SLIDERS = (("sensitivity", "Mouse sensitivity"), ("camera_push", "Camera ahead"), ("volume", "Volume"),
+               ("crosshair_size", "Crosshair size"), ("crosshair_gap", "Crosshair gap"))
     CHECKS = (("all_around", "All-around sight (lobby rule)"), ("sound_rings", "Sound rings (lobby rule)"),
-              ("fullscreen", "Fullscreen"))
+              ("fullscreen", "Fullscreen"), ("crosshair_dot", "Crosshair centre dot"))
 
     def slider_rect(self, i: int) -> pygame.Rect:
-        return pygame.Rect(360, 220 + i * 70, 420, 24)
+        return pygame.Rect(360, 210 + i * 46, 420, 22)
 
     def check_rect(self, i: int) -> pygame.Rect:
-        return pygame.Rect(80, 420 + i * 50, 36, 36)
+        return pygame.Rect(80, 445 + i * 40, 30, 30)
 
     def name_rect(self) -> pygame.Rect:
         return pygame.Rect(360, 150, 420, 44)
 
     def back_button(self) -> Button:
-        return Button(pygame.Rect(80, 600 + 20, 300, 48), "Save and back", "back")
+        return Button(pygame.Rect(80, 630, 300, 44), "Save and back", "back")
+
+    def controls_button(self) -> Button:
+        return Button(pygame.Rect(420, 630, 300, 44), "Controls", "controls")
+
+    def color_rect(self) -> pygame.Rect:
+        return pygame.Rect(860, 210 + 3 * 46, 36, 36)
+
+    def key_rect(self, i: int) -> pygame.Rect:
+        col, row = divmod(i, 10)
+        return pygame.Rect(80 + col * 560, 150 + row * 44, 520, 38)
+
+    def draw_crosshair_preview(self, at: tuple[int, int]) -> None:
+        st = self.settings
+        color = pygame.Color(st["crosshair_color"])
+        size, gap = 7 * st["crosshair_size"], st["crosshair_gap"]
+        x, y = at
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            pygame.draw.line(self.screen, color, (x + dx * gap, y + dy * gap), (x + dx * (gap + size), y + dy * (gap + size)), 2)
+        if st["crosshair_dot"]:
+            pygame.draw.circle(self.screen, color, (x, y), 2)
+
+    def draw_controls(self) -> None:
+        s = self.screen
+        s.blit(self.big.render("Controls", True, C_TEXT), (80, 80))
+        mouse = pygame.mouse.get_pos()
+        for i, (action, key) in enumerate(self.settings["keys"].items()):
+            r = self.key_rect(i)
+            active = self.binding == action
+            state = "button_pressed" if active else "button_hover" if r.collidepoint(mouse) else "button"
+            if not draw_nine_slice(s, self.bank, f"ui/menu/{state}.png", r, 4, 2):
+                pygame.draw.rect(s, C_MUTED, r, 1)
+            s.blit(self.font.render(action.replace("_", " "), True, C_TEXT), (r.x + 14, r.y + 10))
+            label = "press a key …" if active else key
+            s.blit(self.font.render(label, True, C_ACCENT if active else C_TEXT), (r.x + 300, r.y + 10))
+        s.blit(self.font.render("Click an action, then press the new key (Esc keeps the old one). Mouse buttons: fire, alternate fire.",
+                                True, C_MUTED), (80, 600))
+        b = self.back_button()
+        if not draw_nine_slice(s, self.bank, f"ui/menu/{'button_hover' if b.rect.collidepoint(mouse) else 'button'}.png", b.rect, 4, SCALE):
+            pygame.draw.rect(s, C_MUTED, b.rect, 1)
+        s.blit(self.font.render("Back", True, C_TEXT), (b.rect.x + 18, b.rect.y + 13))
 
     def settings_click(self, pos: tuple[int, int]) -> None:
+        if self.view == "controls":
+            for i, action in enumerate(user_settings.DEFAULT_KEYS):
+                if self.key_rect(i).collidepoint(pos):
+                    self.binding = action
+            if self.back_button().rect.collidepoint(pos):
+                self.binding = None
+            return
+        if self.controls_button().rect.collidepoint(pos):
+            self.view = "controls"
+            return
+        if self.color_rect().collidepoint(pos):
+            colors = user_settings.CROSSHAIR_COLORS
+            current = self.settings["crosshair_color"]
+            self.settings["crosshair_color"] = colors[(colors.index(current) + 1) % len(colors)] if current in colors else colors[0]
         self.typing_name = self.name_rect().collidepoint(pos)
         for i, (key, _) in enumerate(self.SLIDERS):
             if self.slider_rect(i).inflate(0, 16).collidepoint(pos):
@@ -135,8 +193,17 @@ class MainMenu:
             else:
                 pygame.draw.rect(s, C_ACCENT if st[key] else C_MUTED, r, 0 if st[key] else 2)
             s.blit(self.font.render(label, True, C_TEXT), (r.right + 16, r.y + 9))
-        b = self.back_button()
+        r = self.color_rect()
+        pygame.draw.rect(s, pygame.Color(st["crosshair_color"]), r)
+        pygame.draw.rect(s, C_TEXT, r, 1)
+        s.blit(self.font.render("Crosshair colour (click)", True, C_MUTED), (r.right + 12, r.y + 9))
+        self.draw_crosshair_preview((r.centerx + 60, r.bottom + 60))
+        cb = self.controls_button()
         mouse = pygame.mouse.get_pos()
+        if not draw_nine_slice(s, self.bank, f"ui/menu/{'button_hover' if cb.rect.collidepoint(mouse) else 'button'}.png", cb.rect, 4, SCALE):
+            pygame.draw.rect(s, C_MUTED, cb.rect, 1)
+        s.blit(self.font.render(cb.label, True, C_TEXT), (cb.rect.x + 18, cb.rect.y + 13))
+        b = self.back_button()
         state = "button_hover" if b.rect.collidepoint(mouse) else "button"
         if not draw_nine_slice(s, self.bank, f"ui/menu/{state}.png", b.rect, 4, SCALE):
             pygame.draw.rect(s, C_MUTED, b.rect, 1)
@@ -144,7 +211,7 @@ class MainMenu:
 
     # ------------------------------------------------------------ layout
     def buttons(self) -> list[Button]:
-        if self.view == "settings":
+        if self.view in ("settings", "controls"):
             return [self.back_button()]
         x, y, w, h, gap = 60, 140, 360, 38, 6
         rows = [("Practice vs bots", "local"), ("Practice range", "range"), ("Host LAN match", "host"),
@@ -175,6 +242,16 @@ class MainMenu:
             for ev in pygame.event.get():
                 if ev.type == pygame.QUIT:
                     return None
+                if ev.type == pygame.KEYDOWN and self.binding is not None:
+                    if ev.key != pygame.K_ESCAPE:
+                        name = pygame.key.name(ev.key)
+                        keys = self.settings["keys"]
+                        for other, bound in list(keys.items()):
+                            if bound == name and other != self.binding:
+                                keys[other] = keys[self.binding]  # swap instead of double binding
+                        keys[self.binding] = name
+                    self.binding = None
+                    continue
                 if ev.type == pygame.KEYDOWN and self.typing_name:
                     if ev.key in (pygame.K_RETURN, pygame.K_ESCAPE):
                         self.typing_name = False
@@ -188,7 +265,7 @@ class MainMenu:
                     continue
                 if ev.type == pygame.MOUSEBUTTONUP and ev.button == 1 and self.dragging:
                     self.dragging = None
-                if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1 and self.view == "settings":
+                if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1 and self.view in ("settings", "controls"):
                     self.settings_click(ev.pos)
                 if ev.type == pygame.KEYDOWN and self.typing:
                     if ev.key in (pygame.K_RETURN, pygame.K_ESCAPE):
@@ -218,6 +295,9 @@ class MainMenu:
         if action == "quit":
             return False
         if action == "settings":
+            self.view = "settings"
+            return None
+        if action == "back" and self.view == "controls":
             self.view = "settings"
             return None
         if action == "back":
@@ -274,11 +354,11 @@ class MainMenu:
             s.blit(bg, (0, 0))
         else:
             s.fill(C_BG)
-        if self.view == "settings":
+        if self.view in ("settings", "controls"):
             shade = pygame.Surface((w, h), pygame.SRCALPHA)
             shade.fill((10, 10, 16, 200))
             s.blit(shade, (0, 0))
-            self.draw_settings()
+            self.draw_settings() if self.view == "settings" else self.draw_controls()
             cursor = self.bank.scaled("ui/menu/cursor.png", (24, 24))
             if cursor is not None:
                 pygame.mouse.set_visible(False)

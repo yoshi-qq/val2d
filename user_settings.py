@@ -12,14 +12,24 @@ from typing import Any
 from gameplay.data import load_config
 
 SETTINGS_PATH = Path.home() / ".val2d" / "settings.json"
-LIMITS: dict[str, tuple[float, float]] = {"sensitivity": (0.05, 1.0), "camera_push": (0.0, 0.8), "volume": (0.0, 1.0)}
+LIMITS: dict[str, tuple[float, float]] = {"sensitivity": (0.05, 1.0), "camera_push": (0.0, 0.8), "volume": (0.0, 1.0),
+                                          "crosshair_size": (0.5, 2.5), "crosshair_gap": (0.0, 12.0)}
+# action -> key name as pygame.key.name() spells it
+DEFAULT_KEYS: dict[str, str] = {
+    "forward": "w", "back": "s", "left": "a", "right": "d", "walk": "left shift", "crouch": "left ctrl", "jump": "space",
+    "reload": "r", "interact": "f", "drop": "g", "buy": "b", "scoreboard": "tab",
+    "ability_c": "c", "ability_q": "q", "ability_e": "e", "ability_x": "x",
+    "primary": "1", "sidearm": "2", "melee": "3",
+}
+CROSSHAIR_COLORS = ["#78ffc8", "#ffffff", "#ffe14d", "#ff5ad2", "#5ad2ff", "#ff6b4d"]
 
 
 def defaults() -> dict[str, Any]:
     cfg = load_config()
     return {"sensitivity": cfg.player.sensitivity, "camera_push": cfg.player.camera_push, "volume": 0.8,
             "name": "Player", "all_around": cfg.lobby.all_around_sight, "sound_rings": cfg.lobby.sound_rings,
-            "fullscreen": False}
+            "fullscreen": False, "keys": dict(DEFAULT_KEYS), "crosshair_color": CROSSHAIR_COLORS[0],
+            "crosshair_size": 1.0, "crosshair_gap": 4.0, "crosshair_dot": True}
 
 
 def clamp(key: str, value: float) -> float:
@@ -37,8 +47,12 @@ def load() -> dict[str, Any]:
                     values[key] = clamp(key, value)
                 elif key == "name" and isinstance(value, str):
                     values[key] = value[:16] or "Player"
-                elif key in ("all_around", "sound_rings", "fullscreen") and isinstance(value, bool):
+                elif key in ("all_around", "sound_rings", "fullscreen", "crosshair_dot") and isinstance(value, bool):
                     values[key] = value
+                elif key == "crosshair_color" and isinstance(value, str) and len(value) == 7 and value.startswith("#"):
+                    values[key] = value
+                elif key == "keys" and isinstance(value, dict):
+                    values["keys"].update({a: str(k) for a, k in value.items() if a in DEFAULT_KEYS and isinstance(k, str)})
     except (OSError, json.JSONDecodeError) as exc:
         warnings.warn(f"Settings unreadable ({exc}); using defaults.")
     return values
