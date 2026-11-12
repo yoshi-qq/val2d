@@ -81,7 +81,8 @@ class Command:
     ability: str | None = None   # "C", "Q", "E", "X"
     interact: bool = False       # plant or defuse the bomb (hold)
     drop: bool = False           # G: drop the bomb if carried, else the weapon in hand
-    buy: list[str] = field(default_factory=list)
+    buy: list[str] = field(default_factory=list)  # item keys, or "gift:<pid>:<weapon>" to buy for a teammate
+    request: str | None = None   # weapon key this player asks the team for ("" clears)
 
 
 @dataclass
@@ -161,6 +162,7 @@ class PlayerState:
     ping_ms: int | None = None  # round trip to the host; None for bots and the host itself
     dummy: bool = False  # practice-range target: does nothing, respawns after death
     remote_score: int = 0  # client copy of the host's combat score
+    request: str = ""  # weapon asked for this round
     home: Vec = Vec(0, 0)
     died_at: float = -99.0
 
@@ -357,6 +359,7 @@ class Match:
                 p.charges[key] = max(p.charges.get(key, 0), start)
             p.sig_timer = 0.0
             p.sig_kills = 0
+            p.request = ""
         attackers = [p for p in self.players.values() if self.side(p.team) == "attack"]
         humans = [p for p in attackers if not p.is_bot]
         carrier = self.rng.choice(humans or attackers) if attackers else None
@@ -404,6 +407,8 @@ class Match:
     def buy(self, p: PlayerState, item: str) -> bool:
         if not p.alive or (self.phase != "buy" and not self.practice):
             return False
+        if item.startswith("gift:"):
+            return self._gift(p, item)
         zone = self.world.spawn_zones.get(0 if self.side(p.team) == "attack" else 1)
         if zone and not zone.contains(p.pos) and not self.practice:
             return False
@@ -431,6 +436,28 @@ class Match:
             warnings.warn(f"Unknown buy request: {item}")
             return False
         self.events.append(GameEvent("buy", self.time, {"pid": p.pid, "item": item}))
+        return True
+
+    def _gift(self, buyer: PlayerState, item: str) -> bool:
+        """Buy a primary weapon for a teammate; their old one drops at their feet."""
+        try:
+            _, pid_text, key = item.split(":", 2)
+            target = self.players[int(pid_text)]
+        except (ValueError, KeyError):
+            return False
+        d = self.weapons.get(key)
+        if d is None or d.slot != "primary" or target.team != buyer.team or not target.alive or buyer.credits < d.price \
+                or target.pid == buyer.pid:
+            return False
+        buyer.credits -= d.price
+        old = target.weapons.get("primary")
+        if old is not None:
+            self.drops.append(Drop(old.key, old.mag, old.reserve, target.pos))
+        target.weapons["primary"] = self._new_weapon(key)
+        target.slot, target.equip_until = "primary", self.time + d.equip
+        if target.request == key:
+            target.request = ""
+        self.events.append(GameEvent("buy", self.time, {"pid": buyer.pid, "item": key, "for": target.pid}))
         return True
 
     def _new_weapon(self, key: str) -> WeaponState:
@@ -494,6 +521,8 @@ class Match:
         p.walking, p.crouching = cmd.walk, cmd.crouch
         for item in cmd.buy:
             self.buy(p, item)
+        if cmd.request is not None:
+            p.request = cmd.request if cmd.request in self.weapons else ""
         if cmd.slot in SLOTS and cmd.slot != p.slot and cmd.slot in p.weapons:
             p.slot = cmd.slot
             d = self.weapons.get(p.weapons[cmd.slot].key)
@@ -1099,6 +1128,7 @@ class Match:
                 "plant": p.plant_progress, "defuse": p.defuse_progress,
                 "status": sorted(k for k, v in p.status.items() if v > self.time)
                 if viewer is None or viewer.team == p.team else [],
+                "request": p.request if viewer is None or viewer.team == p.team else "",
                 "anchor": [p.anchor.x, p.anchor.y] if p.anchor is not None and p.anchor_until > self.time
                 and (viewer is None or viewer.team == p.team) else None,
                 "dashing": p.dash_until > self.time,

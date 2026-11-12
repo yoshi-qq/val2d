@@ -280,6 +280,14 @@ class Game:
                     self.pick_agent_at(ev.pos)
                 elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1 and not me.alive:
                     self.spectate_index += 1
+                elif ev.type == pygame.MOUSEBUTTONDOWN and self.ui.buy_open and ev.button == 3:
+                    item = self.buy_item_at(ev.pos)
+                    if item and item in self.match.weapons and self.match.weapons[item].slot == "primary":
+                        cmd.request = "" if me.request == item else item  # right click: ask the team (again = withdraw)
+                        self.sound.play("ui_click", gain=0.6)
+                elif ev.type == pygame.MOUSEBUTTONDOWN and self.ui.buy_open and ev.button == 1 and self.request_at(ev.pos):
+                    cmd.buy.append(self.request_at(ev.pos) or "")
+                    self.sound.play("ui_buy", gain=0.6)
                 elif ev.type == pygame.MOUSEBUTTONDOWN and self.ui.buy_open and ev.button == 1:
                     item = self.buy_item_at(ev.pos)
                     if item:
@@ -1518,6 +1526,12 @@ class Game:
                 out.append((pygame.Rect(left + ci * (col_w + gap), 150 + ri * (card_h + gap), col_w, card_h), key, label))
         return out
 
+    def request_at(self, pos: tuple[int, int]) -> str | None:
+        for r, item in getattr(self, "request_cards", []):
+            if r.collidepoint(pos):
+                return item
+        return None
+
     def buy_item_at(self, pos: tuple[int, int]) -> str | None:
         for r, key, _ in self.buy_layout():
             if r.collidepoint(pos):
@@ -1587,7 +1601,24 @@ class Game:
             self.text(name, (r.x + 10, r.bottom - 22), C_TEXT if affordable or owned else C_MUTED)
             cost = self.font.render(str(price), True, C_SITE if affordable else C_MUTED)
             s.blit(cost, (r.right - cost.get_width() - 10, r.bottom - 22))
-        self.text("Click buys · B closes", (70, self.h - 76 + 10), C_MUTED)
+        self.text("Click buys · right click asks the team for a weapon · B closes", (70, self.h - 76 + 10), C_MUTED)
+        self.request_cards = []
+        x = 300
+        for mate in sorted((p for p in self.match.players.values() if p.team == me.team and p.pid != me.pid and p.request),
+                           key=lambda p: p.pid):
+            d = self.match.weapons.get(mate.request)
+            if d is None:
+                continue
+            r = pygame.Rect(x, 64, 240, 40)
+            affordable = me.credits >= d.price and open_
+            if not draw_nine_slice(s, self.bank, f"ui/menu/{'button_hover' if r.collidepoint(mouse) and affordable else 'button' if affordable else 'button_disabled'}.png", r, 4, 2):
+                pygame.draw.rect(s, C_MUTED, r, 1)
+            self.text(f"Buy {d.name} for {mate.name[:10]}", (r.x + 10, r.y + 11), C_SITE if affordable else C_MUTED)
+            self.request_cards.append((r, f"gift:{mate.pid}:{mate.request}"))
+            x += 250
+        if me.request:
+            asked = self.match.weapons.get(me.request)
+            self.text(f"You asked for: {asked.name if asked else me.request}", (self.w - 520, 110), C_SITE)
 
     def score_of(self, p: PlayerState) -> int:
         return p.remote_score if self.mode == "client" else self.match.combat_score(p)

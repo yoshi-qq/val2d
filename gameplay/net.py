@@ -78,7 +78,9 @@ def command_from_json(raw: dict[str, Any]) -> Command:
     ab = raw.get("ability")
     cmd.ability = ab if ab in ("C", "Q", "E", "X") else None
     buy = raw.get("buy", [])
-    cmd.buy = [b for b in buy if isinstance(b, str) and len(b) <= 24][:8] if isinstance(buy, list) else []
+    cmd.buy = [b for b in buy if isinstance(b, str) and len(b) <= 32][:8] if isinstance(buy, list) else []
+    req = raw.get("request")
+    cmd.request = req if isinstance(req, str) and len(req) <= 24 else None
     return cmd
 
 
@@ -89,6 +91,7 @@ def merge_commands(old: Command | None, new: Command) -> Command:
     new.buy = old.buy + new.buy
     new.reload = new.reload or old.reload
     new.drop = new.drop or old.drop
+    new.request = new.request if new.request is not None else old.request
     new.slot = new.slot or old.slot
     new.ability = new.ability or old.ability
     return new
@@ -177,6 +180,7 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
         p.reload_until = m.time + 0.3 if row["reloading"] else 0.0
         p.plant_progress, p.defuse_progress = row["plant"], row["defuse"]
         p.status = {k: m.time + 0.3 for k in row.get("status", [])}
+        p.request = str(row.get("request", "") or "")
         anchor = row.get("anchor")
         p.anchor = Vec(*anchor) if isinstance(anchor, list) and len(anchor) == 2 else None
         p.anchor_until = m.time + 1.0 if p.anchor is not None else 0.0

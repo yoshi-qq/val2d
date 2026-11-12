@@ -413,3 +413,19 @@ def test_damage_report_history_and_combat_score() -> None:
     run(m, 0.1)
     assert m.history and m.history[-1][0] == pa.team
     assert m.combat_score(pa) >= 150 + 30 and pa.first_kills == 1
+
+
+def test_team_buy_request_and_gift() -> None:
+    m = Match(load_map("werkhof"), seed=1)
+    a = m.add_player("A", 0, "kestrel").pid
+    b = m.add_player("B", 0, "marrow").pid
+    m.add_player("E", 1, "kestrel")
+    m.start()
+    pa, pb = m.players[a], m.players[b]
+    pa.credits = 5000
+    m.tick(1 / 64, {b: Command(request="hammer")})
+    assert pb.request == "hammer"
+    m.tick(1 / 64, {a: Command(buy=[f"gift:{b}:hammer"])})
+    assert pb.weapons["primary"].key == "hammer" and pa.credits == 5000 - m.weapons["hammer"].price
+    assert pb.request == ""
+    assert not m.buy(pa, f"gift:{m.players[3].pid}:hammer")  # never for the other team
