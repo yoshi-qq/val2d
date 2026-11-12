@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import warnings
 from functools import lru_cache
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from gameplay.geometry import Rect, Vec
@@ -23,6 +23,21 @@ class Wall:
     door: bool = False  # can be opened; then it blocks nothing
     solid: bool = True  # False: blocks only sight (bushes), never movement or bullets
     low: bool = False   # lower than head height: players see and shoot over it (barrels, benches)
+    base: float = 0.0   # level of the floor it stands on (crates on a raised site, platform sides)
+
+    @property
+    def full(self) -> bool:
+        """Full-height walls are taller than every floor level: never climbed, seen or shot over."""
+        return self.height >= FULL_HEIGHT
+
+    @property
+    def top(self) -> float:
+        """Absolute level of the top edge (infinite for full walls)."""
+        return float("inf") if self.full else self.base + self.height
+
+
+FULL_HEIGHT = 2  # walls this many levels high are full walls
+PLATFORM = "platform"  # material of the walls that stand for platform sides (floor, not cover)
 
 
 @dataclass(frozen=True)
@@ -35,9 +50,10 @@ class MapThing:
 
 @dataclass(frozen=True)
 class Platform:
-    """Raised area (level 1). Ramps connect it to the ground."""
+    """Raised area (level 1 or higher). Ramps connect it to lower floors."""
     rect: Rect
     level: int = 1
+    mat: str = ""  # floor material drawn on top (FLOORS key); empty: the shared platform tile
 
 
 @dataclass(frozen=True)
@@ -65,32 +81,46 @@ class WorldMap:
     objects: list[MapThing] = field(default_factory=list)
     practice_targets: list[tuple[Vec, float]] = field(default_factory=list)  # (position, sideways travel in m)
     decals: list[MapThing] = field(default_factory=list)
+    # explicit ramps by index into ramps: (axis it rises along, high end at the smaller coordinate, low, high level)
+    ramp_spans: dict[int, tuple[str, bool, float, float]] = field(default_factory=dict)
 
     def ground_height(self, p: Vec) -> float:
-        """Height of the surface under a point in metres: platforms and low cover are one level high,
-        ramps rise evenly from their low end to the platform they lead onto."""
+        """Height of the surface under a point in levels: platforms at their level, low cover one level above the
+        floor it stands on, ramps rising evenly from their low end to the level they lead onto."""
         h = 0.0
         for pl in self.platforms:
             if pl.rect.contains(p):
                 h = max(h, float(pl.level))
-        for w in self.walls:
-            if w.height == 1 and w.solid and w.rect.contains(p):
-                h = max(h, 1.0)
-        for rect, axis, high_at_min, top in self.ramp_profiles():
+        for w in self.low_walls():
+            if w.rect.contains(p):
+                h = max(h, w.top)
+        for rect, axis, high_at_min, top, low in self.ramp_profiles():
             if rect.contains(p):
                 span = (rect.x1 - rect.x0) if axis == "x" else (rect.y1 - rect.y0)
                 along = (p.x - rect.x0) if axis == "x" else (p.y - rect.y0)
                 t = along / span if span > 0 else 1.0
-                h = max(h, top * ((1.0 - t) if high_at_min else t))
+                h = max(h, low + (top - low) * ((1.0 - t) if high_at_min else t))
         return h
 
-    def ramp_profiles(self) -> list[tuple[Rect, str, bool, float]]:
-        """Per ramp: (rect, axis it rises along, True if the high end is at the smaller coordinate, top height)."""
+    def low_walls(self) -> list[Wall]:
+        """Solid walls lower than full height (crates, platform sides); cached until the wall list changes."""
+        cached = getattr(self, "_low_cache", None)
+        if cached is None or cached[0] != len(self.walls):
+            cached = (len(self.walls), [w for w in self.walls if not w.full and w.solid])
+            self._low_cache = cached
+        return cached[1]
+
+    def ramp_profiles(self) -> list[tuple[Rect, str, bool, float, float]]:
+        """Per ramp: (rect, axis it rises along, True if the high end is at the smaller coordinate, top, low level)."""
         cached = getattr(self, "_ramp_cache", None)
         if cached is not None:
             return cached
-        out: list[tuple[Rect, str, bool, float]] = []
-        for r in self.ramps:
+        out: list[tuple[Rect, str, bool, float, float]] = []
+        for i, r in enumerate(self.ramps):
+            if i in self.ramp_spans:
+                axis, high_min, low, high = self.ramp_spans[i]
+                out.append((r, axis, high_min, high, low))
+                continue
             best: tuple[float, str, bool, float] | None = None
             for pl in self.platforms:
                 p = pl.rect
@@ -104,7 +134,7 @@ class WorldMap:
             if best is None:  # no platform next to it: rise along the longer side toward larger coordinates
                 axis = "x" if (r.x1 - r.x0) >= (r.y1 - r.y0) else "y"
                 best = (0.0, axis, False, 1.0)
-            out.append((r, best[1], best[2], best[3]))
+            out.append((r, best[1], best[2], best[3], 0.0))
         self._ramp_cache = out
         return out
 
@@ -137,10 +167,10 @@ class WorldMap:
 
     def blocking_walls(self, level: int) -> list[Wall]:
         """Walls that block movement on this level."""
-        return [w for w in self.walls if w.height > level and w.solid]
+        return [w for w in self.walls if w.top > level and w.solid]
 
     def sight_walls(self, level: int) -> list[Wall]:
-        return [w for w in self.walls if w.blocks_sight and w.height > level and not w.low]
+        return [w for w in self.walls if w.blocks_sight and w.top > level and not w.low]
 
 
 @lru_cache(maxsize=1)
@@ -185,6 +215,12 @@ def _thing(item: dict, table: dict[str, dict], map_key: str) -> MapThing | None:
         w, h = h, w
     x, y = item["pos"]
     return MapThing(key, Rect(x - w / 2, y - h / 2, x + w / 2, y + h / 2), rot)
+
+
+def _floor_under(platforms: list[Platform], rect: Rect) -> float:
+    """Level of the highest platform under the centre of a rect (0 on the ground)."""
+    c = rect.center
+    return float(max((pl.level for pl in platforms if pl.rect.contains(c)), default=0))
 
 
 def _rect(v: list[float]) -> Rect:
@@ -272,10 +308,20 @@ def parse_map(key: str, raw: dict) -> WorldMap:
     m.floors = [(str(f["mat"]), _rect(f["rect"])) for f in raw.get("floors", [])]
     for b in raw.get("crates", []):
         m.walls.append(Wall(_rect(b), 1, False, 1))
-    m.platforms = [Platform(_rect(p["rect"]), int(p.get("level", 1))) if isinstance(p, dict) else Platform(_rect(p))
-                   for p in raw.get("platforms", [])]
-    m.walls += [Wall(pl.rect, 1, False, 1) for pl in m.platforms]
-    m.ramps = [_rect(r) for r in raw.get("ramps", [])]
+    m.platforms = [Platform(_rect(p["rect"]), int(p.get("level", 1)), str(p.get("mat", ""))) if isinstance(p, dict)
+                   else Platform(_rect(p)) for p in raw.get("platforms", [])]
+    # cover stands on the floor under it: a crate on a raised site is one level above that site
+    m.walls = [replace(wl, base=_floor_under(m.platforms, wl.rect)) if not wl.full else wl for wl in m.walls]
+    m.walls += [Wall(pl.rect, 1, False, 1, PLATFORM, base=float(pl.level - 1)) for pl in m.platforms]
+    m.ramps = []
+    for i, r in enumerate(raw.get("ramps", [])):
+        if isinstance(r, dict):
+            m.ramps.append(_rect(r["rect"]))
+            rise = str(r.get("rise", "n"))  # direction the ramp goes up, map coordinates (n = +y)
+            m.ramp_spans[i] = ("y" if rise in ("n", "s") else "x", rise in ("s", "w"),
+                               float(r.get("low", 0.0)), float(r.get("high", 1.0)))
+        else:
+            m.ramps.append(_rect(r))
     m.sites = [Site(s["name"], _rect(s["rect"])) for s in raw.get("sites", [])]
     m.spawns = {int(t): [Vec(*p) for p in pts] for t, pts in raw.get("spawns", {}).items()}
     m.spawn_zones = {int(t): _rect(r) for t, r in raw.get("spawn_zones", {}).items()}

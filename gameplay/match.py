@@ -16,7 +16,7 @@ from gameplay import abilities
 from gameplay.data import ROOT, GameConfig, WeaponDef, _load_py, load_armor, load_config, load_weapons, rule
 from gameplay.geometry import Rect, Vec, angle_diff, angle_of, heading, segment_circle_hit
 from gameplay.hitzones import resolve_zone
-from gameplay.world import Wall, WorldMap
+from gameplay.world import PLATFORM, Wall, WorldMap
 
 SLOTS = ("primary", "sidearm", "melee")
 FULL_WALL = 2  # walls this many levels high are never climbed or jumped over
@@ -987,7 +987,7 @@ class Match:
                 new = new + gap.normalized() * (2 * radius - dist) * 0.5
         for _ in range(3):
             for w in self.world.walls:
-                if not self.wall_active(w) or (w.height < FULL_WALL and w.height * lh <= feet + tolerance):
+                if not self.wall_active(w) or (not w.full and w.top * lh <= feet + tolerance):
                     continue
                 push = w.rect.circle_push(new, radius)
                 if push:
@@ -1176,7 +1176,7 @@ class Match:
         origin = p.pos
         hits: list[tuple[float, str, Any]] = []
         for w in self.world.walls:
-            if w.height <= p.level or w.low or not self.wall_active(w):  # bullets fly over low props
+            if w.top <= p.level or w.low or w.material == PLATFORM or not self.wall_active(w):  # bullets fly over low props
                 continue
             iv = w.rect.ray_interval(origin, direction)
             if iv and iv[0] <= d.range:
@@ -1198,7 +1198,7 @@ class Match:
         for i, (dist, kind, payload) in enumerate(hits):
             if kind == "wall":
                 wall, thickness = payload
-                cover = wall.height == p.level + 1  # head-high: a standing target's head shows above it
+                cover = wall.top == p.level + 1  # head-high: a standing target's head shows above it
                 nxt = next((h for h in hits[i + 1:] if h[1] == "player"), None)
                 if cover and nxt is not None and id(nxt[2][0]) in head_over and nxt[0] - dist < 3.0:
                     continue
@@ -1385,7 +1385,7 @@ class Match:
             return True
         u = (b - a) * (1.0 / dist)
         for w in self.world.walls:
-            if w.height <= shooter.level or not self.wall_active(w):
+            if w.top <= shooter.level or w.material == PLATFORM or not self.wall_active(w):
                 continue
             iv = w.rect.ray_interval(a, u)
             if iv and iv[0] < dist and (w.penetration >= 3 or w.penetration > pen or iv[1] - iv[0] > 1.0 + pen):
@@ -1400,7 +1400,7 @@ class Match:
             return False
         unit = direction * (1.0 / dist)
         for w in self.world.walls:
-            if w.height != target.level + 1 or w.low or w.height <= viewer.level:
+            if w.top != target.level + 1 or w.low or w.top <= viewer.level:
                 continue
             iv = w.rect.ray_interval(viewer.pos, unit)
             if iv and iv[0] < dist and dist - iv[0] < 3.0:

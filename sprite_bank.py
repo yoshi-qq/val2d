@@ -10,6 +10,8 @@ from pathlib import Path
 
 import pygame
 
+from gameplay.geometry import Rect, Vec
+
 ROOT = Path(__file__).resolve().parent
 ASSETS = ROOT / "assets"
 PX_PER_M = 16
@@ -162,7 +164,8 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
             _tile_rect(surf, patch, to_px(rect))
     layers: list[tuple[str, pygame.Rect]] = []
     layers += [("platz_rand", to_px(s.rect)) for s in world.sites]
-    layers += [("plattform", to_px(p.rect)) for p in world.platforms]
+    # platform look: its own floor material, "floor" = keep the floor art under it, empty = the shared platform tile
+    layers += [(f"floor:{p.mat}" if p.mat else "plattform", to_px(p.rect)) for p in world.platforms if p.mat != "floor"]
     layers += [("rampe", to_px(r)) for r in world.ramps]
     platform_rects = {p.rect for p in world.platforms}
     object_rects = {o.rect for o in world.objects} | {w.rect for w in world.walls if w.material.startswith("obj:")}
@@ -180,7 +183,10 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
             name = "wand_duenn" if wall.penetration <= 1 else "wand"
         layers.append((name, to_px(wall.rect)))
     for name, rect in layers:
-        t = mat_tile(name[4:]) if name.startswith("mat:") else tile(name)
+        if name.startswith("floor:"):
+            t = mat_tile(floor_mats.get(name[6:], ""))
+        else:
+            t = mat_tile(name[4:]) if name.startswith("mat:") else tile(name)
         if t is None:
             pygame.draw.rect(surf, (110, 106, 120), rect)
         else:
@@ -225,9 +231,16 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
         r = to_px(wall.rect)
         _tile_rect(surf, shadow, pygame.Rect(r.x, r.bottom, r.w, shadow.get_height()))
     for pl in world.platforms:
-        if edge is not None:
-            r = to_px(pl.rect)
-            _tile_rect(surf, edge, pygame.Rect(r.x, r.bottom - edge.get_height(), r.w, edge.get_height()))
+        if edge is None:
+            continue
+        # edge strip only where the floor just south of the platform is lower (not between platforms of one level)
+        x, step = pl.rect.x0, 0.5
+        while x < pl.rect.x1 - 1e-6:
+            x_end = min(pl.rect.x1, x + step)
+            if world.ground_height(Vec((x + x_end) / 2, pl.rect.y0 - 0.1)) < pl.level - 0.01:
+                r = to_px(Rect(x, pl.rect.y0, x_end, pl.rect.y1))
+                _tile_rect(surf, edge, pygame.Rect(r.x, r.bottom - edge.get_height(), r.w, edge.get_height()))
+            x = x_end
     # site letters painted on the floor
     for site in world.sites:
         mark = bank.scaled(f"maps/common/decals/site_{site.name.lower()}.png", (tile_px, tile_px))

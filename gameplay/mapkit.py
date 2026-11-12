@@ -107,9 +107,15 @@ class MapBuilder:
         return self
 
     def platform(self, x0: float, y0: float, x1: float, y1: float, ramp: str = "", ramp_length: float = 2.0,
-                 ramp_width: float = 0.0, level: int = 1) -> MapBuilder:
-        """A raised area; ramp n/s/e/w adds a ramp on that side, centred (width = ramp_width or the full side)."""
-        self.data["platforms"].append([x0, y0, x1, y1] if level == 1 else {"rect": [x0, y0, x1, y1], "level": level})
+                 ramp_width: float = 0.0, level: int = 1, mat: str = "") -> MapBuilder:
+        """A raised area; ramp n/s/e/w adds a ramp on that side, centred (width = ramp_width or the full side).
+        mat: floor material drawn on it (also its footstep floor)."""
+        if level == 1 and not mat:
+            self.data["platforms"].append([x0, y0, x1, y1])
+        else:
+            self.data["platforms"].append({"rect": [x0, y0, x1, y1], "level": level, **({"mat": mat} if mat else {})})
+        if mat:
+            self.floor(x0, y0, x1, y1, mat)
         if ramp:
             cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
             wx = ramp_width or (x1 - x0)
@@ -117,6 +123,11 @@ class MapBuilder:
             rect = {"w": [x0 - ramp_length, cy - wy / 2, x0, cy + wy / 2], "e": [x1, cy - wy / 2, x1 + ramp_length, cy + wy / 2],
                     "n": [cx - wx / 2, y0 - ramp_length, cx + wx / 2, y0], "s": [cx - wx / 2, y1, cx + wx / 2, y1 + ramp_length]}[ramp]
             self.data["ramps"].append(rect)
+        return self
+
+    def stairs(self, x0: float, y0: float, x1: float, y1: float, rise: str, low: float, high: float) -> MapBuilder:
+        """Ramp or stairs between two floor levels; rise n/s/e/w is the direction it goes up (n = +y)."""
+        self.data["ramps"].append({"rect": [x0, y0, x1, y1], "rise": rise, "low": low, "high": high})
         return self
 
     def spawn_area(self, team: int, x0: float, y0: float, x1: float, y1: float, points: int = 5,
