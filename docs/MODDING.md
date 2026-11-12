@@ -5,6 +5,8 @@ changes. Broken entries are skipped with a warning that names the problem (the r
 
 | What | Where | Start from |
 |---|---|---|
+| Balance patch (change any value without touching its file) | `config/patches/<nn_name>.py` | `config/patches/_example.py` |
+| Ready-made abilities for any agent | `config/content/abilities/*.py` | `config/content/abilities/library.py` |
 | Agent | `config/content/agents/<key>.py` (file name = key) | `config/content/agents/_template.py` |
 | Status | `config/content/statuses.py` | one more entry |
 | New effect or trigger | `config/content/mechanics/<name>.py` | `config/content/mechanics/swap.py` |
@@ -14,7 +16,52 @@ changes. Broken entries are skipped with a warning that names the problem (the r
 | Weapons, armor | `config/content/weapons.py` | – |
 | Materials, props, decals | `config/content/materials.py` | – |
 
-Files starting with `_` are templates and are never loaded.
+Files starting with `_` are templates and are never loaded. In a match against bots or in the range, the escape
+menu has **Reload content**: agents, abilities, weapons, armor, statuses and patches are read again without
+restarting (maps and rules from the next match).
+
+## Balance patches
+
+A file in `config/patches/` changes values of existing content; patches apply in file-name order, so name them
+`01_...`, `02_...`. Each has `VERSION`, `NOTES` (shown on the Career page as patch notes) and `PATCH`:
+
+```python
+VERSION = "1.02"
+NOTES = "Kestrel flash shorter, Hammer more expensive"
+PATCH = {
+    "agents":   {"kestrel": {"C": {"blind": 1.2}, "X": {"cost": 8}}},
+    "weapons":  {"hammer": {"price": 3000}},
+    "armor":    {"schwer": {"price": 1100}},
+    "statuses": {"slow": {"speed": 0.6}, "frozen": {"speed": 0.1}},   # new statuses too
+    "rules":    {"economy": {"start": 900}},
+    "settings": {"hit_zones": {"head_half_width": 0.27}},
+    "maps":     {"werkhof": {"set": {"name": "Workyard"}, "add": {"crates": [[20, 20, 22, 22]]},
+                             "remove": {"crates": [[30, 10, 32, 12]]}}},
+}
+```
+
+`None` removes a field (`"alt": None` takes away a right-click variant). Unknown names are reported as warnings.
+
+## Ability library
+
+`library("name", ...changes)` takes a ready-made ability from `config/content/abilities/`:
+
+```python
+C=library("firebomb", price=250),
+Q=library("cloak_step"),
+```
+
+Included: smoke_orb, flashbang, healing_orb, recon_dart, tripwire, sonic_pulse, earth_wall, poison_cloud, firebomb,
+knockback_blast, gravity_well, frost_field, shock_dart, cloak_step, haste_aura, fortify_self, marked_shot,
+healing_rain. Add your own in a new file with an `ABILITIES` dict.
+
+## Sounds
+
+Every ability may name its cast sound with `sound="..."`; the effect `sound(key, radius)` plays any sound at a
+point (for example when a trap goes off). Cast sounds made by `tools/make_sounds.py`: cast_throw_light,
+cast_throw_heavy, cast_deploy, cast_place_trap, cast_charge_up, cast_whoosh, cast_magic, cast_arcane, cast_tech,
+cast_heal, cast_buff, cast_shield_up, cast_beam, cast_burst, cast_dark, cast_fire, cast_ice, cast_electric, cast_wind,
+cast_poison, cast_sonic, cast_earth, ult_cast. Any other file in `assets/sounds` works too.
 
 ## An agent
 

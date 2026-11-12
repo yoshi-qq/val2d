@@ -105,7 +105,6 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
         self.kit = Ui(self.screen)
         self.overlay = ""          # "", pause, leave or quit
         self.quit_program = False  # True: the player chose to quit the whole game, not just the match
-        self._drag: str | None = None
         try:
             self.help_key = pygame.key.key_code(str(HUD["help_key"]))
         except (ValueError, pygame.error):
@@ -153,6 +152,10 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
                         self.open_overlay("pause")
                 elif ev.type == pygame.KEYDOWN and ev.key == pygame.K_RETURN and self.match.phase == "over":
                     running = False  # back to the menu
+                elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1 and self.screen_button(ev.pos) == "to_menu":
+                    running = False
+                elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1 and self.screen_button(ev.pos) == "rejoin":
+                    self.rejoin()
                 elif ev.type == pygame.KEYDOWN:
                     if ev.key == pygame.K_RETURN and self.client is not None and not self.client.connected:
                         self.rejoin()
@@ -167,6 +170,7 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
                             self.aiming = None              # same key again: put it away
                         elif self.needs_aim(me, slot):
                             self.aiming = slot              # in hand: preview, left click casts, right click alt
+                            self.sound.play("ability_equip", gain=0.5)
                         else:
                             self.aiming, cmd.ability = None, slot  # no aiming needed: cast at once
                     elif ev.key in (self.keys["primary"], self.keys["sidearm"], self.keys["melee"]):
@@ -231,7 +235,11 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
             me_now = self.match.players.get(self.me)
             if me_now is not None:
                 self.apply_zoom(me_now, cmd.alt_fire and not self.ui.buy_open)
-            if self.match.phase != "lobby" and not self.grabbed and not self.ui.buy_open and not self.overlay:
+            needs_mouse = self.match.phase in ("lobby", "over") or self.ui.buy_open or bool(self.overlay) \
+                or (self.client is not None and not self.client.connected)
+            if needs_mouse and self.grabbed:
+                self.grab(False)  # buttons to click: show the pointer
+            elif not needs_mouse and not self.grabbed:
                 self.grab(True)
             if self.match.round_no != self.seen_round and self.seen_round > 0 and self.me in self.match.players:
                 half = int(self.match._r["half_after"])
@@ -249,11 +257,16 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
             self.draw_overlay()
             pygame.display.flip()
             if self.client and not self.client.connected:
-                self.status = "Lost connection to host – press Enter to rejoin"
+                self.status = "Lost connection to host"
         if self.session:
             self.session.close()
         if self.client:
             self.client.close()
+
+    def screen_button(self, pos: tuple[int, int]) -> str | None:
+        """Action of a button drawn this frame on the match screen (back to menu, rejoin), if one is under pos."""
+        hit = self.kit.hit_at(pos)
+        return hit.action if hit is not None and hit.action in ("to_menu", "rejoin") else None
 
     def apply_zoom(self, me: PlayerState, holding_alt: bool) -> None:
         """Camera zoom while a zoom weapon's alternate fire is held; map image cached per zoom level."""
@@ -281,7 +294,7 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
             self.client = NetClient(self.join_target, self.join_name, self.join_agent, token=old.token)
         except ConnectionError as exc:
             self.client = old
-            self.status = f"Rejoin failed: {exc} – press Enter to try again"
+            self.status = f"Rejoin failed: {exc}"
             return
         self.me = self.client.pid
         self.status = "" if self.client.rejoined else "Joined as a new player"

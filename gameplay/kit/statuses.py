@@ -36,7 +36,10 @@ KNOWN = set(MULTIPLY) | set(ADD) | set(LOWEST) | set(FLAGS) | {"decay", "decay_r
 
 @lru_cache(maxsize=1)
 def load_statuses() -> dict[str, dict[str, Any]]:
+    from gameplay.patches import apply_table
     raw = _load_py(STATUS_PATH, "STATUSES")
+    if isinstance(raw, dict):
+        raw = apply_table("statuses", raw, create=True)  # balance patches may add or change statuses
     if not isinstance(raw, dict) or not raw:
         warnings.warn("config/content/statuses.py has no STATUSES; built-in statuses apply.")
         return dict(FALLBACK)

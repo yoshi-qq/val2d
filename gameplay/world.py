@@ -180,20 +180,26 @@ def _rect(v: list[float]) -> Rect:
 
 def map_keys() -> list[str]:
     """All maps: gameplay/data/maps/*.json (map editor) and *.py (built in Python, MAP = ...); _files are skipped."""
-    return sorted({p.stem for p in MAP_DIR.glob("*.json")} | {p.stem for p in MAP_DIR.glob("*.py") if not p.name.startswith("_")})
+    return sorted({
+        path.stem
+        for pattern in ("*.json", "*.py")
+        for path in MAP_DIR.glob(pattern)
+        if not path.name.startswith("_")
+    })
 
 
 def load_map_raw(key: str) -> dict:
     """Map data of `key`: the .json if there is one (editor saves win), else MAP from the .py. Raises OSError/ValueError."""
+    from gameplay.patches import apply_map
     path = MAP_DIR / f"{key}.json"
     if path.exists():
-        return json.loads(path.read_text(encoding="utf-8"))
+        return apply_map(key, json.loads(path.read_text(encoding="utf-8")))
     py = MAP_DIR / f"{key}.py"
     if py.exists():
         from gameplay.data import _load_py
         raw = _load_py(py, "MAP")
         if isinstance(raw, dict):
-            return raw
+            return apply_map(key, raw)
         raise ValueError(f"{py.name} defines no MAP dict")
     raise OSError(f"no map file {key}.json or {key}.py")
 

@@ -73,3 +73,26 @@ def test_rules_reach_the_client() -> None:
     client = Match(load_map("werkhof"))
     apply_snapshot(client, host.snapshot(), own_pid=1)
     assert client.cheat("bullet_tracers") and client.cfg.lobby.all_around_sight
+
+
+def test_planting_stopped_early_sends_a_stop_for_the_sound() -> None:
+    m, a, _ = lobby()
+    m.start()
+    m.phase, m.phase_until = "live", m.time + 100
+    p = m.players[a]
+    m.spike_carrier = a
+    site = m.world.sites[0]
+    p.pos = site.rect.center
+    m.tick(1 / 64, {a: Command(interact=True)})
+    assert p.plant_progress > 0
+    events = m.tick(1 / 64, {a: Command(interact=False)})
+    assert any(e.kind == "plant_stop" for e in events)
+
+
+def test_agent_built_from_the_ability_library() -> None:
+    from gameplay.kit import check_ability
+    from gameplay.kit.dsl import agent, library
+    built = agent("Lib", C=library("firebomb", price=300), Q=library("cloak_step"), E=library("haste_aura"),
+                  X=library("healing_rain"))
+    assert built["abilities"]["C"]["price"] == 300
+    assert all(not check_ability(ab) for ab in built["abilities"].values())

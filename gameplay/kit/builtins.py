@@ -401,6 +401,13 @@ def e_noise(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> None:
                                 "kind": str(step.get("kind", "step")), "decoy": True})
 
 
+@effect("sound", per_player=False)
+def e_sound(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> None:
+    """key, radius: plays assets/sounds/<key>.wav at the point (heard like any other sound, not a footstep)."""
+    game_event(ctx.m, "sound_fx", {"key": str(step["key"]), "pos": (ctx.point.x, ctx.point.y),
+                                   "radius": float(step.get("radius", 30.0))})
+
+
 @effect("event", per_player=False)
 def e_event(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> None:
     """kind: a visual/sound event for the client (blast, flash)."""

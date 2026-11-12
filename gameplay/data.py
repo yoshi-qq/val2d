@@ -183,7 +183,10 @@ def _pick(cls: type, raw: dict[str, Any] | None) -> Any:
 
 @lru_cache(maxsize=1)
 def load_config() -> GameConfig:
+    from gameplay.patches import merge, section
     raw = load_folder(SETTINGS_DIR, "CONFIG")
+    for _, change in section("settings"):  # balance patches (config/patches)
+        raw = merge(raw, change)
     return GameConfig(
         hit_zones=_pick(HitZoneConfig, raw.get("hit_zones")),
         lobby=_pick(LobbySettings, raw.get("lobby_defaults")),
@@ -193,7 +196,8 @@ def load_config() -> GameConfig:
 
 @lru_cache(maxsize=1)
 def load_weapons() -> dict[str, WeaponDef]:
-    raw = _load_py(WEAPONS_PATH, "WEAPONS") or {}
+    from gameplay.patches import apply_table
+    raw = apply_table("weapons", _load_py(WEAPONS_PATH, "WEAPONS") or {}, create=True)
     out: dict[str, WeaponDef] = {}
     for key, w in raw.items():
         try:
@@ -219,13 +223,18 @@ def load_weapons() -> dict[str, WeaponDef]:
 
 @lru_cache(maxsize=1)
 def load_armor() -> dict[str, ArmorDef]:
-    raw = _load_py(WEAPONS_PATH, "ARMOR") or {}
+    from gameplay.patches import apply_table
+    raw = apply_table("armor", _load_py(WEAPONS_PATH, "ARMOR") or {}, create=True)
     return {k: ArmorDef(k, a["name"], int(a["price"]), int(a["points"])) for k, a in raw.items()}
 
 
 @lru_cache(maxsize=1)
 def load_rules() -> dict[str, Any]:
-    return load_folder(RULES_DIR, "RULES")
+    from gameplay.patches import merge, section
+    rules = load_folder(RULES_DIR, "RULES")
+    for _, change in section("rules"):  # balance patches (config/patches)
+        rules = merge(rules, change)
+    return rules
 
 
 def rule(section: str, key: str, default: Any) -> Any:

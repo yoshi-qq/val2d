@@ -157,3 +157,32 @@ def test_right_click_casts_the_alternative_wall_along_the_aim() -> None:
     game.match.tick(1 / 64, {game.me: Command(facing=0.0, cursor_depth=6.0, ability="Q", ability_alt=True)})
     wall = next(e for e in game.match.effects if e.kind == "wall")
     assert abs(wall.a.x - wall.b.x) < 1e-6 and abs(wall.a.y - wall.b.y) > 1.0  # along the aim (aim = +y)
+
+
+def test_escape_menu_opens_full_settings_and_applies_them() -> None:
+    import user_settings
+    game = Game(args())
+    game.match.start()
+    saved = user_settings.load()
+    try:
+        game.open_overlay("pause")
+        game.draw()
+        game.draw_overlay()
+        settings = next(h for h in game.kit.hits if h.action == "settings")
+        for kind in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
+            game.overlay_event(pygame.event.Event(kind, button=1, pos=settings.rect.center))
+        assert game.overlay == "settings"
+        game.settings_panel.settings["sensitivity"] = 0.6
+        game.draw_overlay()
+        game.overlay_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE, mod=0, unicode="", scancode=41))
+        assert game.overlay == "pause" and abs(game.sens - 0.6) < 1e-9
+    finally:
+        user_settings.save(saved)
+
+
+def test_match_over_has_a_back_to_menu_button() -> None:
+    game = Game(args())
+    game.match.start()
+    game.match.phase = "over"
+    game.draw()
+    assert any(h.action == "to_menu" for h in game.kit.hits)

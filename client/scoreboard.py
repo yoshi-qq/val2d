@@ -125,4 +125,4 @@ class ScoreboardMixin:
         if m.history:
             self.draw_round_history(self.h - 84)
         if over:
-            ui.text("Enter: back to the menu", (self.w / 2, self.h - 40), "s", "gold", "center", upper=True, bold=True)
+            ui.button(pygame.Rect(self.w // 2 - 150, self.h - 64, 300, 48), "Back to menu", "to_menu", primary=True, size="m")

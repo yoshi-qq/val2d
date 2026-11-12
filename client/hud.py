@@ -301,6 +301,8 @@ class HudMixin:
             ui.text(watching, (cx, base + 10), "s", "muted", "center", upper=True)
         if self.status:
             ui.text(self.status, (cx, base - 60), "s", "enemy", "center")
+        if self.client is not None and not self.client.connected:
+            ui.button(pygame.Rect(cx - 120, base - 30, 240, 44), "Rejoin", "rejoin", primary=True)
         if m.phase == "buy" and not self.ui.buy_open:
             ui.text("B: buy", (self.w - 24, self.h - 140 - 26 * 3), "xs", "muted", "right", upper=True)
 

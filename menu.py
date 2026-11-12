@@ -12,6 +12,7 @@ from pathlib import Path
 import pygame
 
 import user_settings
+from client.settings_panel import SettingsPanel
 from client.ui import Ui, color
 from gameplay.kit.describe import cost_text, describe
 from gameplay.netgame import DEFAULT_PORT, discover
@@ -27,12 +28,6 @@ PLAY_MODES = (("standard", "Unrated", "13 rounds to win, sides switch after 12. 
               ("deathmatch", "Team deathmatch", "Respawns, free buying, first team to the kill limit."),
               ("range", "Range", "Practice alone: lanes at 10, 20, 30 and 45 m, standing and moving targets."),
               ("custom", "Custom", "Host or join a match with friends on your network or over the internet."))
-SETTINGS_TABS = (("general", "General"), ("controls", "Controls"), ("crosshair", "Crosshair"), ("audio", "Audio"))
-SLIDERS = {"general": (("sensitivity", "Mouse sensitivity"), ("camera_push", "Camera ahead")),
-           "audio": (("volume", "Overall volume"),),
-           "crosshair": (("crosshair_size", "Size"), ("crosshair_gap", "Gap"))}
-CHECKS = {"general": (("fullscreen", "Fullscreen"),),
-          "crosshair": (("crosshair_dot", "Centre dot"),)}
 ROLE_ORDER = ("Duelist", "Initiator", "Controller", "Sentinel")
 
 
@@ -59,12 +54,9 @@ class MainMenu:
         self.tab = "play"
         self.view = "main"
         self.play_mode = getattr(self.args, "mode", "standard") if not getattr(self.args, "practice", False) else "range"            # main or settings (overlay)
-        self.settings_tab = "general"
         self.dialog = ""              # "" or "quit"
-        self.settings = user_settings.load()
-        self.dragging: str | None = None
-        self.typing_name = False
-        self.binding: str | None = None
+        self.panel = SettingsPanel(self.ui)
+        self.settings = self.panel.settings
         self.agent_view = getattr(self.args, "agent", "kestrel")
         self.apply_settings()
 
@@ -101,42 +93,27 @@ class MainMenu:
                 return False  # second Alt+F4: quit at once
             self.dialog = "quit"
             return None
-        if ev.type == pygame.KEYDOWN and self.binding is not None:
-            if ev.key != pygame.K_ESCAPE:
-                name = pygame.key.name(ev.key)
-                keys = self.settings["keys"]
-                for other, bound in list(keys.items()):
-                    if bound == name and other != self.binding:
-                        keys[other] = keys[self.binding]  # swap instead of double binding
-                keys[self.binding] = name
-            self.binding = None
+        if self.view == "settings" and not self.dialog:
+            if self.panel.handle(ev) == "closed":
+                self.settings = self.panel.settings
+                self.apply_settings()
+                self.view = "main"
             return None
-        if ev.type == pygame.KEYDOWN and (self.typing_name or self.typing):
-            target = "name" if self.typing_name else "address"
-            text = self.settings["name"] if target == "name" else self.address
+        if ev.type == pygame.KEYDOWN and self.typing:
             if ev.key in (pygame.K_RETURN, pygame.K_ESCAPE, pygame.K_KP_ENTER):
-                self.typing_name = self.typing = False
-                if target == "address" and ev.key != pygame.K_ESCAPE and self.address:
+                self.typing = False
+                if ev.key != pygame.K_ESCAPE and self.address:
                     return self.activate("join")
                 return None
             if ev.key == pygame.K_BACKSPACE:
-                text = text[:-1]
-            elif ev.unicode and ev.unicode.isprintable():
-                ok = (len(text) < 16) if target == "name" else (len(text) < 40 and (ev.unicode.isalnum() or ev.unicode in ".:-"))
-                text += ev.unicode if ok else ""
-            if target == "name":
-                self.settings["name"] = text
-            else:
-                self.address = text
+                self.address = self.address[:-1]
+            elif ev.unicode and (ev.unicode.isalnum() or ev.unicode in ".:-") and len(self.address) < 40:
+                self.address += ev.unicode
             return None
         if ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE:
             self.close_top()
             return None
-        if ev.type == pygame.MOUSEMOTION and self.dragging:
-            self.slide(ev.pos)
-            return None
         if ev.type == pygame.MOUSEBUTTONUP and ev.button == 1:
-            self.dragging = None
             hit = self.ui.hit_at(ev.pos)
             action, self.ui.pressed = self.ui.pressed, None
             if hit and action == hit.action:
@@ -144,15 +121,11 @@ class MainMenu:
             return None
         if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
             hit = self.ui.hit_at(ev.pos)
-            self.typing = self.typing_name = False
+            self.typing = False
             if hit is None:
                 return None
-            if hit.action.startswith("slider:"):
-                self.dragging = hit.action[7:]
-                self.slide(ev.pos)
-                return None
-            if hit.action in ("field:address", "field:name"):
-                self.typing, self.typing_name = hit.action == "field:address", hit.action == "field:name"
+            if hit.action == "field:address":
+                self.typing = True
                 return None
             self.ui.pressed = hit.action
         return None
@@ -162,20 +135,14 @@ class MainMenu:
         if self.dialog:
             self.dialog = ""
         elif self.view == "settings":
-            self.activate("settings_close")
+            self.panel.close()
+            self.apply_settings()
+            self.view = "main"
         elif self.tab != "play":
             self.tab = "play"
         elif self.play_mode == "custom":
             self.play_mode = "standard"
 
-    def slide(self, pos: tuple[int, int]) -> None:
-        hit = next((h for h in self.ui.hits if h.action == f"slider:{self.dragging}"), None)
-        if hit is None or not self.dragging:
-            return
-        r = hit.rect
-        low, high = user_settings.LIMITS[self.dragging]
-        frac = max(0.0, min(1.0, (pos[0] - r.x) / max(1, r.w)))
-        self.settings[self.dragging] = round(low + frac * (high - low), 3)
 
     def activate(self, action: str) -> argparse.Namespace | bool | None:
         a = self.args
@@ -188,24 +155,8 @@ class MainMenu:
         elif action.startswith("tab:"):
             self.tab = action[4:]
         elif action == "settings":
+            self.panel = SettingsPanel(self.ui)
             self.view = "settings"
-        elif action.startswith("stab:"):
-            self.settings_tab = action[5:]
-        elif action in ("settings_close", "back"):
-            if not self.settings["name"].strip():
-                self.settings["name"] = "Player"
-            user_settings.save(self.settings)
-            self.apply_settings()
-            self.view, self.binding = "main", None
-        elif action.startswith("check:"):
-            key = action[6:]
-            self.settings[key] = not self.settings[key]
-        elif action == "color":
-            colors = user_settings.CROSSHAIR_COLORS
-            current = self.settings["crosshair_color"]
-            self.settings["crosshair_color"] = colors[(colors.index(current) + 1) % len(colors)] if current in colors else colors[0]
-        elif action.startswith("bind:"):
-            self.binding = action[5:]
         elif action == "local":
             a.host, a.join, a.practice = False, None, False
             return a
@@ -281,7 +232,7 @@ class MainMenu:
         if self.status:
             ui.text(self.status, (40, h - 34), "s", "enemy" if "No match" in self.status or "No connection" in self.status else "gold")
         if self.view == "settings":
-            self.draw_settings(w, h)
+            self.panel.draw()
         if self.dialog == "quit":
             ui.dialog("Quit Val2d?", "Alt+F4 again quits at once.", [("Cancel", "quit_no", False), ("Quit", "quit_yes", True)])
 
@@ -407,10 +358,23 @@ class MainMenu:
             ui.button(pygame.Rect(join.x + 24, join.y + 180 + i * 32, 392, 28), f"{host_name}  {address}", f"lan:{i}", size="xs")
 
     def draw_career(self, w: int, h: int) -> None:
-        """Placeholder page like the real career tab: what this computer remembers about your matches."""
+        """Career page: patch notes of the active balance patches (config/patches); match history is not recorded yet."""
+        from gameplay.patches import notes
         ui = self.ui
-        ui.text("Career", (40, 96), "xl", "text", upper=True, bold=True, kind="title")
-        ui.text("Match history is not recorded yet.", (42, 160), "s", "muted", upper=True)
+        ui.text("Career", (40, 84), "xl", "text", upper=True, bold=True, kind="title")
+        ui.text("Patch notes", (42, 150), "m", "text", upper=True, bold=True)
+        active = notes()
+        if not active:
+            ui.text("No balance patches active (config/patches).", (42, 184), "s", "muted")
+        y = 184
+        for version, text in reversed(active):
+            ui.text(f"Patch {version}", (42, y), "s", "accent", upper=True, bold=True)
+            y += 24
+            for ln in ui.wrap(text or "(no notes)", "s", w - 120):
+                ui.text(ln, (42, y), "s", "text")
+                y += 20
+            y += 14
+        ui.text("Match history is not recorded yet.", (42, h - 40), "xs", "muted", upper=True)
 
 
 
@@ -465,68 +429,4 @@ class MainMenu:
         ui.button(pygame.Rect(w - 300, h - 100, 260, 56), "Selected" if chosen else "Select", "pick_agent", primary=not chosen,
                   enabled=not chosen)
 
-    def draw_settings(self, w: int, h: int) -> None:
-        ui, st = self.ui, self.settings
-        ui.shade()
-        box = pygame.Rect(120, 70, w - 240, h - 140)
-        ui.panel(box, "bg", edge="top")
-        ui.outline(box, "line")
-        ui.text("Settings", (box.x + 32, box.y + 22), "l", "text", upper=True, bold=True, kind="title")
-        x = box.x + 260
-        for key, label in SETTINGS_TABS:
-            tw = ui.size(label, "m", upper=True, bold=True)[0] + 40
-            ui.tab(pygame.Rect(x, box.y + 12, tw, 50), label, f"stab:{key}", self.settings_tab == key)
-            x += tw
-        ui.button(pygame.Rect(box.right - 150, box.y + 18, 120, 36), "Close", "settings_close", size="s")
-        ui.line((box.x, box.y + 70), (box.right, box.y + 70))
-        y = box.y + 96
-        if self.settings_tab == "general":
-            ui.text("Name", (box.x + 40, y + 10), "s", "muted", upper=True)
-            field = pygame.Rect(box.x + 300, y, 360, 40)
-            ui.fill(field, "panel_light")
-            ui.outline(field, "accent" if self.typing_name else "line")
-            ui.text(st["name"] + ("_" if self.typing_name else ""), (field.x + 12, field.y + 10), "m")
-            ui.area(field, "field:name")
-            y += 64
-        if self.settings_tab in SLIDERS:
-            for key, label in SLIDERS[self.settings_tab]:
-                low, high = user_settings.LIMITS[key]
-                ui.text(label, (box.x + 40, y + 2), "s", "muted", upper=True)
-                ui.slider(pygame.Rect(box.x + 300, y, 360, 20), (st[key] - low) / (high - low), f"slider:{key}")
-                ui.text(f"{st[key]:.2f}", (box.x + 690, y), "s")
-                y += 52
-            for key, label in CHECKS.get(self.settings_tab, ()):
-                ui.checkbox(pygame.Rect(box.x + 40, y, 26, 26), bool(st[key]), f"check:{key}")
-                ui.text(label, (box.x + 80, y + 3), "s")
-                y += 44
-        if self.settings_tab == "crosshair":
-            r = pygame.Rect(box.x + 300, y, 40, 40)
-            pygame.draw.rect(self.screen, pygame.Color(st["crosshair_color"]), r)
-            ui.outline(r, "text")
-            ui.area(r, "color")
-            ui.text("Colour (click)", (box.x + 40, y + 10), "s", "muted", upper=True)
-            prev = pygame.Rect(box.right - 260, box.y + 110, 200, 200)
-            ui.fill(prev, "panel_light")
-            self.draw_crosshair_preview(prev.center)
-        if self.settings_tab == "controls":
-            mouse = pygame.mouse.get_pos()
-            for i, (action, key) in enumerate(st["keys"].items()):
-                col, row = divmod(i, 10)
-                r = pygame.Rect(box.x + 40 + col * 500, y + row * 42, 470, 36)
-                active = self.binding == action
-                ui.fill(r, "panel_light" if r.collidepoint(mouse) or active else "panel")
-                ui.text(action.replace("_", " "), (r.x + 14, r.y + 9), "s", "muted", upper=True)
-                ui.text("press a key …" if active else key, (r.right - 14, r.y + 8), "s", "accent" if active else "text", "right",
-                        upper=not active, bold=True)
-                ui.area(r, f"bind:{action}")
-            ui.text("Click an action, then press the new key (Esc keeps the old one).", (box.x + 40, box.bottom - 40), "s", "muted")
 
-    def draw_crosshair_preview(self, at: tuple[int, int]) -> None:
-        """Same drawing as in the game (client/crosshair.py), shown twice as large to judge the pixels."""
-        from client import crosshair
-        st = self.settings
-        small = pygame.Surface((100, 100), pygame.SRCALPHA)
-        crosshair.draw(small, (50, 50), pygame.Color(st["crosshair_color"]), st["crosshair_size"], st["crosshair_gap"],
-                       bool(st["crosshair_dot"]))
-        big = pygame.transform.scale(small, (200, 200))
-        self.screen.blit(big, (at[0] - 100, at[1] - 100))

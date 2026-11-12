@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Any
 
-__all__ = ["agent", "preset", "ability", "thing", "on", "step",
+__all__ = ["agent", "preset", "ability", "library", "thing", "on", "step", "sound",
            "damage", "dps", "status", "heal", "heal_rate", "shield", "reveal", "cleanse", "immunity", "revive",
            "push", "pull", "knock_up", "dash", "hop", "teleport", "anchor", "overdrive", "charge", "ult_points",
            "credits", "spawn", "noise", "event", "end"]
@@ -74,6 +74,12 @@ def _slot_defaults(values: dict[str, Any]) -> dict[str, Any]:
     if "cost" in values:  # ultimate
         return {}
     return {"price": 0, "max": 1, "start": 0}
+
+
+def library(name: str, **overrides: Any) -> dict[str, Any]:
+    """An ability from config/content/abilities (ready-made), with values changed: library("firebomb", price=300)."""
+    from gameplay.kit.library import get
+    return {**get(name), **overrides}
 
 
 def thing(look: str, lasts: float = 10.0, triggers: list[dict[str, Any]] | None = None, **values: Any) -> dict[str, Any]:
@@ -180,6 +186,11 @@ def credits(amount: int) -> dict[str, Any]:
 
 def spawn(place: dict[str, Any]) -> dict[str, Any]:
     return step("spawn", place=place)
+
+
+def sound(key: str, radius: float = 30.0) -> dict[str, Any]:
+    """Plays a sound file (assets/sounds/<key>.wav) at the point for everyone in `radius` metres."""
+    return step("sound", key=key, radius=radius)
 
 
 def noise(**values: Any) -> dict[str, Any]:

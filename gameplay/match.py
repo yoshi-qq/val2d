@@ -34,7 +34,12 @@ def load_agents() -> dict[str, dict[str, Any]]:
     """Agents from config/content/agents/*.py (one file per agent, key = file name; files starting with _ are skipped).
     Broken agents and abilities are skipped with a warning naming the problem."""
     from gameplay.kit import check_ability
+    from gameplay.patches import apply_agent, section
     found: list[tuple[int, str, dict[str, Any]]] = []
+    known = {p.stem for p in AGENTS_DIR.glob("*.py")} if AGENTS_DIR.is_dir() else set()
+    for fname, changes in section("agents"):
+        for key in set(changes) - known:
+            warnings.warn(f"Patch {fname}: no agent {key!r}; change ignored")
     for path in sorted(AGENTS_DIR.glob("*.py")) if AGENTS_DIR.is_dir() else []:
         if path.name.startswith("_"):
             continue
@@ -42,6 +47,7 @@ def load_agents() -> dict[str, dict[str, Any]]:
         if not isinstance(agent, dict):
             warnings.warn(f"Agent file {path.name} has no AGENT dict; skipped.")
             continue
+        agent = apply_agent(path.stem, agent)  # balance patches (config/patches)
         try:
             abil = {slot: dict(agent["abilities"][slot]) for slot in ("C", "Q", "E", "X")}
         except (KeyError, TypeError) as exc:
@@ -1140,7 +1146,8 @@ class Match:
             p.ult_points -= int(ab["cost"])
         else:
             p.charges[key] -= 1
-        self.events.append(GameEvent("ability", self.time, {"pid": p.pid, "key": key, "kind": ab["kind"], "pos": (target.x, target.y)}))
+        self.events.append(GameEvent("ability", self.time, {"pid": p.pid, "key": key, "kind": ab["kind"], "pos": (target.x, target.y),
+                                                            "sound": str(ab.get("sound", ""))}))
 
     def _clip_to_walls(self, a: Vec, b: Vec, level: int) -> Vec:
         direction = (b - a).normalized()
@@ -1237,6 +1244,8 @@ class Match:
                 if p.plant_progress >= float(self._spike["plant_time"]):
                     self._plant(p, site.name)
             else:
+                if p.plant_progress > 0.0:
+                    self.events.append(GameEvent("plant_stop", self.time, {"pid": p.pid}))
                 p.plant_progress = 0.0
         if self.phase == "planted" and self.spike_pos is not None:
             for p in self.players.values():
@@ -1247,6 +1256,9 @@ class Match:
                     if p.defuse_progress in (0.0, float(self._spike["defuse_checkpoint"])) and not p.defusing:
                         self.events.append(GameEvent("defuse_start", self.time, {"pid": p.pid, "pos": (p.pos.x, p.pos.y)}))
                     p.defusing = True
+                    cp = float(self._spike["defuse_checkpoint"])
+                    if p.defuse_progress < cp <= p.defuse_progress + dt:
+                        self.events.append(GameEvent("defuse_half", self.time, {"pid": p.pid}))
                     p.defuse_progress += dt
                     if p.defuse_progress >= float(self._spike["defuse_time"]):
                         p.ult_points += int(self._ult["per_defuse"])
@@ -1257,6 +1269,8 @@ class Match:
                 else:
                     cp = float(self._spike["defuse_checkpoint"])
                     p.defuse_progress = cp if p.defuse_progress >= cp else 0.0
+                    if p.defusing:
+                        self.events.append(GameEvent("defuse_stop", self.time, {"pid": p.pid}))
                     p.defusing = False
             if self.time >= self.spike_planted_at + float(self._spike["fuse_time"]):
                 for t in self.players.values():

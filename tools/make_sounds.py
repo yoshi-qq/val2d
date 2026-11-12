@@ -175,6 +175,45 @@ def build() -> None:
          gain=0.5, cutoff=800)
     save("pickup", mix(highpass(noise(0.04), 1800) * env(0.04, 0.001, 90), at(lowpass(noise(0.05), 1000) * env(0.05, 0.001, 60), 0.05)), gain=0.45)
     save("ult_ready", mix(*(at(sine(np.full(int(RATE * 0.3), f), 0.3) * env(0.3, 0.01, 9) * 0.5, d) for f, d in ((587, 0), (880, 0.1)))), gain=0.4)
+    # ability casts: a broad palette for every kind of ability (abilities pick one with sound="...")
+    n = lambda d: int(RATE * d)  # noqa: E731
+    save("ability_equip", mix(highpass(noise(0.06), 1800) * env(0.06, 0.002, 60), at(sine(np.full(n(0.08), 660.0), 0.08) * env(0.08, 0.002, 40) * 0.4, 0.03)), gain=0.4)
+    save("cast_throw_light", highpass(noise(0.16), 1500) * env(0.16, 0.03, 18) * sine(np.linspace(3, 1, n(0.16)), 0.16) ** 2, gain=0.5)
+    save("cast_throw_heavy", mix(lowpass(noise(0.25), 900) * env(0.25, 0.04, 12), sine(np.linspace(160, 90, n(0.25)), 0.25) * env(0.25, 0.02, 14) * 0.4), gain=0.55)
+    save("cast_deploy", mix(lowpass(noise(0.12), 1200) * env(0.12, 0.002, 40), at(highpass(noise(0.4), 1200) * env(0.4, 0.05, 7) * 0.6, 0.08)), gain=0.5)
+    save("cast_place_trap", mix(highpass(noise(0.04), 2500) * env(0.04, 0.001, 110), at(sine(np.full(n(0.12), 980.0), 0.12) * env(0.12, 0.002, 30) * 0.4, 0.06),
+                                at(highpass(noise(0.03), 3000) * env(0.03, 0.001, 140), 0.16)), gain=0.45)
+    save("cast_charge_up", sine(np.linspace(180, 620, n(0.6)), 0.6) * env(0.6, 0.4, 4) + lowpass(noise(0.6), 1500) * env(0.6, 0.4, 5) * 0.3, gain=0.5)
+    save("cast_whoosh", highpass(noise(0.35), 900) * env(0.35, 0.12, 9), gain=0.5)
+    save("cast_magic", mix(*(at(sine(np.full(n(0.35), f), 0.35) * env(0.35, 0.01, 8) * 0.4, d) for f, d in ((660, 0), (880, 0.05), (1320, 0.1)))), gain=0.4)
+    save("cast_arcane", sine(np.linspace(900, 300, n(0.5)), 0.5) * env(0.5, 0.02, 6) * (1 + 0.4 * sine(np.full(n(0.5), 18.0), 0.5)), gain=0.45)
+    save("cast_tech", mix(*(at(sine(np.full(n(0.06), f), 0.06) * env(0.06, 0.001, 50), d) for f, d in ((1500, 0), (1100, 0.08), (1800, 0.16)))), gain=0.35)
+    save("cast_heal", mix(*(at(sine(np.full(n(0.5), f), 0.5) * env(0.5, 0.05, 5) * 0.35, d) for f, d in ((523, 0), (784, 0.1), (1047, 0.2)))), gain=0.45)
+    save("cast_buff", sine(np.linspace(300, 900, n(0.35)), 0.35) * env(0.35, 0.02, 8) + highpass(noise(0.35), 2500) * env(0.35, 0.02, 18) * 0.2, gain=0.45)
+    save("cast_shield_up", sine(np.full(n(0.5), 260.0), 0.5) * env(0.5, 0.05, 5) * (1 + 0.5 * sine(np.full(n(0.5), 9.0), 0.5)), gain=0.45)
+    save("cast_beam", mix(sine(np.full(n(0.5), 440.0), 0.5) * env(0.5, 0.01, 5) * 0.5, highpass(noise(0.5), 3000) * env(0.5, 0.01, 6) * 0.3), gain=0.45)
+    save("cast_burst", mix(lowpass(noise(0.3), 1200) * env(0.3, 0.001, 14), sine(np.linspace(220, 80, n(0.3)), 0.3) * env(0.3, 0.001, 12) * 0.5), gain=0.55)
+    save("cast_dark", sine(np.linspace(140, 60, n(0.8)), 0.8) * env(0.8, 0.1, 3) + lowpass(noise(0.8), 500) * env(0.8, 0.1, 3) * 0.5, gain=0.55)
+    save("cast_fire", lowpass(noise(0.7), 1600) * env(0.7, 0.02, 4) * (0.7 + 0.3 * sine(np.full(n(0.7), 23.0), 0.7)), gain=0.5)
+    save("cast_ice", mix(highpass(noise(0.4), 3500) * env(0.4, 0.002, 10) * 0.5, *(at(sine(np.full(n(0.2), f), 0.2) * env(0.2, 0.001, 20) * 0.3, d)
+                                                                                  for f, d in ((1760, 0.02), (2093, 0.09)))), gain=0.4)
+    save("cast_electric", highpass(noise(0.35), 2000) * env(0.35, 0.001, 10) * (0.5 + 0.5 * np.sign(sine(np.full(n(0.35), 37.0), 0.35))), gain=0.4)
+    save("cast_wind", lowpass(highpass(noise(0.5), 400), 2500) * env(0.5, 0.15, 6), gain=0.5)
+    save("cast_poison", mix(*(at(lowpass(noise(0.12), 700) * env(0.12, 0.01, 30) * 0.6, d) for d in (0, 0.15, 0.27, 0.42))), gain=0.5)
+    save("cast_sonic", sine(np.linspace(240, 120, n(0.5)), 0.5) * env(0.5, 0.01, 6) * (1 + 0.6 * sine(np.full(n(0.5), 30.0), 0.5)), gain=0.5)
+    save("cast_earth", mix(lowpass(noise(0.6), 400) * env(0.6, 0.03, 6) * 1.2, sine(np.linspace(70, 45, n(0.6)), 0.6) * env(0.6, 0.03, 6) * 0.6), gain=0.6)
+    save("ult_cast", mix(sine(np.linspace(150, 900, n(0.9)), 0.9) * env(0.9, 0.3, 3) * 0.6, lowpass(noise(0.9), 1800) * env(0.9, 0.3, 4) * 0.4,
+                         at(sine(np.full(n(0.4), 1320.0), 0.4) * env(0.4, 0.01, 8) * 0.3, 0.55)), gain=0.55)
+    # spike: plant (4 s: device out, seven rising key beeps, arming tone), defuse (7 s of mechanical work), halfway chime
+    plant = [lowpass(noise(0.3), 700) * env(0.3, 0.01, 12)]
+    plant += [at(sine(np.full(n(0.08), 600.0 + 60 * i), 0.08) * env(0.08, 0.002, 30) * 0.5, 0.45 + i * 0.45) for i in range(7)]
+    plant.append(at(sine(np.linspace(500, 900, n(0.35)), 0.35) * env(0.35, 0.02, 8) * 0.4, 3.65))
+    save("spike_plant", pad(mix(*plant), 4.05), gain=0.5)
+    work = [at(highpass(noise(0.03), 2500) * env(0.03, 0.001, 140) * 0.7, t) for t in np.arange(0.1, 6.9, 0.23)]
+    work += [at(lowpass(noise(0.2), 600) * env(0.2, 0.01, 18), t) for t in (0.0, 1.8, 3.6, 5.4)]
+    work += [at(sine(np.full(n(0.06), 1400.0), 0.06) * env(0.06, 0.001, 50) * 0.3, t) for t in (1.2, 2.9, 4.7, 6.3)]
+    save("spike_defuse", pad(mix(*work), 7.05), gain=0.45)
+    save("spike_defuse_half", mix(*(at(sine(np.full(n(0.25), f), 0.25) * env(0.25, 0.005, 10) * 0.5, d) for f, d in ((880, 0), (1320, 0.12)))), gain=0.45)
     # match flow and interface
     save("round_start", mix(*(at(sine(np.full(int(RATE * 0.25), f), 0.25) * env(0.25, 0.005, 10), d) for f, d in ((440, 0), (660, 0.15)))))
     save("round_win", mix(*(at(sine(np.full(int(RATE * 0.5), f), 0.5) * env(0.5, 0.005, 5) * 0.5, d) for f, d in ((523, 0), (659, 0.15), (784, 0.3), (1047, 0.45)))))

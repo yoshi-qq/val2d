@@ -6,6 +6,7 @@ import sys
 import math
 import warnings
 from dataclasses import dataclass, field
+from typing import Any
 from pathlib import Path
 
 import pygame
@@ -90,6 +91,7 @@ class UiState:
     noise: list[tuple[float, float]] = field(default_factory=list)         # own sounds: radius, start (minimap circle)
     pending_sounds: list[tuple[float, str, int, float, float]] = field(default_factory=list)  # due, key, pid, radius, gain
     damage_from: list[tuple[Vec, float]] = field(default_factory=list)    # attacker position, time (hit direction)
+    spike_sounds: dict[int, Any] = field(default_factory=dict)            # pid -> channel of a running plant/defuse sound
 
 
 STATUS_TINT = {"slow": (150, 110, 220), "decay": (120, 200, 90), "vulnerable": (230, 120, 80), "deaf": (120, 160, 230),
@@ -115,11 +117,13 @@ STEP_SOUND = {"metal_plate": "step_metal", "grate": "step_metal", "grass": "step
               "sand": "step_soft", "gravel": "step_soft", "carpet": "step_soft", "planks": "step_wood"}
 SHOT_SOUND = {"sidearm": "shot_pistol", "smg": "shot_smg", "shotgun": "shot_shotgun", "rifle": "shot_rifle",
               "sniper": "shot_sniper", "heavy": "shot_heavy", "melee": "knife"}
-ABILITY_SOUND = {"smoke": "ab_smoke", "wall": "ab_wall", "vapor_wall": "ab_wall", "flash": "ab_throw", "blast": "ab_throw",
-                 "wave": "ab_wave", "sensor": "ab_sensor", "alarm": "ab_alarm", "tripwire": "ab_trap", "dash": "ab_dash",
-                 "hop": "ab_hop", "teleport": "ab_teleport", "anchor": "ab_teleport", "heal": "ab_heal", "shield": "ab_shield",
-                 "revive": "ab_revive", "stim": "ab_stim", "reveal_all": "ab_reveal", "decoy": "ab_decoy", "zone": "ab_zone",
-                 "slow_field": "ab_zone", "overdrive": "ab_power", "immunity": "ab_power"}
+# cast sound per preset; an ability's own `sound` field wins (any cast_* or ab_* file)
+ABILITY_SOUND = {"smoke": "cast_deploy", "wall": "cast_earth", "vapor_wall": "cast_wind", "flash": "cast_throw_light",
+                 "blast": "cast_throw_heavy", "wave": "cast_sonic", "sensor": "cast_tech", "alarm": "cast_place_trap",
+                 "tripwire": "cast_place_trap", "dash": "cast_wind", "hop": "ab_hop", "teleport": "cast_arcane",
+                 "anchor": "cast_arcane", "heal": "cast_heal", "shield": "cast_shield_up", "revive": "ab_revive",
+                 "stim": "cast_buff", "reveal_all": "ab_reveal", "decoy": "ab_decoy", "zone": "cast_charge_up",
+                 "slow_field": "cast_ice", "overdrive": "ult_cast", "immunity": "ult_cast", "custom": "cast_magic"}
 
 
 SOUND_DEFAULTS = {"master": 0.8, "falloff_power": 1.6, "pan_floor": 0.12, "rear_gain": 0.75, "occluded_gain": 0.55,
@@ -166,15 +170,16 @@ class Sound:
             self.muffled[key] = pygame.sndarray.make_sound(np.clip(out, -32768, 32767).astype(np.int16))
 
     def play(self, key: str, listener: PlayerState | None = None, pos: Vec | None = None, radius: float = 40.0,
-             occluded: bool = False, gain: float = 1.0) -> None:
+             occluded: bool = False, gain: float = 1.0) -> pygame.mixer.Channel | None:
+        """Plays a sound placed around the listener; returns its channel (to stop long sounds), or None."""
         if not self.ok:
-            return
+            return None
         snd = self.sounds.get(key)
         if snd is None:
             if key not in self._warned:
                 self._warned.add(key)
                 warnings.warn(f"Sound missing: assets/sounds/{key}.wav")
-            return
+            return None
         left = right = 0.5
         muffle = occluded
         if listener is not None and pos is not None:
@@ -196,10 +201,11 @@ class Sound:
                 left = right = vol * 0.9
         left, right = left * gain * self.volume, right * gain * self.volume
         if left + right < 0.01:
-            return
+            return None
         ch = (self.muffled.get(key, snd) if muffle else snd).play()
         if ch:
             ch.set_volume(min(1.0, left), min(1.0, right))
+        return ch
 
 
 

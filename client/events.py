@@ -16,6 +16,11 @@ class EventsMixin:
             return "shot_silenced" if d.silenced else SHOT_SOUND.get(d.category, SHOT_SOUND.get(d.slot, "shot_rifle"))
         return STEP_SOUND.get(self.match.world.floor_material(pos), "step_hard")
 
+    def stop_spike_sound(self, pid: int) -> None:
+        ch = self.ui.spike_sounds.pop(pid, None)
+        if ch is not None:
+            ch.stop()
+
     def through_smoke(self, a: Vec, b: Vec) -> bool:
         from gameplay.geometry import segment_circle_hit
         return any(e.kind == "smoke" and e.start <= self.match.time and segment_circle_hit(a, b, e.pos, e.radius)
@@ -98,8 +103,17 @@ class EventsMixin:
             elif e.kind == "pickup" and d.get("pid") == self.me:
                 self.sound.play("pickup", gain=0.6)
             elif e.kind in ("plant_start", "defuse_start"):
-                self.sound.play("bomb_plant" if e.kind == "plant_start" else "bomb_defuse", me, Vec(*d["pos"]), 30,
-                                occluded=self.occluded(me, Vec(*d["pos"])))
+                self.stop_spike_sound(d["pid"])
+                key = "spike_plant" if e.kind == "plant_start" else "spike_defuse"
+                ch = self.sound.play(key, me, Vec(*d["pos"]), 35, occluded=self.occluded(me, Vec(*d["pos"])))
+                if ch is not None:
+                    self.ui.spike_sounds[d["pid"]] = ch
+            elif e.kind in ("plant_stop", "defuse_stop"):
+                self.stop_spike_sound(d["pid"])
+            elif e.kind == "defuse_half":
+                p = m.players.get(d["pid"])
+                if p is not None:
+                    self.sound.play("spike_defuse_half", me, p.pos, 35, occluded=self.occluded(me, p.pos))
             elif e.kind == "sound":
                 if me.status.get("deaf", 0.0) > t:
                     continue
@@ -129,6 +143,7 @@ class EventsMixin:
                 if d["by"] == self.me:
                     self.ui.hit_marker = t + 0.15
             elif e.kind == "kill":
+                self.stop_spike_sound(d["pid"])
                 self.ui.died_at[d["pid"]] = t
                 killer = m.players.get(d["by"]) if d["by"] else None
                 victim = m.players.get(d["pid"])
@@ -141,6 +156,7 @@ class EventsMixin:
                 elif d["pid"] == self.me:
                     self.sound.play("death")
             elif e.kind == "plant":
+                self.stop_spike_sound(d["pid"])
                 self.ui.banner = (t + 2.5, f"Bomb planted on {d['site']}")
                 self.ui.banner_art = "spike_gelegt"
                 self.sound.play("bomb_planted")
@@ -169,7 +185,10 @@ class EventsMixin:
                 fx = {"teleport": ("teleport", 0.4), "shield": ("shield_shell", 0.6), "anchor": ("teleport", 0.4)}.get(str(d.get("kind")))
                 if fx:
                     self.ui.figure_fx.append((d["pid"], fx[0], t, fx[1]))
-                self.sound.play(ABILITY_SOUND.get(kind, "ab_power"), me, at, 30, occluded=self.occluded(me, at))
+                cast = str(d.get("sound") or "")  # an ability may name its own cast sound
+                key = cast if cast in self.sound.sounds else ABILITY_SOUND.get(kind, "cast_magic")
+                origin = caster.pos if caster is not None else at
+                self.sound.play(key, me, origin, 30, occluded=self.occluded(me, origin))
             elif e.kind == "round_end":
                 won = d["winner"] == me.team
                 self.sound.play("round_win" if won else "round_loss")
@@ -184,7 +203,11 @@ class EventsMixin:
             elif e.kind == "flash":
                 self.sound.play("ab_flash", me, Vec(*d["pos"]), 35, occluded=self.occluded(me, Vec(*d["pos"])))
                 self.ui.oneshots.append(("fx/funke_explosion.png", Vec(*d["pos"]), t, 0.3, 16, (1.0, 1.0)))
+            elif e.kind == "sound_fx":
+                pos = Vec(*d["pos"])
+                self.sound.play(str(d.get("key", "")), me, pos, float(d.get("radius", 30.0)), occluded=self.occluded(me, pos))
             elif e.kind == "door":
                 self.sound.play("door", me, Vec(*d["pos"]), 20)
             elif e.kind == "defuse":
+                self.stop_spike_sound(d["pid"])
                 self.sound.play("bomb_defused")
