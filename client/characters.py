@@ -4,6 +4,19 @@ from __future__ import annotations
 from client.common import *  # noqa: F403  (pygame, colours, types)
 
 
+def figure_view(relative_facing: float) -> tuple[str, bool]:
+    """Which side of a figure the camera sees: ("back" | "side" | "front", mirror).
+
+    relative_facing: the figure's facing minus the viewer's, in compass degrees (0 looks the same way as the viewer,
+    i.e. up on screen and away from the camera; 90 looks right on screen). Side sprites look right; mirror for left."""
+    rel = relative_facing % 360
+    if rel < 45 or rel >= 315:
+        return "back", False
+    if 135 <= rel < 225:
+        return "front", False
+    return "side", rel >= 180
+
+
 class CharactersMixin:
     def sprite_cfg(self, p: PlayerState) -> dict:
         return dict(self.match.agents.get(p.agent, {}).get("sprites", {}))
@@ -79,12 +92,12 @@ class CharactersMixin:
             if self.slot_active(p, slot):
                 form = str(name)
         enemy = p.team != me.team
-        rel = (p.facing - me.facing) % 360  # 0: looks away from the camera (up on screen), 180: toward it
-        view = "back" if rel < 45 or rel >= 315 else "front" if 135 <= rel < 225 else "side"
-        if view == "front" or not self.chars.has_view(p.agent, state, enemy, view):
+        view, mirror = figure_view(p.facing - me.facing)
+        # forms have no back or side sprites yet: their front view wins over another view of the normal figure
+        if view == "front" or form or not self.chars.has_view(p.agent, state, enemy, view):
             return self.chars.frame(p.agent, state, enemy, self.scale, clock, form=form, speed=speed)
-        img = self.chars.frame(p.agent, state, enemy, self.scale, clock, form=form, speed=speed, view=view)
-        if img is not None and view == "side" and rel >= 180:  # side sprites look right; mirror for left
+        img = self.chars.frame(p.agent, state, enemy, self.scale, clock, speed=speed, view=view)
+        if img is not None and mirror:
             img = pygame.transform.flip(img, True, False)
         return img
 

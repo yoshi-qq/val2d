@@ -46,4 +46,4 @@ Brimstone is ready for roster integration. The 16×32 cast/channel frames in `as
 | figure_{key}_{state}_back | 16×32 per frame, same frames as the front state | Agent seen from behind (looking away from the camera; the own figure is always seen like this). At least idle and walk; other states fall back to the front view. Enemy variant *_back_feind | needed |
 | figure_{key}_{state}_side | as above | Agent seen from the side, looking to the right (the game mirrors it for left). At least idle and walk | needed |
 
-The game picks back, side or front from where the figure looks relative to the camera (assets/agents/{key}/{key}_{state}_back.png, _side.png); missing files fall back to the front view.
+The game picks back, side or front from where the figure looks relative to the camera (assets/agents/{key}/{key}_{state}_back.png, _side.png); missing files fall back to the front view. Details, priorities and agent order: [figure views handover](design/FIGURE_VIEWS.md).

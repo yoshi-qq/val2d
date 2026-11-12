@@ -56,3 +56,31 @@ def test_screen_pictures_ignore_enemy_flag() -> None:
     for tag in ("portrait", "killfeed", "select"):
         found = c.resolve("kestrel", tag, enemy=True)
         assert found is not None and found[1] == tag and "_feind" not in found[0]
+
+
+def test_figure_view_by_relative_facing() -> None:
+    from client.characters import figure_view
+    assert figure_view(0) == ("back", False)
+    assert figure_view(-30) == ("back", False)
+    assert figure_view(90) == ("side", False)    # looks right on screen: side sprite as drawn
+    assert figure_view(270) == ("side", True)    # looks left: mirrored
+    assert figure_view(180) == ("front", False)
+    assert figure_view(-180) == ("front", False)
+
+
+def test_back_and_side_files_win_else_front(tmp_path: Path, monkeypatch) -> None:
+    import shutil
+    import sprite_bank
+    src = sprite_bank.ASSETS / "agents" / "kestrel"
+    dst = tmp_path / "agents" / "kestrel"
+    dst.mkdir(parents=True)
+    for name in ("kestrel_idle.png", "kestrel_walk.png", "kestrel_idle_feind.png"):
+        shutil.copy(src / name, dst / name)
+    shutil.copy(src / "kestrel_idle.png", dst / "kestrel_idle_back.png")
+    monkeypatch.setattr(sprite_bank, "ASSETS", tmp_path)
+    c = chars()
+    assert c.has_view("kestrel", "idle", False, "back")
+    assert c.resolve("kestrel", "idle", False, view="back") == ("agents/kestrel/kestrel_idle_back.png", "idle")
+    assert not c.has_view("kestrel", "idle", True, "back")       # no enemy back view: front view of the enemy
+    assert not c.has_view("kestrel", "walk", False, "side")      # missing side view: front walk
+    assert c.resolve("kestrel", "walk", False, view="side") == ("agents/kestrel/kestrel_walk.png", "walk")
