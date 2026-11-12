@@ -144,7 +144,7 @@ def make_walls() -> None:
     w1.edge_light(hedge, 0.1, 0.65)
     save(hedge, T + "wall_hedge.png")
     barrier = masked(32, 32, lambda d: (d.rectangle((0, 8, 31, 23), fill=1), d.rectangle((0, 12, 31, 19), fill=5),
-                                        d.rectangle((14, 8, 17, 23), fill=3)), {1: "#8a8790", 3: "#4a4850", 5: "#a8a5ae"})
+                                        d.line([(31, 8), (31, 23)], fill=3)), {1: "#8a8790", 3: "#4a4850", 5: "#a8a5ae"})
     save(barrier, T + "wall_jersey_barrier.png")
 
 
@@ -217,7 +217,18 @@ def make_objects() -> None:
         d.ellipse((6, 10, 28, 31), fill=1)
         d.ellipse((10, 8, 20, 18), fill=2)
         d.ellipse((14, 14, 17, 17), fill=3)
-    save(masked(32, 32, tree, {1: "#3e6a34", 2: "#4f8a42", 3: "#4a3020"}), PROPS + "tree.png")
+    crown = masked(32, 32, tree, {1: "#3e6a34", 2: "#4f8a42", 3: "#4a3020"})
+    cp = crown.load()
+    for y in range(32):  # crown see-through towards the edge, so the floor and the trunk read
+        for x in range(32):
+            r, g, b_, a_ = cp[x, y]
+            if a_:
+                dd = math.hypot(x - 15.5, y - 15.5) / 16
+                cp[x, y] = (r, g, b_, int(a_ * (0.95 - 0.45 * min(1.0, dd))))
+    trunk = masked(32, 32, lambda d: (d.ellipse((12, 12, 19, 19), fill=3), d.ellipse((14, 14, 17, 17), fill=2)),
+                   {1: "#4a3020", 2: "#6b4a2e", 3: "#3a2416"})
+    crown.alpha_composite(trunk)
+    save(crown, PROPS + "tree.png")
     save(masked(16, 16, lambda d: (d.ellipse((0, 2, 9, 11), fill=1), d.ellipse((5, 0, 15, 10), fill=1), d.ellipse((3, 5, 14, 15), fill=1),
                                    d.ellipse((6, 5, 10, 9), fill=2)), {1: "#3e6a34", 2: "#5a9a4a"}), PROPS + "bush.png")
     save(masked(16, 12, lambda d: (d.polygon([(1, 8), (4, 2), (10, 0), (15, 4), (14, 10), (5, 11)], fill=1),
