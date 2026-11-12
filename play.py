@@ -190,6 +190,7 @@ class Game:
         self.local_facing = 0.0
         self.seen_round = -1
         self.spectate_index = 0
+        self.server_pos: dict[int, Vec] = {}  # client: host positions, smoothed towards each frame
         self.ui = UiState()
         self.sound = Sound()
         self.cursor_depth = 8.0
@@ -310,16 +311,49 @@ class Game:
         assert self.client is not None
         if self.client.connected:
             self.client.send(cmd)
+        self.predict_own(dt, cmd)
         events: list[GameEvent] = []
         for msg in self.client.take():
             try:
                 if msg.get("type") == "events":
                     events += events_from_json(msg.get("events", []))
                 elif msg.get("type") == "state":
-                    apply_snapshot(self.match, msg["snap"], self.me)
+                    apply_snapshot(self.match, msg["snap"], self.me, predict_own=True, server_pos=self.server_pos)
             except (KeyError, TypeError, ValueError) as exc:
                 warnings.warn(f"Snapshot from host unreadable: {exc}")
+        self.smooth_positions(dt)
         return events
+
+    def predict_own(self, dt: float, cmd: Command) -> None:
+        """Move the own figure at once with the same rules as the host (no waiting for the round trip)."""
+        me = self.match.players.get(self.me)
+        if me is None or not me.alive or self.match.phase not in ("buy", "live", "planted"):
+            return
+        me.walking, me.crouching = cmd.walk, cmd.crouch
+        speed = self.match._max_speed(me)
+        wish = Vec(cmd.move_x, cmd.move_y)
+        if wish.length() > 1:
+            wish = wish.normalized()
+        target = wish.rotated(me.facing) * speed
+        diff = target - me.vel
+        rate = float(self.match._mv["accel"] if wish.length() > 0 else self.match._mv["decel"]) * dt
+        me.vel = target if diff.length() <= rate else me.vel + diff.normalized() * rate
+        self.match._physics(me, dt)
+
+    def smooth_positions(self, dt: float) -> None:
+        """Others glide towards their host position; the own figure is pulled back only when it drifts off."""
+        for pid, host_pos in self.server_pos.items():
+            p = self.match.players.get(pid)
+            if p is None:
+                continue
+            error = host_pos - p.pos
+            if pid == self.me:
+                if error.length() > 2.5:
+                    p.pos = host_pos  # prediction went wrong (blocked, knocked back): take the host's word
+                elif error.length() > 0.05:
+                    p.pos = p.pos + error * min(1.0, dt * 4.0)
+            else:
+                p.pos = p.pos + error * min(1.0, dt * 15.0)
 
     def handle_events(self, events: list[GameEvent]) -> None:
         m, t = self.match, self.match.time

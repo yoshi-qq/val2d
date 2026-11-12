@@ -99,8 +99,13 @@ def event_to_json(e: GameEvent) -> dict[str, Any]:
 
 
 # ------------------------------------------------------------------ Applying snapshots
-def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int) -> None:
-    """Copies a host snapshot into a shadow match for drawing (no own simulation)."""
+def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bool = False,
+                   server_pos: dict[int, Vec] | None = None) -> None:
+    """Copies a host snapshot into a shadow match for drawing.
+
+    predict_own: keep the client's own predicted position; the host's goes to server_pos[own_pid].
+    server_pos: if given, every player's host position is stored there (for smoothing), not applied directly.
+    """
     new_round = int(snap["round"]) != m.round_no
     m.time = float(snap["time"])
     m.phase = snap["phase"]
@@ -143,8 +148,15 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int) -> None:
             m.players[pid] = p
         p.visible = True
         p.is_bot = row["bot"]
-        p.pos = Vec(row["x"], row["y"])
-        p.vel = Vec(row.get("vx", 0.0), row.get("vy", 0.0))
+        host_pos = Vec(row["x"], row["y"])
+        if server_pos is not None:
+            server_pos[pid] = host_pos
+            if pid not in m.players or (p.pos - host_pos).length() > 6.0 or new_round:
+                p.pos = host_pos  # far off or a new round: jump instead of gliding
+        else:
+            p.pos = host_pos
+        if not (predict_own and pid == own_pid):
+            p.vel = Vec(row.get("vx", 0.0), row.get("vy", 0.0))
         p.z, p.level = row["z"], row["level"]
         if pid != own_pid or new_round:
             p.facing = row["facing"]
