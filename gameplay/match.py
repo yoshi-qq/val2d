@@ -622,14 +622,29 @@ class Match:
             s *= float(self._mv["air_mod"])
         return s * abilities.speed_factor(self, p)
 
+    def _landing(self, p: PlayerState, speed: float) -> None:
+        """Fall damage above a safe landing speed (rules.json "fall"); never from ordinary jumps."""
+        safe = float(rule("fall", "safe_speed", 7.0))
+        if speed <= safe or not p.alive:
+            return
+        dmg = min(int(rule("fall", "max_damage", 60)), int((speed - safe) * float(rule("fall", "damage_per_speed", 15.0))))
+        if dmg > 0:
+            p.hp -= dmg  # armour does not absorb falls
+            self.events.append(GameEvent("hit", self.time, {"by": None, "pid": p.pid, "dmg": dmg, "zone": "legs"}))
+            if p.hp <= 0:
+                self._kill(None, p, "fall", "legs")
+
     def _physics(self, p: PlayerState, dt: float) -> None:
         radius = float(self._mv["radius"])
         lh = float(self._mv["level_height"])
         zone = self.world.spawn_zones.get(0 if self.side(p.team) == "attack" else 1) if self.phase == "buy" else None
         # vertical
         p.vz -= float(self._mv["gravity"]) * dt
+        airborne = p.z > 0.0
         p.z = max(0.0, p.z + p.vz * dt)
         if p.z <= 0.0:
+            if airborne:
+                self._landing(p, -p.vz)
             p.vz = 0.0
         # horizontal, colliding with everything higher than the current height
         height_level = p.level + int(p.z / lh + 0.5)

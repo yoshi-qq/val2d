@@ -386,3 +386,16 @@ def test_practice_range_buys_anywhere_and_targets_respawn() -> None:
     assert targets[0].alive and (targets[0].pos - targets[0].home).length() < 0.01
     run(m, 200)
     assert m.phase == "live" and m.round_no == 1
+
+
+def test_fall_damage_only_above_safe_speed() -> None:
+    m, a, _ = duel()
+    run(m, 31)
+    p = m.players[a]
+    p.vz = 4.2  # an ordinary jump
+    p.z = 0.01
+    run(m, 1.0)
+    assert p.hp == 100
+    p.z, p.vz = 3.5, 0.0  # dropping from 3.5 m
+    run(m, 1.5)
+    assert 40 <= p.hp < 100
