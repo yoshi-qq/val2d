@@ -1,15 +1,25 @@
 # Roadmap
 Status 12.11.2026. Items marked "(new core)" are done in the new gameplay core (`gameplay/`, `play.py`) instead of the old path (`main.py`, `handlers/`).
 
+See the [active playtest and art checklist](README.md#roadmap).
+
+## VALORANT art pass
+
+See the [current roster, maps and sprite previews](README.md#game-content).
+
+- [x] Add native-size character sprites, cast and channel animations, ability icons and FX for the VALORANT roster.
+- [x] Add the VALORANT agent kits to the selectable roster.
+- [x] Replace the weapon art with matching 32×16 hand and buy-menu sprites, including Bandit and Warden.
+- [x] Register the Ascent tiles, props and decals, enable Ascent in the map picker and add its map icon.
+- [x] Add switch-operated, destructible site doors and breakable Mid panels to Ascent.
+
 ## Bugs
 (- [x] Switch from Agent Select to In-Game-Player only happens sometimes) – old path; the new lobby/agent select replaces it
 (- [x] Connection randomly closed) – old path; networking now via netplay (keepalive, timeouts, host-lost event)
-- [ ] Not yet played with a window: game feel and balance unchecked
-- [ ] Bot balance one-sided on Harbour (defenders win) and Gasse 1v1 (attackers win)
 
 ## Refactoring
 - [x] Crouch door -> Crouching needed to fit under any low surface – replaced: doors open with F, low cover has height 1
-- [ ] Decide: drawing through graphy or pygame-ce directly (see docs/ENTSCHEIDUNGEN.md)
+- [ ] Decide: drawing through graphy or pygame-ce directly (see docs/DECISIONS.md)
 - [ ] Decide: remove the old game path (main.py, handlers/, classes/, mapEditor.py)
 
 ## Next
@@ -48,7 +58,7 @@ Status 12.11.2026. Items marked "(new core)" are done in the new gameplay core (
     - [x] wall Penetration (by material)
     - [x] damaging (by zone and distance)
     - [x] spread, spray pattern, alternate fire (zoom, burst, spread shot, spin-up)
-- [x] Abilities (ability kit: targets, triggers, effects, passives; 21 presets, 19 statuses; 30 agents in config/content/agents/)
+- [x] Abilities (ability kit with targets, triggers, effects and passives, and agent definitions in config/content/agents/)
 - [x] Worlds (standing in smoke -> only seeing inside smoke, standing outside -> only see outside)
 - [x] Stats (scoreboard: kills, deaths, credits, ping; range: accuracy and headshots)
 - [x] Buy Menu
@@ -73,11 +83,7 @@ Status 12.11.2026. Items marked "(new core)" are done in the new gameplay core (
 
 ## Additions
 - [x] Replace all DEFAULTS with settings, config, etc. (config/*.py incl. rules.py and game_config.py, ~/.val2d/settings.json)
-- [x] More Weapons (20)
-- [x] More Agents (30)
-- [x] More Gamemodes (quick, team deathmatch, practice range)
-- [x] More Maps (Werkhof, Gasse, Harbour)
-- [x] The Range
+- [x] Swiftplay and Team Deathmatch
 
 ## Done 12.11.2026 (second pass)
 - [x] Own sound effects (tools/make_sounds.py, 52 WAVs) with stereo, distance and wall muffling
@@ -101,7 +107,6 @@ Status 12.11.2026. Items marked "(new core)" are done in the new gameplay core (
 - [x] Climbing: full walls never climbed, crates only by a full jump, no popping up onto edges
 
 ## Open
-- [ ] Internet test across two real networks (Pakete/netplay/TESTING.md)
 - [ ] Relay for players behind strict routers
 
 ## Maybe
