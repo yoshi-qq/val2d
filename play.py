@@ -182,6 +182,7 @@ class Game:
         self.status = ""
         if args.join:
             self.mode = "client"
+            self.join_target, self.join_name, self.join_agent = args.join, args.name, args.agent
             self.client = NetClient(args.join, args.name, args.agent)
             self.match = Match(load_map(self.client.map_key), cfg)
             self.me = self.client.pid
@@ -251,7 +252,9 @@ class Game:
                 elif ev.type == pygame.KEYDOWN and ev.key == pygame.K_RETURN and self.match.phase == "over":
                     running = False  # back to the menu
                 elif ev.type == pygame.KEYDOWN:
-                    if ev.key == pygame.K_RETURN and self.match.phase == "lobby":
+                    if ev.key == pygame.K_RETURN and self.client is not None and not self.client.connected:
+                        self.rejoin()
+                    elif ev.key == pygame.K_RETURN and self.match.phase == "lobby":
                         if self.session:
                             self.session.start(self.team_size)
                         elif self.mode == "local" and self.practice:
@@ -318,7 +321,7 @@ class Game:
                 self.audio_tick(self.match.players[self.me])
             self.draw()
             if self.client and not self.client.connected:
-                self.status = "Lost connection to host"
+                self.status = "Lost connection to host – press Enter to rejoin"
         if self.session:
             self.session.close()
         if self.client:
@@ -337,6 +340,19 @@ class Game:
             self.map_cache[key] = build_map_surface(self.match.world, self.bank, scale)
         self.map_surface = self.map_cache[key]
         self._crop = None
+
+    def rejoin(self) -> None:
+        """Connect again after a drop; the host gives the old slot back (same token or name)."""
+        old = self.client
+        assert old is not None
+        try:
+            self.client = NetClient(self.join_target, self.join_name, self.join_agent, token=old.token)
+        except ConnectionError as exc:
+            self.client = old
+            self.status = f"Rejoin failed: {exc} – press Enter to try again"
+            return
+        self.me = self.client.pid
+        self.status = "" if self.client.rejoined else "Joined as a new player"
 
     def step(self, dt: float, cmd: Command) -> list[GameEvent]:
         if self.mode == "local":

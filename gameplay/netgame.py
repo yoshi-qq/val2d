@@ -5,6 +5,7 @@ State goes out unreliable (newest wins), events and everything else reliable. No
 """
 from __future__ import annotations
 
+import secrets
 import threading
 import time
 import warnings
@@ -37,6 +38,8 @@ class NetHost:
         self.accepting = True
         self.pending: dict[int, Command] = {}
         self.pid_of: dict[int, int] = {}  # lobby player id -> match pid
+        self.tokens: dict[str, int] = {}  # rejoin token -> match pid
+        self.dropped: dict[int, str] = {}  # match pid -> original name, while a bot plays for them
         self.running = True
         self._thread = threading.Thread(target=self._loop, daemon=True, name="val2d-host")
         self._thread.start()
@@ -55,8 +58,10 @@ class NetHost:
         for ev in self.lobby.poll():
             if ev.kind == "left" and ev.player in self.pid_of:
                 with self.lock:
-                    p = self.match.players.get(self.pid_of.pop(ev.player))
-                    if p:  # a bot takes over a disconnected player
+                    pid = self.pid_of.pop(ev.player)
+                    p = self.match.players.get(pid)
+                    if p:  # a bot takes over a disconnected player until they rejoin
+                        self.dropped[pid] = p.name
                         p.is_bot = True
                         p.name += " (Bot)"
             elif ev.kind == "message" and ev.player is not None and ev.message is not None:
@@ -70,6 +75,8 @@ class NetHost:
             if msg.get("protocol") != GAME_PROTOCOL:
                 self.lobby.send({"t": "error", "reason": "Different Val2d version."}, to=lid)
                 return
+            if self._rejoin(lid, msg):
+                return
             if not self.accepting:
                 self.lobby.send({"t": "error", "reason": "The match has already started."}, to=lid)
                 return
@@ -80,7 +87,9 @@ class NetHost:
                 team = 0 if count[0] <= count[1] else 1
                 p = self.match.add_player(name, team, agent if agent in self.match.agents else "kestrel")
                 self.pid_of[lid] = p.pid
-            self.lobby.send({"t": "welcome", "pid": p.pid, "map": self.match.world.key, "team": team}, to=lid)
+            token = secrets.token_hex(8)
+            self.tokens[token] = p.pid
+            self.lobby.send({"t": "welcome", "pid": p.pid, "map": self.match.world.key, "team": team, "token": token}, to=lid)
         elif t == "cmd" and lid in self.pid_of:
             cmd = command_from_json(msg.get("cmd", {}) if isinstance(msg.get("cmd"), dict) else {})
             pid = self.pid_of[lid]
@@ -88,6 +97,29 @@ class NetHost:
                 self.pending[pid] = merge_commands(self.pending.get(pid), cmd)
         elif t == "agent" and lid in self.pid_of:
             self.choose_agent(self.pid_of[lid], msg.get("agent"))
+
+    def _rejoin(self, lid: int, msg: dict[str, Any]) -> bool:
+        """Give a dropped player their slot back: by token, or by the same name if the game was restarted."""
+        token = str(msg.get("token", ""))
+        pid = self.tokens.get(token) if token else None
+        if pid is None or pid not in self.dropped:
+            name = self.lobby.players[lid].name if lid in self.lobby.players else ""
+            pid = next((d for d, original in self.dropped.items() if original == name), None)
+        if pid is None:
+            return False
+        with self.lock:
+            p = self.match.players.get(pid)
+            if p is None:
+                return False
+            p.is_bot = False
+            p.name = self.dropped.pop(pid)
+            self.pid_of[lid] = pid
+        new_token = secrets.token_hex(8)
+        self.tokens = {t: v for t, v in self.tokens.items() if v != pid}
+        self.tokens[new_token] = pid
+        self.lobby.send({"t": "welcome", "pid": pid, "map": self.match.world.key, "team": p.team, "token": new_token,
+                         "rejoined": True}, to=lid)
+        return True
 
     def choose_agent(self, pid: int, agent: object) -> bool:
         with self.lock:
@@ -141,12 +173,12 @@ class NetHost:
 class NetClient:
     """Joins a Val2d host by join code (internet) or "address[:port]" (LAN)."""
 
-    def __init__(self, target: str, name: str, agent: str, timeout: float = 8.0) -> None:
+    def __init__(self, target: str, name: str, agent: str, timeout: float = 8.0, token: str = "") -> None:
         try:
             self.lobby = netplay.join_lobby(target, name)
         except (OSError, netplay.LobbyError, netplay.CodeError) as exc:
             raise ConnectionError(str(exc)) from exc
-        self.lobby.send({"t": "hello", "agent": agent, "protocol": GAME_PROTOCOL})
+        self.lobby.send({"t": "hello", "agent": agent, "protocol": GAME_PROTOCOL, "token": token})
         self.inbox: list[dict[str, Any]] = []
         deadline = time.monotonic() + timeout
         welcome = None
@@ -168,6 +200,8 @@ class NetClient:
             raise ConnectionError("The host did not answer.")
         self.pid = int(welcome["pid"])
         self.map_key = str(welcome["map"])
+        self.token = str(welcome.get("token", ""))
+        self.rejoined = bool(welcome.get("rejoined", False))
         self.connected = True
         self.status = ""
 

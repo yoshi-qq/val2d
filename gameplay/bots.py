@@ -265,4 +265,5 @@ class BotDirector:
 
     def commands(self, dt: float) -> dict[int, Command]:
         self.sync()
-        return {pid: b.think(self.match, dt) for pid, b in self.brains.items()}
+        players = self.match.players
+        return {pid: b.think(self.match, dt) for pid, b in self.brains.items() if pid in players and players[pid].is_bot}

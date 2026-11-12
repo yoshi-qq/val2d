@@ -141,3 +141,33 @@ def test_client_picks_agent_in_lobby_only(session: HostSession) -> None:
         assert session.match.players[client.pid].agent == "sable"
     finally:
         client.close()
+
+
+def test_dropped_player_rejoins_their_slot(session: HostSession) -> None:
+    client = NetClient(f"127.0.0.1:{session.net.port}", "Guest", "kestrel")
+    pid, token = client.pid, client.token
+    _wait(lambda: pid in session.match.players, session)
+    session.start(team_size=1)
+    client.close()
+    _wait(lambda: session.match.players[pid].is_bot, session)
+    back = NetClient(f"127.0.0.1:{session.net.port}", "Guest", "kestrel", token=token)
+    try:
+        assert back.pid == pid and back.rejoined
+        assert not session.match.players[pid].is_bot and session.match.players[pid].name == "Guest"
+        assert pid not in session.bots.commands(1 / 64)
+    finally:
+        back.close()
+
+
+def test_rejoin_by_name_after_restart(session: HostSession) -> None:
+    client = NetClient(f"127.0.0.1:{session.net.port}", "Restarter", "kestrel")
+    pid = client.pid
+    _wait(lambda: pid in session.match.players, session)
+    session.start(team_size=1)
+    client.close()
+    _wait(lambda: session.match.players[pid].is_bot, session)
+    back = NetClient(f"127.0.0.1:{session.net.port}", "Restarter", "kestrel")
+    try:
+        assert back.pid == pid
+    finally:
+        back.close()
