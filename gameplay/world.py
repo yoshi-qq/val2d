@@ -64,16 +64,51 @@ class WorldMap:
     practice_targets: list[tuple[Vec, float]] = field(default_factory=list)  # (position, sideways travel in m)
     decals: list[MapThing] = field(default_factory=list)
 
-    def floor_level(self, p: Vec) -> int:
-        """Level of the surface under a point (crates count as level 1)."""
-        level = 0
+    def ground_height(self, p: Vec) -> float:
+        """Height of the surface under a point in metres: platforms and low cover are one level high,
+        ramps rise evenly from their low end to the platform they lead onto."""
+        h = 0.0
         for pl in self.platforms:
             if pl.rect.contains(p):
-                level = max(level, pl.level)
+                h = max(h, float(pl.level))
         for w in self.walls:
-            if w.height == 1 and w.rect.contains(p):
-                level = max(level, 1)
-        return level
+            if w.height == 1 and w.solid and w.rect.contains(p):
+                h = max(h, 1.0)
+        for rect, axis, high_at_min, top in self.ramp_profiles():
+            if rect.contains(p):
+                span = (rect.x1 - rect.x0) if axis == "x" else (rect.y1 - rect.y0)
+                along = (p.x - rect.x0) if axis == "x" else (p.y - rect.y0)
+                t = along / span if span > 0 else 1.0
+                h = max(h, top * ((1.0 - t) if high_at_min else t))
+        return h
+
+    def ramp_profiles(self) -> list[tuple[Rect, str, bool, float]]:
+        """Per ramp: (rect, axis it rises along, True if the high end is at the smaller coordinate, top height)."""
+        cached = getattr(self, "_ramp_cache", None)
+        if cached is not None:
+            return cached
+        out: list[tuple[Rect, str, bool, float]] = []
+        for r in self.ramps:
+            best: tuple[float, str, bool, float] | None = None
+            for pl in self.platforms:
+                p = pl.rect
+                overlap_y = min(r.y1, p.y1) - max(r.y0, p.y0)
+                overlap_x = min(r.x1, p.x1) - max(r.x0, p.x0)
+                for gap, axis, high_min in ((abs(r.x0 - p.x1), "x", True), (abs(r.x1 - p.x0), "x", False),
+                                            (abs(r.y0 - p.y1), "y", True), (abs(r.y1 - p.y0), "y", False)):
+                    touching = overlap_y > 0 if axis == "x" else overlap_x > 0
+                    if touching and gap < 0.6 and (best is None or gap < best[0]):
+                        best = (gap, axis, high_min, float(pl.level))
+            if best is None:  # no platform next to it: rise along the longer side toward larger coordinates
+                axis = "x" if (r.x1 - r.x0) >= (r.y1 - r.y0) else "y"
+                best = (0.0, axis, False, 1.0)
+            out.append((r, best[1], best[2], best[3]))
+        self._ramp_cache = out
+        return out
+
+    def floor_level(self, p: Vec) -> int:
+        """Level of the surface under a point (rounded ground height)."""
+        return int(self.ground_height(p) + 0.5)
 
     def floor_material(self, p: Vec) -> str:
         """Floor material key under a point (last matching patch wins), else the map's floor."""

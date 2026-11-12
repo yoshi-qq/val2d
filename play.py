@@ -98,6 +98,7 @@ STATUS_TINT = {"slow": (150, 110, 220), "decay": (120, 200, 90), "vulnerable": (
 
 
 SOUND_DIR = ROOT / "assets" / "sounds"
+HEIGHT_DRAW = 0.7  # screen lift per metre of height, as a share of the map scale
 def key_codes(names: dict[str, str]) -> dict[str, int]:
     """Action -> pygame key code from the player's bindings; unknown names fall back to the default key."""
     import user_settings
@@ -518,7 +519,7 @@ class Game:
                 pos = Vec(*d["pos"])
                 key = self.sound_key(d, pos)
                 self.sound.play(key, me, pos, d["radius"], occluded=self.occluded(me, pos),
-                                gain=0.55 if key.startswith("step") else 1.0)
+                                gain=0.45 if key.startswith("step") else 1.0)
                 if m.cfg.lobby.sound_rings and d["pid"] != self.me:
                     self.ui.rings.append(Ring(pos, min(d["radius"], 6.0), t))
             elif e.kind == "hit":
@@ -705,12 +706,15 @@ class Game:
             else:
                 pygame.draw.line(s, col, (px, py), (fx, fy), 2)
             img = self.character_frame(p, me)
-            if p.z > 0.01:  # airborne: shadow stays on the ground, the figure rises on screen
+            # height on screen: ground (ramps, platforms) plus jump, one continuous scale, so nothing pops
+            lift_ground, lift = p.ground * self.scale * HEIGHT_DRAW, (p.ground + p.z) * self.scale * HEIGHT_DRAW
+            if lift > 0.5:
                 shadow_w = max(4, round(self.scale * (0.9 - min(p.z, 1.5) * 0.25)))
                 shadow = pygame.Surface((shadow_w, max(2, shadow_w // 3)), pygame.SRCALPHA)
-                pygame.draw.ellipse(shadow, (0, 0, 0, 110), shadow.get_rect())
-                s.blit(shadow, (px - shadow_w / 2, py + (img.get_height() / 2 if img else r) - shadow.get_height()))
-                py -= p.z * self.scale * 1.2
+                pygame.draw.ellipse(shadow, (0, 0, 0, 110 if p.z > 0.01 else 70), shadow.get_rect())
+                feet_y = py + (img.get_height() / 2 if img else r) - shadow.get_height()
+                s.blit(shadow, (px - shadow_w / 2, feet_y - lift_ground))
+                py -= lift
             if img is not None:
                 s.blit(img, (px - img.get_width() / 2, py - img.get_height() / 2))
                 walk_index = int(m.time * 8)

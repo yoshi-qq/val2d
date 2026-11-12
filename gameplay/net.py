@@ -167,6 +167,7 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
         if not (predict_own and pid == own_pid):
             p.vel = Vec(row.get("vx", 0.0), row.get("vy", 0.0))
         p.z, p.level = row["z"], row["level"]
+        p.ground = float(row.get("ground", p.level))
         if pid != own_pid or new_round:
             p.facing = row["facing"]
         p.alive, p.hp, p.armor = row["alive"], row["hp"], row["armor"]

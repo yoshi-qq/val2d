@@ -97,11 +97,11 @@ def gunshot(body: float, crack: float, tail: float, dur: float, thump: float = 0
     return out
 
 
-def step(cut: float, thump: float, dur: float = 0.14) -> np.ndarray:
-    """Low, muffled footstep: dull noise and a soft low thump, slow attack, no click."""
+def step(cut: float, thump: float, dur: float = 0.07) -> np.ndarray:
+    """Light, short footstep: a soft muffled tap that is gone after a few hundredths of a second (no boom, no tail)."""
     n = noise(dur)
-    body = lowpass(lowpass(n, cut), cut) * env(dur, 0.006, 26)
-    low = sine(np.linspace(thump, thump * 0.7, int(RATE * dur)), dur) * env(dur, 0.008, 30) * 0.7
+    body = lowpass(lowpass(n, cut), cut * 1.2) * env(dur, 0.003, 70)
+    low = sine(np.linspace(thump, thump * 0.85, int(RATE * dur)), dur) * env(dur, 0.004, 90) * 0.3
     return body + low
 
 
@@ -121,11 +121,11 @@ def build() -> None:
                        at(highpass(noise(0.04), 3500) * env(0.04, 0.0005, 120), 0.5)))
     save("equip", mix(highpass(noise(0.12), 1500) * env(0.12, 0.01, 30) * 0.6, at(highpass(noise(0.03), 4000) * env(0.03, 0.0005, 150), 0.1)))
     # footsteps by surface
-    save("step_hard", step(420, 80), gain=0.32, cutoff=900)
-    save("step_metal", step(520, 95) + sine(np.full(int(RATE * 0.14), 240.0), 0.14) * env(0.14, 0.006, 28) * 0.25, gain=0.32, cutoff=1100)
-    save("step_soft", step(300, 65), gain=0.26, cutoff=700)
-    save("step_wood", step(380, 110) + sine(np.full(int(RATE * 0.14), 150.0), 0.14) * env(0.14, 0.006, 30) * 0.3, gain=0.3, cutoff=900)
-    save("land", lowpass(noise(0.25), 300) * env(0.25, 0.006, 18) + sine(np.linspace(70, 45, int(RATE * 0.25)), 0.25) * env(0.25, 0.006, 16), gain=0.4, cutoff=700)
+    save("step_hard", step(700, 140), gain=0.22, cutoff=1300)
+    save("step_metal", step(850, 170) + sine(np.full(int(RATE * 0.07), 320.0), 0.07) * env(0.07, 0.003, 80) * 0.15, gain=0.22, cutoff=1500)
+    save("step_soft", step(520, 120), gain=0.18, cutoff=1000)
+    save("step_wood", step(640, 180) + sine(np.full(int(RATE * 0.07), 220.0), 0.07) * env(0.07, 0.003, 85) * 0.18, gain=0.2, cutoff=1300)
+    save("land", lowpass(noise(0.12), 500) * env(0.12, 0.004, 40) + sine(np.linspace(110, 80, int(RATE * 0.12)), 0.12) * env(0.12, 0.004, 45) * 0.4, gain=0.3, cutoff=1000)
     # hits and kills
     save("hit_body", lowpass(noise(0.08), 900) * env(0.08, 0.001, 40) + sine(np.full(int(RATE * 0.08), 180.0), 0.08) * env(0.08, 0.001, 30))
     save("hit_head", mix(lowpass(noise(0.05), 1500) * env(0.05, 0.002, 70), sine(np.full(int(RATE * 0.22), 880.0), 0.22) * env(0.22, 0.003, 16) * 0.5), gain=0.5, cutoff=1600)

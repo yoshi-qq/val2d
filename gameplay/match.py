@@ -67,7 +67,7 @@ def spray_offset(d: WeaponDef, index: int) -> float:
 
 @dataclass
 class Command:
-    move_x: float = 0.0          # sideways, -1 left … 1 right (relative to facing)
+    move_x: float = 0.0          # sideways, -1 left â€¦ 1 right (relative to facing)
     move_y: float = 0.0          # forward/back, 1 forward
     facing: float | None = None  # compass angle in degrees
     cursor_depth: float = 8.0    # distance of the cursor ahead of the player (metres)
@@ -101,9 +101,10 @@ class PlayerState:
     is_bot: bool = False
     pos: Vec = Vec(0, 0)
     vel: Vec = Vec(0, 0)
-    z: float = 0.0
+    z: float = 0.0          # height above the ground under the player (jumping, falling)
     vz: float = 0.0
-    level: int = 0
+    level: int = 0          # rounded ground height, used for sight and hit rules
+    ground: float = 0.0     # ground height under the player in metres (continuous on ramps)
     facing: float = 0.0
     cursor_depth: float = 8.0
     alive: bool = True
@@ -239,7 +240,7 @@ class Match:
         self.win_rounds = self.cfg.lobby.win_rounds
         self.overtime = self.cfg.lobby.overtime
         self._r = {k: rule("rounds", k, d) for k, d in (("buy_time", 30), ("round_time", 100), ("end_time", 6), ("half_after", 12), ("overtime_margin", 2), ("overtime_credits", 5000))}
-        self._mv = {k: rule("movement", k, d) for k, d in (("run_speed", 6.0), ("walk_mod", 0.55), ("crouch_mod", 0.4), ("air_mod", 0.9), ("accel", 60.0), ("decel", 45.0), ("jump_velocity", 4.2), ("gravity", 14.0), ("radius", 0.4), ("level_height", 1.0))}
+        self._mv = {k: rule("movement", k, d) for k, d in (("run_speed", 6.0), ("walk_mod", 0.55), ("crouch_mod", 0.4), ("air_mod", 0.9), ("accel", 60.0), ("decel", 45.0), ("jump_velocity", 4.2), ("gravity", 14.0), ("radius", 0.4), ("level_height", 1.0), ("step_up", 0.4), ("step_down", 0.35))}
         self._eco = {k: rule("economy", k, d) for k, d in (("start", 800), ("win", 3000), ("loss", [1800, 2300, 2800]), ("kill", 200), ("plant", 300), ("max", 9000))}
         self._spike = {k: rule("spike", k, d) for k, d in (("plant_time", 4.0), ("fuse_time", 45.0), ("defuse_time", 7.0), ("defuse_checkpoint", 3.5), ("blast_radius", 12.0))}
         self._ult = {k: rule("ultimate", k, d) for k, d in (("per_kill", 1), ("per_plant", 1), ("per_defuse", 1), ("per_death", 1))}
@@ -340,7 +341,9 @@ class Match:
         enemies = [e.pos for e in self.players.values() if e.alive and e.team != p.team]
         best = max(points, key=lambda pt: min(((pt - e).length() for e in enemies), default=99.0))
         p.alive, p.hp, p.armor = True, self._hp, shield
-        p.pos, p.vel, p.z, p.vz, p.level = best, Vec(0, 0), 0.0, 0.0, 0
+        p.pos, p.vel, p.z, p.vz = best, Vec(0, 0), 0.0, 0.0
+        p.ground = self.world.ground_height(best)
+        p.level = int(p.ground / float(self._mv["level_height"]) + 0.5)
         p.status, p.blind_until = {}, 0.0
         if "sidearm" not in p.weapons:
             p.weapons["sidearm"] = self._new_weapon("spatz")
@@ -406,7 +409,8 @@ class Match:
             p.hp = self._hp
             p.vel = Vec(0, 0)
             p.z = p.vz = 0.0
-            p.level = 0
+            p.ground = self.world.ground_height(p.pos)
+            p.level = int(p.ground / float(self._mv["level_height"]) + 0.5)
             p.slot = "primary" if "primary" in p.weapons else "sidearm"
             p.spray = 0.0
             p.blind_until = p.revealed_until = p.overdrive_until = p.dash_until = p.immune_until = 0.0
@@ -749,7 +753,7 @@ class Match:
         radius = float(self._mv["radius"])
         lh = float(self._mv["level_height"])
         zone = self.world.spawn_zones.get(0 if self.side(p.team) == "attack" else 1) if self.phase == "buy" else None
-        # vertical
+        # vertical, relative to the ground under the player
         p.vz -= float(self._mv["gravity"]) * dt
         airborne = p.z > 0.0
         p.z = max(0.0, p.z + p.vz * dt)
@@ -757,18 +761,27 @@ class Match:
             if airborne:
                 self._landing(p, -p.vz)
             p.vz = 0.0
-        # horizontal, colliding with everything higher than the current height
-        height_level = p.level + int(p.z / lh + 0.5)
+        # horizontal, colliding with everything higher than the feet (small steps are climbed)
+        step_up, step_down = float(self._mv["step_up"]), float(self._mv["step_down"])
+        feet = p.ground + p.z
         new = p.pos + p.vel * dt
         for _ in range(3):
             for w in self.world.walls:
-                if w.height <= height_level or not self.wall_active(w):
+                if w.height * lh <= feet + step_up or not self.wall_active(w):
                     continue
                 push = w.rect.circle_push(new, radius)
                 if push:
                     new = new + push
         if zone:
             new = Vec(min(max(new.x, zone.x0 + radius), zone.x1 - radius), min(max(new.y, zone.y0 + radius), zone.y1 - radius))
+        # ground that is too high to step onto blocks like a wall (slide along it on the free axis)
+        if self.world.ground_height(new) * lh > feet + step_up:
+            for candidate in (Vec(new.x, p.pos.y), Vec(p.pos.x, new.y), p.pos):
+                if self.world.ground_height(candidate) * lh <= feet + step_up:
+                    new = candidate
+                    break
+            else:
+                new = p.pos
         if dt > 0:
             speed = (new - p.pos).length() / dt
             if speed > float(self._mv["run_speed"]) * 0.7 and p.z <= 0 and int(self.time * 3) != int((self.time - dt) * 3):
@@ -776,15 +789,18 @@ class Match:
             if self.time >= p.dash_until:
                 p.vel = (new - p.pos) * (1.0 / dt)
         p.pos = new
-        # levels: ramp lifts to level 1, landing on crate/platform, falling down
-        floor = self.world.floor_level(p.pos)
-        if self.world.on_ramp(p.pos):
-            p.level = max(1, floor)
-        elif floor > p.level and p.z >= lh * 0.5 * (floor - p.level):
-            p.z, p.vz, p.level = 0.0, 0.0, floor
-        elif floor < p.level:
-            p.z += lh * (p.level - floor)
-            p.level = floor
+        # follow the ground: walk up and down ramps, fall from ledges from the current height, land on cover
+        ground_new = self.world.ground_height(p.pos) * lh
+        if p.z <= 0.001:
+            if ground_new < p.ground - step_down:
+                p.z = p.ground - ground_new  # stepped off a ledge: keep the height, gravity takes over
+        else:
+            p.z = max(0.0, p.ground + p.z - ground_new)
+            if p.z <= 0.0:
+                self._landing(p, -p.vz)
+                p.vz = 0.0
+        p.ground = ground_new
+        p.level = int(ground_new / lh + 0.5)
 
     # ------------------------------------------------------------------ Weapons
     def _weapon_def(self, p: PlayerState) -> WeaponDef | None:
@@ -1187,7 +1203,7 @@ class Match:
                 continue
             players.append({
                 "pid": p.pid, "name": p.name, "team": p.team, "agent": p.agent, "bot": p.is_bot,
-                "x": p.pos.x, "y": p.pos.y, "z": p.z, "level": p.level, "facing": p.facing,
+                "x": p.pos.x, "y": p.pos.y, "z": p.z, "level": p.level, "ground": p.ground, "facing": p.facing,
                 "alive": p.alive, "hp": p.hp, "armor": p.armor,
                 "credits": p.credits if viewer is None or viewer.team == p.team else None,
                 "slot": p.slot, "weapon": p.weapon.key if p.weapon else None,

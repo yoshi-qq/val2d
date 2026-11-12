@@ -11,7 +11,9 @@
     "jump_velocity": 4.2,
     "gravity": 14.0,
     "radius": 0.4,
-    "level_height": 1.0
+    "level_height": 1.0,
+    "step_up": 0.4,
+    "step_down": 0.35
   },
   "vitals": {
     "hp": 100,
