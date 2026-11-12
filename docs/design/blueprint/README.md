@@ -341,6 +341,13 @@ then add the key with its tile to config/materials.py (or ask the coding session
 | `crate_metal` | `assets/maps/werkhof/kiste_metall.png` | 1 | no | 1 |
 | `werkhof_thick` | `assets/maps/werkhof/wand.png` | 2 | yes | 2 |
 | `werkhof_thin` | `assets/maps/werkhof/wand_duenn.png` | 0 | yes | 2 |
+| `metal_sheet` | `assets/maps/common/wall_metal_sheet.png` | 1 | yes | 2 |
+| `sandbags` | `assets/maps/common/wall_sandbags.png` | 1 | no | 1 |
+| `stone` | `assets/maps/common/wall_stone.png` | 3 | yes | 2 |
+| `container` | `assets/maps/common/wall_container.png` | 2 | yes | 2 |
+| `chainlink` | `assets/maps/common/fence_chainlink.png` | 0 | no | 2 |
+| `hedge` | `assets/maps/common/wall_hedge.png` | 0 | yes | 2 |
+| `jersey_barrier` | `assets/maps/common/wall_jersey_barrier.png` | 2 | no | 1 |
 
 ### Floors
 
@@ -353,6 +360,14 @@ then add the key with its tile to config/materials.py (or ask the coding session
 | `sand` | `assets/maps/common/floor_sand.png` |
 | `dirt` | `assets/maps/common/floor_dirt.png` |
 | `stone_cracked` | `assets/maps/common/floor_stone_cracked.png` |
+| `asphalt` | `assets/maps/common/floor_asphalt.png` |
+| `metal_plate` | `assets/maps/common/floor_metal_plate.png` |
+| `planks` | `assets/maps/common/floor_planks.png` |
+| `carpet` | `assets/maps/common/floor_carpet.png` |
+| `grass` | `assets/maps/common/floor_grass.png` |
+| `gravel` | `assets/maps/common/floor_gravel.png` |
+| `tiles_dark` | `assets/maps/common/floor_tiles_dark.png` |
+| `cobble` | `assets/maps/common/floor_cobble.png` |
 
 ### Objects
 
@@ -368,6 +383,23 @@ then add the key with its tile to config/materials.py (or ask the coding session
 | `lamp` | `assets/maps/common/props/lamp.png` | 1 × 1 m | 16 × 16 | no |
 | `bench` | `assets/maps/common/props/bench.png` | 2 × 0.5 m | 32 × 8 | yes |
 | `debris` | `assets/maps/common/props/debris.png` | 0.62 × 0.44 m | 10 × 7 | no |
+| `container_large` | `assets/maps/common/props/container_large.png` | 6 × 2 m | 96 × 32 | yes |
+| `car` | `assets/maps/common/props/car.png` | 4 × 2 m | 64 × 32 | yes |
+| `generator` | `assets/maps/common/props/generator.png` | 1.5 × 1 m | 24 × 16 | yes |
+| `dumpster` | `assets/maps/common/props/dumpster.png` | 2 × 1.25 m | 32 × 20 | yes |
+| `crate_stack` | `assets/maps/common/props/crate_stack.png` | 1.5 × 1.5 m | 24 × 24 | yes |
+| `vending_machine` | `assets/maps/common/props/vending_machine.png` | 1 × 0.75 m | 16 × 12 | yes |
+| `table` | `assets/maps/common/props/table.png` | 1.5 × 1 m | 24 × 16 | yes |
+| `chair` | `assets/maps/common/props/chair.png` | 0.5 × 0.5 m | 8 × 8 | no |
+| `tree` | `assets/maps/common/props/tree.png` | 2 × 2 m | 32 × 32 | yes |
+| `bush` | `assets/maps/common/props/bush.png` | 1 × 1 m | 16 × 16 | no |
+| `rock` | `assets/maps/common/props/rock.png` | 1 × 0.75 m | 16 × 12 | yes |
+| `pipe` | `assets/maps/common/props/pipe.png` | 2 × 0.5 m | 32 × 8 | yes |
+| `pillar` | `assets/maps/common/props/pillar.png` | 1 × 1 m | 16 × 16 | yes |
+| `boxes_cardboard` | `assets/maps/common/props/boxes_cardboard.png` | 1 × 0.75 m | 16 × 12 | yes |
+| `trash_bin` | `assets/maps/common/props/trash_bin.png` | 0.5 × 0.5 m | 8 × 8 | yes |
+| `ladder` | `assets/maps/common/props/ladder.png` | 1 × 2 m | 16 × 32 | no |
+| `warning_sign` | `assets/maps/common/props/warning_sign.png` | 0.75 × 0.75 m | 12 × 12 | no |
 
 ### Decals (never block)
 
@@ -382,3 +414,11 @@ then add the key with its tile to config/materials.py (or ask the coding session
 | `site_a` | `assets/maps/common/decals/site_a.png` | 1 × 1 m | no |
 | `site_b` | `assets/maps/common/decals/site_b.png` | 1 × 1 m | no |
 | `site_c` | `assets/maps/common/decals/site_c.png` | 1 × 1 m | no |
+| `puddle` | `assets/maps/common/decals/puddle.png` | 2 × 2 m | no |
+| `tire_marks` | `assets/maps/common/decals/tire_marks.png` | 2 × 2 m | no |
+| `paint_line` | `assets/maps/common/decals/paint_line.png` | 2 × 0.25 m | yes |
+| `footprints` | `assets/maps/common/decals/footprints.png` | 1 × 1 m | no |
+| `grass_tuft` | `assets/maps/common/decals/grass_tuft.png` | 0.5 × 0.25 m | no |
+| `manhole` | `assets/maps/common/decals/manhole.png` | 1 × 1 m | no |
+| `leaves` | `assets/maps/common/decals/leaves.png` | 2 × 2 m | no |
+| `paint_x` | `assets/maps/common/decals/paint_x.png` | 1 × 1 m | no |

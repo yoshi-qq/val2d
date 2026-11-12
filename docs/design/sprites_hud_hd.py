@@ -118,6 +118,9 @@ GLYPHS: dict[str, Painter] = {
     "anchor": lambda d, s: (d.ellipse((5, 1, 18, 14), fill=1), d.polygon([(6, 10), (17, 10), (12, 22)], fill=1), d.ellipse((9, 5, 14, 10), fill=2)),
     "heal": lambda d, s: (d.rectangle((9, 2, 14, 21), fill=2), d.rectangle((2, 9, 21, 14), fill=2), d.rectangle((11, 4, 12, 19), fill=1),
                           d.rectangle((4, 11, 19, 12), fill=1)),
+    "stim": lambda d, s: (d.polygon([(12, 1), (21, 10), (16, 10), (12, 6), (8, 10), (3, 10)], fill=1),
+                          d.polygon([(12, 10), (21, 19), (16, 19), (12, 15), (8, 19), (3, 19)], fill=2),
+                          d.rectangle((10, 20, 13, 22), fill=1)),
     "reveal_all": lambda d, s: (d.ellipse((0, 5, 23, 18), fill=1), d.ellipse((7, 6, 16, 17), fill=2), d.ellipse((10, 9, 13, 14), fill=1),
                                 [d.line([(12, 0), (12, 3)], fill=2, width=2), d.line([(3, 1), (5, 4)], fill=2, width=2), d.line([(20, 1), (18, 4)], fill=2, width=2)]),
 }
@@ -151,6 +154,11 @@ def ability_icon(kind: str, accent: str, ult: bool) -> Image.Image:
 def agent_accents() -> dict[str, str]:
     acc = {"kestrel": "#ffd75e", "marrow": "#bac4d6"}
     acc.update({k: str(v["glow"]) for k, v in roster.AGENT_LOOKS.items()})
+    try:
+        import sprites_roster2 as roster2
+        acc.update({k: v[5] for k, v in roster2.AGENTS.items()})
+    except ImportError as exc:  # second roster optional
+        print(f"warning: sprites_roster2 not importable: {exc}")
     return acc
 
 
