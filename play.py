@@ -14,6 +14,7 @@ Graphics: sprites from the design session (docs/SPRITES.md); placeholders where 
 from __future__ import annotations
 
 import argparse
+import sys
 import math
 import warnings
 from dataclasses import dataclass, field
@@ -1559,6 +1560,10 @@ class Game:
 
 
 def main() -> None:
+    if len(sys.argv) >= 2 and sys.argv[1] == "--self-test":  # used by build.py on the finished .exe
+        import self_test
+        report = Path(sys.argv[2]) if len(sys.argv) >= 3 else None
+        sys.exit(0 if self_test.run(report) else 1)
     ap = argparse.ArgumentParser(description="Play Val2d against bots or online")
     ap.add_argument("--agent", default="kestrel", help="agent key from config/agents.py")
     ap.add_argument("--team-size", type=int, default=5, choices=range(1, 6))
