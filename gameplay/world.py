@@ -18,7 +18,7 @@ class Wall:
     penetration: int  # material: 0 thin, 1 medium, 2 thick, 3 impenetrable
     blocks_sight: bool = True
     height: int = 2  # levels; crates have 1 and can be climbed
-    material: str = ""  # key in config/materials.py WALLS (decides the tile)
+    material: str = ""  # key in config/content/materials.py WALLS (decides the tile)
     buy_phase_only: bool = False  # blocks only during the buy phase (spawn barrier)
     door: bool = False  # can be opened; then it blocks nothing
     solid: bool = True  # False: blocks only sight (bushes), never movement or bullets
@@ -26,7 +26,7 @@ class Wall:
 
 @dataclass(frozen=True)
 class MapThing:
-    """Placed object or decal: key from config/materials.py, rect in metres, rotation in 90° steps."""
+    """Placed object or decal: key from config/content/materials.py, rect in metres, rotation in 90° steps."""
     key: str
     rect: Rect
     rot: int = 0
@@ -58,7 +58,7 @@ class WorldMap:
     spawns: dict[int, list[Vec]] = field(default_factory=dict)  # 0 Angreifer, 1 Verteidiger
     spawn_zones: dict[int, Rect] = field(default_factory=dict)
     callouts: list[tuple[str, Rect]] = field(default_factory=list)
-    floor: str = ""  # key in config/materials.py FLOORS for the whole map
+    floor: str = ""  # key in config/content/materials.py FLOORS for the whole map
     floors: list[tuple[str, Rect]] = field(default_factory=list)  # floor material patches
     objects: list[MapThing] = field(default_factory=list)
     practice_targets: list[tuple[Vec, float]] = field(default_factory=list)  # (position, sideways travel in m)
@@ -143,17 +143,17 @@ class WorldMap:
 
 @lru_cache(maxsize=1)
 def load_materials() -> tuple[dict[str, dict], dict[str, str]]:
-    """(WALLS, FLOORS) from config/materials.py; empty if unreadable."""
+    """(WALLS, FLOORS) from config/content/materials.py; empty if unreadable."""
     from gameplay.data import ROOT, _load_py
-    path = ROOT / "config" / "materials.py"
+    path = ROOT / "config" / "content" / "materials.py"
     return dict(_load_py(path, "WALLS") or {}), dict(_load_py(path, "FLOORS") or {})
 
 
 @lru_cache(maxsize=1)
 def load_things() -> tuple[dict[str, dict], dict[str, dict]]:
-    """(OBJECTS, DECALS) from config/materials.py; empty if unreadable."""
+    """(OBJECTS, DECALS) from config/content/materials.py; empty if unreadable."""
     from gameplay.data import ROOT, _load_py
-    path = ROOT / "config" / "materials.py"
+    path = ROOT / "config" / "content" / "materials.py"
     return dict(_load_py(path, "OBJECTS") or {}), dict(_load_py(path, "DECALS") or {})
 
 

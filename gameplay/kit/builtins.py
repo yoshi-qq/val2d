@@ -1,6 +1,6 @@
 """Built-in mechanics of the ability kit: targets, player sets, effects and triggers.
 
-Names here are what config/agents/*.py uses. Add new ones the same way (here or in config/mechanics/).
+Names here are what config/content/agents/*.py uses. Add new ones the same way (here or in config/content/mechanics/).
 """
 from __future__ import annotations
 
@@ -207,7 +207,7 @@ def e_dps(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> None:
 
 @effect("status")
 def e_status(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> None:
-    """name, seconds (any status in config/statuses.py)."""
+    """name, seconds (any status in config/content/statuses.py)."""
     if t is not None:
         statuses.apply_status(ctx.m, t, str(step["name"]), float(step.get("seconds", 1.0)))
 

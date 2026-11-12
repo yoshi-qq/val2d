@@ -1,6 +1,6 @@
 """Ability kit: targets, player sets, effects, triggers, statuses and presets, all registered by name.
 
-Mechanics from config/mechanics/*.py are loaded once at import, so new effects and triggers need no change
+Mechanics from config/content/mechanics/*.py are loaded once at import, so new effects and triggers need no change
 to the game code. See docs/MODDING.md.
 """
 from __future__ import annotations
@@ -14,7 +14,7 @@ from gameplay.kit.registry import EFFECTS, PASSIVE_TRIGGERS, PRESETS, TARGETS, T
 from gameplay.kit.statuses import (add, apply_status, clear_statuses, flag, has, load_statuses, lowest, mult,
                                    speed_factor)
 
-MECHANICS_DIR = ROOT / "config" / "mechanics"
+MECHANICS_DIR = ROOT / "config" / "content" / "mechanics"
 
 __all__ = ["EFFECTS", "PASSIVE_TRIGGERS", "PRESETS", "TARGETS", "TRIGGERS", "WHO", "Ctx", "add", "apply_status",
            "clear_statuses", "expand", "flag", "has", "load_statuses", "lowest", "mult", "place", "run_steps",
@@ -22,7 +22,7 @@ __all__ = ["EFFECTS", "PASSIVE_TRIGGERS", "PRESETS", "TARGETS", "TRIGGERS", "WHO
 
 
 def load_mechanics() -> list[str]:
-    """Runs every config/mechanics/*.py (files starting with _ are skipped). Returns the loaded file names."""
+    """Runs every config/content/mechanics/*.py (files starting with _ are skipped). Returns the loaded file names."""
     loaded = []
     if MECHANICS_DIR.is_dir():
         for path in sorted(MECHANICS_DIR.glob("*.py")):

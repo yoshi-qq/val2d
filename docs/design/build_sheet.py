@@ -55,13 +55,13 @@ def load(rel: str) -> dict:
 
 def config_dict(name: str, probe: str) -> dict:
     """Finds the dict in config/{name}.py that contains the probe key."""
-    if name == "agents":  # one file per agent in config/agents/ since 12.11.2026
+    if name == "agents":  # one file per agent in config/content/agents/ since 12.11.2026
         import sys as _sys
         _sys.path.insert(0, str(ROOT))
         from gameplay.match import load_agents
         return dict(load_agents())
     try:
-        data = runpy.run_path(str(ROOT / "config" / f"{name}.py"))
+        data = runpy.run_path(str(ROOT / "config" / "content" / f"{name}.py"))
     except Exception as exc:  # the sheet must still build without config
         print(f"warning: config/{name}.py not readable: {exc}")
         return {}

@@ -1,4 +1,4 @@
-"""Loads game values (config/rules.py, config/weapons.py) and the game config (config/game_config.py)."""
+"""Loads game values (config/rules/, config/content/weapons.py) and the settings Christian tunes (config/settings/)."""
 from __future__ import annotations
 
 import json
@@ -10,9 +10,12 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(__file__).resolve().parent / "data"
-CONFIG_PATH = ROOT / "config" / "game_config.py"
-RULES_PATH = ROOT / "config" / "rules.py"
-WEAPONS_PATH = ROOT / "config" / "weapons.py"
+CONFIG_DIR = ROOT / "config"
+CONTENT_DIR = CONFIG_DIR / "content"
+SETTINGS_DIR = CONFIG_DIR / "settings"
+RULES_DIR = CONFIG_DIR / "rules"
+CLIENT_DIR = CONFIG_DIR / "client"
+WEAPONS_PATH = CONTENT_DIR / "weapons.py"
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -24,13 +27,37 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 
 def _load_py(path: Path, name: str) -> Any:
-    """Reads a variable from a Python config file (config/*.py). Errors warn and give None."""
+    """Reads a variable from a Python config file (config/**/*.py). Errors warn and give None."""
     import runpy
     try:
         return runpy.run_path(str(path)).get(name)
     except Exception as exc:  # a broken config file must not crash the game
         warnings.warn(f"{path.name} unreadable ({exc}); {name} empty.")
         return None
+
+
+def load_folder(folder: Path, name: str) -> dict[str, Any]:
+    """Merges the dict `name` of every *.py in a config folder (files starting with _ are skipped).
+    Sections of the same name in two files are merged key by key; a later file wins on equal keys (with a warning)."""
+    out: dict[str, Any] = {}
+    if not folder.is_dir():
+        warnings.warn(f"Config folder {folder.name} missing; defaults apply.")
+        return out
+    for path in sorted(folder.glob("*.py")):
+        if path.name.startswith("_"):
+            continue
+        part = _load_py(path, name)
+        if not isinstance(part, dict):
+            continue
+        for section, values in part.items():
+            if isinstance(values, dict) and isinstance(out.get(section), dict):
+                clash = set(values) & set(out[section])
+                if clash:
+                    warnings.warn(f"{path.name}: {section} {sorted(clash)} set twice; this file wins.")
+                out[section] = {**out[section], **values}
+            else:
+                out[section] = values
+    return out
 
 
 @dataclass(frozen=True)
@@ -59,7 +86,7 @@ class WeaponDef:
     silenced: bool = False
     rate_ramp: tuple[float, float] | None = None  # (max_rate, seconds of held fire to reach it)
     category: str = ""  # buy-menu column
-    alt: tuple[tuple[str, Any], ...] = ()  # alternate fire settings (key, value) pairs; see config/weapons.py
+    alt: tuple[tuple[str, Any], ...] = ()  # alternate fire settings (key, value) pairs; see config/content/weapons.py
 
     def alt_get(self, key: str, default: Any = None) -> Any:
         return dict(self.alt).get(key, default)
@@ -127,7 +154,7 @@ def _pick(cls: type, raw: dict[str, Any] | None) -> Any:
 
 @lru_cache(maxsize=1)
 def load_config() -> GameConfig:
-    raw = dict(_load_py(CONFIG_PATH, "CONFIG") or {})
+    raw = load_folder(SETTINGS_DIR, "CONFIG")
     return GameConfig(
         hit_zones=_pick(HitZoneConfig, raw.get("hit_zones")),
         lobby=_pick(LobbySettings, raw.get("lobby_defaults")),
@@ -168,7 +195,7 @@ def load_armor() -> dict[str, ArmorDef]:
 
 @lru_cache(maxsize=1)
 def load_rules() -> dict[str, Any]:
-    return dict(_load_py(RULES_PATH, "RULES") or {})
+    return load_folder(RULES_DIR, "RULES")
 
 
 def rule(section: str, key: str, default: Any) -> Any:

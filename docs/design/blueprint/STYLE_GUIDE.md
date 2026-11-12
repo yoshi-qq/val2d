@@ -46,7 +46,7 @@ Full rules in `../CHARACTER_SHEETS.md`. In short:
 
 ## 5. Map tiles, objects and decals
 
-- Tiles are 32 × 32 = 2 × 2 m and seamless on all sides. Maps pick them by material key (`config/materials.py`, listed in `README.md`).
+- Tiles are 32 × 32 = 2 × 2 m and seamless on all sides. Maps pick them by material key (`config/content/materials.py`, listed in `README.md`).
 - Built surfaces (stone slabs, tiles, grate, walls) show their joints with a light edge top/left and a shadow edge bottom/right. **Natural surfaces (concrete, sand, dirt) show no joints**, only soft blotches that wrap around the tile, so no 2 m grid shows on the map.
 - Walkable floor is mid-bright and low in contrast, so figures and effects stand out on it.
 - Walls are darker than the floor. Thin walls (penetration 0–1: wood fence, thin Workyard wall, glass) show a material players read as "bullets go through". Glass is see-through and drawn as a narrow pane.

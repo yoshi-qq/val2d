@@ -1,4 +1,4 @@
-"""Per-player settings (not game values): stored in ~/.val2d/settings.json, defaults from config/game_config.py.
+"""Per-player settings (not game values): stored in ~/.val2d/settings.json, defaults from config/settings/.
 
 Game values that Christian tunes stay in config/; this file only holds a player's own preferences.
 """

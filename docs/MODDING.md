@@ -5,14 +5,14 @@ changes. Broken entries are skipped with a warning that names the problem (the r
 
 | What | Where | Start from |
 |---|---|---|
-| Agent | `config/agents/<key>.py` (file name = key) | `config/agents/_template.py` |
-| Status | `config/statuses.py` | one more entry |
-| New effect or trigger | `config/mechanics/<name>.py` | `config/mechanics/swap.py` |
+| Agent | `config/content/agents/<key>.py` (file name = key) | `config/content/agents/_template.py` |
+| Status | `config/content/statuses.py` | one more entry |
+| New effect or trigger | `config/content/mechanics/<name>.py` | `config/content/mechanics/swap.py` |
 | Map | `gameplay/data/maps/<key>.py` or the map editor (`.json`) | `gameplay/data/maps/_template.py` |
-| Rules (movement, economy, rounds, modes) | `config/rules.py` | – |
-| Hit zones, lobby defaults | `config/game_config.py` | – |
-| Weapons, armor | `config/weapons.py` | – |
-| Materials, props, decals | `config/materials.py` | – |
+| Rules (movement, economy, rounds, modes) | `config/rules/` | – |
+| Hit zones, lobby defaults | `config/settings/` | – |
+| Weapons, armor | `config/content/weapons.py` | – |
+| Materials, props, decals | `config/content/materials.py` | – |
 
 Files starting with `_` are templates and are never loaded.
 
@@ -142,7 +142,7 @@ The steps act on the agent by default; `who="other"` is the victim of the kill o
 
 ## Statuses
 
-`config/statuses.py`, one entry each. Modifiers: speed, damage_taken, damage_dealt, fire_rate, reload (factors);
+`config/content/statuses.py`, one entry each. Modifiers: speed, damage_taken, damage_dealt, fire_rate, reload (factors);
 spread_add, hp_per_second (added); sight_range, seen_within (metres, smallest counts); blind, deaf, no_abilities,
 revealed, lethal (switches); decay, decay_regen; positive (a buff). Ready to use beside the classic ten:
 haste, cloak, fortify, empower, regen, burn, weaken, marked, jammed.
@@ -150,7 +150,7 @@ haste, cloak, fortify, empower, regen, burn, weaken, marked, jammed.
 ## A new mechanic
 
 ```python
-# config/mechanics/lifesteal.py
+# config/content/mechanics/lifesteal.py
 from gameplay.kit.registry import effect
 
 @effect("lifesteal")

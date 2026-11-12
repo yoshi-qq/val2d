@@ -61,7 +61,7 @@ class MapBuilder:
         return self
 
     def thing(self, key: str, x: float, y: float) -> MapBuilder:
-        """A prop from config/materials.py OBJECTS."""
+        """A prop from config/content/materials.py OBJECTS."""
         self.data["objects"].append({"key": key, "pos": [x, y]})
         return self
 

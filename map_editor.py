@@ -1,4 +1,4 @@
-"""Map editor for the gameplay map format (gameplay/data/maps/*.json, materials in config/materials.py).
+"""Map editor for the gameplay map format (gameplay/data/maps/*.json, materials in config/content/materials.py).
 
 Usage:  python map_editor.py <map_key>        (new file if it does not exist)
 Mouse:  left drag  draw a rect with the current tool, left click  place (objects, decals, spawn points)

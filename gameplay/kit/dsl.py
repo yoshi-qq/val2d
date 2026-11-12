@@ -1,4 +1,4 @@
-"""Short helpers for writing agents and abilities in config/agents/*.py.
+"""Short helpers for writing agents and abilities in config/content/agents/*.py.
 
     from gameplay.kit.dsl import *
 
@@ -72,7 +72,7 @@ def on(when: str, do: list[dict[str, Any]], **values: Any) -> dict[str, Any]:
 
 
 def step(effect: str, **values: Any) -> dict[str, Any]:
-    """Any effect by name, also ones registered in config/mechanics/."""
+    """Any effect by name, also ones registered in config/content/mechanics/."""
     return {"do": effect, **values}
 
 

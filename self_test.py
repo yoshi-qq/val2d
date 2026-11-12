@@ -70,7 +70,7 @@ def run(report: Path | None = None) -> bool:
         return f"{len(load_agents())} agent sprite sets"
 
     def sounds() -> str:
-        from play import SOUND_DIR
+        from client.common import SOUND_DIR
         files = list(SOUND_DIR.glob("*.wav"))
         assert len(files) >= 40, f"only {len(files)} sounds"
         return f"{len(files)} sounds"

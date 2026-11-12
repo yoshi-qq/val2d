@@ -12,7 +12,7 @@ from pathlib import Path
 import pygame
 
 from gameplay.netgame import DEFAULT_PORT, discover
-from gameplay.world import map_keys
+from gameplay.world import map_keys as world_map_keys
 import user_settings
 from sprite_bank import SpriteBank, draw_nine_slice
 
@@ -34,7 +34,7 @@ class Button:
 
 
 def map_keys() -> list[str]:
-    return map_keys() or ["werkhof"]
+    return world_map_keys() or ["werkhof"]
 
 
 class MainMenu:

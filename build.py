@@ -42,7 +42,7 @@ HIDDEN = ["menu", "map_editor", "server", "user_settings", "self_test", "sprite_
           "gameplay.abilities", "gameplay.bots", "gameplay.data", "gameplay.match", "gameplay.nav", "gameplay.net",
           "gameplay.netgame", "gameplay.session", "gameplay.world", "gameplay.geometry", "gameplay.hitzones",
           "gameplay.mapkit", "gameplay.kit", "gameplay.kit.dsl", "gameplay.kit.builtins", "gameplay.kit.presets"]  # config files import these
-COLLECT = ["netplay", "networking", "gameplay"]
+COLLECT = ["netplay", "networking", "gameplay", "client"]
 
 
 def fail(message: str) -> None:

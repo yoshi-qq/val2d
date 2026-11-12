@@ -1,8 +1,8 @@
 """Registries of the ability kit: effects, triggers, targets, player sets and presets.
 
-Every mechanic is a small function registered under a name. Ability data (config/agents/*.py) only names
+Every mechanic is a small function registered under a name. Ability data (config/content/agents/*.py) only names
 them, so a new mechanic is one decorated function, either here in gameplay/kit or in a file in
-config/mechanics/ (loaded at start, no change to the game code needed).
+config/content/mechanics/ (loaded at start, no change to the game code needed).
 
     @effect("lifesteal")
     def lifesteal(ctx: Ctx, target: PlayerState | None, step: dict) -> bool | None:

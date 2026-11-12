@@ -1,4 +1,4 @@
-"""Template for a new agent. Copy this file to config/agents/<key>.py (the file name is the agent's key,
+"""Template for a new agent. Copy this file to config/content/agents/<key>.py (the file name is the agent's key,
 lower case, no leading underscore), change names and values, start the game. Nothing else to touch.
 
 Sprites: assets/agents/<key>/ (docs/SPRITES.md); until they exist the game draws placeholders.

@@ -1,5 +1,5 @@
-"""Statuses as data (config/statuses.py): each status is a set of modifiers, read by the game through
-mult(), add(), lowest() and flag(). A new status needs no code, only an entry in config/statuses.py.
+"""Statuses as data (config/content/statuses.py): each status is a set of modifiers, read by the game through
+mult(), add(), lowest() and flag(). A new status needs no code, only an entry in config/content/statuses.py.
 
 Modifiers (all optional):
   speed, damage_taken, damage_dealt, fire_rate, reload    factors, multiplied over all active statuses
@@ -20,7 +20,7 @@ from gameplay.data import ROOT, _load_py
 if TYPE_CHECKING:
     from gameplay.match import Match, PlayerState
 
-STATUS_PATH = ROOT / "config" / "statuses.py"
+STATUS_PATH = ROOT / "config" / "content" / "statuses.py"
 FALLBACK: dict[str, dict[str, Any]] = {
     "blind": {"blind": True}, "nearsight": {"sight_range": 5.0}, "concuss": {"speed": 0.6, "spread_add": 6.0},
     "slow": {"speed": 0.55}, "vulnerable": {"damage_taken": 1.5}, "decay": {"decay": 15.0, "decay_regen": 10.0},
@@ -38,7 +38,7 @@ KNOWN = set(MULTIPLY) | set(ADD) | set(LOWEST) | set(FLAGS) | {"decay", "decay_r
 def load_statuses() -> dict[str, dict[str, Any]]:
     raw = _load_py(STATUS_PATH, "STATUSES")
     if not isinstance(raw, dict) or not raw:
-        warnings.warn("config/statuses.py has no STATUSES; built-in statuses apply.")
+        warnings.warn("config/content/statuses.py has no STATUSES; built-in statuses apply.")
         return dict(FALLBACK)
     out: dict[str, dict[str, Any]] = {}
     for name, mods in raw.items():

@@ -25,12 +25,12 @@ DOOR_RANGE = 1.6
 PICKUP_RANGE = 1.2
 
 
-AGENTS_DIR = ROOT / "config" / "agents"
+AGENTS_DIR = ROOT / "config" / "content" / "agents"
 
 
 @lru_cache(maxsize=1)
 def load_agents() -> dict[str, dict[str, Any]]:
-    """Agents from config/agents/*.py (one file per agent, key = file name; files starting with _ are skipped).
+    """Agents from config/content/agents/*.py (one file per agent, key = file name; files starting with _ are skipped).
     Broken agents and abilities are skipped with a warning naming the problem."""
     from gameplay.kit import check_ability
     found: list[tuple[int, str, dict[str, Any]]] = []
@@ -270,7 +270,7 @@ class Match:
         return p
 
     def set_mode(self, mode: str) -> None:
-        """"standard", "quick" or "deathmatch" (values in config/rules.py "modes"); call before start()."""
+        """"standard", "quick" or "deathmatch" (values in config/rules/ "modes"); call before start()."""
         self.mode = mode if mode in ("standard", "quick", "deathmatch") else "standard"
         if self.mode == "quick":
             q = rule("modes", "quick", {})
@@ -748,7 +748,7 @@ class Match:
         return s * abilities.speed_factor(self, p)
 
     def _landing(self, p: PlayerState, speed: float) -> None:
-        """Fall damage above a safe landing speed (config/rules.py "fall"); never from ordinary jumps."""
+        """Fall damage above a safe landing speed (config/rules/ "fall"); never from ordinary jumps."""
         safe = float(rule("fall", "safe_speed", 7.0))
         if speed <= safe or not p.alive:
             return

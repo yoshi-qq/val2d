@@ -325,10 +325,10 @@ white cross = centre/anchor, white line = ground row, white ring = maximum radiu
 | `extra/ability_panel.png` | [example](examples/ability_panel.example.png) | `assets/ui/hud/ability_panel.png` | 24×24 | 1 | still | ability panel |
 | `extra/carrier_hint.png` | [example](examples/carrier_hint.example.png) | `assets/ui/hud/carrier_hint.png` | 16×16 | 1 | still | carrier hint |
 
-## Map keys (config/materials.py)
+## Map keys (config/content/materials.py)
 
 Map files refer to sprites by key. Draw a new material or object with the template of its kind,
-then add the key with its tile to config/materials.py (or ask the coding session).
+then add the key with its tile to config/content/materials.py (or ask the coding session).
 
 ### Walls
 

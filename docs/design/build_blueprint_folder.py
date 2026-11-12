@@ -209,13 +209,13 @@ class Entry:
 
 
 def _config(name: str, probe: str) -> dict:
-    if name == "agents":  # one file per agent in config/agents/ since 12.11.2026
+    if name == "agents":  # one file per agent in config/content/agents/ since 12.11.2026
         import sys as _sys
         _sys.path.insert(0, str(ROOT))
         from gameplay.match import load_agents
         return dict(load_agents())
     try:
-        data = runpy.run_path(str(ROOT / "config" / f"{name}.py"))
+        data = runpy.run_path(str(ROOT / "config" / "content" / f"{name}.py"))
     except Exception as exc:  # the blueprint must still build
         print(f"warning: config/{name}.py not readable: {exc}")
         return {}
@@ -246,7 +246,7 @@ def catalogue() -> list[Entry]:
               "overlay:assets/agents/kestrel/kestrel_idle.png+docs/design/blueprint/examples/source/kestrel_overlay_shield.png"),
     ]
     weapons = _config("weapons", "spatz")
-    keys = ", ".join(k for k in weapons if k != "messer") or "see config/weapons.py"
+    keys = ", ".join(k for k in weapons if k != "messer") or "see config/content/weapons.py"
     e += [
         Entry("weapons/weapon_hand.png", "assets/weapons/val2d/{key}.png", (16, 8), 1, "still",
               f"weapon in hand, side view, muzzle right; keys: {keys}", g_weapon, "Weapons", "assets/weapons/val2d/falke.png"),
@@ -483,14 +483,14 @@ def index(entries: list[Entry]) -> str:
 
 
 def map_keys() -> list[str]:
-    """Material and object keys as the game uses them (config/materials.py), with sprite and in-game size."""
+    """Material and object keys as the game uses them (config/content/materials.py), with sprite and in-game size."""
     try:
-        data = runpy.run_path(str(ROOT / "config" / "materials.py"))
+        data = runpy.run_path(str(ROOT / "config" / "content" / "materials.py"))
     except Exception as exc:  # the index must still build
-        return ["", f"(config/materials.py not readable: {exc})"]
-    out = ["", "## Map keys (config/materials.py)", "",
+        return ["", f"(config/content/materials.py not readable: {exc})"]
+    out = ["", "## Map keys (config/content/materials.py)", "",
            "Map files refer to sprites by key. Draw a new material or object with the template of its kind,",
-           "then add the key with its tile to config/materials.py (or ask the coding session).", ""]
+           "then add the key with its tile to config/content/materials.py (or ask the coding session).", ""]
     walls = data.get("WALLS", {})
     if walls:
         out += ["### Walls", "", "| Key | Tile | Penetration | Blocks sight | Height |", "|---|---|---|---|---|"]

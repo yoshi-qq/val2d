@@ -43,7 +43,7 @@ def filler() -> dict:
 
 
 def test_template_agent_is_valid_and_its_firebomb_chains_into_a_burning_zone() -> None:
-    template = runpy.run_path(str(ROOT / "config" / "agents" / "_template.py"))["AGENT"]
+    template = runpy.run_path(str(ROOT / "config" / "content" / "agents" / "_template.py"))["AGENT"]
     assert all(not check_ability(ab) for ab in template["abilities"].values())
     m, a, b = setup(template)
     pb = m.players[b]
@@ -57,7 +57,7 @@ def test_template_agent_is_valid_and_its_firebomb_chains_into_a_burning_zone() -
 
 
 def test_ultimate_reveals_and_hastes_team_and_passive_heals_on_kill() -> None:
-    template = runpy.run_path(str(ROOT / "config" / "agents" / "_template.py"))["AGENT"]
+    template = runpy.run_path(str(ROOT / "config" / "content" / "agents" / "_template.py"))["AGENT"]
     m, a, b = setup(template)
     pa, pb = m.players[a], m.players[b]
     base = m._max_speed(pa)

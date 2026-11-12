@@ -1,5 +1,5 @@
 """Template for a map built in Python. Copy to gameplay/data/maps/<key>.py (no leading underscore); the map
-then shows up in the menu. Materials and props: config/materials.py. Helpers: gameplay/mapkit.py.
+then shows up in the menu. Materials and props: config/content/materials.py. Helpers: gameplay/mapkit.py.
 Open it in the map editor to fine-tune; saving there writes <key>.json, which then replaces this file.
 """
 from gameplay.mapkit import MapBuilder

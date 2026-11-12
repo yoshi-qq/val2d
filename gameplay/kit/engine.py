@@ -1,6 +1,6 @@
 """Runs abilities: target -> immediate steps -> placed object with triggers -> steps.
 
-An ability (config/agents/*.py) is a dict. Either it names a preset (`kind="smoke"`, values beside it), or it
+An ability (config/content/agents/*.py) is a dict. Either it names a preset (`kind="smoke"`, values beside it), or it
 is composed:
     target   where it goes: "aim" (default), "aim_free", "self", "ahead" (registry TARGETS); `range` limits it
     do       steps run at once on use, e.g. [{"do": "dash", "distance": 7, "duration": 0.2}]
