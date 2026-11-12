@@ -21,9 +21,9 @@ TICK_RATE = 64.0
 
 def build_match(map_key: str, rounds: int, team_size: int, all_around: bool, sound_rings: bool, mode: str = "standard") -> Match:
     base = load_config()
-    lobby = LobbySettings(all_around_sight=all_around or base.lobby.all_around_sight,
-                          sound_rings=sound_rings or base.lobby.sound_rings,
-                          win_rounds=rounds, overtime=base.lobby.overtime, team_size=team_size)
+    from dataclasses import replace
+    lobby = replace(base.lobby, all_around_sight=all_around or base.lobby.all_around_sight,
+                    sound_rings=sound_rings or base.lobby.sound_rings, win_rounds=rounds, team_size=team_size)
     match = Match(load_map(map_key), type(base)(hit_zones=base.hit_zones, lobby=lobby, player=base.player))
     match.set_mode(mode)
     return match

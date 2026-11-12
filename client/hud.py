@@ -71,6 +71,10 @@ class HudMixin:
             ui.text(f"{st['hits']}/{st['shots']} hits · {acc:.0f} %", (box.centerx, box.y + 32), "s", "muted", "center")
             ui.text(f"{heads:.0f} % head", (box.centerx, box.y + 52), "s", "muted", "center")
             return
+        if m.cfg.lobby.allow_cheats:
+            on = [n.replace("_", " ") for n in ("infinite_ammo", "infinite_abilities", "invincibility", "bullet_tracers")
+                  if m.cheat(n)]
+            ui.text("cheats: " + (", ".join(on) if on else "allowed"), (box.x, box.bottom + 6), "xs", "gold", upper=True)
         ui.text(str(mine), (box.x + 22, box.y + 10), "xl", "ally", "center", bold=True, kind="numbers")
         ui.text(str(theirs), (box.right - 22, box.y + 10), "xl", "enemy", "center", bold=True, kind="numbers")
         if m.phase == "planted":

@@ -29,9 +29,10 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
             self.font = pygame.font.Font(None, 22)
             self.big = pygame.font.Font(None, 44)
         base = load_config()
-        lobby = LobbySettings(all_around_sight=args.all_around or base.lobby.all_around_sight,
-                              sound_rings=args.sound_rings or base.lobby.sound_rings,
-                              win_rounds=args.rounds, overtime=base.lobby.overtime, team_size=args.team_size)
+        from dataclasses import replace
+        lobby = replace(base.lobby, all_around_sight=args.all_around or base.lobby.all_around_sight,  # lobby defaults
+                        sound_rings=args.sound_rings or base.lobby.sound_rings, win_rounds=args.rounds,
+                        team_size=args.team_size)
         cfg = type(base)(hit_zones=base.hit_zones, lobby=lobby, player=base.player)
         self.team_size = args.team_size
         self.mode = "local"
@@ -156,15 +157,7 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
                     if ev.key == pygame.K_RETURN and self.client is not None and not self.client.connected:
                         self.rejoin()
                     elif ev.key == pygame.K_RETURN and self.match.phase == "lobby":
-                        if self.session:
-                            self.session.start(self.team_size)
-                        elif self.mode == "local" and self.practice:
-                            self.match.start_practice()
-                            for d in self.match.players.values():
-                                if d.dummy:
-                                    d.pos, d.facing = d.home, 180.0
-                        elif self.mode == "local":
-                            self.match.start()
+                        self.start_from_lobby()
                     elif ev.key == self.keys["buy"]:
                         self.ui.buy_open = not self.ui.buy_open
                         self.grab(not self.ui.buy_open)

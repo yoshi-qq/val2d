@@ -76,9 +76,11 @@ class EventsMixin:
                 shooter = m.players.get(d["pid"])
                 wd = m.weapons.get(str(d.get("weapon", "")))
                 enemy_silenced = bool(wd and wd.silenced and shooter is not None and shooter.team != me.team)
-                if enemy_silenced and self.through_smoke(a, b):
+                tracers_cheat = m.cheat("bullet_tracers")
+                if enemy_silenced and self.through_smoke(a, b) and not tracers_cheat:
                     continue  # suppressed weapons leave no tracer for enemies when fired through smoke
-                self.ui.tracers.append(Tracer(a, b, t + 0.08, d["pid"] == self.me, muzzle=not enemy_silenced))
+                self.ui.tracers.append(Tracer(a, b, t + (1.5 if tracers_cheat else 0.08), d["pid"] == self.me,
+                                              muzzle=not enemy_silenced))
             elif e.kind == "reload":
                 p = m.players.get(d["pid"])
                 if p is not None:

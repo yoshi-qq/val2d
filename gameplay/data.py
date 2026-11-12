@@ -145,7 +145,16 @@ class LobbySettings:
     all_around_sight: bool = False
     sound_rings: bool = False
     win_rounds: int = 13
-    overtime: bool = True
+    overtime: bool = True             # win by two after a tie at the end of regulation
+    play_all_rounds: bool = False     # play every regulation round even after a team has won
+    allow_cheats: bool = False        # the cheats below only count while this is on
+    infinite_ammo: bool = False
+    infinite_abilities: bool = False
+    invincibility: bool = False       # players (not bots) take no damage
+    bullet_tracers: bool = False      # every shot leaves a long, visible tracer
+
+    def cheat(self, name: str) -> bool:
+        return bool(self.allow_cheats and getattr(self, name, False))
     team_size: int = 1
 
 

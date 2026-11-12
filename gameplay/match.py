@@ -273,6 +273,32 @@ class Match:
         self.players[pid] = p
         return p
 
+    RULE_NAMES = ("all_around_sight", "sound_rings", "win_rounds", "overtime", "play_all_rounds", "allow_cheats",
+                  "infinite_ammo", "infinite_abilities", "invincibility", "bullet_tracers")
+
+    def set_rules(self, **rules: Any) -> bool:
+        """Changes lobby rules; only while the lobby is open. Unknown names and wrong types are ignored with a warning."""
+        from dataclasses import replace
+        if self.phase != "lobby":
+            return False
+        clean: dict[str, Any] = {}
+        for name, value in rules.items():
+            if name not in self.RULE_NAMES:
+                warnings.warn(f"Unknown lobby rule {name}")
+            elif name == "win_rounds" and isinstance(value, int) and 1 <= value <= 30:
+                clean[name] = value
+            elif name != "win_rounds" and isinstance(value, bool):
+                clean[name] = value
+        if not clean:
+            return False
+        self.cfg = replace(self.cfg, lobby=replace(self.cfg.lobby, **clean))
+        if self.mode == "standard":
+            self.win_rounds, self.overtime = self.cfg.lobby.win_rounds, self.cfg.lobby.overtime
+        return True
+
+    def cheat(self, name: str) -> bool:
+        return self.cfg.lobby.cheat(name)
+
     def set_mode(self, mode: str) -> None:
         """"standard", "quick" or "deathmatch" (values in config/rules/ "modes"); call before start()."""
         self.mode = mode if mode in ("standard", "quick", "deathmatch") else "standard"
@@ -477,6 +503,13 @@ class Match:
     def _match_decided(self) -> bool:
         a, b = self.score
         need = self.win_rounds
+        if self.cfg.lobby.play_all_rounds and self.mode != "deathmatch":
+            regulation = 2 * (need - 1)  # e.g. 24 rounds for first to 13
+            if a + b < regulation:
+                return False
+            if a != b:
+                return a + b == regulation or abs(a - b) >= int(self._r["overtime_margin"]) or not self.overtime
+            return not self.overtime
         if max(a, b) < need:
             return False
         if not self.overtime:
@@ -761,7 +794,7 @@ class Match:
     def _landing(self, p: PlayerState, speed: float) -> None:
         """Fall damage above a safe landing speed (config/rules/ "fall"); never from ordinary jumps."""
         safe = float(rule("fall", "safe_speed", 7.0))
-        if speed <= safe or not p.alive:
+        if speed <= safe or not p.alive or (self.cheat("invincibility") and not p.is_bot):
             return
         dmg = min(int(rule("fall", "max_damage", 60)), int((speed - safe) * float(rule("fall", "damage_per_speed", 15.0))))
         if dmg > 0:
@@ -902,7 +935,7 @@ class Match:
             p.next_shot = self.time + 1.0 / rate
             extra = float(d.alt_get("spread_add", 0.0)) if alt_trigger and alt_kind == "spin" else 0.0
             self._fire_bullet(p, d, d.pellets, extra_spread=extra)
-        if d.is_gun:
+        if d.is_gun and not self.cheat("infinite_ammo"):
             ws.mag -= 1
         if d.alt_get("unscope_after_shot"):
             p.zoom_level, p.zoomed = 0, False
@@ -1027,6 +1060,8 @@ class Match:
     def _damage(self, attacker: PlayerState | None, target: PlayerState, dmg: int, zone: str, source: str) -> None:
         if not target.alive or dmg <= 0:
             return
+        if self.cheat("invincibility") and not target.is_bot:
+            return
         factor = abilities.mult(self, target, "damage_taken") * (abilities.mult(self, attacker, "damage_dealt") if attacker else 1.0)
         if factor != 1.0:
             dmg = int(round(dmg * factor))
@@ -1084,7 +1119,10 @@ class Match:
             ab = {**ab, **ab["alt"]}  # right-click variant: its values replace the normal ones
         if not ab or abilities.flag(self, p, "no_abilities"):
             return
-        if key == "X":
+        endless = self.cheat("infinite_abilities")
+        if endless:
+            pass
+        elif key == "X":
             if p.ult_points < int(ab["cost"]):
                 return
         elif p.charges.get(key, 0) <= 0:
@@ -1096,7 +1134,9 @@ class Match:
             return
         if target is None:
             return
-        if key == "X":
+        if endless:
+            pass
+        elif key == "X":
             p.ult_points -= int(ab["cost"])
         else:
             p.charges[key] -= 1
@@ -1306,6 +1346,7 @@ class Match:
         return {
             "time": self.time, "phase": self.phase, "phase_left": self.phase_time_left(), "round": self.round_no,
             "mode": self.mode, "dm_left": max(0.0, self.dm_ends_at - self.time) if self.mode == "deathmatch" else 0.0,
+            "rules": {k: getattr(self.cfg.lobby, k) for k in self.RULE_NAMES},
             "score": list(self.score), "attacking_team": self.attacking_team, "winner": self.match_winner,
             "round_winner": self.round_winner, "round_reason": self.round_reason,
             "spike": {"carrier": self.spike_carrier, "pos": (self.spike_pos.x, self.spike_pos.y) if self.spike_pos else None, "site": self.spike_site},

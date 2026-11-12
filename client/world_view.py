@@ -89,6 +89,8 @@ class WorldViewMixin:
             self.tile_line("fx/tracer_own.png" if tr.own else "fx/tracer.png", self.to_screen(tr.a, me),
                            self.to_screen(tr.b, me), 16, 0.0, (255, 230, 140), 2 if tr.own else 1)
             frame = max(0, min(2, int((0.08 - (tr.until - m.time)) / 0.08 * 3)))
+            if tr.until - m.time > 0.1:  # long-lived cheat tracer: no muzzle flash after the first moment
+                continue
             size = max(1, round(self.scale * 0.5))
             muzzle = self.bank.scaled("fx/muendung.png", (size, size), frame, 8) if tr.muzzle else None
             if muzzle is not None and (tr.b - tr.a).length() > 0.7:

@@ -25,8 +25,7 @@ TABS = (("play", "Play"), ("practice", "Practice"), ("online", "Multiplayer"), (
 SETTINGS_TABS = (("general", "General"), ("crosshair", "Crosshair"), ("controls", "Controls"))
 SLIDERS = {"general": (("sensitivity", "Mouse sensitivity"), ("camera_push", "Camera ahead"), ("volume", "Volume")),
            "crosshair": (("crosshair_size", "Size"), ("crosshair_gap", "Gap"))}
-CHECKS = {"general": (("fullscreen", "Fullscreen"), ("all_around", "All-around sight (lobby rule)"),
-                      ("sound_rings", "Sound rings (lobby rule)")),
+CHECKS = {"general": (("fullscreen", "Fullscreen"),),
           "crosshair": (("crosshair_dot", "Centre dot"),)}
 ROLE_ORDER = ("Duelist", "Initiator", "Controller", "Sentinel")
 
@@ -66,7 +65,6 @@ class MainMenu:
         a, st = self.args, self.settings
         a.sensitivity, a.camera_push, a.volume = st["sensitivity"], st["camera_push"], st["volume"]
         a.name = st["name"]
-        a.all_around, a.sound_rings = st["all_around"] or a.all_around, st["sound_rings"] or a.sound_rings
         a.fullscreen = bool(st.get("fullscreen", False))
         a.keys = dict(st["keys"])
         a.crosshair = {k: st[k] for k in ("crosshair_color", "crosshair_size", "crosshair_gap", "crosshair_dot")}
@@ -314,9 +312,7 @@ class MainMenu:
         ui.text("Team size", (440, y), "s", "muted", upper=True)
         for i in range(1, 6):
             ui.button(pygame.Rect(440 + (i - 1) * 52, y + 26, 44, 44), f"{i}", f"size:{i}", selected=a.team_size == i)
-        ui.text("Rounds to win", (740, y), "s", "muted", upper=True)
-        for i, n in enumerate((5, 9, 13)):
-            ui.button(pygame.Rect(740 + i * 64, y + 26, 56, 44), str(n), f"rounds:{n}", selected=a.rounds == n)
+        ui.text("Rounds, overtime and cheats are set in the lobby", (740, y + 38), "xs", "muted", upper=True)
         has_preview = (ASSETS / "maps" / a.map / "preview.png").exists()  # optional, from the design session
         preview = self.bank.scaled(f"maps/{a.map}/preview.png", (344, 194)) if has_preview else None
         if preview is not None:

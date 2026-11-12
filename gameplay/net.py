@@ -112,6 +112,11 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
     server_pos: if given, every player's host position is stored there (for smoothing), not applied directly.
     """
     new_round = int(snap["round"]) != m.round_no
+    rules = snap.get("rules")
+    if isinstance(rules, dict):  # the host's lobby rules, shown and used for drawing on the client
+        from dataclasses import replace
+        known = {k: v for k, v in rules.items() if k in m.RULE_NAMES and isinstance(v, (bool, int))}
+        m.cfg = replace(m.cfg, lobby=replace(m.cfg.lobby, **known))
     m.time = float(snap["time"])
     m.phase = snap["phase"]
     left = float(snap["phase_left"])
