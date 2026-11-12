@@ -13,6 +13,7 @@ import pygame
 
 from gameplay.net import DEFAULT_PORT, discover
 from gameplay.world import MAP_DIR
+import user_settings
 from sprite_bank import SpriteBank, draw_nine_slice
 
 C_BG = (22, 21, 28)
@@ -49,14 +50,104 @@ class MainMenu:
         self.status = ""
         self.found: list[tuple[str, int, str]] = []
         self.pressed: str | None = None
+        self.view = "main"
+        self.settings = user_settings.load()
+        self.dragging: str | None = None
+        self.typing_name = False
+        self.apply_settings()
+
+    def apply_settings(self) -> None:
+        a, st = self.args, self.settings
+        a.sensitivity, a.camera_push, a.volume = st["sensitivity"], st["camera_push"], st["volume"]
+        a.name = st["name"]
+        a.all_around, a.sound_rings = st["all_around"] or a.all_around, st["sound_rings"] or a.sound_rings
+
+    # ------------------------------------------------------------ settings view
+    SLIDERS = (("sensitivity", "Mouse sensitivity"), ("camera_push", "Camera ahead"), ("volume", "Volume"))
+    CHECKS = (("all_around", "All-around sight (lobby rule)"), ("sound_rings", "Sound rings (lobby rule)"))
+
+    def slider_rect(self, i: int) -> pygame.Rect:
+        return pygame.Rect(360, 220 + i * 70, 420, 24)
+
+    def check_rect(self, i: int) -> pygame.Rect:
+        return pygame.Rect(80, 440 + i * 56, 36, 36)
+
+    def name_rect(self) -> pygame.Rect:
+        return pygame.Rect(360, 150, 420, 44)
+
+    def back_button(self) -> Button:
+        return Button(pygame.Rect(80, 600, 300, 48), "Save and back", "back")
+
+    def settings_click(self, pos: tuple[int, int]) -> None:
+        self.typing_name = self.name_rect().collidepoint(pos)
+        for i, (key, _) in enumerate(self.SLIDERS):
+            if self.slider_rect(i).inflate(0, 16).collidepoint(pos):
+                self.dragging = key
+                self.slide(pos)
+        for i, (key, _) in enumerate(self.CHECKS):
+            if self.check_rect(i).collidepoint(pos):
+                self.settings[key] = not self.settings[key]
+
+    def slide(self, pos: tuple[int, int]) -> None:
+        if not self.dragging:
+            return
+        i = [k for k, _ in self.SLIDERS].index(self.dragging)
+        r = self.slider_rect(i)
+        low, high = user_settings.LIMITS[self.dragging]
+        frac = max(0.0, min(1.0, (pos[0] - r.x) / r.w))
+        self.settings[self.dragging] = round(low + frac * (high - low), 3)
+
+    def draw_settings(self) -> None:
+        s = self.screen
+        st = self.settings
+        s.blit(self.big.render("Settings", True, C_TEXT), (80, 80))
+        s.blit(self.font.render("Name", True, C_MUTED), (80, 162))
+        field = self.name_rect()
+        if not draw_nine_slice(s, self.bank, "ui/menu/textfield.png", field, 4, SCALE):
+            pygame.draw.rect(s, (36, 35, 45), field)
+        s.blit(self.font.render(st["name"] + ("_" if self.typing_name else ""), True, C_TEXT), (field.x + 16, field.y + 13))
+        for i, (key, label) in enumerate(self.SLIDERS):
+            r = self.slider_rect(i)
+            low, high = user_settings.LIMITS[key]
+            frac = (st[key] - low) / (high - low)
+            s.blit(self.font.render(label, True, C_MUTED), (80, r.y + 3))
+            track = self.bank.scaled("ui/menu/slider_track.png", (r.w, r.h))
+            fill = self.bank.scaled("ui/menu/slider_fill.png", (r.w, r.h))
+            knob = self.bank.scaled("ui/menu/slider_knob.png", (r.h + 8, r.h + 8))
+            if track is not None and fill is not None:
+                s.blit(track, r.topleft)
+                s.blit(fill, r.topleft, (0, 0, round(r.w * frac), r.h))
+            else:
+                pygame.draw.rect(s, C_MUTED, r, 1)
+                pygame.draw.rect(s, C_ACCENT, (r.x, r.y, r.w * frac, r.h))
+            kx = r.x + r.w * frac
+            if knob is not None:
+                s.blit(knob, (kx - knob.get_width() / 2, r.centery - knob.get_height() / 2))
+            s.blit(self.font.render(f"{st[key]:.2f}", True, C_TEXT), (r.right + 20, r.y + 3))
+        for i, (key, label) in enumerate(self.CHECKS):
+            r = self.check_rect(i)
+            box = self.bank.scaled(f"ui/menu/checkbox{'_on' if st[key] else ''}.png", (r.w, r.h))
+            if box is not None:
+                s.blit(box, r.topleft)
+            else:
+                pygame.draw.rect(s, C_ACCENT if st[key] else C_MUTED, r, 0 if st[key] else 2)
+            s.blit(self.font.render(label, True, C_TEXT), (r.right + 16, r.y + 9))
+        b = self.back_button()
+        mouse = pygame.mouse.get_pos()
+        state = "button_hover" if b.rect.collidepoint(mouse) else "button"
+        if not draw_nine_slice(s, self.bank, f"ui/menu/{state}.png", b.rect, 4, SCALE):
+            pygame.draw.rect(s, C_MUTED, b.rect, 1)
+        s.blit(self.font.render(b.label, True, C_TEXT), (b.rect.x + 18, b.rect.y + 15))
 
     # ------------------------------------------------------------ layout
     def buttons(self) -> list[Button]:
-        x, y, w, h, gap = 60, 200, 360, 48, 12
+        if self.view == "settings":
+            return [self.back_button()]
+        x, y, w, h, gap = 60, 180, 360, 44, 10
         rows = [("Practice vs bots", "local"), ("Host a match", "host"), ("Find LAN match", "find"),
                 (f"Join {self.address or '…'}", "join"), (f"Map: {self.args.map}", "map"),
                 (f"Team size: {self.args.team_size}v{self.args.team_size}", "size"),
-                (f"Rounds to win: {self.args.rounds}", "rounds"), ("Quit", "quit")]
+                (f"Rounds to win: {self.args.rounds}", "rounds"), ("Settings", "settings"), ("Quit", "quit")]
         out = []
         for i, (label, action) in enumerate(rows):
             enabled = action != "join" or bool(self.address)
@@ -78,6 +169,21 @@ class MainMenu:
             for ev in pygame.event.get():
                 if ev.type == pygame.QUIT:
                     return None
+                if ev.type == pygame.KEYDOWN and self.typing_name:
+                    if ev.key in (pygame.K_RETURN, pygame.K_ESCAPE):
+                        self.typing_name = False
+                    elif ev.key == pygame.K_BACKSPACE:
+                        self.settings["name"] = self.settings["name"][:-1]
+                    elif ev.unicode and ev.unicode.isprintable() and len(self.settings["name"]) < 16:
+                        self.settings["name"] += ev.unicode
+                    continue
+                if ev.type == pygame.MOUSEMOTION and self.dragging:
+                    self.slide(ev.pos)
+                    continue
+                if ev.type == pygame.MOUSEBUTTONUP and ev.button == 1 and self.dragging:
+                    self.dragging = None
+                if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1 and self.view == "settings":
+                    self.settings_click(ev.pos)
                 if ev.type == pygame.KEYDOWN and self.typing:
                     if ev.key in (pygame.K_RETURN, pygame.K_ESCAPE):
                         self.typing = False
@@ -105,6 +211,16 @@ class MainMenu:
         a = self.args
         if action == "quit":
             return False
+        if action == "settings":
+            self.view = "settings"
+            return None
+        if action == "back":
+            if not self.settings["name"].strip():
+                self.settings["name"] = "Player"
+            user_settings.save(self.settings)
+            self.apply_settings()
+            self.view = "main"
+            return None
         if action == "local":
             a.host, a.join = False, None
             return a
@@ -141,6 +257,16 @@ class MainMenu:
             s.blit(bg, (0, 0))
         else:
             s.fill(C_BG)
+        if self.view == "settings":
+            shade = pygame.Surface((w, h), pygame.SRCALPHA)
+            shade.fill((10, 10, 16, 200))
+            s.blit(shade, (0, 0))
+            self.draw_settings()
+            cursor = self.bank.scaled("ui/menu/cursor.png", (24, 24))
+            if cursor is not None:
+                pygame.mouse.set_visible(False)
+                s.blit(cursor, pygame.mouse.get_pos())
+            return
         logo = self.bank.scaled("logo.png", (96, 96))
         if logo is not None:
             s.blit(logo, (60, 40))
@@ -156,6 +282,7 @@ class MainMenu:
             label = self.font.render(b.label, True, C_TEXT if b.enabled else C_MUTED)
             s.blit(label, (b.rect.x + 18, b.rect.centery - label.get_height() / 2))
         field = self.address_rect()
+        s.blit(self.font.render(f"Playing as {self.settings['name']}", True, C_MUTED), (460, 170))
         if not draw_nine_slice(s, self.bank, "ui/menu/textfield.png", field, 4, SCALE):
             pygame.draw.rect(s, (36, 35, 45), field)
             pygame.draw.rect(s, C_ACCENT if self.typing else C_MUTED, field, 1)

@@ -98,6 +98,7 @@ class Sound:
     def __init__(self) -> None:
         self.ok = False
         self.sounds: dict[str, pygame.mixer.Sound] = {}
+        self.volume = 0.8
         try:
             import numpy as np
             pygame.mixer.init(frequency=44100, size=-16, channels=2)
@@ -129,7 +130,7 @@ class Sound:
             return
         ch = self.sounds[kind].play()
         if ch:
-            ch.set_volume(left, right)
+            ch.set_volume(left * self.volume, right * self.volume)
 
 
 class Game:
@@ -186,8 +187,9 @@ class Game:
         self.ui = UiState()
         self.sound = Sound()
         self.cursor_depth = 8.0
-        self.sens = base.player.sensitivity
-        self.camera_push = base.player.camera_push
+        self.sens = float(getattr(args, "sensitivity", base.player.sensitivity))
+        self.camera_push = float(getattr(args, "camera_push", base.player.camera_push))
+        self.sound.volume = float(getattr(args, "volume", 0.8))
         self.clock = pygame.time.Clock()
         self.grab(False)
         self.agent_cards: list[tuple[pygame.Rect, str]] = []
