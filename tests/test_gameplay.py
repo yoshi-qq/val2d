@@ -367,3 +367,22 @@ def test_nav_path_goes_around_walls() -> None:
     assert path and (path[-1] - goal).length() < 0.01
     points = [Vec(24, 3)] + path
     assert all(grid.line_free(a, b) for a, b in zip(points, points[1:]))
+
+
+def test_practice_range_buys_anywhere_and_targets_respawn() -> None:
+    m = Match(load_map("range"), seed=1)
+    a = m.add_player("A", 0, "kestrel").pid
+    targets = []
+    for pos, _ in m.world.practice_targets:
+        d = m.add_player("T", 1, "kestrel", is_bot=True)
+        d.dummy, d.home = True, pos
+        targets.append(d)
+    m.start_practice()
+    p = m.players[a]
+    p.pos = Vec(30, 20)
+    assert m.buy(p, "adler") and m.phase == "live"
+    m._kill(p, targets[0], "test", "head")
+    run(m, 2.5)
+    assert targets[0].alive and (targets[0].pos - targets[0].home).length() < 0.01
+    run(m, 200)
+    assert m.phase == "live" and m.round_no == 1

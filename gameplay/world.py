@@ -61,6 +61,7 @@ class WorldMap:
     floor: str = ""  # key in config/materials.py FLOORS for the whole map
     floors: list[tuple[str, Rect]] = field(default_factory=list)  # floor material patches
     objects: list[MapThing] = field(default_factory=list)
+    practice_targets: list[tuple[Vec, float]] = field(default_factory=list)  # (position, sideways travel in m)
     decals: list[MapThing] = field(default_factory=list)
 
     def floor_level(self, p: Vec) -> int:
@@ -181,6 +182,7 @@ def parse_map(key: str, raw: dict) -> WorldMap:
                                     bool(spec.get("door", False))))
             elif kind == "objects" and spec.get("sight_only"):
                 m.walls.append(Wall(thing.rect, 0, True, 2, "obj:" + thing.key, False, False, False))
+    m.practice_targets = [(Vec(*t["pos"]), float(t.get("move", 0.0))) for t in raw.get("practice_targets", [])]
     m.floor = str(raw.get("floor", ""))
     m.floors = [(str(f["mat"]), _rect(f["rect"])) for f in raw.get("floors", [])]
     for b in raw.get("crates", []):

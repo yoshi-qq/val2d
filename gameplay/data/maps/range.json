@@ -1,0 +1,287 @@
+{
+  "name": "Range",
+  "source": "own design (Claude Code), 12.11.2026; practice range with lanes at 10, 20, 30 and 45 m",
+  "width": 64,
+  "height": 32,
+  "floor": "concrete",
+  "floors": [
+    {
+      "rect": [
+        0,
+        0,
+        64,
+        6
+      ],
+      "mat": "tiles_dark"
+    },
+    {
+      "rect": [
+        0,
+        6,
+        64,
+        32
+      ],
+      "mat": "gravel"
+    }
+  ],
+  "walls": [
+    {
+      "rect": [
+        0,
+        8,
+        6,
+        9
+      ],
+      "mat": "concrete"
+    },
+    {
+      "rect": [
+        10,
+        14,
+        12,
+        14.5
+      ],
+      "mat": "wood_fence"
+    },
+    {
+      "rect": [
+        13,
+        14,
+        15,
+        14.5
+      ],
+      "mat": "metal_sheet"
+    },
+    {
+      "rect": [
+        16,
+        14,
+        18,
+        14.5
+      ],
+      "mat": "brick"
+    },
+    {
+      "rect": [
+        19,
+        14,
+        21,
+        14.5
+      ],
+      "mat": "concrete"
+    },
+    {
+      "rect": [
+        22,
+        14,
+        24,
+        14.5
+      ],
+      "mat": "glass"
+    }
+  ],
+  "crates": [
+    [
+      40,
+      2,
+      42,
+      4
+    ],
+    [
+      44,
+      2,
+      46,
+      4
+    ]
+  ],
+  "platforms": [
+    [
+      50,
+      0,
+      58,
+      4
+    ]
+  ],
+  "ramps": [
+    [
+      48,
+      1,
+      50,
+      3
+    ]
+  ],
+  "sites": [
+    {
+      "name": "A",
+      "rect": [
+        26,
+        1,
+        34,
+        5
+      ]
+    }
+  ],
+  "spawns": {
+    "0": [
+      [
+        8,
+        3
+      ]
+    ],
+    "1": [
+      [
+        16,
+        18
+      ],
+      [
+        30,
+        10
+      ],
+      [
+        40,
+        20
+      ],
+      [
+        54,
+        30
+      ],
+      [
+        30,
+        26
+      ]
+    ]
+  },
+  "spawn_zones": {
+    "0": [
+      0,
+      0,
+      64,
+      6
+    ],
+    "1": [
+      60,
+      28,
+      64,
+      32
+    ]
+  },
+  "callouts": [
+    {
+      "name": "Firing Line",
+      "rect": [
+        0,
+        0,
+        64,
+        6
+      ]
+    },
+    {
+      "name": "Lanes",
+      "rect": [
+        0,
+        6,
+        64,
+        32
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "key": "table",
+      "pos": [
+        4,
+        2
+      ]
+    },
+    {
+      "key": "warning_sign",
+      "pos": [
+        7,
+        7
+      ]
+    },
+    {
+      "key": "lamp",
+      "pos": [
+        32,
+        6
+      ]
+    }
+  ],
+  "decals": [
+    {
+      "key": "paint_line",
+      "rect": [
+        0,
+        5.9,
+        64,
+        6.15
+      ]
+    },
+    {
+      "key": "paint_x",
+      "pos": [
+        16,
+        18
+      ]
+    },
+    {
+      "key": "paint_x",
+      "pos": [
+        30,
+        10
+      ]
+    },
+    {
+      "key": "paint_x",
+      "pos": [
+        40,
+        20
+      ]
+    },
+    {
+      "key": "paint_x",
+      "pos": [
+        54,
+        30
+      ]
+    }
+  ],
+  "practice_targets": [
+    {
+      "pos": [
+        16,
+        18
+      ],
+      "move": 0
+    },
+    {
+      "pos": [
+        30,
+        10
+      ],
+      "move": 0
+    },
+    {
+      "pos": [
+        40,
+        20
+      ],
+      "move": 4.0
+    },
+    {
+      "pos": [
+        54,
+        30
+      ],
+      "move": 0
+    },
+    {
+      "pos": [
+        30,
+        26
+      ],
+      "move": 6.0
+    }
+  ]
+}

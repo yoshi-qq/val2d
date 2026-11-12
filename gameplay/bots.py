@@ -260,7 +260,7 @@ class BotDirector:
 
     def sync(self) -> None:
         for p in self.match.players.values():
-            if p.is_bot and p.pid not in self.brains:
+            if p.is_bot and not p.dummy and p.pid not in self.brains:
                 self.brains[p.pid] = BotBrain(p.pid, rng=random.Random(self.rng.random()))
 
     def commands(self, dt: float) -> dict[int, Command]:

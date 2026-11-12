@@ -154,6 +154,9 @@ class PlayerState:
     prev_interact: bool = False
     visible: bool = True  # only meaningful in a client's shadow match
     ping_ms: int | None = None  # round trip to the host; None for bots and the host itself
+    dummy: bool = False  # practice-range target: does nothing, respawns after death
+    home: Vec = Vec(0, 0)
+    died_at: float = -99.0
 
     @property
     def weapon(self) -> WeaponState | None:
@@ -204,6 +207,7 @@ class Match:
         self.drops: list[Drop] = []
         self.events: list[GameEvent] = []
         self.open_doors: set[Rect] = set()
+        self.practice = False  # practice range: endless live phase, free buying, respawning dummies
         self.time = 0.0
         self.phase = "lobby"  # lobby, buy, live, planted, end, over
         self.phase_until = 0.0
@@ -257,6 +261,32 @@ class Match:
 
     def _in_overtime(self) -> bool:
         return self.round_no > 2 * int(self._r["half_after"])
+
+    def start_practice(self) -> None:
+        """Practice range: one endless live round, plenty of credits, no bomb."""
+        self.practice = True
+        self.start()
+        self.phase, self.phase_until = "live", self.time + 10 ** 7
+        self.spike_carrier = None
+        for p in self.players.values():
+            p.credits = 99_000
+            for key in ("C", "Q", "E"):
+                ab = self.agents[p.agent]["abilities"].get(key, {})
+                p.charges[key] = int(ab.get("max", 1))
+            p.ult_points = 99
+
+    def _practice_upkeep(self) -> None:
+        for p in self.players.values():
+            if p.dummy and not p.alive and self.time - p.died_at >= 2.0:
+                p.alive, p.hp, p.armor = True, self._hp, 0
+                p.pos = p.home
+            elif not p.dummy:
+                p.credits = max(p.credits, 99_000)
+                for key in ("C", "Q", "E"):
+                    ab = self.agents[p.agent]["abilities"].get(key, {})
+                    if p.charges.get(key, 0) < 1:
+                        p.charges[key] = int(ab.get("max", 1))
+                p.ult_points = max(p.ult_points, 99)
 
     def _start_round(self) -> None:
         self.round_no += 1
@@ -359,10 +389,10 @@ class Match:
 
     # ------------------------------------------------------------------ Buying
     def buy(self, p: PlayerState, item: str) -> bool:
-        if self.phase != "buy" or not p.alive:
+        if not p.alive or (self.phase != "buy" and not self.practice):
             return False
         zone = self.world.spawn_zones.get(0 if self.side(p.team) == "attack" else 1)
-        if zone and not zone.contains(p.pos):
+        if zone and not zone.contains(p.pos) and not self.practice:
             return False
         if item in self.weapons:
             d = self.weapons[item]
@@ -423,6 +453,9 @@ class Match:
         return self.events
 
     def _check_round(self) -> None:
+        if self.practice:
+            self._practice_upkeep()
+            return
         if self.phase not in ("live", "planted"):
             return
         att = [p for p in self.players.values() if self.side(p.team) == "attack" and p.alive]
@@ -793,6 +826,7 @@ class Match:
 
     def _kill(self, attacker: PlayerState | None, target: PlayerState, source: str, zone: str) -> None:
         target.alive = False
+        target.died_at = self.time
         target.hp = 0
         target.deaths += 1
         target.ult_points += int(self._ult["per_death"])

@@ -145,8 +145,9 @@ class MainMenu:
     def buttons(self) -> list[Button]:
         if self.view == "settings":
             return [self.back_button()]
-        x, y, w, h, gap = 60, 180, 360, 44, 10
-        rows = [("Practice vs bots", "local"), ("Host LAN match", "host"), ("Host online (join code)", "host_online"),
+        x, y, w, h, gap = 60, 150, 360, 40, 8
+        rows = [("Practice vs bots", "local"), ("Practice range", "range"), ("Host LAN match", "host"),
+                ("Host online (join code)", "host_online"),
                 ("Find LAN match", "find"),
                 (f"Join {self.address or '…'}", "join"), (f"Map: {self.args.map}", "map"),
                 (f"Team size: {self.args.team_size}v{self.args.team_size}", "size"),
@@ -225,7 +226,10 @@ class MainMenu:
             self.view = "main"
             return None
         if action == "local":
-            a.host, a.join = False, None
+            a.host, a.join, a.practice = False, None, False
+            return a
+        if action == "range":
+            a.host, a.join, a.practice = False, None, True
             return a
         if action == "host":
             a.host, a.join, a.online = True, None, False

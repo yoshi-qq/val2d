@@ -157,6 +157,9 @@ class Game:
         cfg = type(base)(hit_zones=base.hit_zones, lobby=lobby, player=base.player)
         self.team_size = args.team_size
         self.mode = "local"
+        self.practice = bool(getattr(args, "practice", False))
+        self.dummy_moves: dict[int, float] = {}
+        self.stats = {"shots": 0, "hits": 0, "heads": 0, "kills": 0}
         self.session: HostSession | None = None
         self.client: Client | None = None
         self.status = ""
@@ -172,6 +175,13 @@ class Game:
             self.session = HostSession(self.match, args.name, None if online else args.port,
                                        mode="internet" if online else "lan")
             self.me = self.match.add_player(args.name, 0, args.agent).pid
+        elif getattr(args, "practice", False):
+            self.match = Match(load_map("range"), cfg)
+            self.me = self.match.add_player("You", 0, args.agent).pid
+            for i, (pos, move) in enumerate(self.match.world.practice_targets):
+                d = self.match.add_player(f"Target {i + 1}", 1, args.agent, is_bot=True)
+                d.dummy, d.home = True, pos
+                self.dummy_moves[d.pid] = move
         else:
             self.match = Match(load_map(args.map), cfg)
             self.me = self.match.add_player("You", 0, args.agent).pid
@@ -225,6 +235,11 @@ class Game:
                     if ev.key == pygame.K_RETURN and self.match.phase == "lobby":
                         if self.session:
                             self.session.start(self.team_size)
+                        elif self.mode == "local" and self.practice:
+                            self.match.start_practice()
+                            for d in self.match.players.values():
+                                if d.dummy:
+                                    d.pos, d.facing = d.home, 180.0
                         elif self.mode == "local":
                             self.match.start()
                     elif ev.key == pygame.K_b:
@@ -305,6 +320,11 @@ class Game:
         if self.mode == "local":
             commands = self.bots.commands(dt)
             commands[self.me] = cmd
+            for pid, travel in self.dummy_moves.items():
+                d = self.match.players[pid]
+                if d.alive:  # moving targets strafe left and right around their home
+                    side = 1.0 if math.sin(self.match.time * 6.0 / max(travel, 1.0)) > 0 else -1.0
+                    commands[pid] = Command(facing=180.0, move_x=side if travel else 0.0)
             return self.match.tick(dt, commands)
         if self.session:
             return self.session.step(dt, {self.me: cmd})
@@ -364,6 +384,8 @@ class Game:
             d = e.data
             if e.kind == "shot":
                 self.ui.last_shot[d["pid"]] = t
+                if d["pid"] == self.me:
+                    self.stats["shots"] += 1
                 if d.get("stop") == "wall":
                     self.ui.oneshots.append(("fx/einschlag_wand.png", Vec(*d["to"]), t, 0.25, 8, (0.5, 0.5)))
                 self.ui.tracers.append(Tracer(Vec(*d["from"]), Vec(*d["to"]), t + 0.08, d["pid"] == self.me))
@@ -376,6 +398,9 @@ class Game:
                     self.ui.rings.append(Ring(pos, min(d["radius"], 6.0), t))
             elif e.kind == "hit":
                 self.ui.last_hit[d["pid"]] = t
+                if d.get("by") == self.me:
+                    self.stats["hits"] += 1
+                    self.stats["heads"] += 1 if d.get("zone") == "head" else 0
                 victim = m.players.get(d["pid"])
                 if victim is not None:
                     self.ui.oneshots.append(("fx/treffer_koerper.png", victim.pos, t, 0.25, 8, (0.5, 0.5)))
@@ -1063,6 +1088,8 @@ class Game:
                 if net.warning:
                     self.status = net.warning
             hint = f"Click an agent · Enter starts · bots fill up to {self.team_size} per team · {where}"
+        elif self.mode == "local" and self.practice:
+            hint = "Click an agent · Enter opens the practice range"
         elif self.mode == "local":
             hint = f"Click an agent · Enter starts ({self.team_size} vs {self.team_size} with bots)"
         else:
@@ -1216,10 +1243,18 @@ class Game:
         left = m.phase_time_left()
         phase = {"buy": "Buy phase", "live": "", "planted": "Bomb planted", "end": "Round over", "over": "Match over"}.get(m.phase, "")
         mine, theirs = m.score[me.team], m.score[1 - me.team]
-        self.text(f"{mine}  {int(left) // 60}:{int(left) % 60:02d}  {theirs}", (self.w / 2, 12), big=True, center=True)
-        self.draw_score_pips(me)
-        side = "Attack" if m.side(me.team) == "attack" else "Defense"
-        self.text(f"Round {m.round_no} · {side} {('· ' + phase) if phase else ''}", (self.w / 2, 54), C_MUTED, center=True)
+        if m.practice:
+            st = self.stats
+            acc = 100 * st["hits"] / st["shots"] if st["shots"] else 0
+            heads = 100 * st["heads"] / st["hits"] if st["hits"] else 0
+            self.text("Practice range", (self.w / 2, 12), big=True, center=True)
+            self.text(f"shots {st['shots']} · hits {st['hits']} ({acc:.0f} %) · head {heads:.0f} % · B buys anywhere",
+                      (self.w / 2, 54), C_MUTED, center=True)
+        else:
+            self.text(f"{mine}  {int(left) // 60}:{int(left) % 60:02d}  {theirs}", (self.w / 2, 12), big=True, center=True)
+            self.draw_score_pips(me)
+            side = "Attack" if m.side(me.team) == "attack" else "Defense"
+            self.text(f"Round {m.round_no} · {side} {('· ' + phase) if phase else ''}", (self.w / 2, 54), C_MUTED, center=True)
         self.draw_bar("leben", "balken_leben", max(me.hp, 0), 100, (20, self.h - 40))
         self.draw_bar("schild", "balken_schild", me.armor, 50, (250, self.h - 40))
         self.draw_minimap(me)
@@ -1243,7 +1278,7 @@ class Game:
                 icon = icon.copy()
                 icon.fill((90, 90, 90, 255), special_flags=pygame.BLEND_RGBA_MULT)
             self.screen.blit(icon, (x, self.h - 112))
-            label = f"{me.ult_points}/{abil['X']['cost']}" if k == "X" else str(me.charges.get(k, 0))
+            label = f"{min(me.ult_points, int(abil['X']['cost']))}/{abil['X']['cost']}" if k == "X" else str(me.charges.get(k, 0))
             self.text(f"{k} {label}", (x, self.h - 76), C_MUTED)
             x += icon_px + 40
         else:
@@ -1295,6 +1330,7 @@ class Game:
             y += 28
         if self.status:
             self.text(self.status, (self.w / 2, self.h / 2 - 110), C_ENEMY, center=True)
+
         if m.time < self.ui.banner[0]:
             art = self.bank.raw(f"ui/banner/{self.ui.banner_art}.png") if self.ui.banner_art else None
             y = 96
@@ -1476,6 +1512,7 @@ def main() -> None:
     net.add_argument("--find", action="store_true", help="Find a match on the local network and join")
     ap.add_argument("--port", type=int, default=DEFAULT_PORT)
     ap.add_argument("--no-menu", action="store_true", help="Start the practice match directly, without the main menu")
+    ap.add_argument("--range", dest="practice", action="store_true", help="Practice range instead of a match")
     args = ap.parse_args()
     args.online = bool(args.host_online)
     if args.host_online:
