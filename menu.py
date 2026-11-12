@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pygame
 
-from gameplay.net import DEFAULT_PORT, discover
+from gameplay.netgame import DEFAULT_PORT, discover
 from gameplay.world import MAP_DIR
 import user_settings
 from sprite_bank import SpriteBank, draw_nine_slice
@@ -144,7 +144,8 @@ class MainMenu:
         if self.view == "settings":
             return [self.back_button()]
         x, y, w, h, gap = 60, 180, 360, 44, 10
-        rows = [("Practice vs bots", "local"), ("Host a match", "host"), ("Find LAN match", "find"),
+        rows = [("Practice vs bots", "local"), ("Host LAN match", "host"), ("Host online (join code)", "host_online"),
+                ("Find LAN match", "find"),
                 (f"Join {self.address or '…'}", "join"), (f"Map: {self.args.map}", "map"),
                 (f"Team size: {self.args.team_size}v{self.args.team_size}", "size"),
                 (f"Rounds to win: {self.args.rounds}", "rounds"), ("Settings", "settings"), ("Quit", "quit")]
@@ -225,10 +226,15 @@ class MainMenu:
             a.host, a.join = False, None
             return a
         if action == "host":
-            a.host, a.join = True, None
+            a.host, a.join, a.online = True, None, False
+            return a
+        if action == "host_online":
+            a.host, a.join, a.online = True, None, True
             return a
         if action == "join" and self.address:
-            a.host, a.join = False, self.address if ":" in self.address else f"{self.address}:{DEFAULT_PORT}"
+            lan = "." in self.address or self.address.lower() == "localhost"
+            target = f"{self.address}:{DEFAULT_PORT}" if lan and ":" not in self.address else self.address
+            a.host, a.join, a.online = False, target, False
             return a
         if action == "find":
             self.status = "Searching the local network …"
@@ -287,7 +293,7 @@ class MainMenu:
             pygame.draw.rect(s, (36, 35, 45), field)
             pygame.draw.rect(s, C_ACCENT if self.typing else C_MUTED, field, 1)
         shown = self.address + ("_" if self.typing else "")
-        text = self.font.render(shown or "Host address (click to type)", True, C_TEXT if self.address else C_MUTED)
+        text = self.font.render(shown or "Join code or LAN address (click to type)", True, C_TEXT if self.address else C_MUTED)
         s.blit(text, (field.x + 16, field.centery - text.get_height() / 2))
         if self.status:
             msg = self.font.render(self.status, True, C_ERROR if "No match" in self.status else C_ACCENT)

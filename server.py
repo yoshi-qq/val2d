@@ -12,7 +12,7 @@ import warnings
 
 from gameplay.data import LobbySettings, load_config
 from gameplay.match import Match
-from gameplay.net import DEFAULT_PORT
+from gameplay.netgame import DEFAULT_PORT
 from gameplay.session import HostSession
 from gameplay.world import load_map
 
@@ -35,17 +35,21 @@ def main() -> None:
     ap.add_argument("--players", type=int, default=2, help="Start once this many humans have joined")
     ap.add_argument("--start-after", type=float, default=0.0, help="Start after this many seconds at the latest (0 = never)")
     ap.add_argument("--port", type=int, default=DEFAULT_PORT)
+    ap.add_argument("--online", action="store_true", help="Internet match with a join code instead of LAN")
     ap.add_argument("--all-around", action="store_true", help="Lobby rule: all-around sight")
     ap.add_argument("--sound-rings", action="store_true", help="Lobby rule: sound rings")
     args = ap.parse_args()
 
     match = build_match(args.map, args.rounds, args.team_size, args.all_around, args.sound_rings)
     try:
-        session = HostSession(match, "Val2d-Server", args.port)
+        session = HostSession(match, "Val2d-Server", None if args.online else args.port,
+                              mode="internet" if args.online else "lan")
     except OSError as exc:
-        print(f"Server cannot start: port {args.port} is in use or blocked ({exc}).")
+        print(f"Server cannot start: {exc}")
         return
-    print(f"Val2d server on port {args.port}, map {match.world.name}. Waiting for {args.players} players …")
+    print(f"Val2d server, map {match.world.name}. Join with: {session.net.join_code}. Waiting for {args.players} players …")
+    if session.net.warning:
+        print(session.net.warning)
     opened = time.monotonic()
     last = time.monotonic()
     known = 0

@@ -12,7 +12,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import pytest
 
 from gameplay.match import Command, Match
-from gameplay.net import Client, apply_snapshot, command_from_json, recv_msg, send_msg
+from gameplay.net import apply_snapshot, command_from_json, recv_msg, send_msg
+from gameplay.netgame import NetClient
 from gameplay.session import HostSession
 from gameplay.world import load_map
 
@@ -51,16 +52,15 @@ def test_command_from_json_clamps_and_drops_junk() -> None:
 
 
 def test_client_joins_receives_snapshot_and_moves(session: HostSession) -> None:
-    client = Client("127.0.0.1", session.net.port, "Guest", "marrow")
+    client = NetClient(f"127.0.0.1:{session.net.port}", "Guest", "marrow")
     try:
         assert client.map_key == "werkhof"
         _wait(lambda: client.pid in session.match.players, session)
         session.start(team_size=1)
         shadow = Match(load_map(client.map_key))
-        _wait(lambda: any(m.get("type") == "state" for m in client.inbox), session)
-        for msg in client.take():
-            if msg["type"] == "state":
-                apply_snapshot(shadow, msg["snap"], client.pid)
+        states: list = []
+        _wait(lambda: states.extend(m for m in client.take() if m["type"] == "state") or bool(states), session)
+        apply_snapshot(shadow, states[-1]["snap"], client.pid)
         assert client.pid in shadow.players
         assert shadow.phase == "buy"
         # skip the buy phase, then walk forward
@@ -76,7 +76,7 @@ def test_client_joins_receives_snapshot_and_moves(session: HostSession) -> None:
 
 
 def test_held_input_continues_between_client_messages(session: HostSession) -> None:
-    client = Client("127.0.0.1", session.net.port, "Guest", "kestrel")
+    client = NetClient(f"127.0.0.1:{session.net.port}", "Guest", "kestrel")
     try:
         _wait(lambda: client.pid in session.match.players, session)
         session.start(team_size=1)
@@ -94,7 +94,7 @@ def test_held_input_continues_between_client_messages(session: HostSession) -> N
 
 
 def test_disconnected_player_becomes_bot(session: HostSession) -> None:
-    client = Client("127.0.0.1", session.net.port, "Guest", "kestrel")
+    client = NetClient(f"127.0.0.1:{session.net.port}", "Guest", "kestrel")
     _wait(lambda: client.pid in session.match.players, session)
     client.close()
     _wait(lambda: session.match.players[client.pid].is_bot, session)
@@ -104,7 +104,7 @@ def test_disconnected_player_becomes_bot(session: HostSession) -> None:
 def test_join_rejected_after_start(session: HostSession) -> None:
     session.start(team_size=1)
     with pytest.raises(ConnectionError):
-        Client("127.0.0.1", session.net.port, "Late", "kestrel")
+        NetClient(f"127.0.0.1:{session.net.port}", "Late", "kestrel")
 
 
 def test_oversized_message_is_refused() -> None:
@@ -128,7 +128,7 @@ def test_fill_bots_balances_teams(session: HostSession) -> None:
 
 
 def test_client_picks_agent_in_lobby_only(session: HostSession) -> None:
-    client = Client("127.0.0.1", session.net.port, "Guest", "kestrel")
+    client = NetClient(f"127.0.0.1:{session.net.port}", "Guest", "kestrel")
     try:
         _wait(lambda: client.pid in session.match.players, session)
         client.choose_agent("sable")

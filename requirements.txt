@@ -1,2 +1,3 @@
 graphy @ git+https://github.com/yoshi-qq/graphy.git
 networking @ git+https://github.com/yoshi-qq/networking.git
+netplay @ git+https://github.com/yoshi-qq/netplay.git

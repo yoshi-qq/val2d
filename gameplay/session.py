@@ -10,7 +10,7 @@ from dataclasses import replace
 
 from gameplay.bots import BotDirector
 from gameplay.match import Command, GameEvent, Match
-from gameplay.net import DEFAULT_PORT, Host
+from gameplay.netgame import DEFAULT_PORT, NetHost
 
 SNAPSHOT_RATE = 30.0  # snapshots per second sent to clients
 
@@ -21,9 +21,9 @@ def _held_part(cmd: Command) -> Command:
 
 
 class HostSession:
-    def __init__(self, match: Match, host_name: str, port: int = DEFAULT_PORT) -> None:
+    def __init__(self, match: Match, host_name: str, port: int | None = DEFAULT_PORT, mode: str = "lan") -> None:
         self.match = match
-        self.net = Host(match, host_name, port)
+        self.net = NetHost(match, host_name, mode=mode, port=port)
         self.bots = BotDirector(match)
         self.last: dict[int, Command] = {}
         self._pending_events: list[GameEvent] = []

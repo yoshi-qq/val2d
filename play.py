@@ -26,7 +26,8 @@ from gameplay.bots import BotDirector
 from gameplay.data import LobbySettings, load_config
 from gameplay.geometry import Vec, heading
 from gameplay.match import Command, Effect, GameEvent, Match, PlayerState
-from gameplay.net import DEFAULT_PORT, Client, apply_snapshot, discover, events_from_json
+from gameplay.net import apply_snapshot, events_from_json
+from gameplay.netgame import DEFAULT_PORT, NetClient, discover
 from gameplay.session import HostSession
 from gameplay.world import load_map
 from sprite_bank import CharacterSprites, SpriteBank, build_map_surface, draw_nine_slice
@@ -159,14 +160,15 @@ class Game:
         self.status = ""
         if args.join:
             self.mode = "client"
-            address, _, port = args.join.partition(":")
-            self.client = Client(address, int(port or DEFAULT_PORT), args.name, args.agent)
+            self.client = NetClient(args.join, args.name, args.agent)
             self.match = Match(load_map(self.client.map_key), cfg)
             self.me = self.client.pid
         elif args.host:
             self.mode = "host"
             self.match = Match(load_map(args.map), cfg)
-            self.session = HostSession(self.match, args.name, args.port)
+            online = bool(getattr(args, "online", False))
+            self.session = HostSession(self.match, args.name, None if online else args.port,
+                                       mode="internet" if online else "lan")
             self.me = self.match.add_player(args.name, 0, args.agent).pid
         else:
             self.match = Match(load_map(args.map), cfg)
@@ -300,12 +302,13 @@ class Game:
             self.client.send(cmd)
         events: list[GameEvent] = []
         for msg in self.client.take():
-            if msg.get("type") == "state":
-                try:
-                    apply_snapshot(self.match, msg["snap"], self.me)
+            try:
+                if msg.get("type") == "events":
                     events += events_from_json(msg.get("events", []))
-                except (KeyError, TypeError, ValueError) as exc:
-                    warnings.warn(f"Snapshot from host unreadable: {exc}")
+                elif msg.get("type") == "state":
+                    apply_snapshot(self.match, msg["snap"], self.me)
+            except (KeyError, TypeError, ValueError) as exc:
+                warnings.warn(f"Snapshot from host unreadable: {exc}")
         return events
 
     def handle_events(self, events: list[GameEvent]) -> None:
@@ -902,7 +905,13 @@ class Game:
                     row += 24
                     self.text(f"{p.name}  ({self.match.agents.get(p.agent, {}).get('name', p.agent)})", (self.w / 2 - 300 + team * 340, row))
         if self.mode == "host":
-            hint = f"Click an agent · Enter starts · bots fill free slots up to {self.team_size} per team · port {self.session.net.port if self.session else ''}"
+            net = self.session.net if self.session else None
+            where = ""
+            if net is not None:
+                where = f"join code {net.join_code}" if net.mode == "internet" else f"address {net.join_code}"
+                if net.warning:
+                    self.status = net.warning
+            hint = f"Click an agent · Enter starts · bots fill up to {self.team_size} per team · {where}"
         elif self.mode == "local":
             hint = f"Click an agent · Enter starts ({self.team_size} vs {self.team_size} with bots)"
         else:
@@ -1287,11 +1296,15 @@ def main() -> None:
     ap.add_argument("--name", default="Player", help="Name in the match (up to 16 characters)")
     net = ap.add_mutually_exclusive_group()
     net.add_argument("--host", action="store_true", help="Open a network match (host = player 1)")
-    net.add_argument("--join", metavar="ADDRESS[:PORT]", help="Join a match")
+    net.add_argument("--host-online", action="store_true", help="Open an internet match with a join code")
+    net.add_argument("--join", metavar="CODE|ADDRESS[:PORT]", help="Join a match by join code or LAN address")
     net.add_argument("--find", action="store_true", help="Find a match on the local network and join")
     ap.add_argument("--port", type=int, default=DEFAULT_PORT)
     ap.add_argument("--no-menu", action="store_true", help="Start the practice match directly, without the main menu")
     args = ap.parse_args()
+    args.online = bool(args.host_online)
+    if args.host_online:
+        args.host = True
     if not (args.host or args.join or args.find or args.no_menu):
         run_menu(args)
         return
