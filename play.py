@@ -97,6 +97,7 @@ STATUS_TINT = {"slow": (150, 110, 220), "decay": (120, 200, 90), "vulnerable": (
 
 
 SOUND_DIR = ROOT / "assets" / "sounds"
+ABILITY_KEYS = {pygame.K_c: "C", pygame.K_q: "Q", pygame.K_e: "E", pygame.K_x: "X"}
 STEP_SOUND = {"metal_plate": "step_metal", "grate": "step_metal", "grass": "step_soft", "dirt": "step_soft",
               "sand": "step_soft", "gravel": "step_soft", "carpet": "step_soft", "planks": "step_wood"}
 SHOT_SOUND = {"sidearm": "shot_pistol", "smg": "shot_smg", "shotgun": "shot_shotgun", "rifle": "shot_rifle",
@@ -218,6 +219,8 @@ class Game:
         self.local_facing = 0.0
         self.seen_round = -1
         self.spectate_index = 0
+        self.aiming: str | None = None
+        self.released_slot: str | None = None
         self._next_beep = 0.0
         self._last_phase = ""
         self.server_pos: dict[int, Vec] = {}  # client: host positions, smoothed towards each frame
@@ -290,8 +293,8 @@ class Game:
                 self.local_facing = (self.local_facing + dx * self.sens) % 360
                 me.facing = self.local_facing
                 self.cursor_depth = max(0.5, min(VIEW_METERS, self.cursor_depth - dy * 0.03))
-                cmd.fire = buttons[0]
-                cmd.alt_fire = buttons[2]
+                cmd.fire = buttons[0] and self.aiming is None
+                cmd.alt_fire = buttons[2] and self.aiming is None
             cmd.facing = me.facing
             cmd.cursor_depth = self.cursor_depth
             cmd.move_y = (1 if keys[pygame.K_w] else 0) - (1 if keys[pygame.K_s] else 0)
@@ -300,9 +303,21 @@ class Game:
             cmd.crouch = keys[pygame.K_LCTRL]
             cmd.jump = keys[pygame.K_SPACE]
             cmd.interact = keys[pygame.K_f]
-            for key, ab in ((pygame.K_c, "C"), (pygame.K_q, "Q"), (pygame.K_e, "E"), (pygame.K_x, "X")):
-                if keys[key]:
-                    cmd.ability = ab
+            for key, slot in ABILITY_KEYS.items():
+                if keys[key] and self.aiming is None and slot != self.released_slot:
+                    if self.needs_aim(me, slot):
+                        self.aiming = slot  # show the preview while held
+                    else:
+                        cmd.ability = slot
+                elif not keys[key] and self.aiming == slot:
+                    cmd.ability = slot  # released: use it where the preview showed
+                    self.aiming = None
+                if not keys[key] and self.released_slot == slot:
+                    self.released_slot = None
+                if keys[key] and cmd.ability == slot:
+                    self.released_slot = slot  # no repeat while the key stays down
+            if self.aiming and pygame.mouse.get_pressed()[2]:
+                self.aiming, self.released_slot = None, self.aiming  # right click cancels
             self.apply_zoom(me, cmd.alt_fire and not self.ui.buy_open)
             events = self.step(dt, cmd)
             if self.match.phase != "lobby" and not self.grabbed and not self.ui.buy_open:
@@ -674,6 +689,8 @@ class Game:
                 name = self.font.render(p.name, True, col)
                 s.blit(name, (px - name.get_width() / 2, py - r - 22))
         self.draw_bursts(me)
+        if self.aiming and me.pid == self.me and me.alive:
+            self.draw_aim_preview(me, self.aiming)
         self.draw_crosshair(me)
         if me.status.get("nearsight", 0.0) > m.time:
             fog = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
@@ -1286,6 +1303,52 @@ class Game:
                 icon("feind", p.pos)
         icon("selbst", me.pos, 14, me.facing)
         self.screen.blit(panel, (ox, oy))
+
+    AIM_KINDS = {"smoke", "wall", "vapor_wall", "flash", "zone", "slow_field", "blast", "wave", "sensor", "alarm",
+                 "tripwire", "teleport", "heal", "shield", "revive"}
+
+    def needs_aim(self, me: PlayerState, slot: str) -> bool:
+        ab = self.match.agents.get(me.agent, {}).get("abilities", {}).get(slot, {})
+        return str(ab.get("kind", "")) in self.AIM_KINDS
+
+    def draw_aim_preview(self, me: PlayerState, slot: str) -> None:
+        """Where the held ability will land: ring, line or arc, clipped at walls like the real throw."""
+        m, s = self.match, self.screen
+        ab = m.agents.get(me.agent, {}).get("abilities", {}).get(slot, {})
+        kind = str(ab.get("kind", ""))
+        aim = heading(me.facing)
+        reach = min(self.cursor_depth, float(ab.get("range", self.cursor_depth)))
+        free_target = me.pos + aim * reach
+        clip = not (kind == "smoke" and ab.get("remote")) and not (kind == "flash" and ab.get("through_walls"))
+        target = m._clip_to_walls(me.pos, free_target, me.level) if clip else free_target
+        color = (120, 255, 200)
+        tx, ty = self.to_screen(target, me)
+        if kind == "wave":
+            length, width = float(ab.get("length", 10)), float(ab.get("width", 1))
+            side = aim.rotated(90) * (width / 2)
+            corners = [me.pos + side, me.pos - side, me.pos - side + aim * length, me.pos + side + aim * length]
+            pygame.draw.polygon(s, color, [self.to_screen(c, me) for c in corners], 1)
+        elif kind in ("wall", "vapor_wall", "tripwire"):
+            if kind == "tripwire":
+                target = m._clip_to_walls(me.pos, me.pos + aim * min(3.0, self.cursor_depth), me.level)
+            half = aim.rotated(90) * (float(ab.get("length", 6)) / 2)
+            pygame.draw.line(s, color, self.to_screen(target - half, me), self.to_screen(target + half, me), 3)
+        else:
+            radius = float(ab.get("radius", 0.6 if kind in ("teleport", "heal", "shield", "revive") else 1.0))
+            self.radius_ring(target, radius, color, me)
+        if kind in ("blast", "flash"):  # throw arc
+            dot = self.bank.scaled("fx/ability/arc_dot.png", (3, 3))
+            for i in range(1, 10):
+                q = i / 10
+                x, y = self.to_screen(me.pos + (target - me.pos) * q, me)
+                y -= math.sin(q * math.pi) * self.scale * 0.8
+                if dot is not None:
+                    s.blit(dot, (x - 1, y - 1))
+                else:
+                    pygame.draw.circle(s, color, (x, y), 1)
+        pygame.draw.circle(s, color, (tx, ty), 3)
+        label = f"{slot} {ab.get('name', '')} – release to use, right click cancels"
+        self.text(label, (self.w / 2, self.h - 130), color, center=True)
 
     def draw_crosshair(self, me: PlayerState) -> None:
         cx, cy = self.to_screen(me.pos + heading(me.facing) * self.cursor_depth, me)
