@@ -113,7 +113,10 @@ def build() -> None:
     save("shot_sniper", gunshot(900, 2000, 7, 0.95, thump=80))
     save("shot_shotgun", gunshot(1000, 1800, 11, 0.6, thump=90) + gunshot(1200, 2200, 16, 0.6) * 0.6)
     save("shot_heavy", gunshot(1200, 2400, 22, 0.32, thump=100))
-    save("shot_silenced", lowpass(noise(0.18), 1600) * env(0.18, 0.001, 40) + highpass(noise(0.18), 5000) * env(0.18, 0.0005, 90) * 0.5)
+    # suppressed: a soft, short "thup" and the click of the action, no crack and no tail
+    save("shot_silenced", mix(lowpass(noise(0.09), 700) * env(0.09, 0.001, 55),
+                              sine(np.linspace(150, 90, int(RATE * 0.09)), 0.09) * env(0.09, 0.001, 60) * 0.5,
+                              at(highpass(noise(0.02), 1800) * env(0.02, 0.0005, 160) * 0.35, 0.035)), gain=0.5, cutoff=1600)
     save("knife", highpass(noise(0.16), 2500) * env(0.16, 0.02, 25) * sine(np.linspace(900, 300, int(RATE * 0.16)), 0.16))
     save("empty", pad(highpass(noise(0.03), 3000) * env(0.03, 0.0005, 150), 0.08))
     save("reload", mix(pad(highpass(noise(0.05), 2500) * env(0.05, 0.001, 80), 0.6),
@@ -161,6 +164,17 @@ def build() -> None:
     save("bomb_defuse", mix(*(at(highpass(noise(0.04), 3500) * env(0.04, 0.0005, 100), d) for d in np.arange(0, 0.8, 0.16))))
     save("bomb_defused", sine(np.linspace(900, 300, int(RATE * 0.7)), 0.7) * env(0.7, 0.005, 5))
     save("bomb_explode", mix(lowpass(noise(1.4), 700) * env(1.4, 0.002, 3.5) * 1.5, sine(np.linspace(80, 40, int(RATE * 1.4)), 1.4) * env(1.4, 0.002, 4.0) * 0.6), gain=0.6)
+    # movement, weapons handling, feedback
+    save("jump", lowpass(noise(0.1), 900) * env(0.1, 0.004, 45), gain=0.25, cutoff=1000)
+    save("reload_out", mix(highpass(noise(0.05), 1500) * env(0.05, 0.001, 70), at(lowpass(noise(0.06), 900) * env(0.06, 0.001, 50), 0.05)),
+         gain=0.45, cutoff=2200)
+    save("reload_in", mix(lowpass(noise(0.05), 1200) * env(0.05, 0.001, 60), at(highpass(noise(0.03), 2000) * env(0.03, 0.0005, 120), 0.04)),
+         gain=0.5, cutoff=2400)
+    save("knife_heavy", highpass(noise(0.24), 1600) * env(0.24, 0.03, 16) * sine(np.linspace(700, 200, int(RATE * 0.24)), 0.24), gain=0.6)
+    save("hurt", lowpass(noise(0.12), 500) * env(0.12, 0.001, 30) + sine(np.linspace(120, 70, int(RATE * 0.12)), 0.12) * env(0.12, 0.001, 30) * 0.6,
+         gain=0.5, cutoff=800)
+    save("pickup", mix(highpass(noise(0.04), 1800) * env(0.04, 0.001, 90), at(lowpass(noise(0.05), 1000) * env(0.05, 0.001, 60), 0.05)), gain=0.45)
+    save("ult_ready", mix(*(at(sine(np.full(int(RATE * 0.3), f), 0.3) * env(0.3, 0.01, 9) * 0.5, d) for f, d in ((587, 0), (880, 0.1)))), gain=0.4)
     # match flow and interface
     save("round_start", mix(*(at(sine(np.full(int(RATE * 0.25), f), 0.25) * env(0.25, 0.005, 10), d) for f, d in ((440, 0), (660, 0.15)))))
     save("round_win", mix(*(at(sine(np.full(int(RATE * 0.5), f), 0.5) * env(0.5, 0.005, 5) * 0.5, d) for f, d in ((523, 0), (659, 0.15), (784, 0.3), (1047, 0.45)))))

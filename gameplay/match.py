@@ -19,6 +19,7 @@ from gameplay.hitzones import resolve_zone
 from gameplay.world import Wall, WorldMap
 
 SLOTS = ("primary", "sidearm", "melee")
+FULL_WALL = 2  # walls this many levels high are never climbed or jumped over
 PEN_DAMAGE = {0: 0.8, 1: 0.6, 2: 0.45}  # damage factor after passing through a material (own value)
 INTERACT_RANGE = 1.5
 DOOR_RANGE = 1.6
@@ -134,6 +135,8 @@ class PlayerState:
     prev_fire: bool = False
     prev_alt: bool = False
     zoomed: bool = False
+    zoom_level: int = 0     # 0 = not aiming; 1.. = zoom factor index of the weapon
+    defusing: bool = False
     burst_gap: float = 0.075
     burst_cool: float = 0.0
     burst_spread: float = 1.0
@@ -250,7 +253,7 @@ class Match:
         self.win_rounds = self.cfg.lobby.win_rounds
         self.overtime = self.cfg.lobby.overtime
         self._r = {k: rule("rounds", k, d) for k, d in (("buy_time", 30), ("round_time", 100), ("end_time", 6), ("half_after", 12), ("overtime_margin", 2), ("overtime_credits", 5000))}
-        self._mv = {k: rule("movement", k, d) for k, d in (("run_speed", 6.0), ("walk_mod", 0.55), ("crouch_mod", 0.4), ("air_mod", 0.9), ("accel", 60.0), ("decel", 45.0), ("jump_velocity", 4.2), ("gravity", 14.0), ("radius", 0.4), ("level_height", 1.0), ("step_up", 0.4), ("step_down", 0.35))}
+        self._mv = {k: rule("movement", k, d) for k, d in (("run_speed", 6.0), ("walk_mod", 0.55), ("crouch_mod", 0.4), ("air_mod", 0.9), ("accel", 60.0), ("decel", 45.0), ("jump_velocity", 4.2), ("gravity", 14.0), ("radius", 0.4), ("level_height", 1.0), ("step_up", 0.25), ("step_up_air", 0.15), ("step_down", 0.35))}
         self._eco = {k: rule("economy", k, d) for k, d in (("start", 800), ("win", 3000), ("loss", [1800, 2300, 2800]), ("kill", 200), ("plant", 300), ("max", 9000))}
         self._spike = {k: rule("spike", k, d) for k, d in (("plant_time", 4.0), ("fuse_time", 45.0), ("defuse_time", 7.0), ("defuse_checkpoint", 3.5), ("blast_radius", 12.0))}
         self._ult = {k: rule("ultimate", k, d) for k, d in (("per_kill", 1), ("per_plant", 1), ("per_defuse", 1), ("per_death", 1))}
@@ -612,12 +615,18 @@ class Match:
             p.equip_until = self.time + (d.equip if d else 0.5)
             p.reload_until = 0.0
             p.burst_left = 0
+            p.zoom_level = 0
+            self.events.append(GameEvent("equip", self.time, {"pid": p.pid, "weapon": p.weapons[cmd.slot].key}))
         if cmd.reload:
             self._start_reload(p)
         if cmd.drop:
             self._drop(p)
         d_now = self._weapon_def(p)
-        p.zoomed = bool(cmd.alt_fire and d_now and d_now.alt_get("kind") == "zoom" and p.reload_until <= self.time)
+        if d_now is None or p.reload_until > self.time or self.time < p.equip_until:
+            p.zoom_level = 0
+        else:
+            p.zoom_level = d_now.zoom_after(p.zoom_level, cmd.alt_fire, p.prev_alt)
+        p.zoomed = p.zoom_level > 0
         busy = p.plant_progress > 0 or p.defuse_progress > 0
         # movement
         speed = self._max_speed(p)
@@ -636,6 +645,7 @@ class Match:
             p.vel = world_wish if diff.length() <= step else p.vel + diff.normalized() * step
         if cmd.jump and p.z <= 0.001 and p.vz == 0:
             p.vz = float(self._mv["jump_velocity"])
+            self.events.append(GameEvent("jump", self.time, {"pid": p.pid, "pos": (p.pos.x, p.pos.y)}))
         # ability (only on a new key press)
         if cmd.ability and cmd.ability != p.prev_ability and self.phase in ("buy", "live", "planted"):
             self._use_ability(p, cmd.ability)
@@ -771,27 +781,29 @@ class Match:
             if airborne:
                 self._landing(p, -p.vz)
             p.vz = 0.0
-        # horizontal, colliding with everything higher than the feet (small steps are climbed)
-        step_up, step_down = float(self._mv["step_up"]), float(self._mv["step_down"])
+        # horizontal. Walking climbs small steps (step_up); in the air the feet must clear an edge almost fully
+        # (step_up_air), so nobody pops up onto cover. Full-height walls are never climbed.
+        step_down = float(self._mv["step_down"])
+        tolerance = float(self._mv["step_up"]) if p.z <= 0.001 else float(self._mv["step_up_air"])
         feet = p.ground + p.z
         new = p.pos + p.vel * dt
+        # ground too high to step onto blocks like a wall (slide along it on the free axis)
+        if self.world.ground_height(new) * lh > feet + tolerance:
+            for candidate in (Vec(new.x, p.pos.y), Vec(p.pos.x, new.y), p.pos):
+                if self.world.ground_height(candidate) * lh <= feet + tolerance:
+                    new = candidate
+                    break
+            else:
+                new = p.pos
         for _ in range(3):
             for w in self.world.walls:
-                if w.height * lh <= feet + step_up or not self.wall_active(w):
+                if not self.wall_active(w) or (w.height < FULL_WALL and w.height * lh <= feet + tolerance):
                     continue
                 push = w.rect.circle_push(new, radius)
                 if push:
                     new = new + push
         if zone:
             new = Vec(min(max(new.x, zone.x0 + radius), zone.x1 - radius), min(max(new.y, zone.y0 + radius), zone.y1 - radius))
-        # ground that is too high to step onto blocks like a wall (slide along it on the free axis)
-        if self.world.ground_height(new) * lh > feet + step_up:
-            for candidate in (Vec(new.x, p.pos.y), Vec(p.pos.x, new.y), p.pos):
-                if self.world.ground_height(candidate) * lh <= feet + step_up:
-                    new = candidate
-                    break
-            else:
-                new = p.pos
         if dt > 0:
             speed = (new - p.pos).length() / dt
             if speed > float(self._mv["run_speed"]) * 0.7 and p.z <= 0 and int(self.time * 3) != int((self.time - dt) * 3):
@@ -823,6 +835,8 @@ class Match:
             return
         p.reload_until = self.time + d.reload * abilities.mult(self, p, "reload")
         p.burst_left = 0
+        self.events.append(GameEvent("reload", self.time, {"pid": p.pid, "weapon": d.key, "pos": (p.pos.x, p.pos.y),
+                                                            "seconds": p.reload_until - self.time}))
 
     def _finish_reload(self, p: PlayerState) -> None:
         ws, d = p.weapon, self._weapon_def(p)
@@ -841,14 +855,19 @@ class Match:
         if self.time < p.equip_until or self.time < p.reload_until or self.time < p.next_shot:
             return
         alt_kind = d.alt_get("kind")
+        if d.slot == "melee":
+            self._handle_melee(p, d, cmd)
+            return
         alt_trigger = (alt_kind == "spin" and cmd.alt_fire) or \
-            (alt_kind in ("burst", "spread_shot") and cmd.alt_fire and not p.prev_alt)
+            (alt_kind in ("burst", "spread_shot", "tight") and cmd.alt_fire and not p.prev_alt)
         wants = (cmd.fire and (d.auto or not p.prev_fire)) or alt_trigger
         if p.burst_left > 0:
             wants = True
         if not wants:
             return
         if d.is_gun and ws.mag <= 0:
+            if not p.prev_fire or cmd.alt_fire and not p.prev_alt:
+                self.events.append(GameEvent("empty", self.time, {"pid": p.pid}))
             self._start_reload(p)
             p.burst_left = 0
             return
@@ -872,6 +891,9 @@ class Match:
             p.burst_left -= 1
             p.next_shot = self.time + (p.burst_gap if p.burst_left > 0 else p.burst_cool)
             self._fire_bullet(p, d, 1, spread_mult=p.burst_spread)
+        elif alt_trigger and alt_kind == "tight":
+            p.next_shot = self.time + float(d.alt_get("cooldown", 1.0))
+            self._fire_bullet(p, d, d.pellets, spread_mult=float(d.alt_get("spread_mult", 0.4)))
         elif alt_trigger and alt_kind == "spread_shot":
             p.next_shot = self.time + float(d.alt_get("cooldown", 0.5))
             self._fire_bullet(p, d, int(d.alt_get("pellets", 3)), extra_spread=float(d.alt_get("spread", 3.0)))
@@ -881,6 +903,42 @@ class Match:
             self._fire_bullet(p, d, d.pellets, extra_spread=extra)
         if d.is_gun:
             ws.mag -= 1
+        if d.alt_get("unscope_after_shot"):
+            p.zoom_level, p.zoomed = 0, False
+
+    def _handle_melee(self, p: PlayerState, d: WeaponDef, cmd: Command) -> None:
+        """Knife: left click a quick stab (hold for more), right click a slower heavy stab. No headshots;
+        hits from behind deal `backstab` times the damage."""
+        heavy = d.alt_get("kind") == "heavy" and cmd.alt_fire and not p.prev_alt
+        if not heavy and not cmd.fire:
+            return
+        damage = float(d.alt_get("damage", 75)) if heavy else float(d.damage_at(0.0, "body"))
+        reach = float(d.alt_get("range", d.range)) if heavy else d.range
+        p.next_shot = self.time + (float(d.alt_get("cooldown", 1.0)) if heavy else 1.0 / d.rate)
+        aim = heading(p.facing)
+        best, best_d = None, reach + 0.4
+        for t in self.players.values():
+            if t.pid == p.pid or not t.alive or t.level != p.level:
+                continue
+            rel = t.pos - p.pos
+            dist = rel.length()
+            if dist > reach + 0.4 or dist < 1e-6:
+                continue
+            if abs(angle_diff(p.facing, angle_of(rel))) > 40 or not self._line_clear(p.pos, t.pos, p.level, ignore_effects=True):
+                continue
+            if dist < best_d:
+                best, best_d = t, dist
+        end = p.pos + aim * reach
+        self.events.append(GameEvent("sound", self.time, {"pid": p.pid, "pos": (p.pos.x, p.pos.y), "radius": 8.0, "kind": "knife",
+                                                          "heavy": heavy}))
+        if best is not None:
+            behind = abs(angle_diff(best.facing, angle_of(p.pos - best.pos))) > 110
+            dmg = int(round(damage * (d.backstab if behind else 1.0)))
+            self._damage(p, best, dmg, "body", d.key)
+            end = best.pos
+        self.events.append(GameEvent("shot", self.time, {"pid": p.pid, "from": (p.pos.x, p.pos.y), "to": (end.x, end.y),
+                                                          "weapon": d.key, "stop": "player" if best else "", "melee": True,
+                                                          "heavy": heavy}))
 
     def _ult_ability(self, p: PlayerState, key: str) -> float:
         return float(self.agents[p.agent]["abilities"].get("X", {}).get(key, 1.0))
@@ -900,6 +958,8 @@ class Match:
             base *= 0.8
         if p.zoomed:
             base *= float(d.alt_get("spread_mult", 1.0))
+        elif d.spread_unscoped:
+            base += d.spread_unscoped
         base += abilities.add(self, p, "spread_add")
         return base
 
@@ -1128,6 +1188,8 @@ class Match:
             cmd = commands.get(p.pid, Command())
             site = self.world.site_at(p.pos)
             if p.alive and cmd.interact and site and p.z <= 0.001:
+                if p.plant_progress == 0.0:
+                    self.events.append(GameEvent("plant_start", self.time, {"pid": p.pid, "pos": (p.pos.x, p.pos.y)}))
                 p.plant_progress += dt
                 if p.plant_progress >= float(self._spike["plant_time"]):
                     self._plant(p, site.name)
@@ -1139,6 +1201,9 @@ class Match:
                     continue
                 cmd = commands.get(p.pid, Command())
                 if cmd.interact and (p.pos - self.spike_pos).length() <= INTERACT_RANGE and p.z <= 0.001:
+                    if p.defuse_progress in (0.0, float(self._spike["defuse_checkpoint"])) and not p.defusing:
+                        self.events.append(GameEvent("defuse_start", self.time, {"pid": p.pid, "pos": (p.pos.x, p.pos.y)}))
+                    p.defusing = True
                     p.defuse_progress += dt
                     if p.defuse_progress >= float(self._spike["defuse_time"]):
                         p.ult_points += int(self._ult["per_defuse"])
@@ -1149,6 +1214,7 @@ class Match:
                 else:
                     cp = float(self._spike["defuse_checkpoint"])
                     p.defuse_progress = cp if p.defuse_progress >= cp else 0.0
+                    p.defusing = False
             if self.time >= self.spike_planted_at + float(self._spike["fuse_time"]):
                 for t in self.players.values():
                     if t.alive and (t.pos - self.spike_pos).length() <= float(self._spike["blast_radius"]):

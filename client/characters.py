@@ -101,3 +101,53 @@ class CharactersMixin:
             img = self.bank.strip_frame(f"fx/ability/{name}.png", size, progress, 16)
             if img is not None:
                 self.screen.blit(img, (at[0] - size[0] / 2, at[1] - size[1] / 2))
+
+    def held_item(self, p: PlayerState) -> tuple[str, str]:
+        """What the figure holds: ("ability", slot), ("spike", ""), ("weapon", key) or ("", "")."""
+        m = self.match
+        cast = self.ui.last_cast.get(p.pid)
+        if cast and m.time - cast[0] < 0.45:
+            return "ability", cast[1]
+        if p.pid == self.me and self.aiming:
+            return "ability", self.aiming
+        if p.plant_progress > 0 or p.defuse_progress > 0:
+            return "spike", ""
+        if p.weapon:
+            return "weapon", p.weapon.key
+        return "", ""
+
+    def draw_held(self, p: PlayerState, me: PlayerState, at: tuple[float, float], body_h: float) -> None:
+        """Draws the weapon, ability or bomb in the figure's hand, pointing where the player looks; the bomb carrier
+        also shows the bomb on the back."""
+        s, m = self.screen, self.match
+        px, py = at
+        hand = self.to_screen(p.pos + heading(p.facing) * 0.32, me)
+        dx, dy = hand[0] - self.to_screen(p.pos, me)[0], hand[1] - self.to_screen(p.pos, me)[1]
+        screen_angle = math.degrees(math.atan2(-dy, dx))  # 0 = pointing right, counter-clockwise
+        hx, hy = px + dx, py + dy + body_h * 0.12
+        kind, key = self.held_item(p)
+        if m.spike_carrier == p.pid and kind != "spike":
+            pack = self.bank.scaled("fx/spike.png", (max(4, round(self.scale * 0.45)),) * 2, 0, 16)
+            if pack is not None:
+                s.blit(pack, (px - dx * 0.6 - pack.get_width() / 2, py - dy * 0.6 - pack.get_height() / 2 + body_h * 0.05))
+        if kind == "weapon":
+            d = m.weapons.get(key)
+            length = 0.55 if d is not None and d.slot == "melee" else 0.7 if d is not None and d.slot == "sidearm" else 1.05
+            img = self.bank.scaled(f"weapons/val2d/{key}.png", (max(4, round(self.scale * length)), max(2, round(self.scale * length / 2))))
+            if img is None:
+                pygame.draw.line(s, (40, 44, 50), (hx, hy), (hx + dx * 1.4, hy + dy * 1.4), 3)
+                return
+            flip = 90 < screen_angle % 360 < 270
+            if flip:
+                img = pygame.transform.flip(img, False, True)
+            rot = pygame.transform.rotate(img, screen_angle)
+            s.blit(rot, (hx + dx * 0.5 - rot.get_width() / 2, hy + dy * 0.5 - rot.get_height() / 2))
+        elif kind == "ability":
+            icon = self.bank.scaled(f"ui/faehigkeit_{p.agent}_{key}.png", (max(4, round(self.scale * 0.42)),) * 2)
+            if icon is not None:
+                s.blit(icon, (hx - icon.get_width() / 2, hy - icon.get_height() / 2))
+        elif kind == "spike":
+            pack = self.bank.scaled("fx/spike.png", (max(4, round(self.scale * 0.5)),) * 2, 0, 16)
+            if pack is not None:
+                s.blit(pack, (hx - pack.get_width() / 2, hy - pack.get_height() / 2))
+

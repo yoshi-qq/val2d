@@ -7,12 +7,19 @@ from client.common import *  # noqa: F403  (pygame, colours, types)
 class EventsMixin:
     def sound_key(self, data: dict, pos: Vec) -> str:
         """Sample for a sound event: the weapon class for shots, the floor for steps."""
+        if data.get("kind") == "knife":
+            return "knife_heavy" if data.get("heavy") else "knife"
         if data.get("kind") == "shot":
             d = self.match.weapons.get(str(data.get("weapon", "")))
             if d is None:
                 return "shot_rifle"
             return "shot_silenced" if d.silenced else SHOT_SOUND.get(d.category, SHOT_SOUND.get(d.slot, "shot_rifle"))
         return STEP_SOUND.get(self.match.world.floor_material(pos), "step_hard")
+
+    def through_smoke(self, a: Vec, b: Vec) -> bool:
+        from gameplay.geometry import segment_circle_hit
+        return any(e.kind == "smoke" and e.start <= self.match.time and segment_circle_hit(a, b, e.pos, e.radius)
+                   for e in self.match.effects)
 
     def occluded(self, listener: PlayerState, pos: Vec) -> bool:
         """True if a wall stands between listener and sound (sound is muffled, not silenced)."""
@@ -35,6 +42,17 @@ class EventsMixin:
         for pid, landed in self.ui.landed_at.items():
             if landed == m.time and pid in m.players:
                 self.sound.play("land", me, m.players[pid].pos, 18, occluded=self.occluded(me, m.players[pid].pos), gain=0.6)
+        due = [s for s in self.ui.pending_sounds if s[0] <= m.time]
+        self.ui.pending_sounds = [s for s in self.ui.pending_sounds if s[0] > m.time]
+        for _, key, pid, radius, gain in due:
+            p = m.players.get(pid)
+            if p is not None and p.alive:
+                self.sound.play(key, me, p.pos, radius, occluded=self.occluded(me, p.pos), gain=gain)
+        abil = m.agents.get(me.agent, {}).get("abilities", {}).get("X", {})
+        ready = me.ult_points >= int(abil.get("cost", 99))
+        if ready and not self._ult_was_ready:
+            self.sound.play("ult_ready", gain=0.6)
+        self._ult_was_ready = ready
         if m.phase == "buy" and self._last_phase != "buy":
             self.sound.play("round_start", gain=0.8)
         self._last_phase = m.phase
@@ -48,11 +66,38 @@ class EventsMixin:
             d = e.data
             if e.kind == "shot":
                 self.ui.last_shot[d["pid"]] = t
+                if d.get("melee"):
+                    continue  # knives: no tracer; the swing is heard through its sound event
                 if d["pid"] == self.me:
                     self.stats["shots"] += 1
                 if d.get("stop") == "wall":
                     self.ui.oneshots.append(("fx/einschlag_wand.png", Vec(*d["to"]), t, 0.25, 8, (0.5, 0.5)))
-                self.ui.tracers.append(Tracer(Vec(*d["from"]), Vec(*d["to"]), t + 0.08, d["pid"] == self.me))
+                a, b = Vec(*d["from"]), Vec(*d["to"])
+                shooter = m.players.get(d["pid"])
+                wd = m.weapons.get(str(d.get("weapon", "")))
+                enemy_silenced = bool(wd and wd.silenced and shooter is not None and shooter.team != me.team)
+                if enemy_silenced and self.through_smoke(a, b):
+                    continue  # suppressed weapons leave no tracer for enemies when fired through smoke
+                self.ui.tracers.append(Tracer(a, b, t + 0.08, d["pid"] == self.me, muzzle=not enemy_silenced))
+            elif e.kind == "reload":
+                p = m.players.get(d["pid"])
+                if p is not None:
+                    gain = 0.8 if d["pid"] == self.me else 0.5
+                    self.sound.play("reload_out", me, p.pos, 14, occluded=self.occluded(me, p.pos), gain=gain)
+                    self.ui.pending_sounds.append((t + max(0.2, float(d.get("seconds", 1.5)) - 0.35), "reload_in", d["pid"], 14, gain))
+            elif e.kind == "equip" and d["pid"] == self.me:
+                self.sound.play("equip", gain=0.6)
+            elif e.kind == "empty" and d["pid"] == self.me:
+                self.sound.play("empty", gain=0.7)
+            elif e.kind == "jump":
+                p = m.players.get(d["pid"])
+                if p is not None:
+                    self.sound.play("jump", me, p.pos, 12, occluded=self.occluded(me, p.pos), gain=0.6)
+            elif e.kind == "pickup" and d.get("pid") == self.me:
+                self.sound.play("pickup", gain=0.6)
+            elif e.kind in ("plant_start", "defuse_start"):
+                self.sound.play("bomb_plant" if e.kind == "plant_start" else "bomb_defuse", me, Vec(*d["pos"]), 30,
+                                occluded=self.occluded(me, Vec(*d["pos"])))
             elif e.kind == "sound":
                 if me.status.get("deaf", 0.0) > t:
                     continue
@@ -61,11 +106,16 @@ class EventsMixin:
                     self.ui.noise.append((float(d["radius"]), t))  # own noise circle on the minimap
                 key = self.sound_key(d, pos)
                 self.sound.play(key, me, pos, d["radius"], occluded=self.occluded(me, pos),
-                                gain=0.45 if key.startswith("step") else 1.0)
+                                gain=float(SOUND_MIX["step_gain"]) if key.startswith("step") else 1.0)
                 if m.cfg.lobby.sound_rings and d["pid"] != self.me:
                     self.ui.rings.append(Ring(pos, min(d["radius"], 6.0), t))
             elif e.kind == "hit":
                 self.ui.last_hit[d["pid"]] = t
+                if d["pid"] == self.me and d.get("by") is not None and d.get("by") != self.me:
+                    attacker = m.players.get(d["by"])
+                    self.sound.play("hurt", gain=0.7)
+                    if attacker is not None:
+                        self.ui.damage_from.append((attacker.pos, t))
                 if d.get("by") == self.me:
                     self.sound.play("hit_head" if d.get("zone") == "head" else "hit_body", gain=0.7)
                 if d.get("by") == self.me:

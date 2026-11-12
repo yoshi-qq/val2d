@@ -87,6 +87,26 @@ class WeaponDef:
     rate_ramp: tuple[float, float] | None = None  # (max_rate, seconds of held fire to reach it)
     category: str = ""  # buy-menu column
     alt: tuple[tuple[str, Any], ...] = ()  # alternate fire settings (key, value) pairs; see config/content/weapons.py
+    spread_unscoped: float = 0.0  # extra spread of a scoped weapon fired without its scope
+    backstab: float = 1.0         # melee: damage factor from behind
+
+    def zoom_levels(self) -> list[float]:
+        """Zoom factors of the alternate fire; empty if it does not zoom."""
+        if self.alt_get("kind") != "zoom":
+            return []
+        levels = self.alt_get("levels")
+        return [float(x) for x in levels] if levels else [float(self.alt_get("factor", 1.25))]
+
+    def zoom_after(self, level: int, alt_down: bool, alt_was_down: bool) -> int:
+        """Zoom level after this frame: hold to aim, or (scopes) one more level per press, back to 0 after the last."""
+        levels = self.zoom_levels()
+        if not levels:
+            return 0
+        if not self.alt_get("scope"):
+            return 1 if alt_down else 0
+        if alt_down and not alt_was_down:
+            return (level + 1) % (len(levels) + 1)
+        return level
 
     def alt_get(self, key: str, default: Any = None) -> Any:
         return dict(self.alt).get(key, default)
@@ -180,7 +200,8 @@ def load_weapons() -> dict[str, WeaponDef]:
                 burst=bool(w.get("burst", False)), silenced=bool(w.get("silenced", False)),
                 rate_ramp=(float(w["rate_ramp"][0]), float(w["rate_ramp"][1])) if w.get("rate_ramp") else None,
                 category=str(w.get("category", w["slot"])),
-                alt=tuple(sorted(dict(w.get("alt") or {}).items())),
+                alt=tuple(sorted((k, tuple(v) if isinstance(v, list) else v) for k, v in dict(w.get("alt") or {}).items())),
+                spread_unscoped=float(w.get("spread_unscoped", 0.0)), backstab=float(w.get("backstab", 1.0)),
             )
         except (KeyError, TypeError, ValueError) as exc:
             warnings.warn(f"Weapon {key} skipped: {exc}")

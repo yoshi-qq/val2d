@@ -30,6 +30,7 @@ NAME, SERVER = "Val2d", "Val2d-Server"
 # (import name, distribution name, install hint). Keep in sync with requirements.txt.
 REQUIRED = [
     ("pygame", "pygame-ce", "pip install pygame-ce"),
+    ("numpy", "numpy", "pip install numpy"),  # sight area and muffled sounds
     ("networking", "networking", "pip install -r requirements.txt"),
     ("netplay", "netplay", "pip install -r requirements.txt"),
     ("PyInstaller", "pyinstaller", "pip install pyinstaller"),

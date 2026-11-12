@@ -23,9 +23,27 @@ class HudMixin:
         self.draw_weapon_box(me)
         self.draw_feed(me)
         self.draw_statuses(me)
+        self.draw_damage_direction(me)
         self.draw_messages(me)
         if getattr(self, "help_held", False):
             self.draw_ability_help(me)
+
+    def draw_damage_direction(self, me: PlayerState) -> None:
+        """Red arcs around the own figure pointing to where recent hits came from."""
+        m = self.match
+        self.ui.damage_from = [(pos, t0) for pos, t0 in self.ui.damage_from if m.time - t0 < 1.2]
+        if not self.ui.damage_from or me.pid != self.me:
+            return
+        cx, cy = self.to_screen(me.pos, me)
+        layer = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
+        for pos, t0 in self.ui.damage_from:
+            rel = (pos - me.pos).rotated(-me.facing)
+            angle = math.atan2(rel.y, rel.x)  # screen: x right, y up
+            fade = 1.0 - (m.time - t0) / 1.2
+            r = 92
+            rect = pygame.Rect(cx - r, cy - r, 2 * r, 2 * r)
+            pygame.draw.arc(layer, (255, 70, 85, int(220 * fade)), rect, angle - 0.35, angle + 0.35, 6)
+        self.screen.blit(layer, (0, 0))
 
     def draw_score_box(self, me: PlayerState) -> None:
         """Left side under the minimap: own score, timer (or bomb), enemy score, round and side."""
@@ -156,16 +174,24 @@ class HudMixin:
         self.ui.feed = [f for f in self.ui.feed if m.time <= f[0]]
         for _, msg, killer, victim, head in self.ui.feed[-6:]:
             mine = bool(me.name) and me.name in msg
-            w = ui.size(msg, "s")[0] + 2 * 28 + 28 + (20 if head else 0)
+            left_name, _, right_name = msg.partition(" → ")
+            names = [left_name, right_name] if right_name else [msg]
+            widths = [ui.size(n, "s", bold=True)[0] for n in names]
+            w = sum(widths) + 2 * 26 + 44 + (20 if head else 0)
             r = pygame.Rect(self.w - 16 - w, y, w, 28)
             ui.panel(r, "panel", edge="left" if mine else "", edge_col="gold")
             x = r.x + 8
-            for agent in (killer, victim):
+            for i, name in enumerate(names):
+                agent = (killer, victim)[i] if len(names) == 2 else victim
                 icon = self.bank.scaled(f"agents/{agent}/{agent}_killfeed.png", (22, 22)) if agent else None
                 if icon is not None:
                     self.screen.blit(icon, (x, r.y + 3))
                 x += 26
-            ui.text(msg, (x + 4, r.y + 5), "s", "text")
+                ui.text(name, (x, r.y + 5), "s", "text", bold=True)
+                x += widths[i] + 8
+                if i == 0 and len(names) == 2:  # arrow between killer and victim
+                    pygame.draw.polygon(self.screen, color("muted"), [(x, r.y + 9), (x + 10, r.y + 14), (x, r.y + 19)])
+                    x += 18
             if head:
                 mark = self.bank.scaled("ui/hud/kopfschuss.png", (14, 14))
                 if mark is not None:
@@ -287,6 +313,9 @@ class HudMixin:
 
     def draw_crosshair(self, me: PlayerState) -> None:
         cx, cy = self.to_screen(me.pos + heading(me.facing) * self.cursor_depth, me)
+        if getattr(self, "scoped", False):
+            pygame.draw.circle(self.screen, (255, 70, 85), (cx, cy), 2)  # scoped: just a dot, the reticle is the scope
+            return
         col = C_ENEMY if self.match.time < self.ui.hit_marker else (120, 255, 200)
         d = self.match.weapons.get(me.weapon.key) if me.weapon else None
         gap = 4 + (self.match.current_spread(me, d) * self.cursor_depth * math.pi / 180 * self.scale if d else 0)

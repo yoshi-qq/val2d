@@ -88,6 +88,18 @@ Status 12.11.2026. Items marked "(new core)" are done in the new gameplay core (
 - [x] Team buy (request a weapon, buy for a teammate)
 - [x] Key bindings and crosshair settings
 
+## Done 12.11.2026 (third pass)
+- [x] Config in folders (rules/, settings/, content/, client/), play.py split into the client package
+- [x] Valorant-style menu, pause menu (Esc), quit confirmation (Alt+F4 twice quits)
+- [x] HUD at the bottom and sides, hold F1 for ability info, round rotating minimap with own noise circle
+- [x] Sight area stopped by walls and smokes; field of view in config/rules/senses.py
+- [x] Alternate fire for every weapon class: knife heavy stab and backstab, sniper scope with levels, no-scope spread,
+      shotgun tight shot; suppressed weapons quieter and tracerless through smoke for enemies
+- [x] Weapon, ability and bomb in the figure's hand, bomb on the carrier's back, hit direction arcs
+- [x] Sounds: reload, equip, empty, jump, hurt, pickup, knife heavy, ultimate ready, plant and defuse start;
+      direction by tone (behind and through walls duller)
+- [x] Climbing: full walls never climbed, crates only by a full jump, no popping up onto edges
+
 ## Open
 - [ ] Internet test across two real networks (Pakete/netplay/TESTING.md)
 - [ ] Relay for players behind strict routers

@@ -54,6 +54,7 @@ class Tracer:
     b: Vec
     until: float
     own: bool
+    muzzle: bool = True
 
 
 @dataclass
@@ -86,6 +87,8 @@ class UiState:
     figure_fx: list[tuple[int, str, float, float]] = field(default_factory=list)  # pid, fx file, start, duration
     waves: list[tuple[int, Vec, float]] = field(default_factory=list)      # pid, end point, start
     noise: list[tuple[float, float]] = field(default_factory=list)         # own sounds: radius, start (minimap circle)
+    pending_sounds: list[tuple[float, str, int, float, float]] = field(default_factory=list)  # due, key, pid, radius, gain
+    damage_from: list[tuple[Vec, float]] = field(default_factory=list)    # attacker position, time (hit direction)
 
 
 STATUS_TINT = {"slow": (150, 110, 220), "decay": (120, 200, 90), "vulnerable": (230, 120, 80), "deaf": (120, 160, 230),
@@ -118,23 +121,48 @@ ABILITY_SOUND = {"smoke": "ab_smoke", "wall": "ab_wall", "vapor_wall": "ab_wall"
                  "slow_field": "ab_zone", "overdrive": "ab_power", "immunity": "ab_power"}
 
 
+SOUND_DEFAULTS = {"master": 0.8, "falloff_power": 1.6, "pan_floor": 0.12, "rear_gain": 0.75, "occluded_gain": 0.55,
+                  "muffle_taps": 9, "step_gain": 0.45, "channels": 48}
+SOUND_MIX = {**SOUND_DEFAULTS, **(_load_py(CONFIG_DIR / "client" / "sound.py", "SOUND") or {})}
+
+
 class Sound:
-    """Sound effects from assets/sounds (made by tools/make_sounds.py) with stereo panning, distance falloff and
-    muffling behind walls. Missing files are skipped with one warning; no sound device means silent play."""
+    """Sound effects from assets/sounds (made by tools/make_sounds.py) placed around the listener: panning for left and
+    right, a duller tone for sounds behind and behind walls, distance falloff. Mix values: config/client/sound.py.
+    Missing files are skipped with one warning; no sound device means silent play."""
 
     def __init__(self) -> None:
         self.ok = False
         self.sounds: dict[str, pygame.mixer.Sound] = {}
-        self.volume = 0.8
+        self.muffled: dict[str, pygame.mixer.Sound] = {}
+        self.volume = float(SOUND_MIX["master"])
         self._warned: set[str] = set()
         try:
             pygame.mixer.init(frequency=44100, size=-16, channels=2)
-            pygame.mixer.set_num_channels(48)
+            pygame.mixer.set_num_channels(int(SOUND_MIX["channels"]))
             for path in sorted(SOUND_DIR.glob("*.wav")):
                 self.sounds[path.stem] = pygame.mixer.Sound(str(path))
             self.ok = True
         except Exception as exc:  # sound is not essential to play
             warnings.warn(f"Sound disabled: {exc}")
+            return
+        try:
+            self._build_muffled()
+        except Exception as exc:  # without numpy or sndarray the plain sounds still work
+            warnings.warn(f"Muffled sound variants unavailable ({exc}); direction by panning only.")
+
+    def _build_muffled(self) -> None:
+        """A low-passed copy of every sound (moving average), used for sounds behind you or behind walls."""
+        import numpy as np
+        taps = max(2, int(SOUND_MIX["muffle_taps"]))
+        kernel = np.ones(taps) / taps
+        for key, snd in self.sounds.items():
+            arr = pygame.sndarray.array(snd).astype(np.float32)
+            if arr.ndim == 1:
+                out = np.convolve(arr, kernel, mode="same")
+            else:
+                out = np.stack([np.convolve(arr[:, c], kernel, mode="same") for c in range(arr.shape[1])], axis=1)
+            self.muffled[key] = pygame.sndarray.make_sound(np.clip(out, -32768, 32767).astype(np.int16))
 
     def play(self, key: str, listener: PlayerState | None = None, pos: Vec | None = None, radius: float = 40.0,
              occluded: bool = False, gain: float = 1.0) -> None:
@@ -147,24 +175,28 @@ class Sound:
                 warnings.warn(f"Sound missing: assets/sounds/{key}.wav")
             return
         left = right = 0.5
+        muffle = occluded
         if listener is not None and pos is not None:
             rel = (pos - listener.pos).rotated(-listener.facing)  # x: right of the view, y: ahead
             dist = rel.length()
-            vol = max(0.0, 1.0 - dist / max(radius, 1.0)) ** 1.6
+            vol = max(0.0, 1.0 - dist / max(radius, 1.0)) ** float(SOUND_MIX["falloff_power"])
             if occluded:
-                vol *= 0.45
-            if dist > 0.3:
+                vol *= float(SOUND_MIX["occluded_gain"])
+            if dist > 0.4:
                 side = max(-1.0, min(1.0, rel.x / dist))       # -1 full left … 1 full right
-                if rel.y < 0:
-                    vol *= 0.7 + 0.3 * abs(side)                # behind: a little quieter, so front and back differ
-                angle = (side + 1.0) * math.pi / 4.0            # equal-power pan, nearly full separation
-                left, right = vol * math.cos(angle) * 1.35, vol * math.sin(angle) * 1.35
+                behind = max(0.0, -rel.y / dist)               # 0 ahead or beside … 1 straight behind
+                vol *= 1.0 - (1.0 - float(SOUND_MIX["rear_gain"])) * behind
+                muffle = muffle or behind > 0.35
+                angle = (side + 1.0) * math.pi / 4.0            # equal-power pan
+                floor = float(SOUND_MIX["pan_floor"])
+                left = vol * max(floor * vol, math.cos(angle)) * 1.3
+                right = vol * max(floor * vol, math.sin(angle)) * 1.3
             else:
                 left = right = vol * 0.9
         left, right = left * gain * self.volume, right * gain * self.volume
         if left + right < 0.01:
             return
-        ch = snd.play()
+        ch = (self.muffled.get(key, snd) if muffle else snd).play()
         if ch:
             ch.set_volume(min(1.0, left), min(1.0, right))
 
@@ -181,4 +213,4 @@ def display_mode(fullscreen: bool) -> pygame.Surface:
         return pygame.display.set_mode((1280, 720))
 
 
-__all__ = ['display_mode', 'VIEW', 'HUD', 'ABILITY_SOUND', 'BotDirector', 'C_ALLY', 'C_BG', 'C_CRATE', 'C_ENEMY', 'C_FLOOR', 'C_MUTED', 'C_PLATFORM', 'C_RAMP', 'C_SITE', 'C_SMOKE', 'C_TEXT', 'C_WALL', 'C_WALL_THIN', 'CharacterSprites', 'Command', 'DEFAULT_PORT', 'Effect', 'FONT_PATH', 'GameEvent', 'HEIGHT_DRAW', 'HostSession', 'LobbySettings', 'Match', 'NetClient', 'Path', 'PlayerState', 'ROOT', 'Ring', 'SHOT_SOUND', 'SOUND_DIR', 'STATUS_TINT', 'STEP_SOUND', 'Sound', 'SpriteBank', 'Tracer', 'UiState', 'VIEW_METERS', 'Vec', 'abilities', 'apply_snapshot', 'argparse', 'build_map_surface', 'dataclass', 'discover', 'draw_nine_slice', 'events_from_json', 'field', 'heading', 'key_codes', 'load_config', 'load_map', 'math', 'pygame', 'rule_value', 'sys', 'warnings']
+__all__ = ['display_mode', 'VIEW', 'HUD', 'SOUND_MIX', 'ABILITY_SOUND', 'BotDirector', 'C_ALLY', 'C_BG', 'C_CRATE', 'C_ENEMY', 'C_FLOOR', 'C_MUTED', 'C_PLATFORM', 'C_RAMP', 'C_SITE', 'C_SMOKE', 'C_TEXT', 'C_WALL', 'C_WALL_THIN', 'CharacterSprites', 'Command', 'DEFAULT_PORT', 'Effect', 'FONT_PATH', 'GameEvent', 'HEIGHT_DRAW', 'HostSession', 'LobbySettings', 'Match', 'NetClient', 'Path', 'PlayerState', 'ROOT', 'Ring', 'SHOT_SOUND', 'SOUND_DIR', 'STATUS_TINT', 'STEP_SOUND', 'Sound', 'SpriteBank', 'Tracer', 'UiState', 'VIEW_METERS', 'Vec', 'abilities', 'apply_snapshot', 'argparse', 'build_map_surface', 'dataclass', 'discover', 'draw_nine_slice', 'events_from_json', 'field', 'heading', 'key_codes', 'load_config', 'load_map', 'math', 'pygame', 'rule_value', 'sys', 'warnings']

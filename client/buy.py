@@ -66,59 +66,57 @@ class BuyMixin:
         return self.bank.scaled(f"ui/faehigkeit_{me.agent}_{key}.png", (36, 36))
 
     def draw_buy(self, me: PlayerState) -> None:
-        s = self.screen
-        overlay = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
-        overlay.fill((10, 10, 16, 200))
-        s.blit(overlay, (0, 0))
-        panel = pygame.Rect(30, 40, self.w - 60, self.h - 80)
-        draw_nine_slice(s, self.bank, "ui/menu/panel.png", panel, 6, 3)
-        open_ = self.match.phase == "buy"
-        self.text("Buy menu" + ("" if open_ else " (only in the buy phase, in spawn)"), (70, 64), C_TEXT, big=True)
-        credits_icon = self.bank.scaled("ui/icons/credits_large.png", (32, 32))
-        if credits_icon is not None:
-            s.blit(credits_icon, (self.w - 260, 66))
-        self.text(f"{me.credits}", (self.w - 220, 70), C_SITE, big=True)
-        layout = self.buy_layout()
+        """Columns by category; each card: picture, name, price. Owned items carry a teammate-coloured edge,
+        unaffordable ones are dimmed. Credits top right, team requests above the columns."""
+        from client.ui import color
+        s, ui, m = self.screen, self.kit, self.match
+        ui.fill(s.get_rect(), "#0f1923ee")
+        open_ = m.phase == "buy" or m.mode == "deathmatch" or m.practice
+        ui.text("Buy", (60, 40), "xl", "text", upper=True, bold=True, kind="title")
+        if not open_:
+            ui.text("only in the buy phase, in spawn", (190, 62), "s", "muted", upper=True)
+        ui.text(f"{me.credits}", (self.w - 60, 44), "xl", "gold", "right", bold=True, kind="numbers")
+        ui.text("credits", (self.w - 60, 96), "xs", "muted", "right", upper=True)
         col_w, gap = 158, 8
         left = (self.w - len(self.BUY_COLUMNS) * (col_w + gap) + gap) / 2
         for ci, (cat, title) in enumerate(self.BUY_COLUMNS):
             x = left + ci * (col_w + gap)
-            icon = self.bank.scaled(f"ui/buy/cat_{'abilities' if cat == 'gear' else cat}.png", (32, 32))
-            if icon is not None:
-                s.blit(icon, (x, 112))
-            self.text(title, (x + 38, 118), C_MUTED)
+            ui.text(title, (x, 124), "s", "muted", upper=True, bold=True)
+            ui.line((x, 144), (x + col_w, 144))
         mouse = pygame.mouse.get_pos()
-        for r, key, label in layout:
+        for r, key, label in self.buy_layout():
             price = self.item_price(me, key)
             owned = self.item_owned(me, key)
             affordable = me.credits >= price and open_
-            state = "button_disabled" if not affordable and not owned else \
-                "button_pressed" if owned else "button_hover" if r.collidepoint(mouse) else "button"
-            if not draw_nine_slice(s, self.bank, f"ui/menu/{state}.png", r, 4, 2):
-                pygame.draw.rect(s, (60, 58, 72) if state == "button_hover" else (36, 35, 45), r)
-                pygame.draw.rect(s, C_MUTED, r, 1)
+            hover = r.collidepoint(mouse) and affordable and not owned
+            ui.fill(r, "panel_light" if hover else "panel")
+            ui.outline(r, "text" if hover else "line")
+            if owned:
+                pygame.draw.rect(s, color("ally"), (r.x, r.bottom - 3, r.w, 3))
             pic = self.item_picture(me, key)
             if pic is not None:
+                if not affordable and not owned:
+                    pic = pic.copy()
+                    pic.fill((110, 110, 110, 255), special_flags=pygame.BLEND_RGBA_MULT)
                 s.blit(pic, (r.centerx - pic.get_width() / 2, r.y + 4))
             name = label.rsplit("  ", 1)[0]
-            self.text(name, (r.x + 10, r.bottom - 22), C_TEXT if affordable or owned else C_MUTED)
-            cost = self.font.render(str(price), True, C_SITE if affordable else C_MUTED)
-            s.blit(cost, (r.right - cost.get_width() - 10, r.bottom - 22))
-        self.text("Click buys · right click asks the team for a weapon · B closes", (70, self.h - 76 + 10), C_MUTED)
+            ui.text(name, (r.x + 8, r.bottom - 22), "xs", "text" if affordable or owned else "muted", upper=True, bold=True)
+            ui.text("owned" if owned else str(price), (r.right - 8, r.bottom - 22), "xs",
+                    "ally" if owned else "gold" if affordable else "muted", "right", bold=True)
+        ui.text("Click buys · right click asks the team for a weapon · B or Esc closes", (60, self.h - 40), "xs", "muted", upper=True)
         self.request_cards = []
         x = 300
-        for mate in sorted((p for p in self.match.players.values() if p.team == me.team and p.pid != me.pid and p.request),
+        for mate in sorted((p for p in m.players.values() if p.team == me.team and p.pid != me.pid and p.request),
                            key=lambda p: p.pid):
-            d = self.match.weapons.get(mate.request)
+            d = m.weapons.get(mate.request)
             if d is None:
                 continue
-            r = pygame.Rect(x, 64, 240, 40)
+            r = pygame.Rect(x, 52, 250, 40)
             affordable = me.credits >= d.price and open_
-            if not draw_nine_slice(s, self.bank, f"ui/menu/{'button_hover' if r.collidepoint(mouse) and affordable else 'button' if affordable else 'button_disabled'}.png", r, 4, 2):
-                pygame.draw.rect(s, C_MUTED, r, 1)
-            self.text(f"Buy {d.name} for {mate.name[:10]}", (r.x + 10, r.y + 11), C_SITE if affordable else C_MUTED)
+            ui.button(r, f"Buy {d.name} for {mate.name[:10]}", f"gift:{mate.pid}:{mate.request}", primary=affordable,
+                      enabled=affordable, size="xs")
             self.request_cards.append((r, f"gift:{mate.pid}:{mate.request}"))
-            x += 250
+            x += 260
         if me.request:
-            asked = self.match.weapons.get(me.request)
-            self.text(f"You asked for: {asked.name if asked else me.request}", (self.w - 520, 110), C_SITE)
+            asked = m.weapons.get(me.request)
+            ui.text(f"You asked for: {asked.name if asked else me.request}", (self.w - 60, 112), "xs", "gold", "right", upper=True)

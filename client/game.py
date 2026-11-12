@@ -111,6 +111,11 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
             warnings.warn(f"Unknown help key {HUD['help_key']!r}; F1 used.")
             self.help_key = pygame.K_F1
         self.help_held = False
+        self.zoom_level = 0      # current zoom step of the own weapon (0 = none)
+        self.scoped = False      # sniper scope view
+        self._prev_alt = False
+        self._zoom_weapon = ""
+        self._ult_was_ready = True  # no ready sound for points carried into the match
 
     def grab(self, on: bool) -> None:
         self.grabbed = on
@@ -224,8 +229,10 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
                     self.released_slot = slot  # no repeat while the key stays down
             if self.aiming and pygame.mouse.get_pressed()[2]:
                 self.aiming, self.released_slot = None, self.aiming  # right click cancels
-            self.apply_zoom(me, cmd.alt_fire and not self.ui.buy_open)
             events = self.step(dt, cmd)
+            me_now = self.match.players.get(self.me)
+            if me_now is not None:
+                self.apply_zoom(me_now, cmd.alt_fire and not self.ui.buy_open)
             if self.match.phase != "lobby" and not self.grabbed and not self.ui.buy_open and not self.overlay:
                 self.grab(True)
             if self.match.round_no != self.seen_round and self.seen_round > 0 and self.me in self.match.players:
@@ -253,16 +260,20 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
     def apply_zoom(self, me: PlayerState, holding_alt: bool) -> None:
         """Camera zoom while a zoom weapon's alternate fire is held; map image cached per zoom level."""
         d = self.match.weapons.get(me.weapon.key) if me.weapon else None
-        factor = float(d.alt_get("factor", 1.0)) if d and holding_alt and d.alt_get("kind") == "zoom" and me.alive else 1.0
-        scale = self.w / (VIEW_METERS / factor)
-        if abs(scale - self.scale) < 1e-6:
-            return
-        self.scale = scale
-        key = round(scale, 3)
-        if key not in self.map_cache:
-            self.map_cache[key] = build_map_surface(self.match.world, self.bank, scale)
-        self.map_surface = self.map_cache[key]
-        self._crop = None
+        if d is None or not me.alive or me.reload_until > self.match.time:
+            level = 0
+        elif self.mode == "client":  # the host decides as well; the own view follows the same rule at once
+            level = d.zoom_after(getattr(self, "zoom_level", 0), holding_alt, getattr(self, "_prev_alt", False))
+        else:
+            level = me.zoom_level
+        if self.mode == "client" and me.weapon and getattr(self, "_zoom_weapon", "") != me.weapon.key:
+            level = 0
+        self._prev_alt, self._zoom_weapon = holding_alt, me.weapon.key if me.weapon else ""
+        levels = d.zoom_levels() if d else []
+        self.zoom_level = level if levels else 0
+        self.scoped = bool(self.zoom_level and d is not None and d.alt_get("scope"))
+        factor = levels[self.zoom_level - 1] if self.zoom_level else 1.0
+        self.scale = self.w / (VIEW_METERS / factor)  # the map image stays at the base scale; zoom crops and enlarges it
 
     def rejoin(self) -> None:
         """Connect again after a drop; the host gives the old slot back (same token or name)."""

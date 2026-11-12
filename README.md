@@ -12,9 +12,11 @@ python map_editor.py gasse     # map editor for gameplay/data/maps/*.json
 ```
 
 Controls: WASD run · Shift walk · Ctrl crouch · Space jump · mouse turn and aim depth · left click fire · right click
-alternate fire (zoom, burst, spread shot, spin-up) · R reload · 1/2/3 weapons · C/Q/E/X abilities · F plant/defuse,
-doors, swap weapons · G drop bomb/weapon · B buy menu · Tab scoreboard · Esc quit.
+alternate fire (aim down sights, sniper scope, burst, spread shot, heavy knife stab, spin-up) · R reload · 1/2/3 weapons ·
+C/Q/E/X abilities · hold F1 ability info · F plant/defuse, doors, swap weapons · G drop bomb/weapon · B buy menu ·
+Tab scoreboard · Esc pause menu (in menus: closes the open page) · Alt+F4 quit (asks; a second Alt+F4 quits at once).
 
+All settings and game values: [config/README.md](config/README.md).
 Content: 30 agents in `config/content/agents/` (one file each), 20 weapons in `config/content/weapons.py`, maps Werkhof, Gasse and
 Harbour plus a practice range (`python play.py --range`), materials, objects and decals in `config/content/materials.py`.
 Own agents, abilities, statuses, mechanics and maps: [docs/MODDING.md](docs/MODDING.md).
@@ -23,11 +25,12 @@ Tests: `python -m pytest tests`.
 ## Status (12.11.2026)
 - [x] Unrated match: buy phase, rounds, side switch, overtime, bomb (plant, defuse, detonation), economy
 - [x] Gunplay: spread, spray pattern, 2D hit zones, wall penetration by material, alternate fire
-- [x] 30 agents from 21 ability building blocks and 10 statuses
+- [x] 30 agents; ability kit with triggers, effects and passives, 21 presets, 19 statuses (docs/MODDING.md)
 - [x] 3 maps + practice range, map editor (`map_editor.py`)
 - [x] Bots with path finding and simple team tactics
 - [x] LAN and internet play via netplay (join code), dedicated server, client prediction
-- [x] Main menu, settings, agent select, HUD, minimap, scoreboard with ping, spectating
+- [x] Main menu with agent page, settings, pause menu, HUD at the bottom, round minimap with noise circle,
+      sight area with occlusion, sniper scope, scoreboard with ping, spectating
 - [ ] Played with a window and balanced
 - [x] Own sound effects; modes quick and team deathmatch; rejoin; team buy; aim preview
 - [x] Windows build with self test: `python build.py` → `dist/Val2d/Val2d.exe`

@@ -1,7 +1,10 @@
-"""Scoreboard, damage report, round history."""
+"""Scoreboard (Tab), match result, damage report after dying, round history; flat UI style."""
 from __future__ import annotations
 
 from client.common import *  # noqa: F403  (pygame, colours, types)
+from client.ui import color
+
+COLUMNS = (("Agent", 44), ("K", 330), ("D", 380), ("Score", 500), ("Credits", 590), ("Ping", 680))
 
 
 class ScoreboardMixin:
@@ -9,94 +12,102 @@ class ScoreboardMixin:
         return p.remote_score if self.mode == "client" else self.match.combat_score(p)
 
     def draw_damage_report(self, me: PlayerState) -> None:
-        """After dying or at round end: damage dealt to and taken from each opponent this round."""
-        m = self.match
+        """After dying or at round end: damage dealt to and taken from each opponent this round (left side)."""
+        m, ui = self.match, self.kit
         rows = m.remote_report if self.mode == "client" else m.damage_report(me.pid)
         if not rows:
             return
-        x, y, w = 24, self.h / 2 - 40, 330
-        self.panel("ui/hud/ability_panel.png", pygame.Rect(x - 10, y - 34, w + 20, 40 + 30 * len(rows[:5])))
-        self.text("This round: dealt / taken", (x, y - 26), C_MUTED)
+        x, w = 16, 300
+        y = int(HUD["minimap_radius"]) * 2 + 130
+        box = pygame.Rect(x, y, w, 40 + 30 * len(rows[:5]))
+        ui.panel(box, "panel", edge="top")
+        ui.text("This round", (x + 12, y + 10), "xs", "muted", upper=True, bold=True)
+        ui.text("dealt", (x + 200, y + 10), "xs", "ally", "right", upper=True)
+        ui.text("taken", (x + w - 12, y + 10), "xs", "enemy", "right", upper=True)
+        y += 34
         for row in rows[:5]:
             other = m.players.get(int(row["pid"]))
             if other is None:
                 continue
-            head = self.bank.scaled(f"agents/{other.agent}/{other.agent}_killfeed.png", (24, 24))
+            head = self.bank.scaled(f"agents/{other.agent}/{other.agent}_killfeed.png", (22, 22))
             if head is not None:
-                self.screen.blit(head, (x, y))
-            self.text(other.name[:12], (x + 30, y + 3), C_TEXT)
-            self.text(f"{row['dealt']} ({row['dealt_hits']})", (x + 170, y + 3), C_ALLY)
-            self.text(f"{row['taken']} ({row['taken_hits']})", (x + 250, y + 3), C_ENEMY)
+                self.screen.blit(head, (x + 10, y))
+            ui.text(other.name[:12], (x + 40, y + 3), "s")
+            ui.text(f"{row['dealt']} ({row['dealt_hits']})", (x + 200, y + 3), "s", "ally", "right", bold=True)
+            ui.text(f"{row['taken']} ({row['taken_hits']})", (x + w - 12, y + 3), "s", "enemy", "right", bold=True)
             y += 30
 
     def draw_round_history(self, y: float) -> None:
-        """One mark per finished round: colour = winning side for me, letter = how it ended."""
-        m = self.match
+        """One mark per finished round: colour = who won (me or them), letter = how it ended."""
+        m, ui = self.match, self.kit
         me = m.players.get(self.me)
         letters = {"Attackers eliminated": "E", "Defenders eliminated": "E", "Time ran out": "T",
                    "Bomb defused": "D", "Bomb detonated": "B"}
-        x = self.w / 2 - len(m.history) * 13
+        x = self.w / 2 - len(m.history) * 14
         for winner, reason in m.history:
             won = me is not None and winner == me.team
-            pygame.draw.rect(self.screen, C_ALLY if won else C_ENEMY, (x, y, 22, 22), 0 if won else 2)
-            self.text(letters.get(reason, "?"), (x + 6, y + 2), C_BG if won else C_ENEMY)
-            x += 26
+            r = pygame.Rect(round(x), round(y), 24, 24)
+            if won:
+                pygame.draw.rect(self.screen, color("ally"), r)
+            else:
+                ui.outline(r, "enemy", 2)
+            ui.text(letters.get(reason, "?"), (r.centerx, r.y + 4), "xs", "bg" if won else "enemy", "center", bold=True)
+            x += 28
 
     def draw_scores(self) -> None:
-        m = self.match
+        m, ui = self.match, self.kit
         me = m.players.get(self.me)
-        overlay = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
-        overlay.fill((10, 10, 16, 200))
-        self.screen.blit(overlay, (0, 0))
-        title = "Match over" if m.phase == "over" else "Scoreboard"
-        if m.history:
-            self.draw_round_history(self.h - 74)
-        if m.phase == "over" and m.players:
+        ui.fill(self.screen.get_rect(), "#0f1923e6")
+        over = m.phase == "over"
+        mine = m.score[me.team] if me else m.score[0]
+        theirs = m.score[1 - me.team] if me else m.score[1]
+        if over:
+            won = me is not None and m.match_winner == me.team
+            ui.text("Victory" if won else "Defeat", (self.w / 2, 40), "xxl", "ally" if won else "enemy", "center", upper=True,
+                    bold=True, kind="title")
+        ui.text(str(mine), (self.w / 2 - 70, 130 if over else 40), "xl", "ally", "right", bold=True, kind="numbers")
+        ui.text(":", (self.w / 2, 130 if over else 40), "xl", "muted", "center", bold=True)
+        ui.text(str(theirs), (self.w / 2 + 70, 130 if over else 40), "xl", "enemy", bold=True, kind="numbers")
+        top = 200 if over else 110
+        if over and m.players:
             mvp = max(m.players.values(), key=self.score_of)
-            self.text(f"MVP: {mvp.name} ({m.agents.get(mvp.agent, {}).get('name', mvp.agent)}) – {self.score_of(mvp)} points",
-                      (self.w / 2, 122), C_SITE, center=True)
-        if m.phase == "over":
-            self.text("Enter or Esc: back to the menu", (self.w / 2, self.h - 40), C_SITE, center=True)
-        if m.phase == "over" and me is not None:
-            title += ": won" if m.match_winner == me.team else ": lost"
-        self.text(f"{title}   {m.score[0]} : {m.score[1]}", (self.w / 2, 92), C_TEXT, big=True, center=True)
-        x, w, y = self.w / 2 - 320, 640, 150
-        for team in (0, 1):
+            ui.text(f"MVP  {mvp.name} · {m.agents.get(mvp.agent, {}).get('name', mvp.agent)} · {self.score_of(mvp)}",
+                    (self.w / 2, top - 14), "s", "gold", "center", upper=True, bold=True)
+            top += 16
+        x, w = self.w / 2 - 380, 760
+        y = top
+        for label, cx in COLUMNS:
+            ui.text(label, (x + cx, y), "xs", "muted", upper=True)
+        y += 22
+        teams = (me.team, 1 - me.team) if me is not None else (0, 1)
+        for team in teams:
             own = me is not None and team == me.team
-            header = pygame.Rect(x, y, w, 32)
-            if not draw_nine_slice(self.screen, self.bank, f"ui/scoreboard/header_team_{'a' if own else 'b'}.png", header, 8, 1):
-                pygame.draw.rect(self.screen, C_ALLY if own else C_ENEMY, header, 1)
-            self.text(f"Team {team + 1}" + ("  (you)" if own else ""), (x + 16, y + 6))
-            skull = self.bank.scaled("ui/icons/skull.png", (16, 16))
-            trophy = self.bank.scaled("ui/icons/trophy.png", (16, 16))
-            coin = self.bank.scaled("ui/hud/credits.png", (16, 16))
-            for icon, col_x in ((trophy, x + 380), (skull, x + 450), (coin, x + 540)):
-                if icon is not None:
-                    self.screen.blit(icon, (col_x, y + 8))
-            y += 38
-            for p in sorted((p for p in m.players.values() if p.team == team), key=lambda p: -p.kills):
-                row = pygame.Rect(x, y, w, 36)
-                rel = "ui/scoreboard/row_self.png" if p.pid == self.me else "ui/scoreboard/row.png"
-                if not draw_nine_slice(self.screen, self.bank, rel, row, 8, 1):
-                    pygame.draw.rect(self.screen, C_MUTED, row, 1)
+            players = sorted((p for p in m.players.values() if p.team == team), key=lambda p: -self.score_of(p))
+            for p in players:
+                row = pygame.Rect(x, y, w, 34)
+                ui.panel(row, "panel_light" if p.pid == self.me else "panel")
+                pygame.draw.rect(self.screen, color("ally" if own else "enemy"), (row.x, row.y, 4, row.h))
                 head = self.bank.scaled(f"agents/{p.agent}/{p.agent}_killfeed.png", (24, 24))
                 if head is not None:
-                    self.screen.blit(head, (x + 10, y + 6))
-                col = C_TEXT if p.alive else C_MUTED
-                self.text(p.name, (x + 44, y + 9), col)
-                self.text(m.agents.get(p.agent, {}).get("name", p.agent), (x + 220, y + 9), C_MUTED)
-                self.text(str(p.kills), (x + 384, y + 9), col)
-                self.text(str(p.deaths), (x + 454, y + 9), col)
-                self.text(str(self.score_of(p)), (x + 490, y + 9), C_MUTED)
-                credits = "" if (me is not None and p.team != me.team) else str(p.credits)
-                self.text(credits, (x + 544, y + 9), C_SITE)
+                    if not p.alive:
+                        head = head.copy()
+                        head.fill((90, 90, 90, 255), special_flags=pygame.BLEND_RGBA_MULT)
+                    self.screen.blit(head, (x + 12, y + 5))
+                col = "text" if p.alive or over else "muted"
+                ui.text(p.name, (x + 44, y + 8), "s", col, bold=p.pid == self.me)
+                ui.text(m.agents.get(p.agent, {}).get("name", p.agent), (x + 190, y + 9), "xs", "muted", upper=True)
+                ui.text(str(p.kills), (x + 330, y + 8), "s", col, bold=True)
+                ui.text(str(p.deaths), (x + 380, y + 8), "s", col)
+                ui.text(str(self.score_of(p)), (x + 500, y + 8), "s", col)
+                if own:
+                    ui.text(str(p.credits), (x + 590, y + 8), "s", "gold")
                 if p.is_bot:
-                    self.text("BOT", (x + 596, y + 9), C_MUTED)
+                    ui.text("bot", (x + 680, y + 9), "xs", "muted", upper=True)
                 elif p.ping_ms is not None:
-                    bars = 3 if p.ping_ms < 50 else 2 if p.ping_ms < 100 else 1 if p.ping_ms < 200 else 0
-                    icon = self.bank.scaled(f"ui/icons/ping_{bars}.png", (16, 16))
-                    if icon is not None:
-                        self.screen.blit(icon, (x + 596, y + 10))
-                    self.text(f"{p.ping_ms}", (x + 600 + (18 if icon else 0), y + 9), C_MUTED)
-                y += 40
-            y += 18
+                    ui.text(f"{p.ping_ms} ms", (x + 680, y + 8), "s", "muted")
+                y += 38
+            y += 14
+        if m.history:
+            self.draw_round_history(self.h - 84)
+        if over:
+            ui.text("Enter: back to the menu", (self.w / 2, self.h - 40), "s", "gold", "center", upper=True, bold=True)
