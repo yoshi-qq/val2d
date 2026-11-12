@@ -285,11 +285,16 @@ class CharacterSprites:
             enemy = False
         return f"agents/{agent}/{name}{'_feind' if enemy else ''}.png"
 
-    def resolve(self, agent: str, state: str, enemy: bool, form: str | None = None) -> tuple[str, str] | None:
-        """(file, state actually used) after fallbacks, or None if not even idle exists (cached per call key)."""
-        key = (agent, state, enemy, form)
+    def resolve(self, agent: str, state: str, enemy: bool, form: str | None = None, view: str = "") -> tuple[str, str] | None:
+        """(file, state actually used) after fallbacks, or None if not even idle exists (cached per call key).
+        view "back" or "side": tries {key}_{state}_{view}.png first, else the front view."""
+        key = (agent, state, enemy, form, view)
         if key not in self._resolved:
-            self._resolved[key] = self._resolve(agent, state, enemy, form)
+            found = None
+            if view:
+                rel = self._file(agent, f"{agent}_{state}_{view}", enemy)
+                found = (rel, state) if (ASSETS / rel).exists() else None
+            self._resolved[key] = found or self._resolve(agent, state, enemy, form)
         return self._resolved[key]
 
     def _resolve(self, agent: str, state: str, enemy: bool, form: str | None) -> tuple[str, str] | None:
@@ -318,9 +323,13 @@ class CharacterSprites:
     def _cell_w(self, tag: str) -> int:
         return round(_SIZES_M.get(tag, (1, 2))[0] * PX_PER_M)
 
+    def has_view(self, agent: str, state: str, enemy: bool, view: str) -> bool:
+        found = self.resolve(agent, state, enemy, None, view)
+        return bool(found and found[0].endswith(f"_{view}{'_feind' if enemy else ''}.png"))
+
     def frame(self, agent: str, state: str, enemy: bool, scale: float, clock: float,
-              form: str | None = None, speed: float = 1.0) -> pygame.Surface | None:
-        found = self.resolve(agent, state, enemy, form)
+              form: str | None = None, speed: float = 1.0, view: str = "") -> pygame.Surface | None:
+        found = self.resolve(agent, state, enemy, form, view)
         if not found:
             return None
         rel, tag = found

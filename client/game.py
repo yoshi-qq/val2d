@@ -22,8 +22,8 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
         self.w, self.h = self.screen.get_size()
         self.scale = self.w / VIEW_METERS
         try:
-            self.font = pygame.font.Font(str(FONT_PATH), 18)
-            self.big = pygame.font.Font(str(FONT_PATH), 36)
+            self.font = pygame.font.Font(str(FONT_PATH), 16)  # native size of the pixel font
+            self.big = pygame.font.Font(str(FONT_PATH), 16)   # enlarged x2 by pixel_text
         except (OSError, FileNotFoundError):
             warnings.warn("Font fixed_sys.ttf missing; using the default font.")
             self.font = pygame.font.Font(None, 22)

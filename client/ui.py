@@ -17,20 +17,32 @@ DEFAULT_THEME: dict[str, Any] = {
     "colors": {"bg": "#0f1923", "panel": "#0f1923d8", "panel_light": "#1f2d3ae6", "line": "#ece8e133", "text": "#ece8e1",
                "muted": "#8b978f", "accent": "#ff4655", "accent_dark": "#bd3944", "ally": "#4fd6c8", "enemy": "#ff4655",
                "gold": "#f2c94c", "good": "#5ee38a", "shade": "#000000b4"},
-    "fonts": {"ui": "", "title": "", "numbers": ""},
-    "sizes": {"xs": 13, "s": 16, "m": 20, "l": 30, "xl": 46, "xxl": 72},
+    "fonts": {"ui": "fixed_sys.ttf", "title": "fixed_sys.ttf", "numbers": "fixed_sys.ttf"},
+    "pixel": True, "native": 16, "border": 2,
+    "sizes": {"xs": 1, "s": 1, "m": 1, "l": 2, "xl": 3, "xxl": 4},
+    "smooth_sizes": {"xs": 13, "s": 16, "m": 20, "l": 30, "xl": 46, "xxl": 72},
 }
 
 
 @lru_cache(maxsize=1)
 def load_theme() -> dict[str, Any]:
     raw = _load_py(CONFIG_DIR / "client" / "theme.py", "THEME")
-    theme = {k: dict(v) for k, v in DEFAULT_THEME.items()}
+    theme = {k: (dict(v) if isinstance(v, dict) else v) for k, v in DEFAULT_THEME.items()}
     if isinstance(raw, dict):
         for section, values in raw.items():
-            if isinstance(values, dict) and section in theme:
+            if isinstance(values, dict) and isinstance(theme.get(section), dict):
                 theme[section].update(values)
+            elif not isinstance(values, dict):
+                theme[section] = values
     return theme
+
+
+def pixel_mode() -> bool:
+    return bool(load_theme().get("pixel", True))
+
+
+def border() -> int:
+    return int(load_theme().get("border", 2))
 
 
 def color(name: str) -> pygame.Color:
@@ -65,8 +77,16 @@ class Ui:
         self.hits = []
         self.modal_from = 0
 
+    def _px(self, size: str) -> tuple[int, int]:
+        """(font pixel size, whole-number enlargement) of a size name."""
+        th = load_theme()
+        if pixel_mode():
+            return int(th.get("native", 16)), max(1, int(th["sizes"].get(size, 1)))
+        return int(th.get("smooth_sizes", th["sizes"]).get(size, 20)), 1
+
     def font(self, size: str = "m", kind: str = "ui", bold: bool = False) -> pygame.font.Font:
-        px = int(load_theme()["sizes"].get(size, 20)) if isinstance(size, str) else int(size)
+        px = self._px(size)[0] if isinstance(size, str) else int(size)
+        bold = bold and not pixel_mode()  # pixel fonts get bold by a doubled stroke instead
         key = (kind, px, bold)
         if key not in self._fonts:
             name = str(load_theme()["fonts"].get(kind, ""))
@@ -82,7 +102,7 @@ class Ui:
     def text(self, msg: str, pos: tuple[float, float], size: str = "m", col: str | tuple = "text", align: str = "left",
              upper: bool = False, bold: bool = False, kind: str = "ui", alpha: int = 255) -> pygame.Rect:
         c = color(col) if isinstance(col, str) else pygame.Color(*col)
-        img = self.font(size, kind, bold).render(msg.upper() if upper else msg, True, c)
+        img = self.render(msg.upper() if upper else msg, size, c, bold, kind)
         if alpha < 255:
             img.set_alpha(alpha)
         x, y = pos
@@ -93,8 +113,25 @@ class Ui:
         self.screen.blit(img, (x, y))
         return pygame.Rect(round(x), round(y), img.get_width(), img.get_height())
 
+    def render(self, msg: str, size: str, c: pygame.Color, bold: bool = False, kind: str = "ui") -> pygame.Surface:
+        """Text surface. Pixel look: native size, no smoothing, bold as a 1-pixel doubled stroke, then enlarged by a
+        whole number with nearest-neighbour scaling, so every text pixel is a block like in the sprites."""
+        f = self.font(size, kind, bold)
+        if not pixel_mode():
+            return f.render(msg, True, c)
+        base = f.render(msg, False, c)
+        if bold:
+            wide = pygame.Surface((base.get_width() + 1, base.get_height()), pygame.SRCALPHA)
+            wide.blit(base, (0, 0))
+            wide.blit(base, (1, 0))
+            base = wide
+        k = self._px(size)[1]
+        return base if k == 1 else pygame.transform.scale(base, (base.get_width() * k, base.get_height() * k))
+
     def size(self, msg: str, size: str = "m", upper: bool = False, bold: bool = False, kind: str = "ui") -> tuple[int, int]:
-        return self.font(size, kind, bold).size(msg.upper() if upper else msg)
+        w, h = self.font(size, kind, bold).size(msg.upper() if upper else msg)
+        k = self._px(size)[1] if pixel_mode() else 1
+        return (w + (1 if bold and pixel_mode() else 0)) * k, h * k
 
     def fill(self, rect: pygame.Rect, col: str) -> None:
         c = color(col)
@@ -116,7 +153,13 @@ class Ui:
         else:
             pygame.draw.line(self.screen, c, a, b, width)
 
-    def outline(self, rect: pygame.Rect, col: str = "line", width: int = 1) -> None:
+    def outline(self, rect: pygame.Rect, col: str = "line", width: int = 0) -> None:
+        """Rectangle border; width 0 = the theme's border (whole UI pixels)."""
+        width = width or border()
+        c = color(col)
+        if c.a == 255:
+            pygame.draw.rect(self.screen, c, rect, width)
+            return
         for a, b in ((rect.topleft, rect.topright), (rect.topright, rect.bottomright),
                      (rect.bottomright, rect.bottomleft), (rect.bottomleft, rect.topleft)):
             self.line(a, b, col, width)
@@ -128,14 +171,15 @@ class Ui:
 
     # ------------------------------------------------------------ widgets
     def panel(self, rect: pygame.Rect, col: str = "panel", edge: str = "", edge_col: str = "accent") -> None:
-        """Translucent panel; edge "left"/"top"/"bottom" adds a thin accent bar."""
+        """Translucent panel; edge "left"/"top"/"bottom" adds an accent bar two UI pixels thick."""
         self.fill(rect, col)
+        thick = 2 * border()
         if edge == "left":
-            pygame.draw.rect(self.screen, color(edge_col), (rect.x, rect.y, 3, rect.h))
+            pygame.draw.rect(self.screen, color(edge_col), (rect.x, rect.y, thick, rect.h))
         elif edge == "top":
-            pygame.draw.rect(self.screen, color(edge_col), (rect.x, rect.y, rect.w, 2))
+            pygame.draw.rect(self.screen, color(edge_col), (rect.x, rect.y, rect.w, thick))
         elif edge == "bottom":
-            pygame.draw.rect(self.screen, color(edge_col), (rect.x, rect.bottom - 2, rect.w, 2))
+            pygame.draw.rect(self.screen, color(edge_col), (rect.x, rect.bottom - thick, rect.w, thick))
 
     def button(self, rect: pygame.Rect, label: str, action: str, primary: bool = False, enabled: bool = True,
                size: str = "m", selected: bool = False) -> None:
@@ -173,9 +217,10 @@ class Ui:
     def slider(self, rect: pygame.Rect, frac: float, action: str) -> None:
         frac = max(0.0, min(1.0, frac))
         mid = rect.centery
-        self.line((rect.x, mid), (rect.right, mid), "line", 2)
-        pygame.draw.line(self.screen, color("accent"), (rect.x, mid), (rect.x + rect.w * frac, mid), 2)
-        knob = pygame.Rect(0, 0, 10, 18)
+        b = border()
+        self.fill(pygame.Rect(rect.x, mid - b // 2, rect.w, b), "line")
+        pygame.draw.rect(self.screen, color("accent"), (rect.x, mid - b // 2, round(rect.w * frac), b))
+        knob = pygame.Rect(0, 0, 4 * border(), 8 * border())
         knob.center = (round(rect.x + rect.w * frac), mid)
         pygame.draw.rect(self.screen, color("text"), knob)
         self.hits.append(Hit(rect.inflate(0, 14), action))

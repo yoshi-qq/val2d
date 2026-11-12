@@ -64,3 +64,29 @@ def test_jumping_late_into_the_crate_side_does_not_pop_up() -> None:
         heights.append(p.ground + p.z)
     rises = [b - a for a, b in zip(heights, heights[1:])]
     assert max(rises) < 0.2, "no sudden jump in height"
+
+
+def _teleporter(m: Match, pid: int, reach: float) -> None:
+    from gameplay.kit.dsl import agent, preset
+    m.agents = {**m.agents, "porter": agent("Porter", C=preset("teleport", "Pas", range=reach),
+                                            Q=preset("hop", "Hop", velocity=5.0), E=preset("hop", "Hop", velocity=5.0),
+                                            X=preset("overdrive", "Od", cost=7, duration=5.0))}
+    m.players[pid].agent = "porter"
+    m.players[pid].charges["C"] = 1
+
+
+def test_teleport_onto_higher_ground_within_3d_range() -> None:
+    m, pid = setup()
+    place(m, pid, Vec(3.0, 5), 0.0)
+    _teleporter(m, pid, 6.0)
+    m.tick(1 / 64, {pid: Command(facing=90.0, cursor_depth=4.3, ability="C")})  # aim stops 0.3 m short: 4 m flat, 1 m up = 4.12 m
+    p = m.players[pid]
+    assert abs(p.pos.x - 7.0) < 0.1 and p.ground == 1.0 and p.level == 1
+
+
+def test_teleport_refuses_when_the_3d_distance_is_too_far() -> None:
+    m, pid = setup()
+    place(m, pid, Vec(5.0, 5), 0.0)
+    _teleporter(m, pid, 1.5)  # aim lands 1.2 m ahead on the crate: flat fits, with 1 m of height it is 1.56 m
+    m.tick(1 / 64, {pid: Command(facing=90.0, cursor_depth=4.3, ability="C")})
+    assert m.players[pid].pos.x < 5.5 and m.players[pid].charges["C"] == 1

@@ -321,11 +321,21 @@ def e_hop(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> None:
 
 @effect("teleport", per_player=False)
 def e_teleport(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> bool:
-    """Moves the owner to the point; cancels if it is too close or on higher ground."""
+    """Moves the owner to the point, also up onto crates and platforms, if it lies within `range` measured in 3D
+    (r² = x² + y² + z², z = height difference); cancels if it is too close or out of range."""
     p = ctx.owner
-    if p is None or (ctx.point - p.pos).length() < 0.5 or ctx.m.world.floor_level(ctx.point) > p.level:
+    if p is None:
+        return False
+    lh = float(ctx.m._mv["level_height"])
+    ground = ctx.m.world.ground_height(ctx.point) * lh
+    flat = (ctx.point - p.pos).length()
+    rise = ground - (p.ground + p.z)
+    reach = float(step.get("range", ctx.ability.get("range", 8.0)))
+    if flat < 0.5 or (flat * flat + rise * rise) ** 0.5 > reach + 1e-6:
         return False
     p.pos, p.vel = ctx.point, Vec(0, 0)
+    p.ground, p.z, p.vz = ground, 0.0, 0.0
+    p.level = int(ground / lh + 0.5)
     return True
 
 

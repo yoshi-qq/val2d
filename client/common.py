@@ -26,7 +26,8 @@ ROOT = Path(__file__).resolve().parent.parent
 FONT_PATH = ROOT / "font" / "fixed_sys.ttf"
 from gameplay.data import CONFIG_DIR, _load_py  # noqa: E402
 
-VIEW_DEFAULTS = {"view_meters": 30.0, "height_draw": 0.7, "outside_darkness": 175, "sight_rays": 220, "body_sight": 0.9}
+VIEW_DEFAULTS = {"view_meters": 30.0, "height_draw": 0.7, "outside_darkness": 175, "behind_cover_grey": 110,
+                 "sight_rays": 220, "body_sight": 0.9, "facing_marker": 1.3}
 VIEW = {**VIEW_DEFAULTS, **(_load_py(CONFIG_DIR / "client" / "view.py", "VIEW") or {})}
 VIEW_METERS = float(VIEW["view_meters"])
 HUD_DEFAULTS = {"minimap_radius": 104, "minimap_meters": 46.0, "minimap_rotate": True, "sound_circle_seconds": 0.8,

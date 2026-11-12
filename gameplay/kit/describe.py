@@ -46,7 +46,7 @@ PRESET_TEXT = {
                           + _status(a) + ".",
     "dash": lambda a: f"Dashes {_n(a['distance'])} m in the direction you move.",
     "hop": lambda a: "Jumps high into the air.",
-    "teleport": lambda a: f"Teleports to the cursor (up to {_n(a.get('range', 8))} m, not onto higher ground).",
+    "teleport": lambda a: f"Teleports to the cursor, also onto higher ground, up to {_n(a.get('range', 8))} m away (counted in 3D).",
     "anchor": lambda a: f"First use marks your position, the second use within {_n(a.get('duration', 60))} s brings you back.",
     "heal": lambda a: f"Heals the ally under the cursor (or yourself) by {_n(a['amount'])} over {_n(a['duration'])} s.",
     "stim": lambda a: f"You and allies within {_n(a['radius'])} m fire and reload faster for {_n(a['duration'])} s.",

@@ -16,9 +16,12 @@ if TYPE_CHECKING:
     from gameplay.match import Match, PlayerState
 
 
-def _wall_arrays(m: Match, level: int, origin: Vec, reach: float) -> np.ndarray:
+def _wall_arrays(m: Match, level: int, origin: Vec, reach: float, low: bool = False) -> np.ndarray:
+    """Sight-blocking walls near the eye; low=True also head-high cover (crates, platform edges) above the eye."""
     rects = []
-    for w in m.active_sight_walls(level):
+    walls = [w for w in m.world.walls if w.height > level and m.wall_active(w, for_sight=True)] if low \
+        else m.active_sight_walls(level)
+    for w in walls:
         r = w.rect
         if r.x1 < origin.x - reach or r.x0 > origin.x + reach or r.y1 < origin.y - reach or r.y0 > origin.y + reach:
             continue
@@ -44,8 +47,9 @@ def _lines(m: Match) -> np.ndarray:
     return np.array(out, dtype=float).reshape(-1, 4)
 
 
-def sight_polygon(m: Match, me: PlayerState, fov: float, reach: float, rays: int) -> list[Vec]:
-    """World points of the visible area: the eye first, then the ray ends from the left to the right edge."""
+def sight_polygon(m: Match, me: PlayerState, fov: float, reach: float, rays: int, low: bool = False) -> list[Vec]:
+    """World points of the visible area: the eye first, then the ray ends from the left to the right edge.
+    low=True: head-high cover blocks too (the area where even the ground is visible)."""
     origin = me.pos
     full = fov >= 359.0
     n = max(8, int(rays * (1.0 if full else fov / 103.0)))
@@ -53,7 +57,7 @@ def sight_polygon(m: Match, me: PlayerState, fov: float, reach: float, rays: int
     angles = np.radians(start + np.arange(n + (0 if full else 1)) * (fov / n))
     dx, dy = np.sin(angles), np.cos(angles)  # compass: 0 = +y, 90 = +x
     dist = np.full(angles.shape, reach)
-    walls = _wall_arrays(m, me.level, origin, reach)
+    walls = _wall_arrays(m, me.level, origin, reach, low)
     if len(walls):
         ox, oy = origin.x, origin.y
         with np.errstate(divide="ignore", invalid="ignore"):

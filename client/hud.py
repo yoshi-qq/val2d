@@ -28,6 +28,11 @@ class HudMixin:
         if getattr(self, "help_held", False):
             self.draw_ability_help(me)
 
+    def pixel_text(self, msg: str, col: tuple | pygame.Color, k: int = 1) -> pygame.Surface:
+        """Pixel font at its native size without smoothing, enlarged k times (nearest neighbour)."""
+        img = self.font.render(msg, False, col)
+        return img if k == 1 else pygame.transform.scale(img, (img.get_width() * k, img.get_height() * k))
+
     def draw_damage_direction(self, me: PlayerState) -> None:
         """Red arcs around the own figure pointing to where recent hits came from."""
         m = self.match
@@ -247,7 +252,9 @@ class HudMixin:
         card_w, gap = 290, 10
         x0 = self.w // 2 - (4 * card_w + 3 * gap) // 2
         texts = {s: ui.wrap(describe(abil[s]), "xs", card_w - 24) for s in abil}
-        height = 70 + 16 * max(len(t) for t in texts.values())
+        costs = {s: ui.wrap(cost_text(s, abil[s]), "xs", card_w - 24) for s in abil}
+        extra = 16 * (max(len(c) for c in costs.values()) - 1)
+        height = 70 + extra + 16 * max(len(t) for t in texts.values())
         y = self.h - 110 - height
         for i, slot in enumerate(("C", "Q", "E", "X")):
             ab = abil[slot]
@@ -255,9 +262,10 @@ class HudMixin:
             ui.panel(r, "bg", edge="top", edge_col="gold" if slot == "X" else "accent")
             ui.keycap((r.x + 12, r.y + 14), slot, "s")
             ui.text(ab["name"], (r.x + 46, r.y + 14), "m", "text", upper=True, bold=True)
-            ui.text(cost_text(slot, ab), (r.x + 12, r.y + 42), "xs", "gold" if slot == "X" else "muted")
+            for j, ln in enumerate(costs[slot]):
+                ui.text(ln, (r.x + 12, r.y + 42 + j * 16), "xs", "gold" if slot == "X" else "muted")
             for j, ln in enumerate(texts[slot]):
-                ui.text(ln, (r.x + 12, r.y + 62 + j * 16), "xs", "text")
+                ui.text(ln, (r.x + 12, r.y + 62 + extra + j * 16), "xs", "text")
 
     AIM_KINDS = {"smoke", "wall", "vapor_wall", "flash", "zone", "slow_field", "blast", "wave", "sensor", "alarm",
                  "tripwire", "teleport", "heal", "shield", "revive"}
@@ -347,7 +355,7 @@ class HudMixin:
         self.screen.blit(dot, (cx - 4, cy - 4))
 
     def text(self, msg: str, pos: tuple[float, float], col=C_TEXT, big: bool = False, center: bool = False) -> None:
-        img = (self.big if big else self.font).render(msg, True, col)
+        img = self.pixel_text(msg, col, 2 if big else 1)
         x, y = pos
         if center:
             x -= img.get_width() / 2

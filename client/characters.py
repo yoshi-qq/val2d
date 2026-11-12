@@ -78,7 +78,15 @@ class CharactersMixin:
         for slot, name in dict(self.sprite_cfg(p).get("forms", {})).items():
             if self.slot_active(p, slot):
                 form = str(name)
-        return self.chars.frame(p.agent, state, p.team != me.team, self.scale, clock, form=form, speed=speed)
+        enemy = p.team != me.team
+        rel = (p.facing - me.facing) % 360  # 0: looks away from the camera (up on screen), 180: toward it
+        view = "back" if rel < 45 or rel >= 315 else "front" if 135 <= rel < 225 else "side"
+        if view == "front" or not self.chars.has_view(p.agent, state, enemy, view):
+            return self.chars.frame(p.agent, state, enemy, self.scale, clock, form=form, speed=speed)
+        img = self.chars.frame(p.agent, state, enemy, self.scale, clock, form=form, speed=speed, view=view)
+        if img is not None and view == "side" and rel >= 180:  # side sprites look right; mirror for left
+            img = pygame.transform.flip(img, True, False)
+        return img
 
     def draw_figure_fx(self, p: PlayerState, at: tuple[float, float]) -> None:
         """Effects in the 16x32 figure cell, centred on the player: one-shots from events, loops while active."""
@@ -131,17 +139,19 @@ class CharactersMixin:
             if pack is not None:
                 s.blit(pack, (px - dx * 0.6 - pack.get_width() / 2, py - dy * 0.6 - pack.get_height() / 2 + body_h * 0.05))
         if kind == "weapon":
+            # held at the side like in a hand, pointing left or right on screen (the exact aim is the facing marker)
             d = m.weapons.get(key)
-            length = 0.55 if d is not None and d.slot == "melee" else 0.7 if d is not None and d.slot == "sidearm" else 1.05
+            length = 0.5 if d is not None and d.slot == "melee" else 0.62 if d is not None and d.slot == "sidearm" else 0.95
             img = self.bank.scaled(f"weapons/val2d/{key}.png", (max(4, round(self.scale * length)), max(2, round(self.scale * length / 2))))
+            right = dx >= -0.5
+            gx = px + (1 if right else -1) * self.scale * 0.32
+            gy = py + body_h * 0.08
             if img is None:
-                pygame.draw.line(s, (40, 44, 50), (hx, hy), (hx + dx * 1.4, hy + dy * 1.4), 3)
+                pygame.draw.line(s, (40, 44, 50), (gx - 6, gy), (gx + 6, gy), 3)
                 return
-            flip = 90 < screen_angle % 360 < 270
-            if flip:
-                img = pygame.transform.flip(img, False, True)
-            rot = pygame.transform.rotate(img, screen_angle)
-            s.blit(rot, (hx + dx * 0.5 - rot.get_width() / 2, hy + dy * 0.5 - rot.get_height() / 2))
+            if not right:
+                img = pygame.transform.flip(img, True, False)
+            s.blit(img, (gx - img.get_width() / 2, gy - img.get_height() / 2))
         elif kind == "ability":
             icon = self.bank.scaled(f"ui/faehigkeit_{p.agent}_{key}.png", (max(4, round(self.scale * 0.42)),) * 2)
             if icon is not None:

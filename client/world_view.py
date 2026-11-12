@@ -39,7 +39,7 @@ class WorldViewMixin:
         self.draw_live_objects(me)
         for site in wm.sites:
             sx, sy = self.to_screen(site.rect.center, me)
-            lbl = self.big.render(site.name, True, C_SITE)
+            lbl = self.pixel_text(site.name, C_SITE, 3)
             s.blit(lbl, (sx - lbl.get_width() / 2, sy - lbl.get_height() / 2))
         for drop in m.drops:  # weapons lying on the ground, hand sprite at 2x the world scale
             size = (round(2 * self.scale), round(self.scale))
@@ -108,15 +108,7 @@ class WorldViewMixin:
             px, py = self.to_screen(p.pos, me)
             r = 0.4 * self.scale
             col = C_ALLY if p.team == me.team else C_ENEMY
-            fx, fy = self.to_screen(p.pos + heading(p.facing) * 0.9, me)
-            size = max(1, round(self.scale / 2))
-            marker = self.bank.tinted("fx/facing_marker.png", (size, size), 0, 0, col)
-            if marker is not None:
-                screen_angle = math.degrees(math.atan2(fx - px, -(fy - py)))
-                marker = pygame.transform.rotate(marker, -screen_angle)
-                s.blit(marker, (fx - marker.get_width() / 2, fy - marker.get_height() / 2))
-            else:
-                pygame.draw.line(s, col, (px, py), (fx, fy), 2)
+            self.draw_facing_marker(p, me, col)
             img = self.character_frame(p, me)
             # height on screen: ground (ramps, platforms) plus jump, one continuous scale, so nothing pops
             lift_ground, lift = p.ground * self.scale * HEIGHT_DRAW, (p.ground + p.z) * self.scale * HEIGHT_DRAW
@@ -145,9 +137,9 @@ class WorldViewMixin:
                     pygame.draw.circle(s, C_ENEMY, (px, py), r + 3, 3)
                 pygame.draw.circle(s, (80, 90, 94) if p.pid != self.me else (110, 120, 124), (px, py), r)
             if p.level:
-                s.blit(self.font.render("▲", True, C_TEXT), (px + r, py - r))
+                s.blit(self.pixel_text("^", C_TEXT), (px + r, py - r))
             if p.pid != self.me:
-                name = self.font.render(p.name, True, col)
+                name = self.pixel_text(p.name, col)
                 s.blit(name, (px - name.get_width() / 2, py - r - 22))
         self.draw_bursts(me)
         if getattr(self, "scoped", False) and me.pid == self.me:
@@ -176,6 +168,19 @@ class WorldViewMixin:
         if self.ui.show_scores or m.phase == "over":
             self.draw_scores()
 
+    def draw_facing_marker(self, p: PlayerState, me: PlayerState, col: tuple[int, int, int]) -> None:
+        """Exact view direction on the ground: a dotted line from the feet and an arrow head at its end."""
+        length = float(VIEW["facing_marker"])
+        aim = heading(p.facing)
+        side = aim.rotated(90)
+        layer_pts = [self.to_screen(p.pos + aim * (0.45 + i * 0.16), me) for i in range(int((length - 0.45) / 0.16))]
+        dot = max(2, round(self.scale / 16))  # one sprite pixel
+        for x, y in layer_pts[::2]:
+            pygame.draw.rect(self.screen, col, (round(x - dot / 2), round(y - dot / 2), dot, dot))
+        tip = p.pos + aim * length
+        head = [self.to_screen(tip, me), self.to_screen(tip - aim * 0.28 + side * 0.17, me), self.to_screen(tip - aim * 0.28 - side * 0.17, me)]
+        pygame.draw.polygon(self.screen, col, head)
+
     def draw_scope(self) -> None:
         """Sniper scope: black outside a circle around the screen centre, thin reticle lines."""
         r = int(self.h * 0.44)
@@ -202,11 +207,15 @@ class WorldViewMixin:
             return
         fov = 360.0 if m.cfg.lobby.all_around_sight else m.fov
         reach = float(rule_value("sight", "view_distance", 60.0))
-        pts = sight_polygon(m, me, fov, reach, int(VIEW["sight_rays"]))
+        rays = int(VIEW["sight_rays"])
+        pts = sight_polygon(m, me, fov, reach, rays)
+        low = sight_polygon(m, me, fov, reach, rays, low=True)
         shade = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
         shade.fill((4, 6, 10, int(VIEW["outside_darkness"])))
         clear = (0, 0, 0, 0)
-        pygame.draw.polygon(shade, clear, [self.to_screen(p, me) for p in pts])
+        # behind head-high cover only taller things (jumping players, platforms) can be seen: drawn grey
+        pygame.draw.polygon(shade, (40, 46, 54, int(VIEW["behind_cover_grey"])), [self.to_screen(p, me) for p in pts])
+        pygame.draw.polygon(shade, clear, [self.to_screen(p, me) for p in low])
         pygame.draw.polygon(shade, clear, [self.to_screen(p, me) for p in body_circle(me.pos, float(VIEW["body_sight"]))])
         self.screen.blit(shade, (0, 0))
 
