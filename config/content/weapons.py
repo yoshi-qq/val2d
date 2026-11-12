@@ -28,6 +28,7 @@ Fields per weapon:
   spray          (increase per follow-up shot, cap, recovery per second)
   spread_unscoped  extra spread while a scoped weapon is not scoped (snipers: no-scopes are a gamble)
   backstab       melee: damage factor when hitting from behind (melee never deals headshots)
+  art            sprite name under assets/weapons/val2d (the key if missing)
   alt            alternate fire (right mouse button), one of:
                  zoom:        factor (camera zoom), spread_mult, speed_mult; hold to aim.
                               scope=True: sniper scope (circle view, centred on the crosshair), toggled per press;
@@ -43,82 +44,82 @@ Fields per weapon:
 
 WEAPONS: dict[str, dict] = {
     # ---------------------------------------------------------------- melee
-    "messer": dict(alt=dict(kind="heavy", damage=75, cooldown=1.0, range=1.6), category="melee", name="Knife", slot="melee",
+    "knife": dict(art="messer", alt=dict(kind="heavy", damage=75, cooldown=1.0, range=1.6), category="melee", name="Knife", slot="melee",
                    price=0, mag=0, reserve=0, auto=True, rate=1.6, reload=0, equip=0.5, speed_mod=1.0, penetration=0, pellets=1,
                    range=2.0, damage=[(2, 50, 50, 50)], backstab=2.0, spread_first=0, spread_run=0, spray=(0, 0, 0)),
     # ---------------------------------------------------------------- sidearms
-    "spatz": dict(alt=dict(kind="spread_shot", pellets=3, spread=3.5, cooldown=0.55), category="sidearm", name="Sparrow", slot="sidearm", price=0, mag=12, reserve=36, auto=False, rate=6.5, reload=1.75,
+    "pistol": dict(art="spatz", alt=dict(kind="spread_shot", pellets=3, spread=3.5, cooldown=0.55), category="sidearm", name="Sparrow", slot="sidearm", price=0, mag=12, reserve=36, auto=False, rate=6.5, reload=1.75,
                   equip=0.75, speed_mod=1.0, penetration=0, pellets=1, range=60,
                   damage=[(30, 78, 26, 22), (60, 66, 22, 18)], spread_first=0.4, spread_run=2.6, spray=(0.9, 4.0, 6.0)),
-    "stachel": dict(alt=dict(kind="none"), category="sidearm", name="Thorn", slot="sidearm", price=300, mag=2, reserve=10, auto=False, rate=3.0, reload=1.8,
+    "shotgun_pistol": dict(art="stachel", alt=dict(kind="none"), category="sidearm", name="Thorn", slot="sidearm", price=300, mag=2, reserve=10, auto=False, rate=3.0, reload=1.8,
                     equip=0.75, speed_mod=1.0, penetration=0, pellets=8, range=15,
                     damage=[(6, 30, 15, 12), (15, 10, 5, 4)], spread_first=3.4, spread_run=3.4, spray=(0, 3.4, 0)),
-    "hornisse": dict(alt=dict(kind="none"), category="sidearm", name="Hornet", slot="sidearm", price=450, mag=13, reserve=39, auto=True, rate=10.0, reload=1.5,
+    "auto_pistol": dict(art="hornisse", alt=dict(kind="none"), category="sidearm", name="Hornet", slot="sidearm", price=450, mag=13, reserve=39, auto=True, rate=10.0, reload=1.5,
                      equip=0.75, speed_mod=1.0, penetration=0, pellets=1, range=50,
                      damage=[(20, 70, 24, 20), (50, 56, 19, 16)], spread_first=0.6, spread_run=1.4, spray=(0.55, 5.0, 8.0)),
-    "lynx": dict(alt=dict(kind="zoom", factor=1.25, spread_mult=0.8, speed_mult=0.85), category="sidearm", name="Lynx", slot="sidearm", price=500, mag=15, reserve=45, auto=False, rate=6.8, reload=1.6,
+    "silenced_pistol": dict(art="lynx", alt=dict(kind="zoom", factor=1.25, spread_mult=0.8, speed_mult=0.85), category="sidearm", name="Lynx", slot="sidearm", price=500, mag=15, reserve=45, auto=False, rate=6.8, reload=1.6,
                  equip=0.75, speed_mod=1.0, penetration=0, pellets=1, range=60, silenced=True,
                  damage=[(30, 105, 30, 26), (60, 88, 25, 21)], spread_first=0.25, spread_run=2.4, spray=(0.7, 3.5, 7.0)),
-    "kite": dict(alt=dict(kind="zoom", factor=1.25, spread_mult=0.8, speed_mult=0.85), category="sidearm", name="Kite", slot="sidearm", price=600, mag=8, reserve=24, auto=False, rate=4.5, reload=1.9,
+    "heavy_pistol": dict(art="kite", alt=dict(kind="zoom", factor=1.25, spread_mult=0.8, speed_mult=0.85), category="sidearm", name="Kite", slot="sidearm", price=600, mag=8, reserve=24, auto=False, rate=4.5, reload=1.9,
                  equip=0.8, speed_mod=1.0, penetration=1, pellets=1, range=60,
                  damage=[(25, 152, 42, 36), (60, 118, 35, 30)], spread_first=0.2, spread_run=3.0, spray=(1.1, 4.0, 5.0)),
-    "bulle": dict(alt=dict(kind="none"), category="sidearm", name="Bull", slot="sidearm", price=800, mag=6, reserve=24, auto=False, rate=2.2, reload=2.2,
+    "revolver": dict(art="bulle", alt=dict(kind="none"), category="sidearm", name="Bull", slot="sidearm", price=800, mag=6, reserve=24, auto=False, rate=2.2, reload=2.2,
                   equip=1.0, speed_mod=1.0, penetration=1, pellets=1, range=60,
                   damage=[(30, 155, 52, 44), (60, 140, 46, 39)], spread_first=0.2, spread_run=3.8, spray=(1.6, 5.0, 4.0)),
     # ---------------------------------------------------------------- submachine guns
-    "wespe": dict(alt=dict(kind="burst", count=4, interval=0.05, cooldown=0.45, spread_mult=0.6), category="smg", name="Wasp", slot="primary", price=1100, mag=20, reserve=60, auto=True, rate=16.0, reload=2.0,
+    "smg": dict(art="wespe", alt=dict(kind="burst", count=4, interval=0.05, cooldown=0.45, spread_mult=0.6), category="smg", name="Wasp", slot="primary", price=1100, mag=20, reserve=60, auto=True, rate=16.0, reload=2.0,
                   equip=0.75, speed_mod=0.95, penetration=0, pellets=1, range=50,
                   damage=[(15, 64, 26, 21), (50, 54, 22, 18)], spread_first=0.6, spread_run=1.6, spray=(0.35, 4.5, 8.0)),
-    "sirene": dict(alt=dict(kind="zoom", factor=1.15, spread_mult=0.85, speed_mult=0.85), category="smg", name="Siren", slot="primary", price=1600, mag=30, reserve=90, auto=True, rate=13.0, reload=2.2,
+    "silenced_smg": dict(art="sirene", alt=dict(kind="zoom", factor=1.15, spread_mult=0.85, speed_mult=0.85), category="smg", name="Siren", slot="primary", price=1600, mag=30, reserve=90, auto=True, rate=13.0, reload=2.2,
                    equip=0.75, speed_mod=0.95, penetration=0, pellets=1, range=50, silenced=True,
                    damage=[(20, 76, 26, 22), (50, 62, 21, 18)], spread_first=0.35, spread_run=1.2, spray=(0.28, 3.8, 9.0)),
     # ---------------------------------------------------------------- shotguns
-    "brecher": dict(alt=dict(kind="tight", spread_mult=0.4, cooldown=1.1), category="shotgun", name="Breaker", slot="primary", price=850, mag=5, reserve=10, auto=False, rate=1.1, reload=2.6,
+    "pump_shotgun": dict(art="brecher", alt=dict(kind="tight", spread_mult=0.4, cooldown=1.1), category="shotgun", name="Breaker", slot="primary", price=850, mag=5, reserve=10, auto=False, rate=1.1, reload=2.6,
                     equip=1.0, speed_mod=0.92, penetration=0, pellets=12, range=20,
                     damage=[(8, 28, 15, 12), (20, 9, 5, 4)], spread_first=2.6, spread_run=2.6, spray=(0, 2.6, 0)),
-    "faecher": dict(alt=dict(kind="none"), category="shotgun", name="Fan", slot="primary", price=1850, mag=7, reserve=14, auto=True, rate=3.5, reload=2.8,
+    "auto_shotgun": dict(art="faecher", alt=dict(kind="none"), category="shotgun", name="Fan", slot="primary", price=1850, mag=7, reserve=14, auto=True, rate=3.5, reload=2.8,
                     equip=1.0, speed_mod=0.92, penetration=0, pellets=8, range=18,
                     damage=[(8, 24, 12, 10), (18, 8, 5, 4)], spread_first=3.4, spread_run=3.4, spray=(0, 3.4, 0)),
     # ---------------------------------------------------------------- rifles
-    "falke": dict(alt=dict(kind="burst", count=3, interval=0.06, cooldown=0.35, spread_mult=0.5), category="rifle", name="Falcon", slot="primary", price=2050, mag=24, reserve=48, auto=True, rate=9.5, reload=2.4,
+    "burst_rifle": dict(art="falke", alt=dict(kind="burst", count=3, interval=0.06, cooldown=0.35, spread_mult=0.5), category="rifle", name="Falcon", slot="primary", price=2050, mag=24, reserve=48, auto=True, rate=9.5, reload=2.4,
                   equip=1.0, speed_mod=0.9, penetration=1, pellets=1, range=60,
                   damage=[(60, 115, 35, 30)], spread_first=0.3, spread_run=4.0, spray=(0.45, 4.0, 7.0)),
-    "lanze": dict(alt=dict(kind="zoom", factor=1.25, spread_mult=0.7, speed_mult=0.8), category="rifle", name="Lance", slot="primary", price=2250, mag=12, reserve=36, auto=False, rate=4.5, reload=2.6,
+    "marksman_rifle": dict(art="lanze", alt=dict(kind="zoom", factor=1.25, spread_mult=0.7, speed_mult=0.8), category="rifle", name="Lance", slot="primary", price=2250, mag=12, reserve=36, auto=False, rate=4.5, reload=2.6,
                   equip=1.0, speed_mod=0.9, penetration=2, pellets=1, range=80,
                   damage=[(80, 165, 65, 55)], spread_first=0.1, spread_run=5.0, spray=(0.8, 3.0, 5.0)),
-    "speer": dict(alt=dict(kind="zoom", factor=1.25, spread_mult=0.8, speed_mult=0.8), category="rifle", name="Spear", slot="primary", price=2900, mag=30, reserve=60, auto=True, rate=11.0, reload=2.5,
+    "silenced_rifle": dict(art="speer", alt=dict(kind="zoom", factor=1.25, spread_mult=0.8, speed_mult=0.8), category="rifle", name="Spear", slot="primary", price=2900, mag=30, reserve=60, auto=True, rate=11.0, reload=2.5,
                   equip=1.0, speed_mod=0.9, penetration=1, pellets=1, range=60, silenced=True,
                   damage=[(15, 150, 38, 32), (30, 138, 35, 29), (60, 125, 31, 26)],
                   spread_first=0.2, spread_run=4.2, spray=(0.32, 3.6, 8.0)),
-    "hammer": dict(alt=dict(kind="zoom", factor=1.25, spread_mult=0.8, speed_mult=0.8), category="rifle", name="Hammer", slot="primary", price=2900, mag=25, reserve=50, auto=True, rate=9.5, reload=2.5,
+    "assault_rifle": dict(art="hammer", alt=dict(kind="zoom", factor=1.25, spread_mult=0.8, speed_mult=0.8), category="rifle", name="Hammer", slot="primary", price=2900, mag=25, reserve=50, auto=True, rate=9.5, reload=2.5,
                    equip=1.0, speed_mod=0.9, penetration=1, pellets=1, range=60,
                    damage=[(60, 156, 39, 33)], spread_first=0.25, spread_run=4.5, spray=(0.42, 4.2, 7.0)),
-    "heron": dict(alt=dict(kind="zoom", factor=2.0, spread_mult=0.6, speed_mult=0.75), category="rifle", name="Heron", slot="primary", price=2900, mag=18, reserve=54, auto=True, rate=7.5, reload=2.6,
+    "scoped_rifle": dict(art="heron", alt=dict(kind="zoom", factor=2.0, spread_mult=0.6, speed_mult=0.75), category="rifle", name="Heron", slot="primary", price=2900, mag=18, reserve=54, auto=True, rate=7.5, reload=2.6,
                   equip=1.1, speed_mod=0.88, penetration=1, pellets=1, range=80,
                   damage=[(80, 152, 42, 36)], spread_first=0.15, spread_run=4.8, spray=(0.38, 3.2, 6.5)),
     # ---------------------------------------------------------------- sniper rifles
-    "elster": dict(alt=dict(kind="zoom", factor=3.5, spread_mult=0.0, speed_mult=0.6, scope=True, unscope_after_shot=True),
+    "bolt_sniper": dict(art="elster", alt=dict(kind="zoom", factor=3.5, spread_mult=0.0, speed_mult=0.6, scope=True, unscope_after_shot=True),
                    spread_unscoped=3.0, category="sniper", name="Magpie", slot="primary", price=950, mag=5, reserve=15, auto=False, rate=1.3, reload=2.4,
                    equip=1.0, speed_mod=0.92, penetration=1, pellets=1, range=80,
                    damage=[(80, 200, 85, 72)], spread_first=0.0, spread_run=5.5, spray=(2.0, 5.5, 3.0)),
-    "crane": dict(alt=dict(kind="zoom", factor=2.5, spread_mult=0.0, speed_mult=0.6, scope=True),
+    "double_sniper": dict(art="crane", alt=dict(kind="zoom", factor=2.5, spread_mult=0.0, speed_mult=0.6, scope=True),
                   spread_unscoped=4.0, category="sniper", name="Crane", slot="primary", price=2400, mag=2, reserve=10, auto=False, rate=3.5, reload=3.2,
                   equip=1.1, speed_mod=0.88, penetration=2, pellets=1, range=90,
                   damage=[(90, 238, 140, 119)], spread_first=0.0, spread_run=6.0, spray=(1.5, 4.0, 3.0)),
-    "adler": dict(alt=dict(kind="zoom", levels=[2.5, 5.0], spread_mult=0.0, speed_mult=0.5, scope=True, unscope_after_shot=True),
+    "heavy_sniper": dict(art="adler", alt=dict(kind="zoom", levels=[2.5, 5.0], spread_mult=0.0, speed_mult=0.5, scope=True, unscope_after_shot=True),
                   spread_unscoped=6.0, category="sniper", name="Eagle", slot="primary", price=4700, mag=5, reserve=10, auto=False, rate=0.6, reload=3.5,
                   equip=1.3, speed_mod=0.85, penetration=2, pellets=1, range=100,
                   damage=[(100, 255, 150, 127)], spread_first=0.0, spread_run=7.0, spray=(3.0, 7.0, 2.0)),
     # ---------------------------------------------------------------- heavy weapons
-    "muehle": dict(alt=dict(kind="zoom", factor=1.25, spread_mult=0.8, speed_mult=0.8), category="heavy", name="Mill", slot="primary", price=1600, mag=50, reserve=100, auto=True, rate=10.0, rate_ramp=(13.0, 1.0),
+    "light_machine_gun": dict(art="muehle", alt=dict(kind="zoom", factor=1.25, spread_mult=0.8, speed_mult=0.8), category="heavy", name="Mill", slot="primary", price=1600, mag=50, reserve=100, auto=True, rate=10.0, rate_ramp=(13.0, 1.0),
                    reload=3.2, equip=1.25, speed_mod=0.85, penetration=2, pellets=1, range=50,
                    damage=[(30, 110, 34, 29), (50, 100, 31, 26)], spread_first=0.8, spread_run=5.0, spray=(0.3, 5.0, 6.0)),
-    "walze": dict(alt=dict(kind="spin", spread_add=1.2), category="heavy", name="Roller", slot="primary", price=3200, mag=100, reserve=200, auto=True, rate=12.0, rate_ramp=(18.0, 1.5),
+    "heavy_machine_gun": dict(art="walze", alt=dict(kind="spin", spread_add=1.2), category="heavy", name="Roller", slot="primary", price=3200, mag=100, reserve=200, auto=True, rate=12.0, rate_ramp=(18.0, 1.5),
                   reload=4.5, equip=1.25, speed_mod=0.82, penetration=2, pellets=1, range=50,
                   damage=[(30, 95, 29, 25), (50, 88, 27, 23)], spread_first=1.0, spread_run=5.5, spray=(0.25, 4.8, 5.0)),
 }
 
 ARMOR: dict[str, dict] = {
-    "leicht": dict(name="Light Vest", price=400, points=25),
-    "schwer": dict(name="Heavy Vest", price=1000, points=50),
+    "light_shield": dict(art="leicht", name="Light Vest", price=400, points=25),
+    "heavy_shield": dict(art="schwer", name="Heavy Vest", price=1000, points=50),
 }

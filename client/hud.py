@@ -184,7 +184,7 @@ class HudMixin:
         right, y = self.w - 24, self.h - 86
         if me.weapon:
             d = m.weapons.get(me.weapon.key)
-            gun = self.bank.scaled(f"weapons/val2d/{me.weapon.key}.png", (72, 36))
+            gun = self.bank.scaled(f"weapons/val2d/{self.weapon_art(me.weapon.key)}.png", (72, 36))
             if gun is not None:
                 s.blit(gun, (right - 250, y + 6))
             if d and d.is_gun:
@@ -229,7 +229,7 @@ class HudMixin:
             left_name, _, right_name = msg.partition(" → ")
             names = [left_name, right_name] if right_name else [msg]
             widths = [ui.size(n, "s", bold=True)[0] for n in names]
-            gun = self.bank.scaled(f"weapons/val2d/{weapon}.png", (40, 20)) if weapon in m.weapons else None
+            gun = self.bank.scaled(f"weapons/val2d/{self.weapon_art(weapon)}.png", (40, 20)) if weapon in m.weapons else None
             w = sum(widths) + 2 * 28 + (48 if gun else 16) + (22 if head else 0) + 26
             r = pygame.Rect(self.w - 16 - w, y, w, 28)
             tint = "ally" if killer_team == me.team else "enemy" if killer_team is not None else "muted"

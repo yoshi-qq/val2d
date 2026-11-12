@@ -88,9 +88,9 @@ class BuyMixin:
 
     def item_picture(self, me: PlayerState, key: str) -> pygame.Surface | None:
         if key in self.match.weapons:
-            return self.bank.scaled(f"weapons/val2d/{key}_kauf.png", (112, 42))
+            return self.bank.scaled(f"weapons/val2d/{self.weapon_art(key)}_kauf.png", (112, 42))
         if key in self.match.armor:
-            return self.bank.scaled(f"ui/buy/{ {'leicht': 'vest_light', 'schwer': 'vest_heavy'}.get(key, key)}.png", (96, 36))
+            return self.bank.scaled(f"ui/buy/{ {'light_shield': 'vest_light', 'heavy_shield': 'vest_heavy'}.get(key, key)}.png", (96, 36))
         return self.bank.scaled(f"ui/faehigkeit_{me.agent}_{key}.png", (36, 36))
 
     def draw_buy(self, me: PlayerState) -> None:

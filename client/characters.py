@@ -142,7 +142,7 @@ class CharactersMixin:
             # held at the side like in a hand, pointing left or right on screen (the exact aim is the facing marker)
             d = m.weapons.get(key)
             length = 0.68 if d is not None and d.slot == "melee" else 0.84 if d is not None and d.slot == "sidearm" else 1.24
-            img = self.bank.scaled(f"weapons/val2d/{key}.png", (max(4, round(self.scale * length)), max(2, round(self.scale * length / 2))))
+            img = self.bank.scaled(f"weapons/val2d/{self.weapon_art(key)}.png", (max(4, round(self.scale * length)), max(2, round(self.scale * length / 2))))
             right = dx >= -0.5
             gx = px + (1 if right else -1) * self.scale * 0.43
             gy = py + body_h * 0.08

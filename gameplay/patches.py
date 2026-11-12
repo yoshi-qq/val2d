@@ -6,8 +6,8 @@ A patch file defines:
     NOTES = "Kestrel flash shorter"   one line or several, also shown there
     PATCH = {
         "agents":   {"kestrel": {"C": {"blind": 1.2}, "X": {"cost": 8}, "role": "Duelist"}},
-        "weapons":  {"hammer": {"price": 3000, "damage": [(60, 160, 40, 34)]}},
-        "armor":    {"schwer": {"price": 1100}},
+        "weapons":  {"assault_rifle": {"price": 3000, "damage": [(60, 160, 40, 34)]}},
+        "armor":    {"heavy_shield": {"price": 1100}},
         "statuses": {"slow": {"speed": 0.6}},
         "rules":    {"economy": {"start": 900}},
         "settings": {"hit_zones": {"head_half_width": 0.27}},

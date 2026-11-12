@@ -43,12 +43,12 @@ def session() -> HostSession:
 
 def test_command_from_json_clamps_and_drops_junk() -> None:
     cmd = command_from_json({"move_x": 9, "move_y": "x", "facing": 725, "cursor_depth": -3, "fire": 1,
-                             "slot": "rakete", "ability": "Z", "buy": ["speer", 5, "x" * 40] + ["a"] * 20})
+                             "slot": "rakete", "ability": "Z", "buy": ["silenced_rifle", 5, "x" * 40] + ["a"] * 20})
     assert cmd.move_x == 1.0 and cmd.move_y == 0.0
     assert cmd.facing == pytest.approx(5.0)
     assert cmd.cursor_depth == 0.0 and cmd.fire is True
     assert cmd.slot is None and cmd.ability is None
-    assert cmd.buy[0] == "speer" and len(cmd.buy) == 8
+    assert cmd.buy[0] == "silenced_rifle" and len(cmd.buy) == 8
 
 
 def test_client_joins_receives_snapshot_and_moves(session: HostSession) -> None:
@@ -82,7 +82,7 @@ def test_held_input_continues_between_client_messages(session: HostSession) -> N
         session.start(team_size=1)
         session.match.phase_until = session.match.time
         session.step(1 / 64)
-        client.send(Command(move_y=1.0, facing=session.match.players[client.pid].facing, buy=["speer"]))
+        client.send(Command(move_y=1.0, facing=session.match.players[client.pid].facing, buy=["silenced_rifle"]))
         _wait(lambda: client.pid in session.last, session)
         before = session.match.players[client.pid].pos
         for _ in range(20):  # no new messages: the last held command keeps applying

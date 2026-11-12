@@ -31,8 +31,8 @@ VERSION = "1.02"
 NOTES = "Kestrel flash shorter, Hammer more expensive"
 PATCH = {
     "agents":   {"kestrel": {"C": {"blind": 1.2}, "X": {"cost": 8}}},
-    "weapons":  {"hammer": {"price": 3000}},
-    "armor":    {"schwer": {"price": 1100}},
+    "weapons":  {"assault_rifle": {"price": 3000}},
+    "armor":    {"heavy_shield": {"price": 1100}},
     "statuses": {"slow": {"speed": 0.6}, "frozen": {"speed": 0.1}},   # new statuses too
     "rules":    {"economy": {"start": 900}},
     "settings": {"hit_zones": {"head_half_width": 0.27}},

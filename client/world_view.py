@@ -10,6 +10,11 @@ class WorldViewMixin:
         rel = (p - center).rotated(-me.facing)
         return cx + rel.x * self.scale, cy - rel.y * self.scale
 
+    def weapon_art(self, key: str) -> str:
+        """Sprite name of a weapon (its `art`, else the key)."""
+        d = self.match.weapons.get(key)
+        return d.art if d is not None and d.art else key
+
     def camera(self, me: PlayerState) -> tuple[Vec, tuple[float, float]]:
         """World point the camera looks at and where it sits on screen. Aiming down sights moves the view toward the
         crosshair (a scope all the way: the crosshair is the screen centre and the view follows it)."""
@@ -43,7 +48,7 @@ class WorldViewMixin:
             s.blit(lbl, (sx - lbl.get_width() / 2, sy - lbl.get_height() / 2))
         for drop in m.drops:  # weapons lying on the ground, hand sprite at 2x the world scale
             size = (round(2 * self.scale), round(self.scale))
-            gun = self.bank.scaled(f"weapons/val2d/{drop.key}.png", size)
+            gun = self.bank.scaled(f"weapons/val2d/{self.weapon_art(drop.key)}.png", size)
             dx, dy = self.to_screen(drop.pos, me)
             if gun is not None:
                 s.blit(gun, (dx - size[0] / 2, dy - size[1] / 2))

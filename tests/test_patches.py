@@ -12,8 +12,8 @@ VERSION = "9.99"
 NOTES = "test patch"
 PATCH = {
     "agents": {"kestrel": {"C": {"blind": 0.5}, "role": "Initiator"}, "marrow": {"Q": {"alt": None}}},
-    "weapons": {"hammer": {"price": 1234}},
-    "armor": {"schwer": {"price": 999}},
+    "weapons": {"assault_rifle": {"price": 1234}},
+    "armor": {"heavy_shield": {"price": 999}},
     "statuses": {"slow": {"speed": 0.9}, "frozen": {"speed": 0.1}},
     "rules": {"economy": {"start": 4321}},
     "maps": {"workyard": {"set": {"name": "Patched Yard"}, "add": {"crates": [[1, 1, 2, 2]]}}},
@@ -24,7 +24,7 @@ PATCH = {
 @pytest.fixture()
 def patched(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     (tmp_path / "01_test.py").write_text(PATCH, encoding="utf-8")
-    (tmp_path / "_ignored.py").write_text("PATCH = {'weapons': {'hammer': {'price': 1}}}", encoding="utf-8")
+    (tmp_path / "_ignored.py").write_text("PATCH = {'weapons': {'assault_rifle': {'price': 1}}}", encoding="utf-8")
     monkeypatch.setattr(patches, "PATCH_DIR", tmp_path)
     patches.reload_all()
     yield
@@ -40,7 +40,7 @@ def test_patch_changes_every_kind_of_content(patched: None) -> None:
     agents = load_agents()
     assert agents["kestrel"]["abilities"]["C"]["blind"] == 0.5 and agents["kestrel"]["role"] == "Initiator"
     assert "alt" not in agents["marrow"]["abilities"]["Q"]
-    assert load_weapons()["hammer"].price == 1234 and load_armor()["schwer"].price == 999
+    assert load_weapons()["assault_rifle"].price == 1234 and load_armor()["heavy_shield"].price == 999
     st = load_statuses()
     assert st["slow"]["speed"] == 0.9 and st["frozen"]["speed"] == 0.1
     assert load_rules()["economy"]["start"] == 4321
@@ -53,6 +53,6 @@ def test_without_patches_nothing_changes(tmp_path: Path, monkeypatch: pytest.Mon
     monkeypatch.setattr(patches, "PATCH_DIR", tmp_path)
     patches.reload_all()
     from gameplay.data import load_weapons
-    assert load_weapons()["hammer"].price == 2900
+    assert load_weapons()["assault_rifle"].price == 2900
     monkeypatch.undo()
     patches.reload_all()

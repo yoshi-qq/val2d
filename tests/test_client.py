@@ -218,8 +218,8 @@ def test_buy_menu_sells_with_a_second_click_and_surrender_ends_the_match() -> No
     game.match.start()
     me = game.match.players[game.me]
     me.credits = 5000
-    game.match.buy(me, "hammer")
-    assert game.item_sellable(me, "hammer")
+    game.match.buy(me, "assault_rifle")
+    assert game.item_sellable(me, "assault_rifle")
     game.ui.buy_open = True
     game.draw()
     game.ui.buy_open = False

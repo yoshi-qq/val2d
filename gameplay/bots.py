@@ -107,13 +107,13 @@ class BotBrain:
     def _shopping(self, m: Match, p: PlayerState) -> list[str]:
         wants: list[str] = []
         credits = p.credits
-        for key in ("speer", "hammer", "sirene", "wespe"):
+        for key in ("silenced_rifle", "assault_rifle", "silenced_smg", "smg"):
             d = m.weapons.get(key)
             if d and "primary" not in p.weapons and credits >= d.price + 400:
                 wants.append(key)
                 credits -= d.price
                 break
-        for key in ("schwer", "leicht"):
+        for key in ("heavy_shield", "light_shield"):
             a = m.armor.get(key)
             if a and p.armor < a.points and credits >= a.price:
                 wants.append(key)

@@ -97,7 +97,7 @@ class ScoreboardMixin:
                     pygame.draw.rect(self.screen, color("ult" if j < min(p.ult_points, cost) else "line"),
                                      (x + 268 + j * 7, y + 14, 5, 5))
                 if p.weapon and p.alive:
-                    gun = self.bank.scaled(f"weapons/val2d/{p.weapon.key}.png", (48, 24))
+                    gun = self.bank.scaled(f"weapons/val2d/{self.weapon_art(p.weapon.key)}.png", (48, 24))
                     if gun is not None:
                         self.screen.blit(gun, (x + 510, y + 5))
                     if p.armor:

@@ -11,8 +11,8 @@ PATCH = {
         "kestrel": {"C": {"blind": 1.3, "price": 300}},     # change single values of an ability
         "marrow": {"Q": {"alt": None}},                      # None removes a field (here: the right-click wall)
     },
-    "weapons": {"hammer": {"price": 3100}},
-    "armor": {"schwer": {"price": 1050}},
+    "weapons": {"assault_rifle": {"price": 3100}},
+    "armor": {"heavy_shield": {"price": 1050}},
     "statuses": {"slow": {"speed": 0.6}},
     "rules": {"economy": {"start": 800}},
     "maps": {"workyard": {"add": {"crates": [[23, 19, 25, 21]]}}},

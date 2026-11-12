@@ -403,7 +403,7 @@ class Match:
         p.level = int(p.ground / float(self._mv["level_height"]) + 0.5)
         p.status, p.blind_until = {}, 0.0
         if "sidearm" not in p.weapons:
-            p.weapons["sidearm"] = self._new_weapon("spatz")
+            p.weapons["sidearm"] = self._new_weapon("pistol")
         for ws in p.weapons.values():
             wd = self.weapons.get(ws.key)
             if wd:
@@ -473,8 +473,8 @@ class Match:
                 p.weapons = {}
                 p.armor = 0
             if "sidearm" not in p.weapons:
-                p.weapons["sidearm"] = self._new_weapon("spatz")
-            p.weapons["melee"] = self._new_weapon("messer")
+                p.weapons["sidearm"] = self._new_weapon("pistol")
+            p.weapons["melee"] = self._new_weapon("knife")
             for ws in p.weapons.values():
                 d = self.weapons.get(ws.key)
                 if d:
@@ -606,7 +606,7 @@ class Match:
                 return False
             p.credits -= d.price
             previous = p.weapons.get(d.slot)
-            if previous is not None and not (d.slot == "sidearm" and previous.key == "spatz"):
+            if previous is not None and not (d.slot == "sidearm" and previous.key == "pistol"):
                 self.drops.append(Drop(previous.key, previous.mag, previous.reserve, p.pos))  # the old gun drops
             new = self._new_weapon(item)
             p.weapons[d.slot] = new
@@ -661,7 +661,7 @@ class Match:
                 self.drops.remove(drop)
                 p.weapons[buy["slot"]] = previous
             elif buy["slot"] == "sidearm":
-                p.weapons["sidearm"] = self._new_weapon("spatz")
+                p.weapons["sidearm"] = self._new_weapon("pistol")
             else:
                 p.weapons.pop(buy["slot"], None)
             if p.slot not in p.weapons:
@@ -1259,7 +1259,7 @@ class Match:
             self.spike_pos = target.pos
         for slot in ("primary", "sidearm"):
             ws = target.weapons.get(slot)
-            if ws and (slot == "primary" or ws.key != "spatz"):
+            if ws and (slot == "primary" or ws.key != "pistol"):
                 self.drops.append(Drop(ws.key, ws.mag, ws.reserve, target.pos))
                 break
         if attacker and attacker.team != target.team:

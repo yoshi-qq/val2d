@@ -60,8 +60,8 @@ def run(m: Match, seconds: float, cmds: dict[int, Command] | None = None, dt: fl
 def test_buy_phase_then_live() -> None:
     m, a, _ = duel()
     assert m.phase == "buy"
-    assert m.buy(m.players[a], "hornisse")
-    assert m.players[a].credits == 800 - m.weapons["hornisse"].price
+    assert m.buy(m.players[a], "auto_pistol")
+    assert m.players[a].credits == 800 - m.weapons["auto_pistol"].price
     run(m, 31)
     assert m.phase == "live"
 
@@ -73,7 +73,7 @@ def test_first_shot_standing_is_exact_and_kills_with_headshots() -> None:
     pa.pos, pb.pos = Vec(24, 16), Vec(24, 24)  # mid, clear sight? the pillar at 22-26/18-22 blocks
     pa.pos, pb.pos = Vec(17, 15), Vec(17, 25)
     pa.facing = 0.0
-    d = m.weapons["spatz"]
+    d = m.weapons["pistol"]
     assert m.current_spread(pa, d) == 0.0
     shots = 0
     while pb.alive and shots < 10:
@@ -214,15 +214,15 @@ def test_bot_match_runs_to_end() -> None:
 def test_weapons_come_from_python_config() -> None:
     weapons = load_weapons()
     assert len([w for w in weapons.values() if w.slot != "melee"]) == 20
-    assert weapons["heron"].mag == 18 and weapons["heron"].price == 2900
-    assert weapons["walze"].rate_ramp is not None
+    assert weapons["scoped_rifle"].mag == 18 and weapons["scoped_rifle"].price == 2900
+    assert weapons["heavy_machine_gun"].rate_ramp is not None
 
 
 def test_rate_ramp_speeds_up_held_fire() -> None:
     m, a, _ = duel()
     run(m, 31)
     p = m.players[a]
-    p.weapons["primary"] = m._new_weapon("walze")
+    p.weapons["primary"] = m._new_weapon("heavy_machine_gun")
     p.slot = "primary"
     p.equip_until = 0.0
     shots_early = shots_late = 0
@@ -274,7 +274,7 @@ def _armed(key: str) -> tuple[Match, int, int]:
 
 
 def test_alt_burst_fires_a_burst_per_press() -> None:
-    m, a, _ = _armed("falke")
+    m, a, _ = _armed("burst_rifle")
     shots = 0
     for i in range(40):
         events = m.tick(1 / 64, {a: Command(facing=180.0, alt_fire=i < 2)})
@@ -283,9 +283,9 @@ def test_alt_burst_fires_a_burst_per_press() -> None:
 
 
 def test_alt_zoom_reduces_spread_and_speed() -> None:
-    m, a, _ = _armed("elster")
+    m, a, _ = _armed("bolt_sniper")
     p = m.players[a]
-    d = m.weapons["elster"]
+    d = m.weapons["bolt_sniper"]
     p.vel = Vec(3.0, 0.0)
     plain_spread, plain_speed = m.current_spread(p, d), m._max_speed(p)
     m.tick(1 / 64, {a: Command(facing=180.0, alt_fire=True)})
@@ -305,7 +305,7 @@ def test_alt_spread_shot_fires_three_pellets_for_one_round() -> None:
 
 
 def test_alt_spin_fires_at_top_rate_immediately() -> None:
-    m, a, _ = _armed("walze")
+    m, a, _ = _armed("heavy_machine_gun")
     shots = 0
     for _ in range(64):
         shots += sum(1 for e in m.tick(1 / 64, {a: Command(facing=180.0, alt_fire=True)}) if e.kind == "shot")
@@ -334,13 +334,13 @@ def test_door_opens_with_f_and_lets_players_through() -> None:
 
 def test_spray_pattern_first_bullets_on_target_then_drift_to_one_side() -> None:
     from gameplay.match import spray_offset
-    d = load_weapons()["speer"]
+    d = load_weapons()["silenced_rifle"]
     offsets = [spray_offset(d, i) for i in range(20)]
     assert offsets[0] == offsets[1] == 0.0
     later = offsets[6:16]
     assert all(abs(o) <= d.spray_max for o in offsets)
     assert sum(1 for o in later if o > 0) in (0, 1, 9, 10) or abs(sum(later)) > 0.5 * sum(abs(o) for o in later)
-    assert spray_offset(load_weapons()["lanze"], 8) == 0.0  # semi-automatic: no pattern
+    assert spray_offset(load_weapons()["marksman_rifle"], 8) == 0.0  # semi-automatic: no pattern
 
 
 def test_drop_bomb_and_weapon_with_g() -> None:
@@ -350,10 +350,10 @@ def test_drop_bomb_and_weapon_with_g() -> None:
     m.spike_carrier = a
     m.tick(1 / 64, {a: Command(facing=0.0, drop=True)})
     assert m.spike_carrier is None and m.spike_pos is not None
-    p.weapons["primary"] = m._new_weapon("hammer")
+    p.weapons["primary"] = m._new_weapon("assault_rifle")
     p.slot = "primary"
     m.tick(1 / 64, {a: Command(facing=0.0, drop=True)})
-    assert "primary" not in p.weapons and any(d.key == "hammer" for d in m.drops) and p.slot == "sidearm"
+    assert "primary" not in p.weapons and any(d.key == "assault_rifle" for d in m.drops) and p.slot == "sidearm"
     m.tick(1 / 64, {a: Command(facing=0.0)})
     assert "primary" not in p.weapons  # not picked up again right away
 
@@ -380,7 +380,7 @@ def test_practice_range_buys_anywhere_and_targets_respawn() -> None:
     m.start_practice()
     p = m.players[a]
     p.pos = Vec(30, 20)
-    assert m.buy(p, "adler") and m.phase == "live"
+    assert m.buy(p, "heavy_sniper") and m.phase == "live"
     m._kill(p, targets[0], "test", "head")
     run(m, 2.5)
     assert targets[0].alive and (targets[0].pos - targets[0].home).length() < 0.01
@@ -423,12 +423,12 @@ def test_team_buy_request_and_gift() -> None:
     m.start()
     pa, pb = m.players[a], m.players[b]
     pa.credits = 5000
-    m.tick(1 / 64, {b: Command(request="hammer")})
-    assert pb.request == "hammer"
-    m.tick(1 / 64, {a: Command(buy=[f"gift:{b}:hammer"])})
-    assert pb.weapons["primary"].key == "hammer" and pa.credits == 5000 - m.weapons["hammer"].price
+    m.tick(1 / 64, {b: Command(request="assault_rifle")})
+    assert pb.request == "assault_rifle"
+    m.tick(1 / 64, {a: Command(buy=[f"gift:{b}:assault_rifle"])})
+    assert pb.weapons["primary"].key == "assault_rifle" and pa.credits == 5000 - m.weapons["assault_rifle"].price
     assert pb.request == ""
-    assert not m.buy(pa, f"gift:{m.players[3].pid}:hammer")  # never for the other team
+    assert not m.buy(pa, f"gift:{m.players[3].pid}:assault_rifle")  # never for the other team
 
 
 def test_quick_mode_short_match() -> None:
@@ -444,7 +444,7 @@ def test_deathmatch_respawns_and_kill_limit() -> None:
     m.set_mode("deathmatch")
     m.start()
     pa, pb = m.players[a], m.players[b]
-    assert m.phase == "live" and m.spike_carrier is None and m.buy(pa, "hammer")
+    assert m.phase == "live" and m.spike_carrier is None and m.buy(pa, "assault_rifle")
     m._kill(pa, pb, "test", "head")
     run(m, 3.5)
     assert pb.alive and m.score[pa.team] == 1

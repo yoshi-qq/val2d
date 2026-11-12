@@ -89,6 +89,7 @@ class WeaponDef:
     alt: tuple[tuple[str, Any], ...] = ()  # alternate fire settings (key, value) pairs; see config/content/weapons.py
     spread_unscoped: float = 0.0  # extra spread of a scoped weapon fired without its scope
     backstab: float = 1.0         # melee: damage factor from behind
+    art: str = ""                 # sprite name under assets/weapons/val2d (defaults to the key)
 
     def zoom_levels(self) -> list[float]:
         """Zoom factors of the alternate fire; empty if it does not zoom."""
@@ -215,6 +216,7 @@ def load_weapons() -> dict[str, WeaponDef]:
                 category=str(w.get("category", w["slot"])),
                 alt=tuple(sorted((k, tuple(v) if isinstance(v, list) else v) for k, v in dict(w.get("alt") or {}).items())),
                 spread_unscoped=float(w.get("spread_unscoped", 0.0)), backstab=float(w.get("backstab", 1.0)),
+                art=str(w.get("art", key)),
             )
         except (KeyError, TypeError, ValueError) as exc:
             warnings.warn(f"Weapon {key} skipped: {exc}")

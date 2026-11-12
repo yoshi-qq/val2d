@@ -26,32 +26,32 @@ def test_selling_a_gun_bought_this_buy_phase_refunds_it() -> None:
     m, a, _ = setup(buy_phase=True)
     p = m.players[a]
     p.credits = 5000
-    assert m.buy(p, "hammer") and p.credits == 2100
-    assert m.buy(p, "hammer") and p.credits == 5000 and "primary" not in p.weapons  # second click sells
+    assert m.buy(p, "assault_rifle") and p.credits == 2100
+    assert m.buy(p, "assault_rifle") and p.credits == 5000 and "primary" not in p.weapons  # second click sells
 
 
 def test_a_new_gun_drops_the_old_one_and_selling_brings_it_back() -> None:
     m, a, _ = setup(buy_phase=True)
     p = m.players[a]
     p.credits = 9000
-    m.buy(p, "falke")
+    m.buy(p, "burst_rifle")
     first = p.weapons["primary"]
     m.purchases_done = True
     p.purchases.clear()  # as if bought last round: no longer sellable
-    m.buy(p, "hammer")
-    assert any(d.key == "falke" for d in m.drops)
-    m.sell(p, "hammer")
-    assert p.weapons["primary"] is first and not any(d.key == "falke" for d in m.drops)
+    m.buy(p, "assault_rifle")
+    assert any(d.key == "burst_rifle" for d in m.drops)
+    m.sell(p, "assault_rifle")
+    assert p.weapons["primary"] is first and not any(d.key == "burst_rifle" for d in m.drops)
 
 
 def test_dropped_guns_cannot_be_sold() -> None:
     m, a, _ = setup(buy_phase=True)
     p = m.players[a]
     p.credits = 3000
-    m.buy(p, "hammer")
+    m.buy(p, "assault_rifle")
     m.spike_carrier = None  # G would drop the bomb first
     m._drop(p)
-    assert not m.sellable(p, "hammer")
+    assert not m.sellable(p, "assault_rifle")
 
 
 def test_low_props_do_not_block_sight_but_crouching_behind_a_crate_hides() -> None:
