@@ -46,7 +46,7 @@ def test_all_agents_use_known_blocks() -> None:
     assert len(agents) >= 10
     for key, agent in agents.items():
         for slot, ab in agent["abilities"].items():
-            assert ab["kind"] in KINDS, (key, slot, ab["kind"])
+            assert ab["kind"] in KINDS or ab["kind"] == "custom", (key, slot, ab["kind"])  # custom: composed with the kit
 
 
 def test_every_ability_of_every_agent_runs_without_error() -> None:

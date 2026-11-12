@@ -38,7 +38,7 @@ def flash(ab: dict[str, Any]) -> dict[str, Any]:
     through = bool(ab.get("through_walls", False))
     pop = {"when": "expire", "who": "everyone", "facing": ab["cone"], "sight": None if through else "all",
            "do": [{"do": "status", "name": "blind", "seconds": ab["blind"]}, {"do": "event", "kind": "flash"}]}
-    return {"target": "aim_free" if through else "aim",
+    return {"target": "throw" if ab.get("throw", True) else "aim_free" if through else "aim",
             "place": {"look": "flash", "thrown": True, "lasts": ab["fuse"], "triggers": [pop]}}
 
 
@@ -70,7 +70,8 @@ def blast(ab: dict[str, Any]) -> dict[str, Any]:
         steps.append({"do": "damage", "amount": float(ab["damage"]), "falloff": 0.5})
     steps += _steps_status(ab)
     steps.append({"do": "event", "kind": "blast"})
-    return {"target": "aim", "place": {"look": "blast", "thrown": True, "lasts": float(ab.get("delay", 0.0)),
+    return {"target": "throw" if ab.get("throw", True) else "aim",
+            "place": {"look": "blast", "thrown": True, "lasts": float(ab.get("delay", 0.0)),
                                        "radius": ab["radius"], "status_hint": ab.get("status"),
                                        "triggers": [{"when": "expire", "who": "enemies", "sight": "walls", "do": steps}]}}
 

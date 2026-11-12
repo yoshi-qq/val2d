@@ -23,7 +23,7 @@ ABILITIES = {
                            status_time=1.0, sound="cast_poison"),
     # -------------------------------------------------------------- compositions with newer effects and statuses
     "firebomb": ability(
-        "Firebomb", price=200, max=1, target="aim", range=14.0, preview="zone", bot="offense", sound="cast_fire",
+        "Firebomb", price=200, max=1, target="throw", range=14.0, preview="zone", bot="offense", sound="cast_fire",
         desc="Throws a firebomb that bursts and leaves a burning patch for 4 s.",
         place=thing("blast", lasts=0.8, radius=3.0, thrown=True, triggers=[
             on("expire", who="enemies", sight="walls", do=[damage(40, falloff=0.5), event("blast"), step("sound", key="cast_fire"),
@@ -31,7 +31,7 @@ ABILITIES = {
                                                                 on("tick", who="enemies", do=[dps(20), status("burn", 0.5)])]))]),
         ])),
     "knockback_blast": ability(
-        "Knockback", price=200, max=2, target="aim", range=12.0, preview="blast", bot="offense", sound="cast_burst",
+        "Knockback", price=200, max=2, target="throw", range=12.0, preview="blast", bot="offense", sound="cast_burst",
         desc="A charge that bursts after half a second, hits for 20 and throws enemies 3 m away.",
         place=thing("blast", lasts=0.5, radius=3.0, thrown=True, triggers=[
             on("expire", who="enemies", sight="walls", do=[damage(20), push(3.0), event("blast")])])),
@@ -45,7 +45,7 @@ ABILITIES = {
         desc="Freezes the ground for 6 s: enemies inside are slowed and take 4 damage per second.",
         place=thing("zone", lasts=6.0, radius=3.5, triggers=[on("tick", who="enemies", do=[status("slow", 0.5), dps(4)])])),
     "shock_dart": ability(
-        "Shock Dart", price=250, max=1, target="aim", range=16.0, preview="blast", bot="offense", sound="cast_electric",
+        "Shock Dart", price=250, max=1, target="throw", range=16.0, preview="blast", bot="offense", sound="cast_electric",
         desc="A dart that sparks after 0.6 s: 30 damage and no abilities (jammed) for 3 s.",
         place=thing("blast", lasts=0.6, radius=2.5, thrown=True, triggers=[
             on("expire", who="enemies", sight="walls", do=[damage(30), status("jammed", 3.0), event("blast")])])),

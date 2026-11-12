@@ -106,3 +106,14 @@ def test_python_map_template_builds_rooms_ramps_and_spawns() -> None:
     assert 0.3 < w.ground_height(w.ramps[0].center) < 0.7 and w.ground_height(w.platforms[0].rect.center) == 1.0
     doorway = Vec(4 + 6 + 1, 23.5)  # gap in the south wall of room A
     assert not any(wl.rect.contains(doorway) and wl.height == 2 and not wl.material.startswith("obj:") for wl in w.walls)
+
+
+def test_throwables_fly_a_hidden_share_of_the_cursor_distance() -> None:
+    from gameplay.data import rule
+    m, a, _ = setup(agent("T", C=preset("blast", "Nade", range=30.0, radius=2.0, delay=1.0, damage=10), **filler()))
+    pa = m.players[a]
+    pa.pos, pa.facing = Vec(17, 15), 0.0  # open lane ahead
+    cast(m, a, "C", depth=10.0)
+    nade = next(e for e in m.effects if e.kind == "blast")
+    factor = float(rule("abilities", "throw_factor", 0.8))
+    assert abs((nade.pos - pa.pos).length() - 10.0 * factor) < 0.35  # walls may stop it a little earlier

@@ -10,7 +10,7 @@ AGENT = agent(
     "Ember", role="Duelist", order=100,
     # a composed ability: a firebomb that bursts and leaves a burning patch
     C=ability(
-        "Firebomb", price=200, max=1, target="aim", range=14.0, preview="zone", bot="offense",
+        "Firebomb", price=200, max=1, target="throw", range=14.0, preview="zone", bot="offense",
         desc="Throws a firebomb that bursts after a moment and leaves a burning patch for 4 s.",
         place=thing("blast", lasts=0.8, radius=3.0, thrown=True, triggers=[
             on("expire", who="enemies", sight="walls", do=[

@@ -49,6 +49,17 @@ class BotBrain:
     PLACE_AHEAD = {"smoke", "wall", "vapor_wall", "sensor", "alarm", "tripwire", "decoy"}
     BOT_KIND = {"offense": "blast", "buff": "overdrive", "place": "smoke", "heal": "heal", "escape": "dash"}  # bot= of composed abilities
 
+    @staticmethod
+    def cursor_for(m: Match, ab: dict, distance: float) -> float:
+        """Cursor depth that lands an ability at `distance`: bots know the hidden throw share of throwables."""
+        from gameplay.kit import expand
+        from gameplay.kit.builtins import throw_factor
+        try:
+            spec = expand(ab)
+        except (KeyError, TypeError, ValueError):
+            return distance
+        return distance / max(0.1, throw_factor(m, spec)) if spec.get("target") == "throw" else distance
+
     def _usable(self, m: Match, p: PlayerState, key: str) -> dict | None:
         ab = m.agents.get(p.agent, {}).get("abilities", {}).get(key)
         if not ab:
@@ -70,7 +81,7 @@ class BotBrain:
             if enemy is not None:
                 dist = (enemy.pos - p.pos).length()
                 if kind in self.OFFENSIVE and dist <= 1.5 * float(ab.get("range", ab.get("length", 20.0))) and dist > 3.0:
-                    cmd.cursor_depth = dist
+                    cmd.cursor_depth = self.cursor_for(m, ab, dist)
                     use = True
                 elif kind in self.SELF_BUFF or kind == "shield":
                     use = True
@@ -81,7 +92,7 @@ class BotBrain:
                 near_goal = self.goal is not None and (self.goal - p.pos).length() < 14.0
                 attacking_site = near_goal and m.side(p.team) == "attack" and m.phase == "live"
                 if (kind in self.PLACE_AHEAD or (kind in self.OFFENSIVE and attacking_site)) and near_goal                         and self.rng.random() < 0.02:
-                    cmd.cursor_depth = min(float(ab.get("range", 10.0)), (self.goal - p.pos).length())
+                    cmd.cursor_depth = self.cursor_for(m, ab, min(float(ab.get("range", 10.0)), (self.goal - p.pos).length()))
                     use = True
                 elif kind == "heal" and p.hp < 60:
                     cmd.cursor_depth = 0.5

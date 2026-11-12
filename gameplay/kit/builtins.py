@@ -34,6 +34,21 @@ def t_aim(m: Match, p: PlayerState, spec: dict[str, Any]) -> Vec:
     return _aim_point(m, p, spec, clip=True)
 
 
+def throw_factor(m: Match, spec: dict[str, Any]) -> float:
+    """Hidden share of the cursor distance a throwable flies (its own `throw_factor`, else the rule)."""
+    from gameplay.data import rule
+    return float(spec.get("throw_factor", rule("abilities", "throw_factor", 0.8)))
+
+
+@target("throw")
+def t_throw(m: Match, p: PlayerState, spec: dict[str, Any]) -> Vec:
+    """Throwables: no landing preview; the throw flies throw_factor times the cursor distance (at most `range`),
+    stopped by walls unless it flies over them (through_walls)."""
+    reach = min(p.cursor_depth * throw_factor(m, spec), float(spec.get("range", p.cursor_depth)))
+    point = p.pos + heading(p.facing) * reach
+    return point if spec.get("through_walls") else m._clip_to_walls(p.pos, point, p.level)
+
+
 @target("aim_free")
 def t_aim_free(m: Match, p: PlayerState, spec: dict[str, Any]) -> Vec:
     """The cursor, at most `range` away, through walls (remote smokes, flashes over walls)."""

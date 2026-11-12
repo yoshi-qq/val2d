@@ -201,3 +201,13 @@ def test_spectator_camera_turns_smoothly() -> None:
     cam = game.view_player(me)
     turned = abs((cam.facing - first.facing + 540) % 360 - 180)
     assert 0 < turned < 60, "the camera follows, but not in one jump"
+
+
+def test_throwable_in_hand_draws_a_throw_cursor_only() -> None:
+    game = Game(args())  # kestrel: C is a flash, a throwable
+    game.match.start()
+    me = game.match.players[game.me]
+    ab = game.match.agents[me.agent]["abilities"]["C"]
+    assert game.is_throwable(ab) and game.needs_aim(me, "C")
+    game.aiming = "C"
+    game.draw()

@@ -25,7 +25,7 @@ PRESET_TEXT = {
     "wall": lambda a: f"Raises a {_n(a['length'])} m wall at the cursor that blocks sight for {_n(a['duration'])} s"
                       + (f"; enemies crossing it get {a['cross_status']} for {_n(a.get('cross_time', 1))} s." if a.get("cross_status") else "."),
     "vapor_wall": lambda a: PRESET_TEXT["wall"](a),
-    "flash": lambda a: f"Throws a flash that pops after {_n(a['fuse'])} s and blinds everyone looking at it for {_n(a['blind'])} s"
+    "flash": lambda a: f"Throws a flash (judge the distance yourself) that pops after {_n(a['fuse'])} s and blinds everyone looking at it for {_n(a['blind'])} s"
                        + (" (also over walls)." if a.get("through_walls") else "."),
     "zone": lambda a: f"Marks a {_n(a['radius'])} m area at the cursor for {_n(a['duration'])} s"
                       + (f" after {_n(a['delay'])} s" if a.get("delay") else "")
@@ -34,7 +34,7 @@ PRESET_TEXT = {
                       + (" and are revealed" if a.get("reveal") else "")
                       + (f"; allies heal {_n(a['heal_allies'])} per second" if a.get("heal_allies") else "") + ".",
     "slow_field": lambda a: PRESET_TEXT["zone"](a),
-    "blast": lambda a: f"Throws a charge that bursts after {_n(a.get('delay', 0))} s (radius {_n(a['radius'])} m)"
+    "blast": lambda a: f"Throws a charge (judge the distance yourself) that bursts after {_n(a.get('delay', 0))} s (radius {_n(a['radius'])} m)"
                        + (f", dealing up to {_n(a['damage'])} damage" if a.get("damage") else "") + _status(a) + ".",
     "wave": lambda a: f"Sends a {_n(a['length'])} m wave straight ahead through walls"
                       + (f", dealing {_n(a['damage'])} damage" if a.get("damage") else "") + _status(a) + ".",

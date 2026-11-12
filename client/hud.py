@@ -363,6 +363,15 @@ class HudMixin:
     AIM_KINDS = {"smoke", "wall", "vapor_wall", "flash", "zone", "slow_field", "blast", "wave", "sensor", "alarm",
                  "tripwire", "teleport", "heal", "shield", "revive"}
 
+    @staticmethod
+    def is_throwable(ab: dict) -> bool:
+        """Thrown abilities show only a throw cursor, never where they will land (judging the throw is a skill)."""
+        from gameplay.kit import expand
+        try:
+            return str(expand(ab).get("target", "aim")) == "throw"
+        except (KeyError, TypeError, ValueError):
+            return False
+
     def needs_aim(self, me: PlayerState, slot: str) -> bool:
         ab = self.match.agents.get(me.agent, {}).get("abilities", {}).get(slot, {})
         return self.preview_kind(ab) in self.AIM_KINDS or bool(ab.get("alt"))  # a right-click choice needs the ability in hand
@@ -376,6 +385,9 @@ class HudMixin:
         """Where the held ability will land: ring, line or arc, clipped at walls like the real throw."""
         m, s = self.match, self.screen
         ab = m.agents.get(me.agent, {}).get("abilities", {}).get(slot, {})
+        if self.is_throwable(ab):
+            self.draw_throw_cursor(me, ab, slot)
+            return
         kind = self.preview_kind(ab)
         aim = heading(me.facing)
         reach = min(self.cursor_depth, float(ab.get("range", self.cursor_depth)))
@@ -412,6 +424,19 @@ class HudMixin:
         alt = " · right click: " + alt_text(ab) if ab.get("alt") else ""
         label = f"{ab.get('name', '')}: left click{alt} · {slot} again, 1/2/3 or Esc: put away"
         self.text(label, (self.w / 2, self.h - 150), color, center=True)
+
+    def draw_throw_cursor(self, me: PlayerState, ab: dict, slot: str) -> None:
+        """Throw cursor at the crosshair: four corner brackets, no landing point, no arc."""
+        cx, cy = self.to_screen(me.pos + heading(me.facing) * self.cursor_depth, me)
+        col = (236, 232, 225)
+        r, arm, t = 14, 6, 2
+        for sx, sy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
+            x, y = round(cx + sx * r), round(cy + sy * r)
+            pygame.draw.rect(self.screen, col, (min(x, x - sx * arm), y - (t // 2), arm, t))
+            pygame.draw.rect(self.screen, col, (x - (t // 2), min(y, y - sy * arm), t, arm))
+        alt = " · right click: " + alt_text(ab) if ab.get("alt") else ""
+        self.text(f"{ab.get('name', '')}: left click throws{alt} · {slot} again, 1/2/3 or Esc: put away",
+                  (self.w / 2, self.h - 150), col, center=True)
 
     def draw_crosshair(self, me: PlayerState) -> None:
         cx, cy = self.to_screen(me.pos + heading(me.facing) * self.cursor_depth, me)
