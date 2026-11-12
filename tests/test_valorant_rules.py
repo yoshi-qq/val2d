@@ -14,8 +14,8 @@ RAW = {"name": "Test", "width": 30, "height": 20,
 
 def setup(buy_phase: bool = False) -> tuple[Match, int, int]:
     m = Match(parse_map("test", RAW), seed=1)
-    a = m.add_player("A", 0, "kestrel").pid
-    b = m.add_player("B", 1, "kestrel", is_bot=True).pid
+    a = m.add_player("A", 0, "omen").pid
+    b = m.add_player("B", 1, "omen", is_bot=True).pid
     m.start()
     if not buy_phase:
         m.phase, m.phase_until = "live", m.time + 100
@@ -26,32 +26,79 @@ def test_selling_a_gun_bought_this_buy_phase_refunds_it() -> None:
     m, a, _ = setup(buy_phase=True)
     p = m.players[a]
     p.credits = 5000
-    assert m.buy(p, "assault_rifle") and p.credits == 2100
-    assert m.buy(p, "assault_rifle") and p.credits == 5000 and "primary" not in p.weapons  # second click sells
+    assert m.buy(p, "vandal") and p.credits == 2100
+    assert m.buy(p, "vandal") and p.credits == 5000 and "primary" not in p.weapons  # second click sells
+
+
+def test_regen_shield_absorption_reserve_and_snapshot() -> None:
+    from gameplay.net import apply_snapshot
+
+    m, a, b = setup(buy_phase=True)
+    p = m.players[a]
+    shield = m.armor["regen_shield"]
+    assert m.buy(p, "regen_shield") and p.credits == 150
+    m.phase, m.phase_until = "live", m.time + 100
+    m._damage(m.players[b], p, 30, "body", "vandal")
+    assert (p.hp, p.armor, p.armor_reserve) == (95, 0, 50)
+    assert p.armor_regen_at is not None
+    m.time = p.armor_regen_at - 0.1
+    m.tick(0.05, {})
+    assert p.armor == 0
+    m._damage(m.players[b], p, 5, "body", "vandal")
+    m.tick(0.1, {})
+    assert (p.hp, p.armor) == (90, 0)
+    assert p.armor_regen_at is not None
+    m.time = p.armor_regen_at
+    m.tick(0, {})
+    assert (p.hp, p.armor, p.armor_reserve) == (90, shield.points, 25)
+    client = Match(m.world)
+    apply_snapshot(client, m.snapshot(a), a)
+    assert (client.players[a].armor_key, client.players[a].armor_reserve) == ("regen_shield", 25)
+    for _ in range(2):
+        m._damage(m.players[b], p, 25, "body", "vandal")
+        m.time += shield.regen_delay
+        m.tick(0, {})
+    assert (p.hp, p.armor, p.armor_reserve) == (90, 0, 0)
+
+
+def test_selling_armor_restores_carried_regen_shield() -> None:
+    m, a, _ = setup(buy_phase=True)
+    p = m.players[a]
+    p.credits = 5000
+    assert m.buy(p, "light_armor") and m.buy(p, "regen_shield")
+    p.armor, p.armor_reserve = 12, 20
+    p.purchases.clear()
+    m._start_round()
+    assert (p.armor, p.armor_reserve) == (12, 20)
+    credits = p.credits
+    assert m.buy(p, "heavy_armor")
+    assert (p.armor, p.armor_reserve) == (50, 0)
+    assert m.sell(p, "heavy_armor")
+    assert (p.credits, p.armor_key, p.armor, p.armor_reserve) == (credits, "regen_shield", 12, 20)
 
 
 def test_a_new_gun_drops_the_old_one_and_selling_brings_it_back() -> None:
     m, a, _ = setup(buy_phase=True)
     p = m.players[a]
     p.credits = 9000
-    m.buy(p, "burst_rifle")
+    m.buy(p, "bulldog")
     first = p.weapons["primary"]
     m.purchases_done = True
     p.purchases.clear()  # as if bought last round: no longer sellable
-    m.buy(p, "assault_rifle")
-    assert any(d.key == "burst_rifle" for d in m.drops)
-    m.sell(p, "assault_rifle")
-    assert p.weapons["primary"] is first and not any(d.key == "burst_rifle" for d in m.drops)
+    m.buy(p, "vandal")
+    assert any(d.key == "bulldog" for d in m.drops)
+    m.sell(p, "vandal")
+    assert p.weapons["primary"] is first and not any(d.key == "bulldog" for d in m.drops)
 
 
 def test_dropped_guns_cannot_be_sold() -> None:
     m, a, _ = setup(buy_phase=True)
     p = m.players[a]
     p.credits = 3000
-    m.buy(p, "assault_rifle")
+    m.buy(p, "vandal")
     m.spike_carrier = None  # G would drop the bomb first
     m._drop(p)
-    assert not m.sellable(p, "assault_rifle")
+    assert not m.sellable(p, "vandal")
 
 
 def test_low_props_do_not_block_sight_but_crouching_behind_a_crate_hides() -> None:
@@ -77,9 +124,9 @@ def test_tagging_slows_after_a_hit() -> None:
 
 def test_assists_count_teammates_who_damaged_the_victim() -> None:
     m = Match(parse_map("test", RAW), seed=1)
-    a = m.add_player("A", 0, "kestrel").pid
-    c = m.add_player("C", 0, "kestrel", is_bot=True).pid
-    b = m.add_player("B", 1, "kestrel", is_bot=True).pid
+    a = m.add_player("A", 0, "omen").pid
+    c = m.add_player("C", 0, "omen", is_bot=True).pid
+    b = m.add_player("B", 1, "omen", is_bot=True).pid
     m.start()
     m.phase = "live"
     m._damage(m.players[c], m.players[b], 30, "body", "test")

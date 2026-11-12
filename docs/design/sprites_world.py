@@ -107,8 +107,8 @@ def make_title_background() -> None:
     w, h = 480, 270
     A = base.ASSETS
     tile = lambda rel: Image.open(A / rel).convert("RGBA")  # noqa: E731
-    floor, wall, thin = tile("maps/werkhof/boden_stein.png"), tile("maps/werkhof/wand.png"), tile("maps/werkhof/wand_duenn.png")
-    crate, wood = tile("maps/werkhof/kiste_metall.png"), tile("maps/wood_box.png")
+    floor, wall, thin = tile("maps/workyard/stone_floor.png"), tile("maps/workyard/wall.png"), tile("maps/workyard/wall_thin.png")
+    crate, wood = tile("maps/workyard/metal_crate.png"), tile("maps/wood_box.png")
     shadow, site = tile("maps/common/wall_shadow.png"), tile("maps/common/decals/site_a.png")
     im = Image.new("RGBA", (w, h), hexc("#16151c"))
     for y in range(0, h, 32):
@@ -124,8 +124,8 @@ def make_title_background() -> None:
     im.alpha_composite(wood, (128, 192))
     big_site = site.resize((32, 32), Image.NEAREST)
     im.alpha_composite(big_site, (240, 192))
-    me = tile("agents/kestrel/kestrel_idle.png").crop((0, 0, 16, 32))
-    enemy = tile("agents/marrow/marrow_idle_feind.png").crop((0, 0, 16, 32))
+    me = tile("agents/jett/jett_idle_back.png").crop((0, 0, 16, 32))
+    enemy = tile("agents/omen/omen_idle_enemy.png").crop((0, 0, 16, 32))
     im.alpha_composite(me, (322, 222))
     im.alpha_composite(enemy, (310, 116))
     p_ = im.load()
@@ -293,7 +293,7 @@ def make_tiles() -> None:
     save(edge_light(tiles), t + "floor_tiles.png")
     save(seamless(noise_tile("#c9b07a", 40, 4, 0.12, 0.85)), t + "floor_sand.png")
     save(seamless(noise_tile("#6b5236", 40, 5, 0.1, 0.8)), t + "floor_dirt.png")
-    cracked = Image.open(base.ASSETS / "maps/werkhof/boden_stein.png").convert("RGBA")
+    cracked = Image.open(base.ASSETS / "maps/workyard/stone_floor.png").convert("RGBA")
     cp = cracked.load()
     x, y = 6, 4
     for _ in range(22):

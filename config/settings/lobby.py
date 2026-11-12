@@ -6,7 +6,7 @@ CONFIG = {
         'all_around_sight': False,
         'sound_rings': False,
         'win_rounds': 13,
-        'overtime': True,              # overtime: win by two
+        'overtime': False,             # Unrated ends in one deciding round; custom games can opt into win by two
         'play_all_rounds': False,
         'allow_cheats': False,
         'infinite_ammo': False,        # cheat

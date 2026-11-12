@@ -70,11 +70,19 @@ class BotBrain:
 
     def _abilities(self, m: Match, p: PlayerState, enemy: PlayerState | None, cmd: Command) -> Command:
         """Simple rules: offensive blocks at a seen enemy, buffs in a fight, smokes/traps near the goal, heal when hurt."""
+        if enemy is not None and p.dash_armed_at <= m.time < p.dash_armed_until:
+            cmd.ability = "E"
+            return cmd
+        if enemy is not None and p.repeat_shots and p.repeat_next <= m.time < p.repeat_until:
+            cmd.ability = "X"
+            return cmd
         if m.phase not in ("live", "planted") or m.time < self.ability_ready_at or p.prev_ability:
             return cmd
         for key in ("X", "E", "Q", "C"):
             ab = self._usable(m, p, key)
             if not ab:
+                continue
+            if ab.get("blade_weapon") and p.blade_count:
                 continue
             kind = self.BOT_KIND.get(str(ab.get("bot", "")), "") if ab.get("kind") == "custom" else str(ab.get("kind", ""))
             use = False
@@ -96,6 +104,7 @@ class BotBrain:
                     use = True
                 elif kind == "heal" and p.hp < 60:
                     cmd.cursor_depth = 0.5
+                    cmd.ability_alt = bool(ab.get("alt", {}).get("target") == "self")
                     use = True
             if use:
                 cmd.ability = key
@@ -103,24 +112,24 @@ class BotBrain:
                 break
         return cmd
 
-    # ---------------------------------------------------------------- Kauf
+    # ---------------------------------------------------------------- Buy
     def _shopping(self, m: Match, p: PlayerState) -> list[str]:
         wants: list[str] = []
         credits = p.credits
-        for key in ("silenced_rifle", "assault_rifle", "silenced_smg", "smg"):
+        for key in ("phantom", "vandal", "spectre", "stinger"):
             d = m.weapons.get(key)
             if d and "primary" not in p.weapons and credits >= d.price + 400:
                 wants.append(key)
                 credits -= d.price
                 break
-        for key in ("heavy_shield", "light_shield"):
+        for key in ("heavy_armor", "regen_shield", "light_armor"):
             a = m.armor.get(key)
-            if a and p.armor < a.points and credits >= a.price:
+            if a and credits >= a.price and m.armor_available(p, key):
                 wants.append(key)
                 credits -= a.price
                 break
         abil = m.agents.get(p.agent, {}).get("abilities", {})
-        for key in ("C", "Q"):
+        for key in ("C", "Q", "E"):
             ab = abil.get(key, {})
             price = int(ab.get("price", 0))
             if price and p.charges.get(key, 0) < int(ab.get("max", 1)) and credits >= price:
@@ -197,7 +206,7 @@ class BotBrain:
         if self.goal is None:
             return cmd
         if self.path_goal is None or (self.path_goal - self.goal).length() > 0.5 or m.time - self.path_time > 3.0:
-            grid = grid_for(m.world, frozenset(m.open_doors | m.broken_cover))
+            grid = grid_for(m.world, frozenset(m.open_doors | m.broken_cover), tuple(m.ability_walls()))
             goal_ground = m.spike_ground if self.goal == m.spike_pos else float("inf")
             self.path = grid.path(p.pos, self.goal, start_ground=p.ground / float(m._mv["level_height"]),
                                   goal_ground=goal_ground)
@@ -238,7 +247,7 @@ class BotBrain:
                     return s.rect.center
         idx = (m.round_no * 7 + 3) % len(m.world.sites) if attacking else (m.round_no + self.pid) % len(m.world.sites)
         site = m.world.sites[idx].rect.center
-        grid = grid_for(m.world, frozenset(m.open_doors | m.broken_cover))
+        grid = grid_for(m.world, frozenset(m.open_doors | m.broken_cover), tuple(m.ability_walls()))
         return grid.center(grid.nearest_free(grid.cell(site)))
 
     def _staging(self, m: Match, site: Vec) -> Vec:
@@ -247,7 +256,7 @@ class BotBrain:
         origin = zone.center if zone else site
         away = (origin - site)
         point = site + (away.normalized() * min(10.0, away.length() * 0.6) if away.length() > 0.1 else Vec(0, 0))
-        grid = grid_for(m.world, frozenset(m.open_doors | m.broken_cover))
+        grid = grid_for(m.world, frozenset(m.open_doors | m.broken_cover), tuple(m.ability_walls()))
         return grid.center(grid.nearest_free(grid.cell(point)))
 
     def _may_push(self, m: Match, p: PlayerState, site: Vec) -> bool:
@@ -263,7 +272,7 @@ class BotBrain:
     def _guard_spot(self, m: Match, p: PlayerState) -> Vec:
         """After the plant: hold a spot 5-7 m from the bomb, spread by player id, with sight on it."""
         assert m.spike_pos is not None
-        grid = grid_for(m.world, frozenset(m.open_doors | m.broken_cover))
+        grid = grid_for(m.world, frozenset(m.open_doors | m.broken_cover), tuple(m.ability_walls()))
         angle = (self.pid * 77) % 360
         for step in range(8):
             spot = m.spike_pos + Vec(1, 0).rotated(angle + step * 45) * 6.0

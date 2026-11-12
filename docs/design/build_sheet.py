@@ -1,4 +1,4 @@
-"""Builds the sprite sheet page (docs/design/sprite-bogen.html) from the PNGs under assets/.
+"""Builds the sprite sheet page (docs/design/sprite-sheet.html) from the PNGs under assets/.
 
 Usage: python docs/design/build_sheet.py
 Weapon and ability names are read from gameplay/data so the page follows the game data.
@@ -13,7 +13,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT = Path(__file__).resolve().parent / "sprite-bogen.html"
+OUT = Path(__file__).resolve().parent / "sprite-sheet.html"
 
 
 def uri(rel: str) -> str:
@@ -72,10 +72,10 @@ def config_dict(name: str, probe: str) -> dict:
 
 
 def build() -> str:
-    agents = config_dict("agents", "kestrel")
-    weapons = config_dict("weapons", "spatz")
+    agents = config_dict("agents", "omen")
+    weapons = config_dict("weapons", "classic")
     parts: list[str] = []
-    on_disk = sorted(p.name for p in (ROOT / "assets" / "agents").iterdir() if (p / f"{p.name}_idle.png").exists() and p.name != "omen")
+    on_disk = sorted(p.name for p in (ROOT / "assets" / "agents").iterdir() if (p / f"{p.name}_idle.png").exists())
     for key in list(agents) + [k for k in on_disk if k not in agents]:
         info = agents.get(key, {})
         name, role = info.get("name", key.title()), info.get("role", "")
@@ -93,42 +93,42 @@ def build() -> str:
             anim(f"{a}_cast_q.png", 3, 5, "Ability Q"),
             anim(f"{a}_cast_e.png", 3, 5, "Ability E"),
             anim(f"{a}_cast_x.png", 5, 5, "Ultimate X"),
-            img(f"{a}_idle_feind.png", 5, "As enemy"),
-            anim(f"{a}_walk_feind.png", 4, 5, "Enemy walking"),
+            img(f"{a}_idle_enemy.png", 5, "As enemy"),
+            anim(f"{a}_walk_enemy.png", 4, 5, "Enemy walking"),
         ]))
-    guns = [img(f"assets/weapons/val2d/{k}_kauf.png", 2, w.get("name", k)) for k, w in weapons.items() if k != "messer"]
-    guns.append(img("assets/weapons/val2d/messer_kauf.png", 2, weapons.get("messer", {}).get("name", "Knife")))
-    parts.append(section("Weapons", "buy menu 64×24, in hand 16×8", guns))
-    t = "assets/maps/werkhof/"
-    parts.append(section("Tiles: Werkhof", "32×32 = 2 m", [img(t + f, 4, l) for f, l in (
-        ("boden_stein.png", "Stone floor"), ("wand.png", "Thick wall"), ("wand_duenn.png", "Thin wall"),
-        ("kiste_metall.png", "Metal crate"), ("plattform.png", "Platform"), ("rampe.png", "Ramp"),
-        ("platz_rand.png", "Site border"))]))
+    guns = [img(f"assets/weapons/val2d/{k}_buy.png", 2, w.get("name", k)) for k, w in weapons.items() if k != "tactical_knife"]
+    guns.append(img("assets/weapons/val2d/tactical_knife_buy.png", 2, weapons.get("tactical_knife", {}).get("name", "Knife")))
+    parts.append(section("Weapons", "32×16 in hand and in the buy menu", guns))
+    t = "assets/maps/workyard/"
+    parts.append(section("Tiles: Workyard", "32×32 = 2 m", [img(t + f, 4, l) for f, l in (
+        ("stone_floor.png", "Stone floor"), ("wall.png", "Thick wall"), ("wall_thin.png", "Thin wall"),
+        ("metal_crate.png", "Metal crate"), ("platform.png", "Platform"), ("ramp.png", "Ramp"),
+        ("site_border.png", "Site border"))]))
     fx = "assets/fx/"
     parts.append(section("Bomb and effects", "", [
-        anim(fx + "spike.png", 2, 6, "Bomb blinking", 4), anim(fx + "muendung.png", 3, 10, "Muzzle flash", 15),
-        img(fx + "dunst.png", 3, "Smoke"), img(fx + "bann.png", 3, "Slow field"), img(fx + "schleier.png", 6, "Vapor wall segment"),
-        img(fx + "funke.png", 6, "Flash"), img(fx + "lauscher.png", 10, "Sensor")]))
+        anim(fx + "spike.png", 2, 6, "Bomb blinking", 4), anim(fx + "muzzle_flash.png", 3, 10, "Muzzle flash", 15),
+        img(fx + "smoke.png", 3, "Smoke"), img(fx + "slow_field.png", 3, "Slow field"), img(fx + "vapor_wall.png", 6, "Vapor wall segment"),
+        img(fx + "flash.png", 6, "Flash"), img(fx + "sensor.png", 10, "Sensor")]))
     parts.append(section("Effect animations", "", [
-        anim(fx + "dunst_aufbau.png", 4, 2, "Smoke forming"), anim(fx + "bann_puls.png", 3, 2, "Slow field pulse", 4),
-        anim(fx + "lauscher_puls.png", 3, 3, "Sensor pulse", 6), anim(fx + "funke_explosion.png", 3, 6, "Flash going off", 10),
-        anim(fx + "gleiten_spur.png", 3, 4, "Dash trail", 12), anim(fx + "satz_staub.png", 3, 6, "Hop dust", 10),
-        anim(fx + "schleier_aufbau.png", 3, 6, "Vapor wall forming"), anim(fx + "spike_explosion.png", 6, 2, "Bomb explosion", 10),
-        anim(fx + "einschlag_wand.png", 3, 10, "Wall impact", 15), anim(fx + "treffer_koerper.png", 3, 10, "Body hit", 15)]))
+        anim(fx + "smoke_forming.png", 4, 2, "Smoke forming"), anim(fx + "slow_field_pulse.png", 3, 2, "Slow field pulse", 4),
+        anim(fx + "sensor_pulse.png", 3, 3, "Sensor pulse", 6), anim(fx + "flash_burst.png", 3, 6, "Flash going off", 10),
+        anim(fx + "dash_trail.png", 3, 4, "Dash trail", 12), anim(fx + "hop_dust.png", 3, 6, "Hop dust", 10),
+        anim(fx + "vapor_wall_forming.png", 3, 6, "Vapor wall forming"), anim(fx + "spike_explosion.png", 6, 2, "Bomb explosion", 10),
+        anim(fx + "wall_impact.png", 3, 10, "Wall impact", 15), anim(fx + "body_hit.png", 3, 10, "Body hit", 15)]))
     icons = []
-    for key in agents or ("kestrel", "marrow"):
+    for key in agents:
         abil = agents.get(key, {}).get("abilities", {})
         for slot in "CQEX":
             label = f"{agents.get(key, {}).get('name', key)} {slot} · {abil.get(slot, {}).get('name', '')}"
-            icons.append(img(f"assets/ui/faehigkeit_{key}_{slot}.png", 3, label))
+            icons.append(img(f"assets/ui/ability_{key}_{slot}.png", 3, label))
     parts.append(section("Ability icons", "32×32", icons))
     hud = "assets/ui/hud/"
-    parts.append(section("HUD", "icons 16×16, frames 24×24 nine-slice, bars 96×12", [img(hud + f, 4 if f.endswith(("rahmen.png", "rahmen_aktiv.png")) or len(f) < 16 else 2, l) for f, l in (
-        ("leben.png", "Health"), ("schild.png", "Shield"), ("credits.png", "Credits"), ("munition.png", "Ammo"),
-        ("kopfschuss.png", "Headshot (kill feed)"), ("spike_klein.png", "Bomb (HUD)"), ("uhr.png", "Round timer"),
-        ("tot.png", "Eliminated"), ("rahmen.png", "Frame"), ("rahmen_aktiv.png", "Frame selected"),
-        ("balken_leben.png", "Health bar"), ("balken_schild.png", "Shield bar"),
-        ("balken_fortschritt.png", "Plant/defuse bar"), ("balken_leer.png", "Empty bar"))]))
+    parts.append(section("HUD", "icons 16×16, frames 24×24 nine-slice, bars 96×12", [img(hud + f, 4 if f.endswith(("frame.png", "frame_active.png")) or len(f) < 16 else 2, l) for f, l in (
+        ("health.png", "Health"), ("shield.png", "Shield"), ("credits.png", "Credits"), ("ammo.png", "Ammo"),
+        ("headshot.png", "Headshot (kill feed)"), ("bomb_small.png", "Bomb (HUD)"), ("timer.png", "Round timer"),
+        ("eliminated.png", "Eliminated"), ("frame.png", "Frame"), ("frame_active.png", "Frame selected"),
+        ("bar_health.png", "Health bar"), ("bar_shield.png", "Shield bar"),
+        ("bar_progress.png", "Plant/defuse bar"), ("bar_empty.png", "Empty bar"))]))
     mm = "assets/ui/minimap/"
     parts.append(section("Generic effects", "tint zone and blast in code per status", [
         anim(fx + "zone.png", 3, 2, "Zone", 4), anim(fx + "blast.png", 6, 2, "Blast ring", 12),
@@ -149,12 +149,12 @@ def build() -> str:
             items.append(img(rel, scale, f.stem.replace("_", " ")))
         parts.append(section(title, "", items))
     parts.append(section("Minimap", "12×12", [img(mm + f"{k}.png", 6, l) for k, l in (
-        ("selbst", "You"), ("verbuendet", "Ally"), ("feind", "Enemy"), ("tot", "Eliminated"), ("spike", "Bomb"),
-        ("dunst", "Smoke"), ("bann", "Slow field"), ("schleier", "Vapor wall"))]))
+        ("self", "You"), ("ally", "Ally"), ("enemy", "Enemy"), ("eliminated", "Eliminated"), ("spike", "Bomb"),
+        ("smoke", "Smoke"), ("slow_field", "Slow field"), ("vapor_wall", "Vapor wall"))]))
     bn = "assets/ui/banner/"
     parts.append(section("Round banners", "height 32 px, game font", [img(bn + f"{k}.png", 3, l) for k, l in (
-        ("sieg", "Victory"), ("niederlage", "Defeat"), ("seitenwechsel", "Switching sides"),
-        ("spike_gelegt", "Bomb planted"), ("entschaerft", "Bomb defused"), ("verlaengerung", "Overtime"))]))
+        ("victory", "Victory"), ("defeat", "Defeat"), ("switching_sides", "Switching sides"),
+        ("bomb_planted", "Bomb planted"), ("bomb_defused", "Bomb defused"), ("overtime", "Overtime"))]))
     logo = section("Logo", "chosen: crosshair", [
         img("assets/logo.png", 4, "Logo 48×48"), img("assets/menu/lobby/playercard.png", 2, "Player card"),
         img("assets/logo.png", 1, "Actual size")])

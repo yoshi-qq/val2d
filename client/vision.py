@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 def _wall_arrays(m: Match, level: int, origin: Vec, reach: float, low: bool = False) -> np.ndarray:
     """Sight-blocking walls near the eye; low=True also head-high cover (crates, platform edges) above the eye."""
     rects = []
-    walls = [w for w in m.world.walls if w.top > level and m.wall_active(w, for_sight=True)] if low \
+    walls = [w for w in m.combat_walls() if w.top > level and m.wall_active(w, for_sight=True)] if low \
         else m.active_sight_walls(level)
     for w in walls:
         r = w.rect

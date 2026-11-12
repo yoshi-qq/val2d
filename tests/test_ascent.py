@@ -9,7 +9,7 @@ from gameplay.world import load_map
 
 def setup() -> tuple[Match, int]:
     m = Match(load_map("ascent"), seed=1)
-    pid = m.add_player("A", 0, "kestrel").pid
+    pid = m.add_player("A", 0, "omen").pid
     m.start()
     m.phase_until = m.time
     m.tick(1 / 64, {})
@@ -67,7 +67,7 @@ def test_b_main_windows_stop_walking_but_not_sight() -> None:
 def test_deck_separates_players_and_allows_drop_to_site() -> None:
     m, pid = setup()
     upper = m.players[pid]
-    lower = m.add_player("B", 1, "marrow")
+    lower = m.add_player("B", 1, "jett")
     place(m, pid, 114, 32)
     place(m, lower.pid, 114, 32, reach=1)
     assert (upper.ground, lower.ground) == (4, 1)
@@ -116,10 +116,7 @@ def test_ability_damage_hits_closed_door_and_mid_panel_without_player_targets() 
     panel = next(w for w in m.world.walls if w.material == "obj:ascent_mid_panel")
     place(m, pid, 99, 52.5)
     p.facing = 90
-    fury = {"target": "self", "do": [{"do": "spawn", "place": {
-        "look": "zone", "delay": 0.7, "lasts": 0.22, "triggers": [
-            {"when": "start", "area": "beam", "length": 45, "width": 1.6, "do": [
-                {"do": "damage", "amount": 80, "cover_mult": 1, "cover_through_walls": True}]}]}}]}
+    fury = m.agents["sova"]["abilities"]["X"]
     use(m, p, "X", fury)
     for _ in range(60):
         m.tick(1 / 64, {})
@@ -131,13 +128,8 @@ def test_ability_damage_hits_closed_door_and_mid_panel_without_player_targets() 
         m.tick(1 / 64, {})
     assert m.cover_health[door.rect] == door.hp - 80
     m.effects.clear()
-    offset = panel.rect.center - p.pos
-    from gameplay.geometry import angle_of
-    p.facing, p.cursor_depth = angle_of(offset), offset.length()
-    strike = {"target": "aim_free", "range": 65, "place": {
-        "look": "zone", "delay": 1.5, "lasts": 3, "radius": 6, "triggers": [
-            {"when": "tick", "do": [{"do": "dps", "per_second": 120, "cover_mult": 1}]}]}}
-    use(m, p, "X", strike)
+    strike = m.agents["brimstone"]["abilities"]["X"]
+    use(m, p, "X", strike, point=panel.rect.center)
     for _ in range(2 * 64):
         m.tick(1 / 64, {})
     assert 0 < m.cover_health[panel.rect] < panel.hp
@@ -150,9 +142,8 @@ def test_thrown_projectile_breaks_a_window_in_flight() -> None:
     p = m.players[pid]
     glass = next(w for w in m.world.walls if w.material == "obj:ascent_glass")
     place(m, pid, 94.5, 35.5)
-    p.facing, p.cursor_depth = 0, 3
-    bolt = {"target": "aim_free", "place": {"look": "blast", "lasts": 0.6, "thrown": True}}
-    use(m, p, "E", bolt)
+    bolt = m.agents["sova"]["abilities"]["E"]
+    use(m, p, "E", bolt, point=Vec(94.5, m.world.height - 32.5))
     assert m.wall_active(glass)
     for _ in range(24):
         m.tick(1 / 64, {})

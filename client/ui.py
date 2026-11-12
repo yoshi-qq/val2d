@@ -11,6 +11,7 @@ from typing import Any
 import pygame
 
 from gameplay.data import CONFIG_DIR, _load_py
+from sprite_bank import SpriteBank, draw_nine_slice
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_THEME: dict[str, Any] = {
@@ -65,10 +66,13 @@ class Hit:
 class Ui:
     """Draws on one surface. hits collects the clickable areas of the last frame (call begin() first)."""
 
-    def __init__(self, screen: pygame.Surface) -> None:
+    def __init__(self, screen: pygame.Surface, bank: SpriteBank | None = None) -> None:
         self.screen = screen
+        self.bank = bank if bank is not None else SpriteBank()
         self.hits: list[Hit] = []
         self._fonts: dict[tuple[str, int, bool], pygame.font.Font] = {}
+        self._silhouettes: dict[tuple[str, tuple[int, int]], pygame.Surface] = {}
+        self._skins: dict[tuple[str, tuple[int, int], int], pygame.Surface] = {}
         self.pressed: str | None = None
         self.modal_from = 0  # hits before this index lie under a dialog and are not clickable
 
@@ -169,10 +173,61 @@ class Ui:
         self.fill(self.screen.get_rect(), col)
         self.modal_from = len(self.hits)
 
+    def sprite(self, key: str, rect: pygame.Rect) -> bool:
+        art = self.bank.scaled(f"ui/{key}.png", rect.size)
+        if art is None:
+            return False
+        self.screen.blit(art, rect.topleft)
+        return True
+
+    def silhouette(self, path: str, bounds: tuple[int, int]) -> pygame.Surface | None:
+        """Fit the opaque part of a weapon sprite to a UI slot and give it the text colour."""
+        key = (path, bounds)
+        if key in self._silhouettes:
+            return self._silhouettes[key]
+        source = self.bank.raw(path)
+        if source is None:
+            return None
+        crop = source.get_bounding_rect()
+        if not crop:
+            return None
+        size = crop.fit(pygame.Rect(0, 0, *bounds)).size
+        art = pygame.transform.scale(source.subsurface(crop), size)
+        art.fill((0, 0, 0, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        ink = color("text")
+        art.fill((ink.r, ink.g, ink.b, 0), special_flags=pygame.BLEND_RGBA_ADD)
+        self._silhouettes[key] = art
+        return art
+
+    def skin(self, key: str, rect: pygame.Rect, corner: int = 4, fallback: str = "panel") -> None:
+        path = f"ui/{key}.png"
+        cache_key = (key, rect.size, corner)
+        art = self._skins.get(cache_key)
+        scale = 2 if pixel_mode() else 1
+        if art is None and min(rect.size) > 2 * corner * scale:
+            surface = pygame.Surface(rect.size, pygame.SRCALPHA)
+            if draw_nine_slice(surface, self.bank, path, surface.get_rect(), corner, scale):
+                if len(self._skins) >= 96:
+                    self._skins.clear()
+                self._skins[cache_key] = art = surface
+        if art is not None:
+            self.screen.blit(art, rect.topleft)
+        elif not self.sprite(key, rect):
+            self.fill(rect, fallback)
+            self.outline(rect, "line")
+
+    def textfield(self, rect: pygame.Rect, focused: bool) -> None:
+        self.skin("menu/textfield", rect)
+        if focused:
+            self.line((rect.left + 5, rect.bottom - 1), (rect.right - 1, rect.bottom - 1), "accent")
+
     # ------------------------------------------------------------ widgets
     def panel(self, rect: pygame.Rect, col: str = "panel", edge: str = "", edge_col: str = "accent") -> None:
         """Translucent panel; edge "left"/"top"/"bottom" adds an accent bar two UI pixels thick."""
-        self.fill(rect, col)
+        if col in ("panel", "bg"):
+            self.skin("menu/panel", rect, 6, col)
+        else:
+            self.fill(rect, col)
         thick = 2 * border()
         if edge == "left":
             pygame.draw.rect(self.screen, color(edge_col), (rect.x, rect.y, thick, rect.h))
@@ -186,49 +241,48 @@ class Ui:
         """Primary: filled red. Secondary: outline that fills on hover. Label upper-case and centred."""
         hover = enabled and rect.collidepoint(pygame.mouse.get_pos())
         down = hover and self.pressed == action
-        if primary:
-            base = "panel_light" if not enabled else "accent_dark" if down else "accent"
-            pygame.draw.rect(self.screen, color(base), rect)
-            if hover and not down:
-                pygame.draw.rect(self.screen, color("text"), rect.inflate(6, 6), 1)
-            text_col = "text"
-        else:
-            if selected or hover:
-                self.fill(rect, "panel_light" if not selected else "accent")
-            else:
-                self.fill(rect, "panel")
-            self.outline(rect, "text" if hover else "line")
-            text_col = "text" if enabled else "muted"
-        if not enabled:
-            text_col = "muted"
-        w, h = self.size(label, size, upper=True, bold=primary)
-        self.text(label, (rect.centerx, rect.centery - h / 2), size, text_col, "center", upper=True, bold=primary)
+        state = "_pressed" if down else "_hover" if hover else ""
+        key = "button_primary" if primary else "button"
+        fallback = "accent" if primary and enabled else "panel_light"
+        self.skin(f"menu/{key}{state}" if enabled else "menu/button_disabled", rect, fallback=fallback)
+        if selected and enabled:
+            self.line((rect.x + 5, rect.bottom - 1), (rect.right - 1, rect.bottom - 1), "ally", 2)
+        icon = {"X": "close", "<": "arrow_left", ">": "arrow_right", "+": "plus", "-": "minus"}.get(label)
+        if not icon or not enabled or not self.sprite(f"icons/{icon}", pygame.Rect(rect.centerx - 8, rect.centery - 8, 16, 16)):
+            _, h = self.size(label, size, upper=True, bold=primary)
+            ink = "muted" if not enabled else "bg" if primary and not down else "text"
+            self.text(label, (rect.centerx, rect.centery - h / 2), size, ink, "center", upper=True, bold=primary)
         self.hits.append(Hit(rect, action, enabled))
 
     def tab(self, rect: pygame.Rect, label: str, action: str, active: bool) -> None:
         hover = rect.collidepoint(pygame.mouse.get_pos())
         col = "text" if active or hover else "muted"
-        w, h = self.size(label, "m", upper=True, bold=active)
+        self.skin("menu/tab_active" if active else "menu/tab", rect)
+        _, h = self.size(label, "m", upper=True, bold=active)
         self.text(label, (rect.centerx, rect.centery - h / 2), "m", col, "center", upper=True, bold=active)
-        if active:
-            pygame.draw.rect(self.screen, color("accent"), (rect.centerx - w / 2, rect.bottom - 3, w, 3))
         self.hits.append(Hit(rect, action))
 
     def slider(self, rect: pygame.Rect, frac: float, action: str) -> None:
         frac = max(0.0, min(1.0, frac))
         mid = rect.centery
-        b = border()
-        self.fill(pygame.Rect(rect.x, mid - b // 2, rect.w, b), "line")
-        pygame.draw.rect(self.screen, color("accent"), (rect.x, mid - b // 2, round(rect.w * frac), b))
-        knob = pygame.Rect(0, 0, 4 * border(), 8 * border())
-        knob.center = (round(rect.x + rect.w * frac), mid)
-        pygame.draw.rect(self.screen, color("text"), knob)
+        width = round(rect.w * frac)
+        track = pygame.Rect(rect.x, mid - 3, rect.w, 6)
+        if not self.sprite("menu/slider_track", track):
+            self.line((track.left, mid), (track.right, mid), "line", 2)
+        if width:
+            fill = pygame.Rect(rect.x, mid - 3, width, 6)
+            if not self.sprite("menu/slider_fill", fill):
+                self.line((fill.left, mid), (fill.right, mid), "ally", 2)
+        knob = pygame.Rect(rect.x + width - 6, mid - 6, 12, 12)
+        if not self.sprite("menu/slider_knob", knob):
+            self.fill(knob, "text")
         self.hits.append(Hit(rect.inflate(0, 14), action))
 
     def checkbox(self, rect: pygame.Rect, on: bool, action: str) -> None:
-        self.outline(rect, "text" if rect.collidepoint(pygame.mouse.get_pos()) else "line")
-        if on:
-            pygame.draw.rect(self.screen, color("accent"), rect.inflate(-8, -8))
+        if not self.sprite("menu/checkbox_on" if on else "menu/checkbox", rect):
+            self.outline(rect, "text" if rect.collidepoint(pygame.mouse.get_pos()) else "line")
+            if on:
+                self.fill(rect.inflate(-8, -8), "ally")
         self.hits.append(Hit(rect, action))
 
     def keycap(self, pos: tuple[float, float], key: str, size: str = "xs") -> pygame.Rect:

@@ -4,16 +4,16 @@ How patches work: gameplay/patches.py. All fields: docs/MODDING.md.
 """
 
 VERSION = "1.01"
-NOTES = "Kestrel: shorter flash. Hammer: more expensive. Slow: a little weaker. Workyard: one more crate in mid."
+NOTES = "Phoenix: flash price. Vandal: more expensive. Slow: a little weaker. Ascent: practice variant."
 
 PATCH = {
     "agents": {
-        "kestrel": {"C": {"blind": 1.3, "price": 300}},     # change single values of an ability
-        "marrow": {"Q": {"alt": None}},                      # None removes a field (here: the right-click wall)
+        "phoenix": {"Q": {"price": 300}},     # change single values of an ability
+        "omen": {"E": {"tactical": None}},                    # None removes a field
     },
-    "weapons": {"assault_rifle": {"price": 3100}},
-    "armor": {"heavy_shield": {"price": 1050}},
+    "weapons": {"vandal": {"price": 3100}},
+    "armor": {"heavy_armor": {"price": 1050}},
     "statuses": {"slow": {"speed": 0.6}},
     "rules": {"economy": {"start": 800}},
-    "maps": {"workyard": {"add": {"crates": [[23, 19, 25, 21]]}}},
+    "maps": {"ascent": {"set": {"name": "Ascent (practice)"}}},
 }

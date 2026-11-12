@@ -1,7 +1,7 @@
 """Buy-menu weapon and vest icons in high resolution: 64x24, side view, muzzle right, centred.
 
 Usage: python docs/design/sprites_buy_hd.py
-Writes assets/weapons/val2d/{key}_kauf.png and assets/ui/buy/vest_{light,heavy}.png.
+Writes assets/weapons/val2d/{key}_buy.png and assets/ui/buy/vest_{light,heavy}.png.
 Shapes are drawn as value masks (1 body, 2 accent, 3 dark metal, 4 glass, 5 steel, 6 gold) and lit
 automatically: highlight top/left, shadow bottom/right, darker-shade outline.
 """
@@ -52,26 +52,26 @@ def render(mask: Image.Image, colours: dict[int, str]) -> Image.Image:
 
 # ------------------------------------------------------------------ weapon geometry
 SPECS: dict[str, dict] = {
-    "spatz":    {"kind": "pistol", "L": 28, "accent": "#6c6b75"},
-    "stachel":  {"kind": "pistol", "L": 30, "accent": "#a8521f", "double": True},
-    "hornisse": {"kind": "pistol", "L": 32, "accent": "#c9a227", "mag": "stick", "comp": True},
-    "lynx":     {"kind": "pistol", "L": 40, "accent": "#4f6b73", "silencer": 12},
-    "kite":     {"kind": "pistol", "L": 38, "accent": "#8a5a43", "long": True, "sight": True},
-    "bulle":    {"kind": "revolver", "L": 36, "accent": "#7a5233"},
-    "wespe":    {"kind": "long", "L": 44, "B": 8, "stock": "wire", "mag": "stick", "accent": "#c9a227"},
-    "sirene":   {"kind": "long", "L": 48, "B": 10, "stock": "wire", "mag": "stick", "accent": "#4f6b73", "vents": True},
-    "brecher":  {"kind": "long", "L": 58, "B": 22, "stock": "full", "mag": "pump", "accent": "#7a5233"},
-    "faecher":  {"kind": "long", "L": 56, "B": 16, "stock": "full", "mag": "box", "accent": "#a8521f", "vents": True},
-    "falke":    {"kind": "long", "L": 56, "B": 14, "stock": "full", "mag": "curve", "accent": "#5b6b3a", "vents": True, "carry_handle": True},
-    "lanze":    {"kind": "long", "L": 60, "B": 16, "stock": "thumbhole", "mag": "box", "accent": "#5b6b3a", "scope": 18},
-    "speer":    {"kind": "long", "L": 60, "B": 12, "stock": "none", "mag": "curve", "accent": "#36454c", "silencer": 12, "bullpup": True},
-    "hammer":   {"kind": "long", "L": 58, "B": 14, "stock": "full", "mag": "curve", "accent": "#7a5233", "wood_guard": True, "sloped": True},
-    "heron":    {"kind": "long", "L": 58, "B": 14, "stock": "skeleton", "mag": "curve", "accent": "#5a6b7a", "scope": 11, "vents": True},
-    "elster":   {"kind": "long", "L": 60, "B": 20, "stock": "full", "mag": "box_small", "accent": "#4f6b73", "scope": 18, "bolt": True},
-    "crane":    {"kind": "long", "L": 62, "B": 24, "stock": "full", "mag": "none", "accent": "#6b4a2e", "scope": 16, "double": True},
-    "adler":    {"kind": "long", "L": 64, "B": 22, "stock": "full", "mag": "box", "accent": "#3e4a3a", "scope": 22, "bipod": True, "brake": True},
-    "muehle":   {"kind": "long", "L": 60, "B": 16, "stock": "full", "mag": "drum", "accent": "#c9a227", "bipod": True, "vents": True},
-    "walze":    {"kind": "long", "L": 64, "B": 18, "stock": "full", "mag": "belt", "accent": "#a8521f", "foregrip": True, "vents": True},
+    "classic":    {"kind": "pistol", "L": 28, "accent": "#6c6b75"},
+    "shorty":  {"kind": "pistol", "L": 30, "accent": "#a8521f", "double": True},
+    "frenzy": {"kind": "pistol", "L": 32, "accent": "#c9a227", "mag": "stick", "comp": True},
+    "ghost":     {"kind": "pistol", "L": 40, "accent": "#4f6b73", "silencer": 12},
+    "bandit":     {"kind": "pistol", "L": 38, "accent": "#8a5a43", "long": True, "sight": True},
+    "sheriff":    {"kind": "revolver", "L": 36, "accent": "#7a5233"},
+    "stinger":    {"kind": "long", "L": 44, "B": 8, "stock": "wire", "mag": "stick", "accent": "#c9a227"},
+    "spectre":   {"kind": "long", "L": 48, "B": 10, "stock": "wire", "mag": "stick", "accent": "#4f6b73", "vents": True},
+    "bucky":  {"kind": "long", "L": 58, "B": 22, "stock": "full", "mag": "pump", "accent": "#7a5233"},
+    "judge":  {"kind": "long", "L": 56, "B": 16, "stock": "full", "mag": "box", "accent": "#a8521f", "vents": True},
+    "bulldog":    {"kind": "long", "L": 56, "B": 14, "stock": "full", "mag": "curve", "accent": "#5b6b3a", "vents": True, "carry_handle": True},
+    "guardian":    {"kind": "long", "L": 60, "B": 16, "stock": "thumbhole", "mag": "box", "accent": "#5b6b3a", "scope": 18},
+    "phantom":    {"kind": "long", "L": 60, "B": 12, "stock": "none", "mag": "curve", "accent": "#36454c", "silencer": 12, "bullpup": True},
+    "vandal":   {"kind": "long", "L": 58, "B": 14, "stock": "full", "mag": "curve", "accent": "#7a5233", "wood_guard": True, "sloped": True},
+    "warden":    {"kind": "long", "L": 58, "B": 14, "stock": "skeleton", "mag": "curve", "accent": "#5a6b7a", "scope": 11, "vents": True},
+    "marshal":   {"kind": "long", "L": 60, "B": 20, "stock": "full", "mag": "box_small", "accent": "#4f6b73", "scope": 18, "bolt": True},
+    "outlaw":    {"kind": "long", "L": 62, "B": 24, "stock": "full", "mag": "none", "accent": "#6b4a2e", "scope": 16, "double": True},
+    "operator":    {"kind": "long", "L": 64, "B": 22, "stock": "full", "mag": "box", "accent": "#3e4a3a", "scope": 22, "bipod": True, "brake": True},
+    "ares":   {"kind": "long", "L": 60, "B": 16, "stock": "full", "mag": "drum", "accent": "#c9a227", "bipod": True, "vents": True},
+    "odin":    {"kind": "long", "L": 64, "B": 18, "stock": "full", "mag": "belt", "accent": "#a8521f", "foregrip": True, "vents": True},
 }
 
 
@@ -248,7 +248,7 @@ def draw_revolver(d: ImageDraw.ImageDraw, s: dict) -> None:
     d.rectangle((x0 + 16, 6, end, 9), fill=3)  # barrel
     d.rectangle((x0 + 16, 10, end - 6, 11), fill=1)  # ejector rod housing
     d.rectangle((end - 1, 4, end, 6), fill=3)  # sight
-    d.polygon([(x0 + 2, 7), (x0 + 5, 6), (x0 + 5, 9)], fill=3)  # hammer
+    d.polygon([(x0 + 2, 7), (x0 + 5, 6), (x0 + 5, 9)], fill=3)  # vandal
     d.polygon([(x0 + 3, 12), (x0 + 10, 12), (x0 + 8, 22), (x0, 21)], fill=2)  # grip
     d.arc((x0 + 9, 9, x0 + 16, 17), 0, 180, fill=3, width=1)
 
@@ -300,8 +300,8 @@ def vest(heavy: bool) -> Image.Image:
 
 def main() -> None:
     for key, spec in SPECS.items():
-        save(weapon(key, spec), f"weapons/val2d/{key}_kauf.png")
-    save(knife(), "weapons/val2d/messer_kauf.png")
+        save(weapon(key, spec), f"weapons/val2d/{key}_buy.png")
+    save(knife(), "weapons/val2d/tactical_knife_buy.png")
     save(vest(False), "ui/buy/vest_light.png")
     save(vest(True), "ui/buy/vest_heavy.png")
 

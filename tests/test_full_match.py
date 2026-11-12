@@ -25,6 +25,34 @@ def test_no_spawn_sees_the_enemy_spawn(key: str) -> None:
     assert not clear, f"{key}: spawns see each other, e.g. {clear[:2]}"
 
 
+@pytest.mark.parametrize(("key", "sites"), [("bind", "AB"), ("haven", "ABC")])
+def test_new_map_blockouts_connect_spawns_to_every_site(key: str, sites: str) -> None:
+    from gameplay.nav import NavGrid
+
+    world = load_map(key)
+    nav = NavGrid(world)
+    assert {site.name for site in world.sites} == set(sites)
+    for spawns in world.spawns.values():
+        assert len(spawns) == 5 and all(nav.free(nav.cell(p)) for p in spawns)
+        for site in world.sites:
+            path = nav.path(spawns[2], site.rect.center)
+            assert path and site.rect.contains(path[-1]), (key, spawns[2], site.name)
+
+
+def test_bind_teleporters_move_players_one_way_and_emit_sound() -> None:
+    match = Match(load_map("bind"))
+    player = match.add_player("A", 0, "omen")
+    match.start()
+    match.phase_until = match.time
+    assert len(match.world.teleporters) == 2
+    for entry, destination in match.world.teleporters:
+        player.pos = entry.center
+        events = match.tick(1 / 64, {})
+        assert player.pos == destination
+        assert sum(event.kind == "sound_fx" and event.data["key"] == "ab_teleport" for event in events) == 2
+        assert not any(event.kind == "sound_fx" for event in match.tick(1 / 64, {}))
+
+
 def test_whole_match_to_the_end_is_recorded_for_the_career_page(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from test_client import args  # tests/ is on the path under pytest
     from client import history

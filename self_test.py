@@ -42,46 +42,55 @@ def run(report: Path | None = None) -> bool:
 
     def configs() -> str:
         from gameplay.data import load_weapons
-        from gameplay.match import load_agents
+        from gameplay.match import playable_agents
         from gameplay.world import load_materials, load_things
-        weapons, agents = load_weapons(), load_agents()
+        weapons, agents = load_weapons(), playable_agents()
         walls, floors = load_materials()
         objects, decals = load_things()
         assert weapons and agents and walls and floors and objects and decals
         return f"{len(weapons)} weapons, {len(agents)} agents, {len(walls)} walls, {len(objects)} objects"
 
     def maps() -> str:
-        from gameplay.world import load_map, map_keys
-        keys = map_keys()
+        from gameplay.world import PLAYABLE_MAP_KEYS, load_playable_map
+        keys = PLAYABLE_MAP_KEYS
         for key in keys:
-            world = load_map(key)
+            world = load_playable_map(key)
             assert world.key == key and world.walls, key
         return ", ".join(keys)
 
     def sprites() -> str:
-        from gameplay.match import load_agents
+        from gameplay.match import playable_agents
         from sprite_bank import CharacterSprites, SpriteBank, build_map_surface
-        from gameplay.world import load_map
+        from gameplay.world import DEFAULT_MAP, load_playable_map
         bank = SpriteBank()
         chars = CharacterSprites(bank)
-        for agent in load_agents():
+        agents = playable_agents()
+        for agent in agents:
             assert chars.frame(agent, "idle", False, 32, 0.0) is not None, f"idle sprite of {agent}"
-        assert build_map_surface(load_map("workyard"), bank, 16) is not None
-        return f"{len(load_agents())} agent sprite sets"
+        assert build_map_surface(load_playable_map(DEFAULT_MAP), bank, 16) is not None
+        return f"{len(agents)} agent sprite sets"
 
     def sounds() -> str:
-        from client.common import SOUND_DIR
+        from client.common import SOUND_DIR, Sound
         files = list(SOUND_DIR.glob("*.wav"))
         assert len(files) >= 40, f"only {len(files)} sounds"
-        return f"{len(files)} sounds"
+        sound = Sound()
+        assert sound.ok
+        recorded = SOUND_DIR / "cc0"
+        for key in ("shot_rifle", "reload_out", "reload_in", "bomb_beep", "ui_click"):
+            path = recorded / f"{key}.wav"
+            assert sound.sounds[key].get_raw() == pygame.mixer.Sound(str(path)).get_raw(), key
+        for material in ("hard", "metal", "wood", "gravel"):
+            assert len(sound.step_variants[f"step_{material}"]) == 3, material
+        return f"{len(files)} base sounds and {len(list(recorded.glob('*.wav')))} recorded sounds"
 
     def match_runs() -> str:
         from gameplay.bots import BotDirector
-        from gameplay.match import Match
-        from gameplay.world import load_map
-        m = Match(load_map("alley"), seed=1)
-        m.add_player("A", 0, "kestrel", is_bot=True)
-        m.add_player("B", 1, "marrow", is_bot=True)
+        from gameplay.match import Match, playable_agents
+        from gameplay.world import DEFAULT_MAP, load_playable_map
+        m = Match(load_playable_map(DEFAULT_MAP), seed=1, agent_roster=playable_agents())
+        m.add_player("A", 0, "omen", is_bot=True)
+        m.add_player("B", 1, "jett", is_bot=True)
         bots = BotDirector(m, seed=1)
         m.start()
         for _ in range(64 * 5):

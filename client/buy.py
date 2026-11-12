@@ -8,7 +8,7 @@ class BuyMixin:
     # columns like the real buy menu: each column holds one or two groups stacked
     BUY_COLUMNS = ((("sidearm", "Sidearms"),), (("smg", "SMGs"), ("shotgun", "Shotguns")), (("rifle", "Rifles"),),
                    (("sniper", "Sniper rifles"), ("heavy", "Machine guns")), (("armor", "Shields"), ("abilities", "Abilities")))
-    CARD_W, CARD_H, GAP, HEAD = 214, 70, 8, 30
+    CARD_W, CARD_H, GAP, HEAD = 214, 64, 8, 30
 
     def buy_groups(self) -> dict[str, list[tuple[str, str]]]:
         m = self.match
@@ -19,9 +19,10 @@ class BuyMixin:
         for key, a in m.armor.items():
             groups["armor"].append((key, f"{a.name}  {a.price}"))
         me = m.players.get(self.me)
-        for k in (("C", "Q") if me else ()):
+        for k in (("C", "Q", "E") if me else ()):
             ab = m.agents[me.agent]["abilities"][k]
-            groups["abilities"].append((k, f"{k} {ab['name']}  {ab['price']}"))
+            if int(ab["price"]) > 0:
+                groups["abilities"].append((k, f"{k} {ab['name']}  {ab['price']}"))
         return groups
 
     def buy_layout(self) -> list[tuple[pygame.Rect, str, str]]:
@@ -40,14 +41,14 @@ class BuyMixin:
                 y += 10
         return out
 
-    def buy_headings(self) -> list[tuple[str, int, int]]:
+    def buy_headings(self) -> list[tuple[str, str, int, int]]:
         groups = self.buy_groups()
         out = []
         left = (self.w - len(self.BUY_COLUMNS) * (self.CARD_W + self.GAP) + self.GAP) // 2
         for ci, col in enumerate(self.BUY_COLUMNS):
             x, y = left + ci * (self.CARD_W + self.GAP), 120
             for g, title in col:
-                out.append((title, x, y + 6))
+                out.append((g, title, x, y))
                 y += self.HEAD + len(groups.get(g, [])) * (self.CARD_H + self.GAP) + 10
         return out
 
@@ -82,21 +83,24 @@ class BuyMixin:
         if key in m.weapons:
             return any(ws.key == key for ws in me.weapons.values())
         if key in m.armor:
-            return me.armor >= m.armor[key].points
+            return m.armor_owned(me, key)
         ab = m.agents[me.agent]["abilities"].get(key, {})
         return me.charges.get(key, 0) >= int(ab.get("max", 1))
 
     def item_picture(self, me: PlayerState, key: str) -> pygame.Surface | None:
         if key in self.match.weapons:
-            return self.bank.scaled(f"weapons/val2d/{self.weapon_art(key)}_kauf.png", (112, 42))
+            art, skin = self.weapon_art(key), self.weapon_skins.get(key, "")
+            if skin:
+                return self.bank.weapon(art, (116, 34), skin, view="preview")
+            return self.kit.silhouette(f"weapons/val2d/{art}_buy.png", (116, 34))
         if key in self.match.armor:
-            return self.bank.scaled(f"ui/buy/{ {'light_shield': 'vest_light', 'heavy_shield': 'vest_heavy'}.get(key, key)}.png", (96, 36))
-        return self.bank.scaled(f"ui/faehigkeit_{me.agent}_{key}.png", (36, 36))
+            art = {"light_armor": "vest_light", "heavy_armor": "vest_heavy"}.get(key, key)
+            return self.bank.scaled(f"ui/buy/{art}.png", (96, 36))
+        return self.bank.scaled(f"ui/ability_{me.agent}_{key}.png", (36, 36))
 
     def draw_buy(self, me: PlayerState) -> None:
         """Valorant buy menu: credits and phase timer on top, five columns of cards (picture, name, price), the team's
         credits and weapon requests along the bottom."""
-        from client.ui import color
         s, ui, m = self.screen, self.kit, self.match
         ui.fill(s.get_rect(), "#0f1923ee")
         open_ = m.phase == "buy" or m.mode == "deathmatch" or m.practice
@@ -111,30 +115,38 @@ class BuyMixin:
         if coin is not None:
             s.blit(coin, (self.w - 40 - cw - 30, 44))
         ui.text(f"{me.credits}", (self.w - 40, 30), "xl", "text", "right", bold=True, kind="numbers")
-        for title, x, y in self.buy_headings():
-            ui.text(title, (x, y), "xs", "muted", upper=True, bold=True)
+        for group, title, x, y in self.buy_headings():
+            ui.skin("menu/tab", pygame.Rect(x, y, self.CARD_W, 26))
+            ui.sprite(f"buy/cat_{group}", pygame.Rect(x + 8, y + 3, 20, 20))
+            ui.text(title, (x + 36, y + 5), "xs", "text", upper=True, bold=True)
         mouse = pygame.mouse.get_pos()
         for r, key, label in self.buy_layout():
             price = self.item_price(me, key)
+            ability = key in ("C", "Q", "E")
             owned = self.item_owned(me, key)
-            sell = owned and self.item_sellable(me, key)
-            affordable = me.credits >= price and open_
+            sell = (owned or ability) and self.item_sellable(me, key)
+            affordable = me.credits >= price and open_ and (key not in m.armor or m.armor_available(me, key))
             hover = r.collidepoint(mouse) and ((affordable and not owned) or sell)
-            ui.fill(r, "text" if hover else "panel_light" if owned else "panel")
-            ink = "bg" if hover else "text" if affordable or owned else "muted"
+            skin = "card_hover" if hover else "card_owned" if owned else "card" if affordable else "card_locked"
+            ui.skin(f"buy/{skin}", r)
+            ink = "text" if affordable or owned else "muted"
             pic = self.item_picture(me, key)
             if pic is not None:
                 if not affordable and not owned:
                     pic = pic.copy()
-                    pic.fill((110, 110, 110, 255), special_flags=pygame.BLEND_RGBA_MULT)
-                s.blit(pic, (r.right - pic.get_width() - 10, r.y + (r.h - pic.get_height()) // 2))
+                    pic.set_alpha(100)
+                s.blit(pic, (r.right - pic.get_width() - 12, r.y + 24 - pic.get_height() // 2))
             name = label.rsplit("  ", 1)[0]
             ui.text(name, (r.x + 10, r.bottom - 22), "xs", ink, upper=True, bold=True)
-            label = f"sell +{price}" if sell else "owned" if owned else str(price)
+            if ability:
+                limit = m.agents[me.agent]["abilities"][key]["max"]
+                label = f"{me.charges.get(key, 0)}/{limit}" + (f"  ·  {price}" if not owned else "")
+                if sell:
+                    ui.text(f"RMB +{price}", (r.right - 8, r.bottom - 22), "xs", "ally", "right")
+            else:
+                label = f"sell +{price}" if sell else "owned" if owned else str(price)
             ui.text(label, (r.x + 10, r.y + 8), "xs",
-                    "bg" if hover else "enemy" if sell else "ally" if owned else ink if not affordable else "gold", bold=True)
-            if owned:
-                pygame.draw.rect(s, color("ally"), (r.x, r.y, 3, r.h))
+                    "ally" if sell or owned else ink, bold=True)
         self.draw_team_strip(me, open_)
 
     def draw_team_strip(self, me: PlayerState, open_: bool) -> None:
@@ -161,7 +173,7 @@ class BuyMixin:
                 ui.button(b, f"buy {d.name}", f"gift:{mate.pid}:{mate.request}", primary=affordable, enabled=affordable, size="xs")
                 self.request_cards.append((b, f"gift:{mate.pid}:{mate.request}"))
             x += 280
-        hint = "click buys · click again sells (this buy phase) · right click asks the team · B or Esc closes"
+        hint = "click buys · click again sells gear · right click sells charges or requests weapons · B or Esc closes"
         if me.request:
             asked = m.weapons.get(me.request)
             hint = f"you asked for {asked.name if asked else me.request} · " + hint

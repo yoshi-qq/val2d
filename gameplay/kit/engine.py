@@ -10,6 +10,7 @@ A step is {"do": effect name, ...its values}; `who`, `area`, `radius`, `sight`, 
 """
 from __future__ import annotations
 
+import math
 import warnings
 from typing import TYPE_CHECKING, Any
 
@@ -21,7 +22,7 @@ from gameplay.kit.registry import EFFECTS, PASSIVE_TRIGGERS, PRESETS, TARGETS, T
 if TYPE_CHECKING:
     from gameplay.match import Effect, Match, PlayerState
 
-LOOKS = ("smoke", "wall", "flash", "zone", "blast", "sensor", "alarm", "tripwire", "decoy", "none")
+LOOKS = ("smoke", "wall", "flash", "zone", "blast", "sensor", "alarm", "tripwire", "decoy", "snapshot", "none")
 
 
 def expand(ab: dict[str, Any]) -> dict[str, Any]:
@@ -67,6 +68,15 @@ def _status_hint(triggers: list[dict[str, Any]]) -> str | None:
     return None
 
 
+def line_endpoints(m: Match, point: Vec, aim: Vec, level: int, spec: dict[str, Any]) -> tuple[Vec, Vec]:
+    across = aim if spec.get("along") else aim.rotated(90)
+    half = across * (float(spec.get("length", 6.0)) / 2)
+    a, b = (point, point + half * 2) if spec.get("forward") else (point - half, point + half)
+    if spec.get("clip_ends"):
+        a, b = m._clip_to_walls(point, a, level), m._clip_to_walls(point, b, level)
+    return a, b
+
+
 def place(ctx: Ctx, spec: dict[str, Any], point: Vec) -> Effect:
     """Leaves an object in the world at `point`."""
     from gameplay.match import Effect
@@ -75,15 +85,14 @@ def place(ctx: Ctx, spec: dict[str, Any], point: Vec) -> Effect:
     if look not in LOOKS:
         warnings.warn(f"Unknown look '{look}'; drawn as a zone")
         look = "zone"
+    if spec.get("spawn_ahead"):
+        point = point + ctx.aim * float(spec["spawn_ahead"])
     delay, lasts = float(spec.get("delay", 0.0)), float(spec.get("lasts", 10.0))
+    if spec.get("travel_speed"):
+        delay += (point - ctx.source).length() / float(spec["travel_speed"])
     a = b = None
     if spec.get("shape") == "line":
-        across = ctx.aim if spec.get("along") else ctx.aim.rotated(90)  # along=True: the line points where you aim
-        side = across * (float(spec.get("length", 6.0)) / 2)
-        a, b = point - side, point + side
-        if spec.get("clip_ends"):
-            level = ctx.owner.level if ctx.owner else 0
-            a, b = m._clip_to_walls(point, a, level), m._clip_to_walls(point, b, level)
+        a, b = line_endpoints(m, point, ctx.aim, ctx.owner.level if ctx.owner else 0, spec)
     elif spec.get("thrown"):
         a = ctx.source
     triggers = list(spec.get("triggers", []))
@@ -92,30 +101,47 @@ def place(ctx: Ctx, spec: dict[str, Any], point: Vec) -> Effect:
         "aim": (ctx.aim.x, ctx.aim.y), "blocks_sight": spec.get("blocks_sight", look in ("smoke", "wall")),
         "hidden": spec.get("hidden", {"decoy": "all", "alarm": "enemies", "tripwire": "enemies"}.get(look)),
         "status": spec.get("status_hint") or _status_hint(triggers), "move": float(spec.get("move", 0.0)),
+        "sprite": spec.get("sprite"), "warning_sprite": spec.get("warning_sprite"),
+        "sprite_width": spec.get("sprite_width"),
+        "manual": spec.get("manual"), "bot_trigger_radius": spec.get("bot_trigger_radius"),
         "thrown": bool(spec.get("thrown")),
+        "move_through_walls": bool(spec.get("move_through_walls")),
         "source_level": ctx.obj.props.get("source_level", 0) if ctx.obj else (ctx.owner.level if ctx.owner else 0),
     }
     e = Effect(look, ctx.owner.pid if ctx.owner else -1, ctx.team, point, now + delay + lasts,
                radius=float(spec.get("radius", 0.0)), a=a, b=b, start=now + delay, props=props)
+    for key in ("hp", "hit_radius", "destroy_recharge", "recall_recharge", "owner_range", "reactivate", "detect_range",
+                "cancel_channel"):
+        if key in spec:
+            e.props[key] = spec[key]
+    if "hp" in spec:
+        e.data["hp"] = int(spec["hp"])
+    if spec.get("return_on_lethal") and ctx.owner is not None:
+        e.data["return_armor"] = (ctx.owner.armor, ctx.owner.armor_key, ctx.owner.armor_reserve, ctx.owner.armor_regen_at)
+        e.data["return_facing"] = ctx.owner.facing
     m.effects.append(e)
     return e
+
+
+def resolve_target(m: Match, p: PlayerState, spec: dict[str, Any]) -> Vec | None:
+    target_name = str(spec.get("target", "aim"))
+    finder = TARGETS.get(target_name)
+    if finder is None:
+        raise ValueError(f"unknown target '{target_name}'")
+    return finder(m, p, spec)
 
 
 def use(m: Match, p: PlayerState, key: str, ab: dict[str, Any], point: Vec | None = None) -> Vec | None:
     """Carries out ability `ab`. Returns the target point, or None if nothing happened (no charge used).
     point: a point chosen on the map (multi-placement); it is kept within `range` of the user."""
     spec = expand(ab)
-    if point is not None:
+    if point is not None and not spec.get("global_target"):
         reach = float(spec.get("range", 30.0))
         offset = point - p.pos
         if offset.length() > reach:
             point = p.pos + offset.normalized() * reach
-        return _use_at(m, p, key, spec, point)
-    target_name = str(spec.get("target", "aim"))
-    finder = TARGETS.get(target_name)
-    if finder is None:
-        raise ValueError(f"unknown target '{target_name}'")
-    point = finder(m, p, spec)
+    if point is None:
+        point = resolve_target(m, p, spec)
     return _use_at(m, p, key, spec, point)
 
 
@@ -138,9 +164,85 @@ def _ctx_for(m: Match, e: Effect, dt: float) -> Ctx:
 
 
 def _fire(ctx: Ctx, tr: dict[str, Any], players: list[PlayerState] | None) -> None:
+    if tr.get("once_per_player") and ctx.obj is not None and players is not None:
+        seen = ctx.obj.data.setdefault(f"hit:{id(tr)}", set())
+        players = [p for p in players if p.pid not in seen]
+        seen.update(p.pid for p in players)
     run_steps(ctx, list(tr.get("do", [])), players, tr)
     if tr.get("consume"):
         ctx.obj.props["ended"] = True  # type: ignore[union-attr]
+
+
+def aimed_device(m: Match, p: PlayerState, depth: float) -> Effect | None:
+    cursor = p.pos + heading(p.facing) * depth
+    devices = [e for e in m.effects if e.owner == p.pid
+               and (e.props.get("manual") or e.props.get("recall_recharge") is not None) and not e.props.get("ended")
+               and e.start <= m.time < e.until
+               and min((pos - cursor).length() for pos in device_hit_points(e)) <= 1.25
+               and m._line_clear(p.pos, e.pos, p.level, ignore_effects=True)]
+    return min(devices, key=lambda e: (e.pos - cursor).length(), default=None)
+
+
+def activate_device(m: Match, e: Effect) -> None:
+    ctx = _ctx_for(m, e, 0.0)
+    for tr in e.props.get("triggers", []):
+        if tr.get("when") == "activate":
+            _fire(ctx, tr, select(ctx, tr))
+    e.props["ended"] = True
+
+
+def device_hit_points(e: Effect) -> tuple[Vec, ...]:
+    if e.kind == "tripwire" and e.a is not None and e.b is not None:
+        return e.a, e.b
+    return (e.pos,)
+
+
+def remove_device(m: Match, e: Effect, reason: str) -> None:
+    e.props["ended"] = True
+    owner = m.players.get(e.owner)
+    delay = e.props.get(f"{reason}_recharge")
+    if owner is not None and delay is not None:
+        owner.ability_ready_at[e.props["key"]] = m.time + float(delay)
+    if owner is not None and e.props.get("cancel_channel"):
+        owner.channel_until = 0.0
+
+
+def device_operational(ctx: Ctx, e: Effect) -> bool:
+    reach = e.props.get("owner_range")
+    if reach is None:
+        return True
+    p, m = ctx.owner, ctx.m
+    active = p is not None and p.alive and not statuses.flag(m, p, "no_abilities") and (p.pos - e.pos).length() <= reach
+    if not active:
+        e.data["dormant"] = True
+        return False
+    if e.data.pop("dormant", False):
+        e.data.pop("chained", None)
+        e.data["reactivate_at"] = m.time + float(e.props.get("reactivate", 0))
+    return m.time >= e.data.get("reactivate_at", 0)
+
+
+def return_to_marker(m: Match, p: PlayerState, marker: Effect | None = None) -> bool:
+    if marker is None:
+        marker = next((e for e in m.effects if e.owner == p.pid and "return_armor" in e.data
+                       and not e.props.get("ended") and e.until >= m.time), None)
+    if marker is None or not p.alive:
+        return False
+    marker.props["ended"] = True
+    p.pos = p.last_pos = marker.pos
+    p.hp = m._hp
+    p.armor, p.armor_key, p.armor_reserve, p.armor_regen_at = marker.data["return_armor"]
+    p.facing = marker.data["return_facing"]
+    p.vel, p.z, p.vz = Vec(0, 0), 0.0, 0.0
+    reach = marker.props.get("source_level", float("inf"))
+    p.ground = m.world.ground_height(p.pos, reach) * float(m._mv["level_height"])
+    p.level = m.world.floor_level(p.pos, reach)
+    p.plant_progress = p.defuse_progress = p.reload_until = p.dash_until = 0.0
+    p.heal_left = p.heal_rate = 0.0
+    statuses.clear_statuses(p, m, keep_positive=False)
+    from gameplay.kit.builtins import game_event
+    game_event(m, "ability_return", {"pid": p.pid, "pos": (p.pos.x, p.pos.y), "facing": p.facing})
+    return True
 
 
 def tick(m: Match, dt: float) -> None:
@@ -148,8 +250,18 @@ def tick(m: Match, dt: float) -> None:
     keep: list[Effect] = []
     existing = list(m.effects)
     for e in existing:
+        if e.props.get("ended"):
+            continue
         triggers: list[dict[str, Any]] = e.props.get("triggers", [])
         ctx = _ctx_for(m, e, dt)
+        if e.props.get("move_through_walls") and now >= e.start:
+            active_dt = max(0.0, min(now, e.until) - max(now - dt, e.start))
+            e.data["previous_pos"] = e.pos
+            e.pos = ctx.point = e.pos + ctx.aim * (float(e.props["move"]) * active_dt)
+            if now >= e.until and active_dt:
+                for tr in triggers:
+                    if tr.get("when") == "tick":
+                        _fire(ctx, tr, select(ctx, tr))
         if m.cover_health and e.props.get("thrown") and e.a is not None and now >= e.start and e.until > e.start:
             progress = min(1.0, (now - e.start) / (e.until - e.start))
             previous = e.data.get("glass_progress", 0.0)
@@ -158,6 +270,10 @@ def tick(m: Match, dt: float) -> None:
                 m.break_glass(e.a + path * previous, e.a + path * progress, e.props["source_level"])
                 e.data["glass_progress"] = progress
         if now >= e.until:
+            if "return_armor" in e.data and ctx.owner is not None:
+                return_to_marker(m, ctx.owner, e)
+            if (revived := m.players.get(e.props.get("revive_pid"))) is not None and not revived.alive:
+                EFFECTS["revive"].fn(ctx, revived, {"health": e.data["revive_health"]})
             for tr in triggers:
                 if tr.get("when") == "expire":
                     _fire(ctx, tr, select(ctx, tr))
@@ -165,18 +281,29 @@ def tick(m: Match, dt: float) -> None:
         if now < e.start:
             keep.append(e)
             continue
-        if e.props.get("move") and e.a is None:
+        if e.data.get("fortify_at", math.inf) <= now:
+            e.data["hp"] += e.data.pop("fortify_hp")
+            e.data.pop("fortify_at")
+        if not device_operational(ctx, e):
+            keep.append(e)
+            continue
+        bot_radius = e.props.get("bot_trigger_radius")
+        if bot_radius and ctx.owner is not None and ctx.owner.alive and ctx.owner.is_bot and any(
+            p.alive and p.team != e.team and (p.pos - e.pos).length() <= bot_radius for p in m.players.values()
+        ):
+            activate_device(m, e)
+            continue
+        if e.props.get("move") and e.a is None and not e.props.get("move_through_walls"):
             step = ctx.aim * (float(e.props["move"]) * dt)
-            e.pos = m._clip_to_walls(e.pos, e.pos + step, 0)
+            e.data["previous_pos"] = e.pos
+            e.pos = m._clip_to_walls(e.pos, e.pos + step, int(e.props["source_level"]))
             ctx.point = e.pos
         for tr in triggers:
             when = str(tr.get("when", ""))
-            if when == "expire":
+            if when in ("expire", "activate"):
                 continue
-            if when == "start":
-                if e.props.get("started"):
-                    continue
-                e.props["started"] = True
+            if when == "start" and e.props.get("started"):
+                continue
             fn = TRIGGERS.get(when)
             if fn is None:
                 warnings.warn(f"Unknown trigger '{when}'")
@@ -186,6 +313,7 @@ def tick(m: Match, dt: float) -> None:
                 _fire(ctx, tr, players)
             if e.props.get("ended"):
                 break
+        e.props["started"] = True
         if not e.props.get("ended"):
             keep.append(e)
     # objects placed by triggers this frame were appended behind the old ones; they start next frame
@@ -213,6 +341,10 @@ def _recharge(m: Match, p: PlayerState, dt: float) -> None:
     if not p.alive or m.phase not in ("live", "planted"):
         return
     for key, ab in m.agents.get(p.agent, {}).get("abilities", {}).items():
+        ready_at = p.ability_ready_at.get(key)
+        if ready_at is not None and m.time >= ready_at:
+            p.charges[key] = min(int(ab["max"]), p.charges.get(key, 0) + 1)
+            del p.ability_ready_at[key]
         if key == "X" or "recharge" not in ab:
             continue
         if p.charges.get(key, 0) >= int(ab["max"]):
@@ -222,3 +354,4 @@ def _recharge(m: Match, p: PlayerState, dt: float) -> None:
         if p.recharge_timers[key] >= float(ab["recharge"]):
             p.recharge_timers[key] = 0.0
             p.charges[key] = p.charges.get(key, 0) + 1
+            p.temporary_charges[key] = p.temporary_charges.get(key, 0) + 1

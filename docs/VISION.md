@@ -43,7 +43,7 @@ Val2d is built in two separate sessions:
 - **Hits and zones: pure precision**, see "Hit zones in 2D".
 - **Wall penetration** according to the material's penetration level, as in Valorant.
 - **Scale:** real meters. Movement speeds, ranges and damage falloff according to the real values.
-- **Weapon values:** numbers from the official Valorant patch notes (damage, fire rate, magazine, prices, spread), with patch number and source in a data file. Weapons carry their own names.
+- **Weapon values:** numbers from the official Valorant patch notes (damage, fire rate, magazine, prices, spread), with patch number and source in a data file. Weapons use their VALORANT names.
 
 ### Hit zones in 2D
 

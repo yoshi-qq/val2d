@@ -19,7 +19,7 @@ from gameplay.match import Command, GameEvent, Match, PlayerState
 from gameplay.net import command_from_json, event_to_json, merge_commands
 
 DEFAULT_PORT = netplay.DEFAULT_PORT
-GAME_PROTOCOL = 2
+GAME_PROTOCOL = 4
 
 
 class NetHost:
@@ -86,7 +86,7 @@ class NetHost:
             with self.lock:
                 count = [sum(1 for p in self.match.players.values() if p.team == t) for t in (0, 1)]
                 team = 0 if count[0] <= count[1] else 1
-                p = self.match.add_player(name, team, agent if agent in self.match.agents else "kestrel")
+                p = self.match.add_player(name, team, agent, weapon_skins=msg.get("weapon_skins"))
                 self.pid_of[lid] = p.pid
             token = secrets.token_hex(8)
             self.tokens[token] = p.pid
@@ -150,6 +150,8 @@ class NetHost:
                 warnings.warn(f"Sending to player {pid} failed: {exc}")
 
     def _event_visible(self, viewer: PlayerState, e: GameEvent) -> bool:
+        if e.kind == "ability_return":
+            return e.data.get("pid") == viewer.pid
         if e.kind in ("shot", "hit"):
             shooter = self.match.players.get(e.data.get("pid") if e.kind == "shot" else e.data.get("by"))
             return shooter is None or self.match.can_see(viewer, shooter) or e.data.get("by") == viewer.pid
@@ -174,12 +176,14 @@ class NetHost:
 class NetClient:
     """Joins a Val2d host by join code (internet) or "address[:port]" (LAN)."""
 
-    def __init__(self, target: str, name: str, agent: str, timeout: float = 8.0, token: str = "") -> None:
+    def __init__(self, target: str, name: str, agent: str, timeout: float = 8.0, token: str = "", *,
+                 weapon_skins: dict[str, str] | None = None) -> None:
         try:
             self.lobby = netplay.join_lobby(target, name)
         except (OSError, netplay.LobbyError, netplay.CodeError) as exc:
             raise ConnectionError(str(exc)) from exc
-        self.lobby.send({"t": "hello", "agent": agent, "protocol": GAME_PROTOCOL, "token": token})
+        self.lobby.send({"t": "hello", "agent": agent, "protocol": GAME_PROTOCOL, "token": token,
+                         "weapon_skins": weapon_skins or {}})
         self.inbox: list[dict[str, Any]] = []
         deadline = time.monotonic() + timeout
         welcome = None

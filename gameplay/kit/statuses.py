@@ -27,10 +27,10 @@ FALLBACK: dict[str, dict[str, Any]] = {
     "suppress": {"no_abilities": True}, "detain": {"speed": 0.0}, "deaf": {"deaf": True},
     "stim": {"fire_rate": 1.12, "reload": 0.8, "positive": True},
 }
-MULTIPLY = ("speed", "damage_taken", "damage_dealt", "fire_rate", "reload")
+MULTIPLY = ("speed", "dash_speed", "damage_taken", "damage_dealt", "fire_rate", "reload", "equip", "recovery")
 ADD = ("spread_add", "hp_per_second")
 LOWEST = ("sight_range", "seen_within")
-FLAGS = ("blind", "deaf", "no_abilities", "revealed", "lethal", "positive")
+FLAGS = ("blind", "deaf", "no_abilities", "no_fire", "revealed", "lethal", "positive")
 KNOWN = set(MULTIPLY) | set(ADD) | set(LOWEST) | set(FLAGS) | {"decay", "decay_regen", "icon", "note"}
 
 

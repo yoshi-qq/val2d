@@ -3,11 +3,11 @@ without touching their own files. Patches apply in file-name order (01_..., 02_.
 
 A patch file defines:
     VERSION = "1.02"                  shown in the patch notes (Career page)
-    NOTES = "Kestrel flash shorter"   one line or several, also shown there
+    NOTES = "Phoenix flash cheaper"   one line or several, also shown there
     PATCH = {
-        "agents":   {"kestrel": {"C": {"blind": 1.2}, "X": {"cost": 8}, "role": "Duelist"}},
-        "weapons":  {"assault_rifle": {"price": 3000, "damage": [(60, 160, 40, 34)]}},
-        "armor":    {"heavy_shield": {"price": 1100}},
+        "agents":   {"phoenix": {"Q": {"price": 200}, "X": {"cost": 8}, "role": "Duelist"}},
+        "weapons":  {"vandal": {"price": 3000, "damage": [(60, 160, 40, 34)]}},
+        "armor":    {"heavy_armor": {"price": 1100}},
         "statuses": {"slow": {"speed": 0.6}},
         "rules":    {"economy": {"start": 900}},
         "settings": {"hit_zones": {"head_half_width": 0.27}},
@@ -24,7 +24,7 @@ import warnings
 from functools import lru_cache
 from typing import Any
 
-from gameplay.data import CONFIG_DIR, _load_py
+from gameplay.data import CONFIG_DIR, LEGACY_ITEM_KEYS, _load_py
 
 PATCH_DIR = CONFIG_DIR / "patches"
 SECTIONS = ("agents", "weapons", "armor", "statuses", "rules", "settings", "maps")
@@ -73,8 +73,11 @@ def section(name: str) -> list[tuple[str, dict[str, Any]]]:
 def apply_table(name: str, table: dict[str, Any], create: bool = False) -> dict[str, Any]:
     """Applies a section to a table of entries (agents, weapons, statuses, ...). Unknown entries warn unless create."""
     out = dict(table)
+    aliases = LEGACY_ITEM_KEYS.get(name, {})
     for fname, changes in section(name):
         for key, change in changes.items():
+            if key not in table:
+                key = aliases.get(key, key)
             if key not in out and not create:
                 warnings.warn(f"Patch {fname}: {name} has no {key!r}; change ignored")
                 continue

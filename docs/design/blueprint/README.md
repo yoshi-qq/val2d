@@ -4,7 +4,7 @@ Every kind of sprite the game uses, as an empty template at its exact size and f
 Open a template in Aseprite, put it on a locked `guides` layer, draw on a layer above, hide the guides and export to the target path.
 Rules: `STYLE_GUIDE.md` in this folder. Agents in detail: `../CHARACTER_SHEETS.md`. Colours: `palette.png`.
 Frames sit side by side in one strip without spacing; the template always has the maximum number of frames.
-Every template has a finished example in `examples/` (Kestrel and the Workyard set), drawn over the guides.
+Available examples in `examples/` show Omen and the Workyard set over the guides.
 Regenerate this folder with `python docs/design/build_blueprint_folder.py`.
 
 Guide colours: red = head zone, gold = body zone or grip/fill area, teal = leg zone or accent line,
@@ -45,52 +45,52 @@ white cross = centre/anchor, white line = ground row, white ring = maximum radiu
 | `agents/agent_killfeed.png` | [example](examples/agent_killfeed.example.png) | `assets/agents/{key}/{key}_killfeed.png` | 16×16 | 1 | still | head only, for kill feed and minimap list (optional, falls back to portrait; 1–1 frames, template has the maximum) |
 | `agents/agent_select.png` | [example](examples/agent_select.example.png) | `assets/agents/{key}/{key}_select.png` | 32×64 | 1 | still | large agent-select figure (optional, falls back to portrait; 1–1 frames, template has the maximum) |
 | `agents/agent_mech_NAME.png` | [example](examples/agent_mech_NAME.example.png) | `assets/agents/{key}/{key}_mech_{name}.png` | 16×32 | 6 | 6 fps | extra state for a special mechanic (glide, hover, carry); 1–6 frames, loops, falls back to idle |
-| `agents/agent@FORM_idle.png` | [example](examples/agent@FORM_idle.example.png) | `assets/agents/{key}/{key}@{form}_{state}.png` | 16×32 | 4 | as the state | form: replaces a state while the form is active; draw at least idle and walk |
+| `agents/agent@FORM_idle.png` | – | `assets/agents/{key}/{key}@{form}_{state}.png` | 16×32 | 4 | as the state | form: replaces a state while the form is active; draw at least idle and walk |
 | `agents/agent_overlay_NAME.png` | [example](examples/agent_overlay_NAME.example.png) | `assets/agents/{key}/{key}_overlay_{name}.png` | 16×32 | 4 | as walk | overlay on top of every state (glowing eyes, shield shell); 1 frame or as many as walk |
 
 ## Weapons
 
 | Template | Example | Target file | Frame size | Frames | Speed | Purpose |
 |---|---|---|---|---|---|---|
-| `weapons/weapon_hand.png` | [example](examples/weapon_hand.example.png) | `assets/weapons/val2d/{key}.png` | 16×8 | 1 | still | weapon in hand, side view, muzzle right; keys: spatz, stachel, hornisse, lynx, kite, bulle, wespe, sirene, brecher, faecher, falke, lanze, speer, hammer, heron, elster, crane, adler, muehle, walze |
-| `weapons/weapon_buy.png` | [example](examples/weapon_buy.example.png) | `assets/weapons/val2d/{key}_kauf.png` | 64×24 | 1 | still | buy-menu icon, 64 × 24, centred, lit automatically with outline (docs/design/sprites_buy_hd.py) |
-| `weapons/knife.png` | [example](examples/knife.example.png) | `assets/weapons/val2d/messer.png` | 16×8 | 1 | still | knife, blade right |
+| `weapons/weapon_hand.png` | [example](examples/weapon_hand.example.png) | `assets/weapons/val2d/{key}.png` | 32×16 | 1 | still | weapon in hand, side view, muzzle right; keys: classic, shorty, frenzy, ghost, bandit, sheriff, stinger, spectre, bucky, judge, bulldog, guardian, phantom, vandal, warden, marshal, outlaw, operator, ares, odin |
+| `weapons/weapon_buy.png` | [example](examples/weapon_buy.example.png) | `assets/weapons/val2d/{key}_buy.png` | 32×16 | 1 | still | same centred 32 × 16 weapon sprite as in the hand |
+| `weapons/knife.png` | [example](examples/knife.example.png) | `assets/weapons/val2d/tactical_knife.png` | 32×16 | 1 | still | knife, blade right |
 
 ## Map tiles
 
 | Template | Example | Target file | Frame size | Frames | Speed | Purpose |
 |---|---|---|---|---|---|---|
-| `tiles/tile_floor.png` | [example](examples/tile_floor.example.png) | `assets/maps/{map}/boden_stein.png` | 32×32 | 1 | still | walkable floor, 2 × 2 m, tiles seamlessly |
-| `tiles/tile_wall_thick.png` | [example](examples/tile_wall_thick.example.png) | `assets/maps/{map}/wand.png` | 32×32 | 1 | still | thick wall top (penetration 2–3) |
-| `tiles/tile_wall_thin.png` | [example](examples/tile_wall_thin.example.png) | `assets/maps/{map}/wand_duenn.png` | 32×32 | 1 | still | thin wall top (penetration 0–1), visibly lighter material |
-| `tiles/tile_crate.png` | [example](examples/tile_crate.example.png) | `assets/maps/{map}/kiste_metall.png` | 32×32 | 1 | still | crate seen from above, height 1 level, can be climbed |
-| `tiles/tile_platform.png` | [example](examples/tile_platform.example.png) | `assets/maps/{map}/plattform.png` | 32×32 | 1 | still | raised floor (level 1) |
-| `tiles/tile_ramp.png` | [example](examples/tile_ramp.example.png) | `assets/maps/{map}/rampe.png` | 32×32 | 1 | still | ramp between levels, steps run across the direction of travel |
-| `tiles/tile_site_border.png` | [example](examples/tile_site_border.example.png) | `assets/maps/{map}/platz_rand.png` | 32×32 | 1 | still | bomb site border, transparent centre, laid over the floor |
+| `tiles/tile_floor.png` | [example](examples/tile_floor.example.png) | `assets/maps/{map}/stone_floor.png` | 32×32 | 1 | still | walkable floor, 2 × 2 m, tiles seamlessly |
+| `tiles/tile_wall_thick.png` | [example](examples/tile_wall_thick.example.png) | `assets/maps/{map}/wall.png` | 32×32 | 1 | still | thick wall top (penetration 2–3) |
+| `tiles/tile_wall_thin.png` | [example](examples/tile_wall_thin.example.png) | `assets/maps/{map}/wall_thin.png` | 32×32 | 1 | still | thin wall top (penetration 0–1), visibly lighter material |
+| `tiles/tile_crate.png` | [example](examples/tile_crate.example.png) | `assets/maps/{map}/metal_crate.png` | 32×32 | 1 | still | crate seen from above, height 1 level, can be climbed |
+| `tiles/tile_platform.png` | [example](examples/tile_platform.example.png) | `assets/maps/{map}/platform.png` | 32×32 | 1 | still | raised floor (level 1) |
+| `tiles/tile_ramp.png` | [example](examples/tile_ramp.example.png) | `assets/maps/{map}/ramp.png` | 32×32 | 1 | still | ramp between levels, steps run across the direction of travel |
+| `tiles/tile_site_border.png` | [example](examples/tile_site_border.example.png) | `assets/maps/{map}/site_border.png` | 32×32 | 1 | still | bomb site border, transparent centre, laid over the floor |
 
 ## Effects
 
 | Template | Example | Target file | Frame size | Frames | Speed | Purpose |
 |---|---|---|---|---|---|---|
 | `effects/fx_bomb.png` | [example](examples/fx_bomb.example.png) | `assets/fx/spike.png` | 16×16 | 2 | 4 fps | bomb carried and planted: LED on, off |
-| `effects/fx_muzzle_flash.png` | [example](examples/fx_muzzle_flash.example.png) | `assets/fx/muendung.png` | 8×8 | 3 | 15 fps | muzzle flash, once per shot |
-| `effects/fx_wall_impact.png` | [example](examples/fx_wall_impact.example.png) | `assets/fx/einschlag_wand.png` | 8×8 | 3 | 15 fps | bullet hits a wall |
-| `effects/fx_body_hit.png` | [example](examples/fx_body_hit.example.png) | `assets/fx/treffer_koerper.png` | 8×8 | 3 | 15 fps | bullet hits a body (no gore) |
+| `effects/fx_muzzle_flash.png` | [example](examples/fx_muzzle_flash.example.png) | `assets/fx/muzzle_flash.png` | 8×8 | 3 | 15 fps | muzzle flash, once per shot |
+| `effects/fx_wall_impact.png` | [example](examples/fx_wall_impact.example.png) | `assets/fx/wall_impact.png` | 8×8 | 3 | 15 fps | bullet hits a wall |
+| `effects/fx_body_hit.png` | [example](examples/fx_body_hit.example.png) | `assets/fx/body_hit.png` | 8×8 | 3 | 15 fps | bullet hits a body (no gore) |
 | `effects/fx_bomb_explosion.png` | [example](examples/fx_bomb_explosion.example.png) | `assets/fx/spike_explosion.png` | 64×64 | 6 | 10 fps | bomb explosion, scaled to the blast radius |
-| `effects/fx_smoke.png` | [example](examples/fx_smoke.example.png) | `assets/fx/dunst.png` | 64×64 | 1 | still | smoke sphere, scaled to the radius |
-| `effects/fx_smoke_forming.png` | [example](examples/fx_smoke_forming.example.png) | `assets/fx/dunst_aufbau.png` | 64×64 | 4 | 8 fps | smoke forming, then smoke |
+| `effects/fx_smoke.png` | [example](examples/fx_smoke.example.png) | `assets/fx/smoke.png` | 64×64 | 1 | still | smoke sphere, scaled to the radius |
+| `effects/fx_smoke_forming.png` | [example](examples/fx_smoke_forming.example.png) | `assets/fx/smoke_forming.png` | 64×64 | 4 | 8 fps | smoke forming, then smoke |
 | `effects/fx_zone.png` | [example](examples/fx_zone.example.png) | `assets/fx/zone.png` | 64×64 | 3 | 4 fps | generic area (white, tinted per status in code) |
-| `effects/fx_slow_field.png` | [example](examples/fx_slow_field.example.png) | `assets/fx/bann.png` | 64×64 | 1 | still | agent-specific field |
-| `effects/fx_slow_field_pulse.png` | [example](examples/fx_slow_field_pulse.example.png) | `assets/fx/bann_puls.png` | 64×64 | 3 | 4 fps | field pulse, loops |
+| `effects/fx_slow_field.png` | [example](examples/fx_slow_field.example.png) | `assets/fx/slow_field.png` | 64×64 | 1 | still | agent-specific field |
+| `effects/fx_slow_field_pulse.png` | [example](examples/fx_slow_field_pulse.example.png) | `assets/fx/slow_field_pulse.png` | 64×64 | 3 | 4 fps | field pulse, loops |
 | `effects/fx_blast.png` | [example](examples/fx_blast.example.png) | `assets/fx/blast.png` | 64×64 | 6 | 12 fps | generic blast ring, scaled to the radius |
-| `effects/fx_sensor.png` | [example](examples/fx_sensor.example.png) | `assets/fx/lauscher.png` | 6×6 | 1 | still | small device lying on the ground |
-| `effects/fx_sensor_pulse.png` | [example](examples/fx_sensor_pulse.example.png) | `assets/fx/lauscher_puls.png` | 32×32 | 3 | 6 fps | sensor pulse ring |
-| `effects/fx_flash.png` | [example](examples/fx_flash.example.png) | `assets/fx/funke.png` | 16×16 | 1 | still | flash projectile |
-| `effects/fx_flash_burst.png` | [example](examples/fx_flash_burst.example.png) | `assets/fx/funke_explosion.png` | 16×16 | 3 | 10 fps | flash going off |
-| `effects/fx_vapor_wall.png` | [example](examples/fx_vapor_wall.example.png) | `assets/fx/schleier.png` | 16×16 | 1 | still | wall segment, tiled along the wall |
-| `effects/fx_vapor_wall_forming.png` | [example](examples/fx_vapor_wall_forming.example.png) | `assets/fx/schleier_aufbau.png` | 16×16 | 3 | 8 fps | wall forming |
-| `effects/fx_dash_trail.png` | [example](examples/fx_dash_trail.example.png) | `assets/fx/gleiten_spur.png` | 16×32 | 3 | 12 fps | trail behind a dashing figure (same cell as the figure) |
-| `effects/fx_hop_dust.png` | [example](examples/fx_hop_dust.example.png) | `assets/fx/satz_staub.png` | 16×8 | 3 | 10 fps | dust under the feet at take-off |
+| `effects/fx_sensor.png` | [example](examples/fx_sensor.example.png) | `assets/fx/sensor.png` | 6×6 | 1 | still | small device lying on the ground |
+| `effects/fx_sensor_pulse.png` | [example](examples/fx_sensor_pulse.example.png) | `assets/fx/sensor_pulse.png` | 32×32 | 3 | 6 fps | sensor pulse ring |
+| `effects/fx_flash.png` | [example](examples/fx_flash.example.png) | `assets/fx/flash.png` | 16×16 | 1 | still | flash projectile |
+| `effects/fx_flash_burst.png` | [example](examples/fx_flash_burst.example.png) | `assets/fx/flash_burst.png` | 16×16 | 3 | 10 fps | flash going off |
+| `effects/fx_vapor_wall.png` | [example](examples/fx_vapor_wall.example.png) | `assets/fx/vapor_wall.png` | 16×16 | 1 | still | wall segment, tiled along the wall |
+| `effects/fx_vapor_wall_forming.png` | [example](examples/fx_vapor_wall_forming.example.png) | `assets/fx/vapor_wall_forming.png` | 16×16 | 3 | 8 fps | wall forming |
+| `effects/fx_dash_trail.png` | [example](examples/fx_dash_trail.example.png) | `assets/fx/dash_trail.png` | 16×32 | 3 | 12 fps | trail behind a dashing figure (same cell as the figure) |
+| `effects/fx_hop_dust.png` | [example](examples/fx_hop_dust.example.png) | `assets/fx/hop_dust.png` | 16×8 | 3 | 10 fps | dust under the feet at take-off |
 | `effects/fx_tripwire.png` | [example](examples/fx_tripwire.example.png) | `assets/fx/tripwire.png` | 16×4 | 1 | still | wire, tiled along its length |
 | `effects/fx_tripwire_node.png` | [example](examples/fx_tripwire_node.example.png) | `assets/fx/tripwire_node.png` | 6×6 | 1 | still | wire anchor at both ends |
 | `effects/fx_alarm.png` | [example](examples/fx_alarm.example.png) | `assets/fx/alarm.png` | 16×16 | 2 | 3 fps | alarm device blinking |
@@ -100,13 +100,13 @@ white cross = centre/anchor, white line = ground row, white ring = maximum radiu
 
 | Template | Example | Target file | Frame size | Frames | Speed | Purpose |
 |---|---|---|---|---|---|---|
-| `ui/ability_icon.png` | [example](examples/ability_icon.example.png) | `assets/ui/faehigkeit_{agent}_{C|Q|E}.png` | 32×32 | 1 | still | ability icon: dark plate, 24 × 24 glyph in white with the agent's accent colour |
-| `ui/ability_icon_ult.png` | [example](examples/ability_icon_ult.example.png) | `assets/ui/faehigkeit_{agent}_X.png` | 32×32 | 1 | still | ultimate icon: as above with a gold frame and corner highlights |
-| `ui/hud_icon.png` | [example](examples/hud_icon.example.png) | `assets/ui/hud/{name}.png` | 16×16 | 1 | still | HUD icon: leben, schild, credits, munition, kopfschuss, spike_klein, uhr, tot |
+| `ui/ability_icon.png` | [example](examples/ability_icon.example.png) | `assets/ui/ability_{agent}_{C|Q|E}.png` | 32×32 | 1 | still | ability icon: dark plate, 24 × 24 glyph in white with the agent's accent colour |
+| `ui/ability_icon_ult.png` | [example](examples/ability_icon_ult.example.png) | `assets/ui/ability_{agent}_X.png` | 32×32 | 1 | still | ultimate icon: as above with a gold frame and corner highlights |
+| `ui/hud_icon.png` | [example](examples/hud_icon.example.png) | `assets/ui/hud/{name}.png` | 16×16 | 1 | still | HUD icon: health, shield, credits, ammo, headshot, bomb_small, timer, eliminated |
 | `ui/status_icon.png` | [example](examples/status_icon.example.png) | `assets/ui/status/{status}.png` | 16×16 | 1 | still | status icon: nearsight, concuss, slow, vulnerable, decay, suppress, detain, deaf, stim |
-| `ui/minimap_icon.png` | [example](examples/minimap_icon.example.png) | `assets/ui/minimap/{name}.png` | 12×12 | 1 | still | minimap: selbst (arrow points up), verbuendet, feind, tot, spike, dunst, bann, schleier |
-| `ui/frame_nine_slice.png` | [example](examples/frame_nine_slice.example.png) | `assets/ui/hud/rahmen.png, rahmen_aktiv.png` | 24×24 | 1 | still | nine-slice frame, 8 px corners, centre stretches |
-| `ui/bar.png` | [example](examples/bar.example.png) | `assets/ui/hud/balken_{leben|schild|fortschritt|leer}.png` | 96×12 | 1 | still | bar, stretched horizontally; fill drawn over balken_leer |
+| `ui/minimap_icon.png` | [example](examples/minimap_icon.example.png) | `assets/ui/minimap/{name}.png` | 12×12 | 1 | still | minimap: self (arrow points up), ally, enemy, eliminated, spike, smoke, slow_field, vapor_wall |
+| `ui/frame_nine_slice.png` | [example](examples/frame_nine_slice.example.png) | `assets/ui/hud/frame.png, frame_active.png` | 24×24 | 1 | still | nine-slice frame, 8 px corners, centre stretches |
+| `ui/bar.png` | [example](examples/bar.example.png) | `assets/ui/hud/bar_{health|shield|progress|empty}.png` | 96×12 | 1 | still | bar, stretched horizontally; fill drawn over bar_empty |
 | `ui/banner.png` | [example](examples/banner.example.png) | `assets/ui/banner/{name}.png` | 160×32 | 1 | still | round banner, height 32, width = text + 40 px, game font fixed_sys at 16 px without smoothing |
 | `ui/logo.png` | [example](examples/logo.example.png) | `assets/logo.png (+ icon.ico 16/32/48)` | 48×48 | 1 | still | game logo, also program icon |
 | `ui/player_card.png` | [example](examples/player_card.example.png) | `assets/menu/lobby/playercard.png` | 64×128 | 1 | still | lobby player card with logo at (8, 10) |
@@ -119,10 +119,15 @@ white cross = centre/anchor, white line = ground row, white ring = maximum radiu
 | `ui_menu/button_disabled.png` | [example](examples/button_disabled.example.png) | `assets/ui/menu/button_disabled.png` | 16×16 | 1 | still | button disabled |
 | `ui_menu/button_hover.png` | [example](examples/button_hover.example.png) | `assets/ui/menu/button_hover.png` | 16×16 | 1 | still | button hover |
 | `ui_menu/button_pressed.png` | [example](examples/button_pressed.example.png) | `assets/ui/menu/button_pressed.png` | 16×16 | 1 | still | button pressed |
+| `ui_menu/button_primary.png` | [example](examples/button_primary.example.png) | `assets/ui/menu/button_primary.png` | 16×16 | 1 | still | button primary |
+| `ui_menu/button_primary_hover.png` | [example](examples/button_primary_hover.example.png) | `assets/ui/menu/button_primary_hover.png` | 16×16 | 1 | still | button primary hover |
+| `ui_menu/button_primary_pressed.png` | [example](examples/button_primary_pressed.example.png) | `assets/ui/menu/button_primary_pressed.png` | 16×16 | 1 | still | button primary pressed |
 | `ui_menu/checkbox.png` | [example](examples/checkbox.example.png) | `assets/ui/menu/checkbox.png` | 8×8 | 1 | still | checkbox |
 | `ui_menu/checkbox_on.png` | [example](examples/checkbox_on.example.png) | `assets/ui/menu/checkbox_on.png` | 8×8 | 1 | still | checkbox on |
 | `ui_menu/cursor.png` | [example](examples/cursor.example.png) | `assets/ui/menu/cursor.png` | 12×13 | 1 | still | cursor |
 | `ui_menu/panel.png` | [example](examples/panel.example.png) | `assets/ui/menu/panel.png` | 24×24 | 1 | still | panel |
+| `ui_menu/party_bot.png` | [example](examples/party_bot.example.png) | `assets/ui/menu/party_bot.png` | 75×150 | 1 | still | party bot |
+| `ui_menu/party_self.png` | [example](examples/party_self.example.png) | `assets/ui/menu/party_self.png` | 75×150 | 1 | still | party self |
 | `ui_menu/slider_fill.png` | [example](examples/slider_fill.example.png) | `assets/ui/menu/slider_fill.png` | 16×6 | 1 | still | slider fill |
 | `ui_menu/slider_knob.png` | [example](examples/slider_knob.example.png) | `assets/ui/menu/slider_knob.png` | 6×6 | 1 | still | slider knob |
 | `ui_menu/slider_track.png` | [example](examples/slider_track.example.png) | `assets/ui/menu/slider_track.png` | 16×6 | 1 | still | slider track |
@@ -170,6 +175,10 @@ white cross = centre/anchor, white line = ground row, white ring = maximum radiu
 
 | Template | Example | Target file | Frame size | Frames | Speed | Purpose |
 |---|---|---|---|---|---|---|
+| `ui_buy/card.png` | [example](examples/card.example.png) | `assets/ui/buy/card.png` | 24×24 | 1 | still | card |
+| `ui_buy/card_hover.png` | [example](examples/card_hover.example.png) | `assets/ui/buy/card_hover.png` | 24×24 | 1 | still | card hover |
+| `ui_buy/card_locked.png` | [example](examples/card_locked.example.png) | `assets/ui/buy/card_locked.png` | 24×24 | 1 | still | card locked |
+| `ui_buy/card_owned.png` | [example](examples/card_owned.example.png) | `assets/ui/buy/card_owned.png` | 24×24 | 1 | still | card owned |
 | `ui_buy/cat_abilities.png` | [example](examples/cat_abilities.example.png) | `assets/ui/buy/cat_abilities.png` | 16×16 | 1 | still | cat abilities |
 | `ui_buy/cat_armor.png` | [example](examples/cat_armor.example.png) | `assets/ui/buy/cat_armor.png` | 16×16 | 1 | still | cat armor |
 | `ui_buy/cat_heavy.png` | [example](examples/cat_heavy.example.png) | `assets/ui/buy/cat_heavy.png` | 16×16 | 1 | still | cat heavy |
@@ -315,7 +324,7 @@ white cross = centre/anchor, white line = ground row, white ring = maximum radiu
 | `extra/sound_ring.png` | [example](examples/sound_ring.example.png) | `assets/fx/sound_ring.png` | 64×64 | 3 | 5 fps | sound ring |
 | `extra/radius_ring.png` | [example](examples/radius_ring.example.png) | `assets/fx/radius_ring.png` | 64×64 | 1 | still | radius ring |
 | `extra/facing_marker.png` | [example](examples/facing_marker.example.png) | `assets/fx/facing_marker.png` | 8×8 | 1 | still | facing marker |
-| `extra/frame.png` | [example](examples/frame.example.png) | `assets/ui/minimap/frame.png` | 24×24 | 1 | still | frame |
+| `extra/frame.png` | [example](examples/frame.example.png) | `assets/ui/minimap/frame.png` | 128×128 | 1 | still | frame |
 | `extra/wall.png` | [example](examples/wall.example.png) | `assets/ui/minimap/wall.png` | 4×4 | 1 | still | wall |
 | `extra/crate.png` | [example](examples/crate.example.png) | `assets/ui/minimap/crate.png` | 4×4 | 1 | still | crate |
 | `extra/killfeed_row.png` | [example](examples/killfeed_row.example.png) | `assets/ui/hud/killfeed_row.png` | 24×24 | 1 | still | killfeed row |
@@ -338,9 +347,9 @@ then add the key with its tile to config/content/materials.py (or ask the coding
 | `brick` | `assets/maps/common/wall_brick.png` | 2 | yes | 2 |
 | `wood_fence` | `assets/maps/common/fence_wood.png` | 0 | yes | 2 |
 | `glass` | `assets/maps/common/window_glass.png` | 0 | no | 2 |
-| `crate_metal` | `assets/maps/werkhof/kiste_metall.png` | 1 | no | 1 |
-| `werkhof_thick` | `assets/maps/werkhof/wand.png` | 2 | yes | 2 |
-| `werkhof_thin` | `assets/maps/werkhof/wand_duenn.png` | 0 | yes | 2 |
+| `crate_metal` | `assets/maps/workyard/metal_crate.png` | 1 | no | 1 |
+| `workyard_thick` | `assets/maps/workyard/wall.png` | 2 | yes | 2 |
+| `workyard_thin` | `assets/maps/workyard/wall_thin.png` | 0 | yes | 2 |
 | `metal_sheet` | `assets/maps/common/wall_metal_sheet.png` | 1 | yes | 2 |
 | `sandbags` | `assets/maps/common/wall_sandbags.png` | 1 | no | 1 |
 | `stone` | `assets/maps/common/wall_stone.png` | 3 | yes | 2 |
@@ -348,12 +357,19 @@ then add the key with its tile to config/content/materials.py (or ask the coding
 | `chainlink` | `assets/maps/common/fence_chainlink.png` | 0 | no | 2 |
 | `hedge` | `assets/maps/common/wall_hedge.png` | 0 | yes | 2 |
 | `jersey_barrier` | `assets/maps/common/wall_jersey_barrier.png` | 2 | no | 1 |
+| `ascent_stucco` | `assets/maps/ascent/tiles/stucco.png` | 2 | yes | 2 |
+| `ascent_brick` | `assets/maps/ascent/tiles/brick.png` | 2 | yes | 2 |
+| `ascent_limestone` | `assets/maps/ascent/tiles/limestone.png` | 3 | yes | 2 |
+| `ascent_plaster` | `assets/maps/ascent/tiles/plaster.png` | 2 | yes | 2 |
+| `ascent_metal` | `assets/maps/ascent/tiles/metal.png` | 1 | yes | 2 |
+| `ascent_roof` | `assets/maps/ascent/tiles/roof.png` | 3 | yes | 2 |
+| `ascent_window` | `assets/maps/ascent/tiles/window_sill.png` | 0 | no | 2 |
 
 ### Floors
 
 | Key | Tile |
 |---|---|
-| `stone` | `assets/maps/werkhof/boden_stein.png` |
+| `stone` | `assets/maps/workyard/stone_floor.png` |
 | `concrete` | `assets/maps/common/floor_concrete.png` |
 | `grate` | `assets/maps/common/floor_grate.png` |
 | `tiles` | `assets/maps/common/floor_tiles.png` |
@@ -368,6 +384,13 @@ then add the key with its tile to config/content/materials.py (or ask the coding
 | `gravel` | `assets/maps/common/floor_gravel.png` |
 | `tiles_dark` | `assets/maps/common/floor_tiles_dark.png` |
 | `cobble` | `assets/maps/common/floor_cobble.png` |
+| `ascent_cobble` | `assets/maps/ascent/tiles/cobble.png` |
+| `ascent_courtyard` | `assets/maps/ascent/tiles/courtyard.png` |
+| `ascent_terracotta` | `assets/maps/ascent/tiles/terracotta.png` |
+| `ascent_market` | `assets/maps/ascent/tiles/market.png` |
+| `ascent_timber` | `assets/maps/ascent/tiles/timber.png` |
+| `ascent_garden` | `assets/maps/ascent/tiles/garden.png` |
+| `ascent_canal` | `assets/maps/ascent/tiles/canal.png` |
 
 ### Objects
 
@@ -400,6 +423,28 @@ then add the key with its tile to config/content/materials.py (or ask the coding
 | `trash_bin` | `assets/maps/common/props/trash_bin.png` | 0.5 × 0.5 m | 8 × 8 | yes |
 | `ladder` | `assets/maps/common/props/ladder.png` | 1 × 2 m | 16 × 32 | no |
 | `warning_sign` | `assets/maps/common/props/warning_sign.png` | 0.75 × 0.75 m | 12 × 12 | no |
+| `ascent_radianite_crate` | `assets/maps/ascent/props/radianite_crate.png` | 2 × 2 m | 32 × 32 | yes |
+| `ascent_radianite_half` | `assets/maps/ascent/props/radianite_half.png` | 1.5 × 1.5 m | 24 × 24 | yes |
+| `ascent_radianite_stack` | `assets/maps/ascent/props/radianite_stack.png` | 3 × 2.625 m | 48 × 42 | yes |
+| `ascent_generator` | `assets/maps/ascent/props/generator.png` | 3 × 1.5 m | 48 × 24 | yes |
+| `ascent_wood_crate` | `assets/maps/ascent/props/wood_crate.png` | 1.5 × 1.5 m | 24 × 24 | yes |
+| `ascent_boat_crate` | `assets/maps/ascent/props/boat_crate.png` | 2 × 1.5 m | 32 × 24 | yes |
+| `ascent_site_door` | `assets/maps/ascent/props/site_door_closed.png` | 2.5 × 0.5 m | 40 × 8 | yes |
+| `ascent_glass` | `assets/maps/common/window_glass.png` | 3 × 0.4 m | 48 × 6 | yes |
+| `ascent_mid_panel` | `assets/maps/ascent/props/mid_panel.png` | 2 × 0.35 m | 32 × 6 | yes |
+| `ascent_brick_pallet` | `assets/maps/ascent/props/brick_pallet.png` | 1.8 × 3.7 m | 29 × 59 | yes |
+| `ascent_bench` | `assets/maps/ascent/props/bench.png` | 2.3 × 0.8 m | 37 × 13 | yes |
+| `ascent_site_door_broken` | `assets/maps/ascent/props/site_door_broken.png` | 2.5 × 0.5 m | 40 × 8 | no |
+| `ascent_door_switch` | `assets/maps/ascent/props/door_switch.png` | 0.75 × 0.625 m | 12 × 10 | no |
+| `ascent_stone_arch` | `assets/maps/ascent/props/stone_arch.png` | 2.5 × 0.75 m | 40 × 12 | no |
+| `ascent_market_awning` | `assets/maps/ascent/props/market_awning.png` | 3 × 1 m | 48 × 16 | no |
+| `ascent_market_stall` | `assets/maps/ascent/props/market_stall.png` | 2.5 × 1.25 m | 40 × 20 | yes |
+| `ascent_boathouse_skiff` | `assets/maps/ascent/props/boathouse_skiff.png` | 3 × 1.5 m | 48 × 24 | no |
+| `ascent_market_sign` | `assets/maps/ascent/props/market_sign.png` | 3 × 0.875 m | 48 × 14 | no |
+| `ascent_pizza_sign` | `assets/maps/ascent/props/pizza_sign.png` | 2.125 × 0.875 m | 34 × 14 | no |
+| `ascent_planter` | `assets/maps/ascent/props/planter.png` | 2.625 × 1 m | 42 × 16 | yes |
+| `ascent_olive_tree` | `assets/maps/ascent/props/olive_tree.png` | 2.75 × 2.5 m | 44 × 40 | yes |
+| `ascent_fountain` | `assets/maps/ascent/props/fountain.png` | 2 × 2 m | 32 × 32 | yes |
 
 ### Decals (never block)
 
@@ -422,3 +467,10 @@ then add the key with its tile to config/content/materials.py (or ask the coding
 | `manhole` | `assets/maps/common/decals/manhole.png` | 1 × 1 m | no |
 | `leaves` | `assets/maps/common/decals/leaves.png` | 2 × 2 m | no |
 | `paint_x` | `assets/maps/common/decals/paint_x.png` | 1 × 1 m | no |
+| `ascent_paint_a` | `assets/maps/ascent/decals/paint_a.png` | 1 × 1 m | no |
+| `ascent_paint_b` | `assets/maps/ascent/decals/paint_b.png` | 1 × 1 m | no |
+| `ascent_ivy` | `assets/maps/ascent/decals/ivy.png` | 2 × 1 m | no |
+| `ascent_drain` | `assets/maps/ascent/decals/drain.png` | 1 × 1 m | no |
+| `ascent_site_line` | `assets/maps/ascent/decals/site_line.png` | 2 × 0.5 m | yes |
+| `ascent_rafters` | `assets/maps/ascent/tiles/rafters.png` | 2 × 2 m | yes |
+| `ascent_steps` | `assets/maps/ascent/tiles/steps.png` | 2 × 2 m | yes |

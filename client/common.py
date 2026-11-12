@@ -117,7 +117,8 @@ def key_codes(names: dict[str, str]) -> dict[str, int]:
                 warnings.warn(f"Unknown key {name!r} for {action}; using {default}.")
     return out
 STEP_SOUND = {"metal_plate": "step_metal", "grate": "step_metal", "grass": "step_soft", "dirt": "step_soft",
-              "sand": "step_soft", "gravel": "step_soft", "carpet": "step_soft", "planks": "step_wood"}
+              "sand": "step_soft", "gravel": "step_gravel", "carpet": "step_soft",
+              "planks": "step_wood", "ascent_timber": "step_wood"}
 SHOT_SOUND = {"sidearm": "shot_pistol", "smg": "shot_smg", "shotgun": "shot_shotgun", "rifle": "shot_rifle",
               "sniper": "shot_sniper", "heavy": "shot_heavy", "melee": "knife"}
 # cast sound per preset; an ability's own `sound` field wins (any cast_* or ab_* file)
@@ -135,7 +136,7 @@ SOUND_MIX = {**SOUND_DEFAULTS, **(_load_py(CONFIG_DIR / "client" / "sound.py", "
 
 
 class Sound:
-    """Sound effects from assets/sounds (made by tools/make_sounds.py) placed around the listener: panning for left and
+    """Sound effects from assets/sounds, with recorded replacements in cc0, placed around the listener: panning for left and
     right, a duller tone for sounds behind and behind walls, distance falloff. Mix values: config/client/sound.py.
     Missing files are skipped with one warning; no sound device means silent play."""
 
@@ -143,6 +144,8 @@ class Sound:
         self.ok = False
         self.sounds: dict[str, pygame.mixer.Sound] = {}
         self.muffled: dict[str, pygame.mixer.Sound] = {}
+        self.step_variants: dict[str, list[str]] = {}
+        self.next_step: dict[str, int] = {}
         self.volume = float(SOUND_MIX["master"])
         self._warned: set[str] = set()
         try:
@@ -150,6 +153,15 @@ class Sound:
             pygame.mixer.set_num_channels(int(SOUND_MIX["channels"]))
             for path in sorted(SOUND_DIR.glob("*.wav")):
                 self.sounds[path.stem] = pygame.mixer.Sound(str(path))
+            for path in sorted((SOUND_DIR / "cc0").glob("*.wav")):
+                try:
+                    self.sounds[path.stem] = pygame.mixer.Sound(str(path))
+                except pygame.error as exc:
+                    warnings.warn(f"Sound {path.name} could not be loaded: {exc}")
+                    continue
+                if path.stem.startswith("step_"):
+                    key = path.stem.partition("-")[0]
+                    self.step_variants.setdefault(key, []).append(path.stem)
             self.ok = True
         except Exception as exc:  # sound is not essential to play
             warnings.warn(f"Sound disabled: {exc}")
@@ -177,6 +189,12 @@ class Sound:
         """Plays a sound placed around the listener; returns its channel (to stop long sounds), or None."""
         if not self.ok:
             return None
+        if variants := self.step_variants.get(key):
+            index = self.next_step.get(key, 0)
+            self.next_step[key] = (index + 1) % len(variants)
+            key = variants[index]
+        elif key == "step_gravel" and key not in self.sounds:
+            key = "step_soft"
         snd = self.sounds.get(key)
         if snd is None:
             if key not in self._warned:
@@ -215,6 +233,9 @@ class Sound:
 
 def display_mode(fullscreen: bool) -> pygame.Surface:
     """1280x720 game area; fullscreen scales it to the monitor (nearest, keeps the pixel look)."""
+    icon = SpriteBank().raw("logo.png")
+    if icon is not None:
+        pygame.display.set_icon(icon)
     flags = (pygame.FULLSCREEN | pygame.SCALED) if fullscreen else 0
     try:
         return pygame.display.set_mode((1280, 720), flags)

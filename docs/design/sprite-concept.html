@@ -1,0 +1,435 @@
+<title>Val2d Sprite Concept</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one workbench column; live scene on top, then decisions as card rows, samples, inventory, needs */
+:root{
+  --bg:#16151c; --panel:#1f1e27; --panel2:#272631; --line:#363443;
+  --fg:#e8e6ef; --muted:#9b98aa; --accent:#4fd6c8; --enemy:#ee4c4a; --gold:#e0b437;
+  --f-display:"Silkscreen", "Courier New", monospace;
+  --f-body:"IBM Plex Sans", system-ui, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, monospace;
+  color-scheme:dark;
+}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:44px}
+h1,h2{font-family:var(--f-display);font-weight:400;letter-spacing:.02em;text-wrap:balance;margin:0}
+h1{font-size:30px;line-height:1.15}
+h2{font-size:19px;color:var(--fg)}
+h3{font-size:15px;font-weight:600;margin:0}
+p{margin:0;max-width:68ch}
+.muted{color:var(--muted)}
+.mono{font-family:var(--f-mono);font-size:13px}
+header{display:flex;flex-direction:column;gap:10px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+section{display:flex;flex-direction:column;gap:16px}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+.fact{background:var(--panel);padding:14px 16px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.fact b{font-family:var(--f-mono);font-weight:500;font-size:17px;font-variant-numeric:tabular-nums}
+.fact span{color:var(--muted);font-size:13px}
+canvas{image-rendering:pixelated;image-rendering:crisp-edges;display:block;max-width:100%}
+.scene{display:grid;grid-template-columns:minmax(0,720px) minmax(0,1fr);gap:20px;align-items:start}
+.scene canvas{width:100%;height:auto;border:1px solid var(--line)}
+.legend{display:flex;flex-direction:column;gap:8px;font-size:14px}
+.legend div{display:flex;gap:10px}
+.legend i{flex:none;width:12px;height:12px;margin-top:5px;border:1px solid var(--line)}
+.decision{display:flex;flex-direction:column;gap:12px;padding-top:4px}
+.decision header{flex-direction:row;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.card{all:unset;box-sizing:border-box;cursor:pointer;background:var(--panel);border:1px solid var(--line);padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card:hover{background:var(--panel2)}
+.card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.card[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.card canvas{width:100%;height:auto;background:var(--bg)}
+.card p{font-size:13px;color:var(--muted)}
+.badges{display:flex;gap:6px;flex-wrap:wrap;min-height:20px}
+.badge{font-family:var(--f-mono);font-size:11px;letter-spacing:.04em;padding:1px 6px;border:1px solid var(--line);color:var(--muted)}
+.badge.now{border-color:var(--gold);color:var(--gold)}
+.badge.rec{border-color:var(--accent);color:var(--accent)}
+.badge.sel{background:var(--accent);color:#0e1b1a;border-color:var(--accent)}
+.samples{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.sample{background:var(--panel);border:1px solid var(--line);padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.sample .pix{display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;min-height:96px}
+.sample small{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.tag{font-family:var(--f-mono);font-size:11px;color:var(--gold)}
+.tag.new{color:var(--accent)}
+.alert{border:1px solid var(--enemy);background:color-mix(in srgb,var(--enemy) 10%,var(--panel));padding:12px 16px;display:flex;flex-direction:column;gap:4px}
+.alert b{color:var(--enemy)}
+.tbl{overflow-x:auto;border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;min-width:720px;font-size:14px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--f-mono);font-weight:500;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:var(--panel)}
+tr.tier td{background:var(--panel2);font-family:var(--f-display);font-size:13px;color:var(--accent)}
+.st{font-family:var(--f-mono);font-size:12px;white-space:nowrap}
+.st.ok{color:var(--accent)} .st.part{color:var(--gold)} .st.no{color:var(--muted)} .st.bad{color:var(--enemy)}
+.stock{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.stock .sample{gap:6px}
+ul{margin:0;padding-left:18px}
+@media (max-width:760px){.scene{grid-template-columns:minmax(0,1fr)}.cards{grid-template-columns:minmax(0,1fr)}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Design session · as of 11.11.2026</div>
+  <h1>Val2d Sprite Concept</h1>
+  <p class="muted">Rules for all remaining sprites. Every choice below updates the sample sprites and the scene immediately. The test figure is a neutral original figure, not an agent.</p>
+</header>
+
+<section>
+  <h2>Base scale</h2>
+  <div class="facts">
+    <div class="fact"><b>16 px = 1 m</b><span>Agent 1 × 2 m in code, sprite 16 × 32 px</span></div>
+    <div class="fact"><b>32 px = 2 m</b><span>tile, like the existing floor</span></div>
+    <div class="fact"><b>480 × 270 px</b><span>30 m view width, ×4 to 1920 × 1080</span></div>
+    <div class="fact"><b>Light top left</b><span>like the existing wood floor and figures</span></div>
+    <div class="fact"><b>≤ 20 colours</b><span>per figure; tiles 3 to 10</span></div>
+    <div class="fact"><b>Head 8 · body 12 · legs 7 px</b><span>hit widths of the test figure, without outline</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>How it looks in game</h2>
+  <div class="scene">
+    <canvas id="scene" width="720" height="408" aria-label="Top-down game scene with own figure, enemy, crates and view cone"></canvas>
+    <div class="legend">
+      <div><i style="background:var(--accent)"></i><span>Own figure bottom centre, always aims up (camera rotates).</span></div>
+      <div><i style="background:var(--enemy)"></i><span>Enemy stands upright in the view cone, the tracer hits.</span></div>
+      <div><i style="background:#3a3743"></i><span>Darkened outside the cone, 103° field of view.</span></div>
+      <div><i style="background:#8a6a45"></i><span>Wood floor and wood crate are existing assets; stone floor, wall, metal crate and spike draft are new.</span></div>
+      <p class="muted mono">Crop 240 × 136 px, scaled ×3.</p>
+    </div>
+  </div>
+</section>
+
+<section id="decisions">
+  <h2>Decisions</h2>
+  <p class="muted">Click picks an option. Gold marks the previous state, teal the recommendation.</p>
+</section>
+
+<section>
+  <h2>Sample sprites with the chosen rules</h2>
+  <div class="samples" id="samples"></div>
+</section>
+
+<section>
+  <h2>Inventory</h2>
+  <div class="alert">
+    <b>Replaced since</b>
+    <span>Program icon (icon.ico), logo (logo.png) and player card (playercard.png) showed the Valorant logo; they now use the crosshair logo.</span>
+  </div>
+  <div class="stock" id="stock"></div>
+</section>
+
+<section>
+  <h2>Needs by priority</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Sprite</th><th>Size</th><th>Frames</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr class="tier"><td colspan="4">Tier 1 · not playable without</td></tr>
+      <tr><td>Replacement for program icon, logo, player card</td><td class="mono">48×48, 64×128</td><td>1 each</td><td class="st ok">replaced</td></tr>
+      <tr><td>Base rules of this page (outline, team marking, light, palette)</td><td class="mono">–</td><td>–</td><td class="st ok">decided</td></tr>
+      <tr><td>Agent 1: walk</td><td class="mono">16×32</td><td>4</td><td class="st part">rest existed</td></tr>
+      <tr><td>Agent 2: idle, walk, crouch, jump, fall, land, dead</td><td class="mono">16×32</td><td>10</td><td class="st no">needed</td></tr>
+      <tr><td>Weapons in hand, 17 weapons and knife</td><td class="mono">16×8</td><td>1 each</td><td class="st part">2 of 18</td></tr>
+      <tr><td>Spike: carried, planted with blinking, defused</td><td class="mono">16×16</td><td>4</td><td class="st no">needed</td></tr>
+      <tr><td>Shots: muzzle flash, tracer, wall impact, body hit</td><td class="mono">8×8</td><td>3 each</td><td class="st no">needed</td></tr>
+      <tr><td>Map tiles: stone floor, wall top, crates in two heights, doors, spike zone, spawn barrier</td><td class="mono">32×32</td><td>about 14</td><td class="st part">wood, grass, crates, stairs</td></tr>
+      <tr><td>HUD: health and shield, ammo, credits, round timer, score, ability bar, kill feed</td><td class="mono">interface</td><td>–</td><td class="st no">needed</td></tr>
+      <tr class="tier"><td colspan="4">Tier 2 · first release complete</td></tr>
+      <tr><td>Agent 1 abilities</td><td class="mono">32–64</td><td>4–6</td><td class="st part">2 of 4 existed</td></tr>
+      <tr><td>Agent 2 abilities</td><td class="mono">16–64</td><td>3–6 each</td><td class="st no">needed</td></tr>
+      <tr><td>Ability icons</td><td class="mono">16×16</td><td>8</td><td class="st no">needed</td></tr>
+      <tr><td>Buy menu: weapon icons, shields, frames</td><td class="mono">32×12</td><td>20</td><td class="st no">needed</td></tr>
+      <tr><td>Agent select: portraits</td><td class="mono">32×32</td><td>2</td><td class="st part">1 existed</td></tr>
+      <tr><td>Minimap: players, spike, smoke</td><td class="mono">8×8</td><td>about 6</td><td class="st no">needed</td></tr>
+      <tr class="tier"><td colspan="4">Tier 3 · polish</td></tr>
+      <tr><td>Round banners: victory, defeat, switching sides</td><td class="mono">interface</td><td>3</td><td class="st no">needed</td></tr>
+      <tr><td>Sound rings (lobby setting)</td><td class="mono">effect</td><td>3</td><td class="st no">needed</td></tr>
+      <tr><td>Menus: main menu, lobby, settings</td><td class="mono">interface</td><td>–</td><td class="st part">buttons existed</td></tr>
+    </tbody>
+  </table></div>
+</section>
+</div>
+
+<script>
+const A = {"omen_smoke": "data:image/png;base64,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", "knife": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAICAYAAADwdn+XAAAAAXNSR0IArs4c6QAAAGNJREFUKJHVjkEKgCAURJ8IfQ8jegvvFK6lRdHdig6jC7FdkLWP3mYWwwwPvkYBeGdbX4QQAKi1orV+5LysCkB5Z1vJBQAxQskFMXIdvDGI3A16vLNt2w8V4/gwA0hpet39lBNDzh1yJle5/QAAAABJRU5ErkJggg==", "classic": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAICAYAAADwdn+XAAAAAXNSR0IArs4c6QAAAHtJREFUKJGlkFEKgzAUBOcVDyT2GApBsAg9YKEoiKDgJZTeJynxx0jARD+crwfLLI+Fm4g7qlJZP0izJwC/ZQ6KbdcLQBKSz8ToB+/6dSiJ8fk2uyd+UJXKam0AMObPOE2iitz2wyhECG7gSgDOZNg28NHaXEo+jzsywAomNS6HVdyJWgAAAABJRU5ErkJggg==", "wood_floor": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAY1JREFUWIW9V7tOw0AQXNCmcIR5JTlFCQrKB1Ag0fAJ/A0/w5/ZleXWxQEyUgoXKaDhovjuvLd7F2eqOLu+Ga09mvXFx/vbLwygrlpQD1dD5SCKUsPry5rsQbWYAwCA/vyKJsqzyeH3rts7dcPhFSAl9pH5SI9BcaBPHXVDiCwEm080AWrUxzVf3cDmQzY7cWioRgHrqiUbilJHHWwQOh8zvCQbHmfxNuQA8+WU3VyUGp6fVO8/Nbt1+vT3j/d+3XRwt8z6AnyNIV9zyLjAGF8PwZ4GRxym+lpK6AgwE4jxte/5S4Tk2WR4ApzJpD7/XbcHlPpcN10Sqc2Hcp8PpjcLNh+utjeHi3Pkvw1RFhik5L+BCaWggFPnvw1Ui/lZ898RQJGPkf+OAKo4Rv47Auy8Hjv/HQH2PjB2/jsC7ldT0E0Hm+119CF11cJ60xfO3RN674DEv8E+Zk70BKR8nFCg9gSvCziTADjNNLwCUich2ROisiAEyZ6AJt+l/nVII/cExP98x8D3QRhxe8IfD9bXa8FaTvAAAAAASUVORK5CYII=", "wood_floor_2": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IB2cksfwAAAARnQU1BAACxjwv8YQUAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAd0SU1FB+kEHBEeDjzNdZIAAAFfSURBVFjDxVdNb4MwDDXCRVqBtvS2VfuSduphP6GX/f/fsUrlFGgr0QO7rIiF4MQOYe+EIOGZFz/bRIfDVwsjKMsTrNZrkOJ4/IaX51dyDWZZDgAAdV2JiZJF0l03t2bw/M5hDIBLbCIzkfZBcaApOmqDjcwGnY+lACV1/xkVqM6HnOipr5cqE+33ny214HK9eEm+fFjSLojjmFyQExk8BTDNMpavnx53f+6l6XD/+Vwb96tKQabxocTXLmTOCkh8PQZdDZfg0NfXvmp0Ckh8bTp/TiDJIhlXwEUZ3/Nvbg1Eb+8frU8p5WJQCUP73FZXsCi2s/b/QRLO3f/1o0AJmU//N84Dc/Z/1kQUov+zciBE/7fOA6H7v3UemLsuYJ6vQFUKtr16wEVZnmCzKURzAkr9O1WfQKl/p5oT0KfhTKEG+lYyly92zoH/mIxQVarLZB/c38O2YfR7Yfs/CIUfPsHKx2IYBQYAAAAASUVORK5CYII=", "wood_box": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAALRJREFUWIXF17sNgDAMRVGDoGEmFmEbpk6DBFRIgSDn956dKgXSPYmbMOzbeonjGj3jIiLTsznCSQnMi35G+g0c4VQPZzIC7RboANcR/MW/46ABSuI0QC4e7+GA0pNTALVxKKAlDgO0xiGAnng3oDfeBUDEmwGoeBMAGa8GoONVAEa8GMCKFwGY8SyAHVcBFvEXIA5axV8Aj3gCsI4nAOu4CrCIq4B5GbNvesSach+wEe5/xzdu1FNpmEJaBAAAAABJRU5ErkJggg==", "grass_tile": "data:image/png;base64,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", "box1": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAT1JREFUWIXFl7ENgzAQRY+ILMEKNFSIUdLRMwMlMzAToqJhhSyBRFIZ2WdzvjM2XJWQn+9v++lLZO2n/cGD83pycQCAXH3Yih2qrrEEyzgZz/F3n27tZzLAcQJV18AyTqRpiK4caiiH2h8Am5/tNERHnYLFgPrTmalU9/7SmFm/KlN8zCE6187xdRgB9B1R5hyda/Gt2K1nR4AYwFGLl0NtgKkmU0VEkaofN3Xnyzg57xx76zpWEV0BzrUx3YcVIBZwup8V4A7gsJ8RIBVwPr9LTeg7do5fcBNKgKP8gppQChzlJ27CUODO/ERNeBU4l47dhNyGkzYmq4hiAafr1HgDxARO11kB7gAO64wAdwBHNuHaz1EbjquzGEgBHLsJUwHHbkI8MYHzNiGeFMCRTUgFkTSctAm9AVLP42/Hf4M6mtztxemuAAAAAElFTkSuQmCC", "wood_stairs": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAAXNSR0IArs4c6QAAAUNJREFUeJztlkEOgkAMRQsZop7ClfEMuvIGHsgLuyeRBUTcYFImUDHRdEbf3yjtmxRnYV9xOR/7prvLJpQiIqK/x4l7c+xU3ZrhOb/UgJV3+/Hz3I/ynl92UiweqG9w6bCmu4/6Mes9vwzSjw7M3dRU3Tq3tOc9vzjst/3kxD9JOJ92o0IVXfR6VY2e66b9KT48D8yB7fD55H6ND+3wn+D9Il58qK831z38qvft+XiA9x72no8H4AF4gA2mur7wgA/xeIAGrOABggeYNTwg0+ABqawjPMCJxwM0YAUPEDzArOEBmQYPSGUd4QFOPB6gASt4gOABZg0PyDR4QCrrCA9w4vEADVjBAwQPMGt4QKbBA1JZR3iAE48HaMAKHiB4gFnDAzINHpDKOsIDnHg8QANW8ADBA8waHpBp8IBU1hEe4MQ/ADF+9YMQUXXhAAAAAElFTkSuQmCC", "host": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAICAYAAABJYvnfAAAAAXNSR0IArs4c6QAAAHxJREFUSIlj/P////8tO3cxjETg4+7GwLJl5y6GixfOD7RbBgww0cui6vJyFBqdDeMjq0Pm0wrQLQDQQXV5OUNrZyeKh1s7OxlaOzsZGBgYMGhaAboGAL7YRA4MegK6BgCh2ByIQGChq21IAOZZWKDAPE7rJI8OGEd6NQgAXX86r+MFi+8AAAAASUVORK5CYII=", "start": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAQCAYAAACm53kpAAAAAXNSR0IArs4c6QAAANNJREFUWIXll8sNhCAQhn8JfWwjxgKMN4viZCnezBZgthEr0cNm1JBRV4aFmPkSIs4AmRcEis65GYqx1GmHMacdyembCgBgAH3OA5vPJrMd2bHXQ855fd5rfyprVs7paQwnC10vBFEAfAf2//TlnNzLOT0392q9UEzM/R/TsBS0wyg7AyiD1H7Fz+ydubERnwFHW0ACBSRFRYkDEMpZ1lNWhaELQQgSI6eyXtuR/t9B6JtKVgG+kU87BAGg6JybNd4EgW8FqL8JGmB7GGiCfLa+QBsL9uVnmyDDspYAAAAASUVORK5CYII="};
+const IMG = {};
+for (const k in A){ const im = new Image(); im.onload = () => { IMG[k] = im; renderAll(); }; im.src = A[k]; }
+
+/* ---------- colour ---------- */
+const hex2 = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16));
+const rgb = a => '#' + a.map(v => Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
+const mix = (a,b,t) => { const x=hex2(a), y=hex2(b); return rgb(x.map((v,i)=>v+(y[i]-v)*t)); };
+
+/* ---------- test figure ---------- */
+const PX = {H:'#d9772b',h:'#a8521f',S:'#e2ad88',s:'#b97d5e',J:'#4f5b5e',j:'#3a4447',G:'#6a7375',g:'#4d5658',P:'#2d2c31',p:'#1f1e23',B:'#1b1a1a'};
+const SHADE_OF = {h:'H',s:'S',j:'J',g:'G',p:'P'};
+const TEAM = {ally:{c:'#4fd6c8',l:'#b4fff6'}, enemy:{c:'#ee4c4a',l:'#ffb4a8'}};
+const TOP = [
+"................","................","......HHHH......",".....HHHHHH.....","....HHHHHHHh....","....HHHHHHHh....",
+"....hhhhhhhh....","....SSSSSSSs....","....SVVVVVVs....","....SSSSSSSs....",".....SSSSSs.....","......ssss......",
+"...TJJJJJJJJT...","..TJJJJJJJJJjT..","..JJJGGGGGGJJj..","..JJJGgGGgGJJj..","..JJJGGGGGGJJj..","..JJ.GGGGGG.Jj..",
+"..JJ.GGGGGG.Jj..","..SS.gggggg.Ss..","..ss.PPPPPP.ss.."];
+function legs(l, r){
+  const rows = [];
+  for (let y=21; y<32; y++){
+    const a = Array(16).fill('.');
+    if (y<=22){ for(let x=5;x<=9;x++) a[x]='P'; a[10]='p'; }
+    const leg = (len, x0, outward) => {
+      const e = 23+len;
+      if (y>=23 && y<e){ a[x0]='P'; a[x0+1]='P'; a[x0+2]='p'; }
+      if (y===e){ a[x0]=a[x0+1]=a[x0+2]='B'; }
+      if (y===e+1){ a[x0]=a[x0+1]=a[x0+2]='B'; a[outward]='B'; }
+    };
+    leg(l,5,4); leg(r,9,12);
+    rows.push(a.join(''));
+  }
+  return rows;
+}
+const WALK = [[5,5],[5,3],[5,5],[3,5]];
+const figureRows = f => TOP.concat(legs(...WALK[f]));
+
+function figureGrid(frame, team, st){
+  const src = figureRows(frame);
+  let g = src.map(r => [...r].map(ch => {
+    if (ch==='.') return null;
+    if (ch==='T') return st.team==='accent' ? TEAM[team].c : PX.J;
+    if (ch==='V') return st.team==='accent' ? TEAM[team].l : '#9fb3b8';
+    let k = ch; if (st.shade==='flat' && SHADE_OF[k]) k = SHADE_OF[k];
+    return PX[k];
+  }));
+  if (st.shade==='3'){
+    g = g.map((row,y) => row.map((c,x) => {
+      const ch = src[y][x];
+      if (!c || !PX[ch] || ch!==ch.toUpperCase() || ch==='B') return c;
+      const up = y>0 ? src[y-1][x] : '.', lf = x>0 ? src[y][x-1] : '.';
+      return (up!==ch || lf!==ch) ? mix(c,'#ffffff',0.24) : c;
+    }));
+  }
+  return applyOutline(g, team, st);
+}
+function applyOutline(g, team, st){
+  let mode = st.outline;
+  let col = mode==='full' ? '#0d0c11' : null;
+  if (team==='enemy' && st.team==='outline'){ mode='color'; col=TEAM.enemy.c; }
+  if (mode!=='none'){
+    const h=g.length, w=g[0].length, o=g.map(r=>r.slice());
+    for (let y=0;y<h;y++) for (let x=0;x<w;x++){
+      if (g[y][x]) continue;
+      const n = [[0,-1],[0,1],[-1,0],[1,0]].map(([dx,dy]) => (g[y+dy]||[])[x+dx]).find(Boolean);
+      if (n) o[y][x] = mode==='sel' ? mix(n,'#000000',0.55) : col;
+    }
+    g = o;
+  }
+  if (st.team==='balken' && team){ for (let x=4;x<=11;x++) g[0][x] = TEAM[team].c; }
+  return g;
+}
+
+/* ---------- grid to canvas ---------- */
+function mk(w,h){ const c=document.createElement('canvas'); c.width=w; c.height=h; return c; }
+function gridCanvas(g){
+  const h=g.length, w=g[0].length, c=mk(w,h), x=c.getContext('2d'), d=x.createImageData(w,h);
+  g.forEach((row,yy)=>row.forEach((col,xx)=>{ if(!col) return; const i=(yy*w+xx)*4, v=hex2(col); d.data[i]=v[0]; d.data[i+1]=v[1]; d.data[i+2]=v[2]; d.data[i+3]=255; }));
+  x.putImageData(d,0,0); return c;
+}
+function mapGrid(rows, pal){ return rows.map(r=>[...r].map(ch=>ch==='.'?null:pal[ch])); }
+function scaled(src, s){ const c=mk(src.width*s, src.height*s), x=c.getContext('2d'); x.imageSmoothingEnabled=false; x.drawImage(src,0,0,c.width,c.height); return c; }
+
+/* ---------- tiles ---------- */
+function rng(seed){ return () => { seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; }; }
+function tilePlaza(st){
+  const c=mk(32,32), x=c.getContext('2d'), r=rng(11), base=hex2('#c4ae88');
+  const tone=[[r(),r()],[r(),r()]].map(p=>p.map(v=>(v-.5)*20));
+  for (let row=0; row<2; row++){
+    const off = row ? 8 : 0;
+    for (let i=-1;i<3;i++){
+      const sx=i*16+off, sy=row*16, v=tone[row][(i+2)%2];
+      x.fillStyle=rgb(base.map(b=>b+v)); x.fillRect(sx,sy,16,16);
+      if (st.shade!=='flat'){
+        x.fillStyle=rgb(base.map(b=>b+v+(st.shade==='3'?22:14))); x.fillRect(sx,sy,16,1); x.fillRect(sx,sy,1,16);
+      }
+      x.fillStyle=rgb(base.map(b=>b+v-30)); x.fillRect(sx,sy+15,16,1); x.fillRect(sx+15,sy,1,16);
+    }
+  }
+  for (let k=0;k<16;k++){ x.fillStyle=r()<.5?'rgba(60,40,20,.16)':'rgba(255,250,235,.14)'; x.fillRect((r()*32)|0,(r()*32)|0,1,1); }
+  return c;
+}
+function tileWall(st){
+  const c=mk(32,32), x=c.getContext('2d'), r=rng(5);
+  x.fillStyle='#5c5866'; x.fillRect(0,0,32,32);
+  x.fillStyle='#67636f'; x.fillRect(3,3,26,26);
+  if (st.shade!=='flat'){ x.fillStyle=st.shade==='3'?'#8d8999':'#7a7684'; x.fillRect(0,0,32,1); x.fillRect(0,0,1,32); }
+  x.fillStyle='#3a3743'; x.fillRect(0,30,32,2); x.fillRect(30,0,2,32);
+  x.fillStyle='#4b4855';
+  for (let k=0;k<5;k++){ let px=4+(r()*24)|0, py=4+(r()*24)|0; for(let s=0;s<4;s++){ x.fillRect(px,py,1,1); px+= r()<.5?1:0; py+=1; } }
+  return c;
+}
+function tileCrate(st){
+  const c=mk(32,32), x=c.getContext('2d');
+  x.fillStyle='#2b3c45'; x.fillRect(0,0,32,32);
+  x.fillStyle='#4d6a77'; x.fillRect(2,2,28,28);
+  x.fillStyle='#3b525d';
+  for (let i=0;i<28;i++){ x.fillRect(2+i,2+i,2,1); x.fillRect(29-i,2+i,2,1); }
+  if (st.shade!=='flat'){ x.fillStyle=st.shade==='3'?'#8fb0bd':'#6d8c99'; x.fillRect(2,2,28,1); x.fillRect(2,2,1,28); }
+  x.fillStyle='#1f2c33'; x.fillRect(2,29,28,1); x.fillRect(29,2,1,28);
+  x.fillStyle='#a9c2cc'; [[4,4],[27,4],[4,27],[27,27]].forEach(([a,b])=>x.fillRect(a,b,1,1));
+  return c;
+}
+
+/* ---------- items ---------- */
+const RIFLE = ["........................","........RRRRRRRR........","rrrr..rrrrrrrrrrrrrrrrrk","rrrrrrrrrrrrrrrrrrkkkk..","rrrr...kkrr..rr.........","rr.....kk...rr..........",".......kk...rr..........","..............r........."];
+const CHARGE = ["................","................","...oooooooooo...","...oMMMMMMMMo...","...oMmmmmmmMo...","...oMmCCCCmMo...","...oMmCLLCmMo...","...oMmCLLCmMo...","...oMmCCCCmMo...","...oMmmmmmmMo...","...oYkYkYkYkYo..","...oMMMMMMMMo...","...oooooooooo...","....kk....kk....","................","................"];
+const FLASH = [
+ ["........","........","....Y...","...YWO..","....O...","........","........","........"],
+ ["...Y....","..YWY.Y.","YYWWWYO.","..YWWO..","...OYO..",".....O..","........","........"],
+ ["........","...g....","..gGg...","...gG...","....g...","........","........","........"]];
+function rifleCanvas(st){
+  const pal = st.shade==='flat' ? {R:'#4a4950',r:'#4a4950',k:'#2a292f'} : {R:st.shade==='3'?'#8a8994':'#6c6b75',r:'#46454d',k:'#232228'};
+  return gridCanvas(applyOutline(mapGrid(RIFLE,pal), null, {...st, team:'accent'}));
+}
+function chargeCanvas(st, on){
+  const pal = {o:'#16151b',M:st.shade==='3'?'#8a93a0':'#6b7480',m:st.shade==='flat'?'#6b7480':'#4a525c',C:'#24323a',L:on?'#ff5a4f':'#5a2a2a',Y:'#e0b437',k:'#1b1a1a'};
+  return gridCanvas(mapGrid(CHARGE,pal));
+}
+const flashCanvas = i => gridCanvas(mapGrid(FLASH[i],{Y:'#ffd75e',W:'#fffbe8',O:'#f08a24',G:'#8a8893',g:'#5d5c66'}));
+
+/* ---------- state ---------- */
+const DECISIONS = [
+  {key:'outline', title:'Outline', note:'Previously no outline.', opts:[
+    {v:'none', t:'No outline', d:'Like the existing figure sprites. The figure blurs into dark floors.', now:true},
+    {v:'sel', t:'Darker-shade outline', d:'Outer edge darkened per material. Stands out on any floor and stays soft.', rec:true},
+    {v:'full', t:'Black outline', d:'Most readable, but looks cartoonish and harsher than the existing art.'}]},
+  {key:'team', title:'Team marking', note:'Previously none.', opts:[
+    {v:'outline', t:'Enemies with red outline', d:'Enemy highlight; colour later as a player setting (red, yellow, purple).', rec:true},
+    {v:'accent', t:'Team colour on shoulders and visor', d:'Each figure shows its own team. Needs two colour variants per sprite.'},
+    {v:'balken', t:'Bar above the head', d:'Sprite stays neutral. Small and hard to read in a fight.'}]},
+  {key:'shade', title:'Shading', note:'Previously two steps, light from top left.', opts:[
+    {v:'2', t:'Two steps', d:'Base tone and shadow per material. Matches the existing art.', now:true, rec:true},
+    {v:'flat', t:'Flat', d:'One tone per material. Very clear, but loses shape and depth.'},
+    {v:'3', t:'Three steps with highlight', d:'Extra light top left. More volume, more colours and work per sprite.'}]}
+];
+const state = {outline:'sel', team:'outline', shade:'2'};
+try { const s = JSON.parse(localStorage.getItem('val2d-konzept')||'null'); if (s) Object.assign(state, s); } catch(e){}
+
+function cardPreview(st){
+  const c=mk(40,36), x=c.getContext('2d'), t=tilePlaza(st);
+  for (let i=0;i<2;i++) for (let j=0;j<2;j++) x.drawImage(t,i*32,j*32);
+  x.drawImage(gridCanvas(figureGrid(0,'ally',st)),3,2);
+  x.drawImage(gridCanvas(figureGrid(0,'enemy',st)),21,2);
+  return scaled(c,4);
+}
+
+const decEl = document.getElementById('decisions');
+DECISIONS.forEach(dec => {
+  const box = document.createElement('div'); box.className='decision';
+  box.innerHTML = `<header><h3>${dec.title}</h3><span class="muted mono">${dec.note}</span></header><div class="cards"></div>`;
+  const cards = box.querySelector('.cards');
+  dec.opts.forEach(o => {
+    const b = document.createElement('button'); b.className='card'; b.id=`opt-${dec.key}-${o.v}`;
+    b.dataset.key=dec.key; b.dataset.v=o.v;
+    b.innerHTML = `<div class="badges">${o.now?'<span class="badge now">previous</span>':''}${o.rec?'<span class="badge rec">recommended</span>':''}<span class="badge sel" hidden>selected</span></div><div class="cv"></div><h3>${o.t}</h3><p>${o.d}</p>`;
+    b.addEventListener('click', () => { state[dec.key]=o.v; try{localStorage.setItem('val2d-konzept',JSON.stringify(state));}catch(e){} renderAll(); });
+    cards.appendChild(b);
+  });
+  decEl.appendChild(box);
+});
+
+/* ---------- samples ---------- */
+const sampEl = document.getElementById('samples');
+function sample(title, size, tag, canvases){
+  const d=document.createElement('div'); d.className='sample';
+  d.innerHTML=`<span class="tag ${tag==='new'?'new':''}">${tag}</span><div class="pix"></div><h3>${title}</h3><small>${size}</small>`;
+  const p=d.querySelector('.pix'); canvases.forEach(c=>p.appendChild(c)); return d;
+}
+let walkEl=null, ledEl=null;
+function renderSamples(){
+  sampEl.innerHTML='';
+  walkEl = mk(64,128);
+  sampEl.appendChild(sample('Walk, 4 frames', '16×32 · 8 fps', 'new', [walkEl]));
+  const strip=mk(4*18,32), sx=strip.getContext('2d');
+  WALK.forEach((_,i)=>sx.drawImage(gridCanvas(figureGrid(i,'ally',state)),i*18,0));
+  sampEl.appendChild(sample('Walk cycle as strip', '4 × 16×32, Aseprite export', 'new', [scaled(strip,2)]));
+  const dead=mk(32,16); dead.getContext('2d').drawImage((()=>{const c=mk(32,16),x=c.getContext('2d');x.translate(32,0);x.rotate(Math.PI/2);x.drawImage(gridCanvas(figureGrid(0,'enemy',state)),0,0);return c;})(),0,0);
+  sampEl.appendChild(sample('Dead, lying', '32×16 like existing', 'new', [scaled(dead,3)]));
+  sampEl.appendChild(sample('Stone floor', '32×32 · 2 m', 'new', [scaled(tilePlaza(state),3)]));
+  sampEl.appendChild(sample('Wall, top', '32×32 · impenetrable', 'new', [scaled(tileWall(state),3)]));
+  sampEl.appendChild(sample('Metal crate', '32×32 · high penetration', 'new', [scaled(tileCrate(state),3)]));
+  sampEl.appendChild(sample('Rifle, own shape', '24×8', 'new', [scaled(rifleCanvas(state),4)]));
+  ledEl = mk(48,48);
+  sampEl.appendChild(sample('Spike draft, blinking', '16×16 · 2 frames', 'new', [ledEl]));
+  sampEl.appendChild(sample('Muzzle flash', '8×8 · 3 frames', 'new', [0,1,2].map(i=>scaled(flashCanvas(i),5))));
+}
+
+/* ---------- inventory ---------- */
+const STOCK = [
+  ['Agents', 'Agent 1: idle, crouch, jump, fall, land, dead (16×32), logo (32×32). Template character.aseprite without PNG.', []],
+  ['Abilities', 'Agent 1: smoke and a second effect, 64×64 each.', ['omen_smoke']],
+  ['Weapons', 'Knife and starter pistol, 16×8 each.', ['knife','classic']],
+  ['Map', 'Wood floor ×2, wood crate, grass, three crates, wood stairs 64×64; flat placeholder tiles; background 1024×512.', ['wood_floor','wood_floor_2','wood_box','grass_tile','box1','wood_stairs']],
+  ['Menu', 'Buttons Host, Join, Practice, Leave, Start; player card; agent frame; map editor interface (10 parts).', ['host','start']],
+  ['Font', 'fixed_sys.ttf (pixel font).', []]
+];
+function renderStock(){
+  const el=document.getElementById('stock'); el.innerHTML='';
+  STOCK.forEach(([t,d,keys])=>{
+    const s=document.createElement('div'); s.className='sample';
+    s.innerHTML=`<h3>${t}</h3><div class="pix" style="min-height:0"></div><p class="muted" style="font-size:13px">${d}</p>`;
+    const p=s.querySelector('.pix');
+    keys.forEach(k=>{ if(!IMG[k]) return; const c=mk(IMG[k].width,IMG[k].height); c.getContext('2d').drawImage(IMG[k],0,0); const f=IMG[k].width>32?1:2; p.appendChild(scaled(c, IMG[k].width<=16?3:f)); });
+    if(!p.children.length) p.remove();
+    el.appendChild(s);
+  });
+}
+
+/* ---------- scene ---------- */
+const sceneEl=document.getElementById('scene');
+let frame=0;
+function renderScene(){
+  const W=240,H=136, c=mk(W,H), x=c.getContext('2d'); x.imageSmoothingEnabled=false;
+  const plaza=tilePlaza(state), wall=tileWall(state), crate=tileCrate(state);
+  for(let i=0;i<8;i++) for(let j=0;j<5;j++) x.drawImage(plaza,i*32,j*32);
+  if (IMG.wood_floor) for(let i=5;i<8;i++) for(let j=2;j<5;j++) x.drawImage(IMG.wood_floor,i*32,j*32);
+  [0,32,64].forEach(px=>x.drawImage(wall,px,0));
+  x.drawImage(wall,176,0); x.drawImage(wall,176,32);
+  x.drawImage(crate,136,62);
+  if (IMG.wood_box) x.drawImage(IMG.wood_box,34,70);
+  x.drawImage(chargeCanvas(state, frame%8<4),58,112);
+  x.drawImage(gridCanvas(figureGrid(0,'enemy',state)),112,22);
+  // view cone
+  const cx=120, cy=110, half=103/2*Math.PI/180, d=x.getImageData(0,0,W,H);
+  for(let yy=0;yy<H;yy++) for(let xx=0;xx<W;xx++){
+    const a=Math.atan2(xx-cx, cy-yy);
+    if (Math.abs(a)>half){ const i=(yy*W+xx)*4; d.data[i]*=.34; d.data[i+1]*=.34; d.data[i+2]=d.data[i+2]*.34+14; }
+  }
+  x.putImageData(d,0,0);
+  // tracer and muzzle flash
+  if (frame%8<3){
+    const g=x.createLinearGradient(0,96,0,40); g.addColorStop(0,'rgba(255,230,140,.95)'); g.addColorStop(1,'rgba(255,230,140,.15)');
+    x.fillStyle=g; x.fillRect(120,40,1,56);
+    x.drawImage(flashCanvas(frame%8),116,90);
+  }
+  x.drawImage(gridCanvas(figureGrid(Math.floor(frame/2)%4,'ally',state)),112,98);
+  const o=sceneEl.getContext('2d'); o.imageSmoothingEnabled=false; o.clearRect(0,0,720,408); o.drawImage(c,0,0,720,408);
+}
+
+function tick(){
+  if (walkEl){ const x=walkEl.getContext('2d'); x.imageSmoothingEnabled=false; x.clearRect(0,0,64,128); x.drawImage(gridCanvas(figureGrid(Math.floor(frame/2)%4,'ally',state)),0,0,64,128); }
+  if (ledEl){ const x=ledEl.getContext('2d'); x.imageSmoothingEnabled=false; x.clearRect(0,0,48,48); x.drawImage(chargeCanvas(state, frame%8<4),0,0,48,48); }
+  renderScene();
+}
+function renderAll(){
+  document.querySelectorAll('.card').forEach(b=>{
+    const on = state[b.dataset.key]===b.dataset.v;
+    b.setAttribute('aria-pressed', on);
+    b.querySelector('.badge.sel').hidden = !on;
+    const cv=b.querySelector('.cv'); cv.innerHTML=''; cv.appendChild(cardPreview({...state, [b.dataset.key]:b.dataset.v}));
+  });
+  renderSamples(); renderStock(); tick();
+}
+renderAll();
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (!reduce) setInterval(()=>{ frame++; tick(); }, 125);
+</script>

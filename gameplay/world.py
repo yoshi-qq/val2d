@@ -100,6 +100,7 @@ class WorldMap:
     # explicit ramps by index into ramps: (axis it rises along, high end at the smaller coordinate, low, high level)
     ramp_spans: dict[int, tuple[str, bool, float, float]] = field(default_factory=dict)
     decks: list[Deck] = field(default_factory=list)
+    teleporters: list[tuple[Rect, Vec]] = field(default_factory=list)  # one-way entry area and destination
 
     def deck_at(self, p: Vec) -> Deck | None:
         return next((deck for deck in self.decks if deck.rect.contains(p)), None)
@@ -268,6 +269,12 @@ def _rect(v: list[float]) -> Rect:
     return Rect(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
 
 
+DEFAULT_MAP = "ascent"
+PLAYABLE_MAP_KEYS = (DEFAULT_MAP,)
+LEGACY_MAP_ART = {"werkhof": "workyard", "gasse": "alley", "hafen": "harbour"}
+LEGACY_WALL_MATERIAL = {"werkhof_thick": "workyard_thick", "werkhof_thin": "workyard_thin"}
+
+
 def map_keys() -> list[str]:
     """All maps: gameplay/data/maps/*.json (map editor) and *.py (built in Python, MAP = ...); _files are skipped."""
     return sorted({
@@ -306,6 +313,12 @@ def load_map(key: str) -> WorldMap:
     return parse_map(key, raw)
 
 
+def load_playable_map(key: str) -> WorldMap:
+    if key not in PLAYABLE_MAP_KEYS:
+        raise OSError(f"Map {key!r} is disabled.")
+    return parse_map(key, load_map_raw(key))
+
+
 def parse_map(key: str, raw: dict) -> WorldMap:
     """Builds a WorldMap from map-file data (also used by the map editor for its preview)."""
     m = WorldMap(key=key, name=raw["name"], width=raw["width"], height=raw["height"])
@@ -315,6 +328,7 @@ def parse_map(key: str, raw: dict) -> WorldMap:
     mats = load_materials()[0]
     for wl in raw.get("walls", []):
         mat = str(wl.get("mat", ""))
+        mat = LEGACY_WALL_MATERIAL.get(mat, mat)
         base = mats.get(mat, {})
         if mat and not base:
             warnings.warn(f"Map {key}: unknown wall material {mat!r}")
@@ -347,6 +361,7 @@ def parse_map(key: str, raw: dict) -> WorldMap:
     m.practice_targets = [(Vec(*t["pos"]), float(t.get("move", 0.0))) for t in raw.get("practice_targets", [])]
     m.floor = str(raw.get("floor", ""))
     m.art = str(raw.get("art", key))
+    m.art = LEGACY_MAP_ART.get(m.art, m.art)
     m.floors = [(str(f["mat"]), _rect(f["rect"])) for f in raw.get("floors", [])]
     for b in raw.get("crates", []):
         m.walls.append(Wall(_rect(b), 1, False, 1))
@@ -370,6 +385,7 @@ def parse_map(key: str, raw: dict) -> WorldMap:
         else:
             m.ramps.append(_rect(r))
     m.sites = [Site(s["name"], _rect(s["rect"])) for s in raw.get("sites", [])]
+    m.teleporters = [(_rect(t["entry"]), Vec(*t["exit"])) for t in raw.get("teleporters", [])]
     m.spawns = {int(t): [Vec(*p) for p in pts] for t, pts in raw.get("spawns", {}).items()}
     m.spawn_zones = {int(t): _rect(r) for t, r in raw.get("spawn_zones", {}).items()}
     m.callouts = [(c["name"], _rect(c["rect"])) for c in raw.get("callouts", [])]

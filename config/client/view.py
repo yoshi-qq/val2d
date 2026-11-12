@@ -11,4 +11,5 @@ VIEW = {
     "sight_rays": 220,          # rays cast for the sight area (more = smoother edges, slower)
     "body_sight": 0.9,          # metres around the own figure that are always lit
     "facing_marker": 1.3,       # metres: length of the line that shows exactly where a figure looks
+    "smoke_warning_seconds": 2.0,  # Val2d timing for the expiry cue described in VALORANT 9.10
 }

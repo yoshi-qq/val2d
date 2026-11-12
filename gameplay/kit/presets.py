@@ -39,7 +39,7 @@ def flash(ab: dict[str, Any]) -> dict[str, Any]:
     pop = {"when": "expire", "who": "everyone", "facing": ab["cone"], "sight": None if through else "all",
            "do": [{"do": "status", "name": "blind", "seconds": ab["blind"]}, {"do": "event", "kind": "flash"}]}
     return {"target": "throw" if ab.get("throw", True) else "aim_free" if through else "aim",
-            "place": {"look": "flash", "thrown": True, "lasts": ab["fuse"], "triggers": [pop]}}
+            "place": {"look": "flash", "thrown": True, "lasts": ab["fuse"], "triggers": [pop], "sprite": ab.get("sprite")}}
 
 
 @preset("zone")
@@ -124,7 +124,7 @@ def hop(ab: dict[str, Any]) -> dict[str, Any]:
 
 @preset("teleport")
 def teleport(ab: dict[str, Any]) -> dict[str, Any]:
-    return {"target": "aim", "do": [{"do": "teleport"}]}
+    return {"target": "teleport_aim", "do": [{"do": "teleport"}]}
 
 
 @preset("anchor")

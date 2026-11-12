@@ -7,12 +7,15 @@ Message = 4-byte length (big endian) + JSON in UTF-8, at most MAX_MESSAGE bytes.
 from __future__ import annotations
 
 import json
+import math
 import socket
 import struct
 from typing import Any
 
 from gameplay.geometry import Rect, Vec
 from gameplay.match import Command, Drop, Effect, GameEvent, Match, PlayerState, WeaponState
+from gameplay.skins import skin_choice
+from gameplay.world import Wall
 
 DEFAULT_PORT = 9009
 DISCOVERY_PORT = 9010
@@ -79,8 +82,10 @@ def command_from_json(raw: dict[str, Any]) -> Command:
     cmd.ability = ab if ab in ("C", "Q", "E", "X") else None
     cmd.ability_alt = bool(raw.get("ability_alt", False)) and cmd.ability is not None
     pts = raw.get("points", [])
-    cmd.points = [(float(x), float(y)) for x, y in pts[:8] if isinstance(x, (int, float)) and isinstance(y, (int, float))] \
-        if isinstance(pts, list) and cmd.ability else []
+    if isinstance(pts, list) and cmd.ability:
+        cmd.points = [(float(point[0]), float(point[1])) for point in pts[:8]
+                      if isinstance(point, (list, tuple)) and len(point) == 2
+                      and all(isinstance(v, (int, float)) and -1e6 <= v <= 1e6 and math.isfinite(v) for v in point)]
     buy = raw.get("buy", [])
     cmd.buy = [b for b in buy if isinstance(b, str) and len(b) <= 32][:8] if isinstance(buy, list) else []
     req = raw.get("request")
@@ -99,6 +104,8 @@ def merge_commands(old: Command | None, new: Command) -> Command:
     new.slot = new.slot or old.slot
     if not new.ability:
         new.ability, new.ability_alt, new.points = old.ability, old.ability_alt, old.points
+        if old.ability:
+            new.facing, new.cursor_depth = old.facing, old.cursor_depth
     return new
 
 
@@ -139,10 +146,17 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
     m.spike_pos = Vec(*sp["pos"]) if sp["pos"] else None
     m.spike_ground = float(sp.get("ground", 0.0))
     m.spike_site = sp["site"]
-    m.effects = [Effect(e["kind"], 0, e["team"], Vec(e["x"], e["y"]), float(e.get("until", m.time + 1.0)), e["r"],
+    m.effects = [Effect(e["kind"], e.get("owner", 0), e["team"], Vec(e["x"], e["y"]), float(e.get("until", m.time + 1.0)), e["r"],
                         Vec(*e["a"]) if e["a"] else None, Vec(*e["b"]) if e["b"] else None,
-                        start=float(e.get("start", 0.0)), props={"status": e.get("status")}) for e in snap["effects"]]
-    m.drops = [Drop(d["key"], 0, 0, Vec(d["x"], d["y"])) for d in snap.get("drops", [])]
+                        start=float(e.get("start", 0.0)),
+                        props={key: e.get(key) for key in ("status", "sprite", "sprite_width", "warning_sprite", "manual",
+                                                          "recall_recharge")})
+                 for e in snap["effects"]]
+    for effect, row in zip(m.effects, snap["effects"]):
+        if row.get("barrier"):
+            effect.props["barrier"] = Wall(Rect(*row["barrier"]), 3)
+    m.drops = [Drop(d["key"], 0, 0, Vec(d["x"], d["y"]), skin_choice(d["key"], d.get("skin")))
+               for d in snap.get("drops", [])]
     m.history = [(int(w), str(r)) for w, r in snap.get("history", []) if isinstance(r, str)]
     m.orbs = [Vec(float(x), float(y)) for x, y in snap.get("orbs", [])]
     m.remote_report = [r for r in snap.get("report", []) if isinstance(r, dict)]
@@ -185,10 +199,13 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
         if pid != own_pid or new_round:
             p.facing = row["facing"]
         p.alive, p.hp, p.armor = row["alive"], row["hp"], row["armor"]
+        p.armor_key = str(row.get("armor_key", ""))
+        p.armor_reserve = int(row.get("armor_reserve", 0))
         if row["credits"] is not None:
             p.credits = row["credits"]
         p.slot = row["slot"]
-        p.weapons = {row["slot"]: WeaponState(row["weapon"], row["mag"], row["reserve"])} if row["weapon"] else {}
+        key = row["weapon"]
+        p.weapons = {row["slot"]: WeaponState(key, row["mag"], row["reserve"], skin_choice(key, row.get("skin")))} if key else {}
         p.charges = dict(row["charges"])
         p.ult_points = row["ult"]
         p.kills, p.deaths = row["kills"], row["deaths"]
@@ -206,6 +223,14 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
         p.anchor = Vec(*anchor) if isinstance(anchor, list) and len(anchor) == 2 else None
         p.anchor_until = m.time + 1.0 if p.anchor is not None else 0.0
         p.dash_until = m.time + 0.1 if row.get("dashing") else 0.0
+        p.dash_armed_at = float(row.get("dash_armed_at", 0.0))
+        p.dash_armed_until = float(row.get("dash_armed_until", 0.0))
+        p.channel_until = float(row.get("channel_until", 0.0))
+        p.blade_count = int(row.get("blade_count", 0))
+        p.blades_equipped = bool(row.get("blades_equipped"))
+        p.repeat_shots = int(row.get("repeat_shots", 0))
+        p.repeat_until = float(row.get("repeat_until", 0.0))
+        p.repeat_next = float(row.get("repeat_next", 0.0))
 
 
 def events_from_json(rows: list[dict[str, Any]]) -> list[GameEvent]:

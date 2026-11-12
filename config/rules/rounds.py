@@ -18,7 +18,12 @@ RULES = {
         'blast_radius': 12.0,
     },
     'modes': {
-        'quick': {'win_rounds': 4, 'half_after': 3, 'buy_time': 20, 'round_time': 80, 'overtime': False},
+        # VALORANT patch 5.12 (Swiftplay) and patch 10.09 (9-point ultimates).
+        'quick': {
+            'win_rounds': 5, 'half_after': 4, 'buy_time': 20, 'round_time': 100, 'overtime': False,
+            'round_credits': (2400, 4250, 4250), 'pistol_win_bonus': 600,
+            'half_ult_points': 2, 'high_cost_ult_points': 3,
+        },
         'deathmatch': {'kill_limit': 40, 'time_limit': 360, 'respawn': 3.0, 'spawn_shield': 50},
     },
 }

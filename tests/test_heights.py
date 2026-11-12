@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from gameplay.geometry import Rect, Vec
 from gameplay.match import Command, Match
-from gameplay.world import Platform, WorldMap, load_map
+from gameplay.world import Platform, WorldMap
+from map_fixtures import load_archived_map
 
 
 def ramp_world() -> WorldMap:
@@ -29,8 +30,8 @@ def walk(m: Match, pid: int, facing: float, seconds: float) -> list[float]:
 
 
 def setup() -> tuple[Match, int]:
-    m = Match(load_map("workyard"), seed=1)
-    pid = m.add_player("A", 0, "kestrel").pid
+    m = Match(load_archived_map("workyard"), seed=1)
+    pid = m.add_player("A", 0, "omen").pid
     m.start()
     for _ in range(31 * 64):
         m.tick(1 / 64, {})
@@ -40,7 +41,7 @@ def setup() -> tuple[Match, int]:
 def test_walking_up_the_ramp_is_smooth_and_off_the_ledge_never_rises() -> None:
     m, pid = setup()
     p = m.players[pid]
-    p.pos, p.z, p.vz, p.ground = Vec(11.5, 35.5), 0.0, 0.0, 0.0  # in front of the low end of the Werkhof ramp
+    p.pos, p.z, p.vz, p.ground = Vec(11.5, 35.5), 0.0, 0.0, 0.0  # in front of the low end of the Workyard ramp
     up = walk(m, pid, 270.0, 0.9)  # west; compass angles: 0 is +y, 270 is -x
     assert 3.0 < p.pos.x < 8.0, "reached the platform"
     assert max(b - a for a, b in zip(up, up[1:])) < 0.15, "no jump while walking up"

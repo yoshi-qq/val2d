@@ -8,16 +8,22 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 import pygame  # noqa: E402
+import pytest  # noqa: E402
 
 from client.game import Game  # noqa: E402
 
 
 def args(**over: object) -> argparse.Namespace:
-    base = dict(agent="kestrel", team_size=2, rounds=13, map="workyard", all_around=False, sound_rings=False, name="Tester",
+    base = dict(agent="omen", team_size=2, rounds=13, map="ascent", all_around=False, sound_rings=False, name="Tester",
                 host=False, host_online=False, join=None, find=False, port=9009, no_menu=True, practice=False,
                 mode="standard", online=False)
     base.update(over)
     return argparse.Namespace(**base)
+
+
+@pytest.fixture(autouse=True)
+def settings_path(monkeypatch, tmp_path):
+    monkeypatch.setattr("user_settings.SETTINGS_PATH", tmp_path / "settings.json")
 
 
 def frames(game: Game, n: int) -> None:
@@ -33,8 +39,10 @@ def test_menu_opens_and_lists_maps() -> None:
     pygame.init()
     screen = pygame.display.set_mode((1280, 720))
     font = pygame.font.Font(None, 22)
-    menu = MainMenu(screen, font, font, args())
-    assert "workyard" in menu.maps
+    menu = MainMenu(screen, font, font, args(map="workyard", agent="kestrel"))
+    assert menu.maps == ["ascent"]
+    assert set(menu.agents()) == {"brimstone", "omen", "jett", "sova", "sage", "cypher", "phoenix", "killjoy"}
+    assert (menu.args.map, menu.args.agent) == ("ascent", "omen")
     menu.draw()
 
 
@@ -47,28 +55,28 @@ def test_local_match_draws_buy_and_live_frames() -> None:
     assert game.match.phase in ("live", "planted", "end")
 
 
-def test_practice_range_draws() -> None:
-    game = Game(args(practice=True))
-    game.match.start_practice()
-    frames(game, 20)
+@pytest.mark.parametrize("options", [{"map": "workyard"}, {"map": "harbour", "host": True}, {"practice": True}])
+def test_custom_maps_are_disabled(options) -> None:
+    with pytest.raises(OSError, match="disabled"):
+        Game(args(**options))
 
 
-def test_menu_start_path_local_and_range() -> None:
+def test_menu_start_path_local() -> None:
     """The real path: main menu builds the arguments, the game starts from them and draws."""
     from menu import MainMenu
     pygame.init()
     screen = pygame.display.set_mode((1280, 720))
     font = pygame.font.Font(None, 22)
-    for action in ("local", "range"):
-        menu = MainMenu(screen, font, font, args(no_menu=False))
-        chosen = menu.activate(action)
-        assert chosen is not None and chosen is not False
-        game = Game(chosen)
-        if game.practice:
-            game.match.start_practice()
-        else:
-            game.match.start()
-        frames(game, 10)
+    menu = MainMenu(screen, font, font, args(no_menu=False))
+    chosen = menu.activate("start")
+    assert isinstance(chosen, argparse.Namespace)
+    game = Game(chosen)
+    assert game.match.world.key == "ascent"
+    assert all(p.agent in menu.agents() for p in game.match.players.values())
+    game.reload_content()
+    assert set(game.match.agents) == set(menu.agents())
+    game.match.start()
+    frames(game, 10)
 
 
 def test_escape_pauses_and_double_alt_f4_quits() -> None:
@@ -123,8 +131,16 @@ def _post_key(key: int) -> None:
     pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=key, mod=0, unicode="", scancode=0))
 
 
+@pytest.fixture
+def legacy_wall_agent(monkeypatch, archived_agents):
+    from gameplay.match import playable_agents
+    roster = playable_agents()
+    roster["marrow"] = archived_agents["marrow"]
+    monkeypatch.setattr("client.game.playable_agents", lambda: roster)
+
+
 def test_ability_is_taken_in_hand_cast_with_left_click_and_put_away_with_its_key() -> None:
-    game = Game(args(agent="marrow"))
+    game = Game(args(agent="omen"))
     game.match.start()
     key_e = game.keys["ability_e"]
     before = len(game.match.effects)
@@ -135,7 +151,7 @@ def test_ability_is_taken_in_hand_cast_with_left_click_and_put_away_with_its_key
     pygame.event.post(pygame.event.Event(pygame.QUIT))
     game.run()
     assert game.aiming is None and len(game.match.effects) == before
-    game2 = Game(args(agent="marrow"))
+    game2 = Game(args(agent="omen"))
     game2.match.start()
     before = len(game2.match.effects)
     pygame.event.clear()
@@ -147,13 +163,13 @@ def test_ability_is_taken_in_hand_cast_with_left_click_and_put_away_with_its_key
     assert len(game2.match.effects) == before + 1 and game2.aiming is None
 
 
-def test_right_click_casts_the_alternative_wall_along_the_aim() -> None:
-    from gameplay.geometry import Vec
+def test_right_click_casts_the_alternative_wall_along_the_aim(legacy_wall_agent) -> None:
     from gameplay.match import Command
     game = Game(args(agent="marrow"))
     game.match.start()
     me = game.match.players[game.me]
     me.charges["Q"], me.facing = 1, 0.0
+    assert me.agent == "marrow"
     game.match.tick(1 / 64, {game.me: Command(facing=0.0, cursor_depth=6.0, ability="Q", ability_alt=True)})
     wall = next(e for e in game.match.effects if e.kind == "wall")
     assert abs(wall.a.x - wall.b.x) < 1e-6 and abs(wall.a.y - wall.b.y) > 1.0  # along the aim (aim = +y)
@@ -203,13 +219,14 @@ def test_spectator_camera_turns_smoothly() -> None:
     assert 0 < turned < 60, "the camera follows, but not in one jump"
 
 
-def test_throwable_in_hand_draws_a_throw_cursor_only() -> None:
-    game = Game(args())  # kestrel: C is a flash, a throwable
+@pytest.mark.parametrize(("agent", "slot"), [("phoenix", "Q"), ("brimstone", "C")])
+def test_throwable_in_hand_draws_its_aim_preview(agent, slot) -> None:
+    game = Game(args(agent=agent))
     game.match.start()
     me = game.match.players[game.me]
-    ab = game.match.agents[me.agent]["abilities"]["C"]
-    assert game.is_throwable(ab) and game.needs_aim(me, "C")
-    game.aiming = "C"
+    ab = game.match.agents[me.agent]["abilities"][slot]
+    assert game.is_throwable(ab) and game.needs_aim(me, slot)
+    game.aiming = slot
     game.draw()
 
 
@@ -218,8 +235,8 @@ def test_buy_menu_sells_with_a_second_click_and_surrender_ends_the_match() -> No
     game.match.start()
     me = game.match.players[game.me]
     me.credits = 5000
-    game.match.buy(me, "assault_rifle")
-    assert game.item_sellable(me, "assault_rifle")
+    game.match.buy(me, "vandal")
+    assert game.item_sellable(me, "vandal")
     game.ui.buy_open = True
     game.draw()
     game.ui.buy_open = False
@@ -235,16 +252,24 @@ def test_buy_menu_sells_with_a_second_click_and_surrender_ends_the_match() -> No
 
 
 def test_multi_placement_marks_with_left_and_confirms_with_right_click() -> None:
-    game = Game(args(agent="juniper"))
+    from gameplay.geometry import Vec
+
+    game = Game(args(agent="brimstone"))
     game.match.start()
-    key_e = game.keys["ability_e"]
-    before = len(game.match.effects)
+    me = game.match.players[game.me]
+    assert me.agent == "brimstone"
+    me.charges["E"] = 3
+    rect, scale = game.tactical_layout()
+    origin = (round(rect.left + me.pos.x * scale), round(rect.top + (game.match.world.height - me.pos.y) * scale))
+    clicks = [(origin[0] - 8, origin[1]), (origin[0] + 8, origin[1])]
+    targets = [Vec((x - rect.left) / scale, game.match.world.height - (y - rect.top) / scale) for x, y in clicks]
     pygame.event.clear()
-    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=key_e, mod=0, unicode="", scancode=0))
-    pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(640, 360)))
-    pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(640, 360)))
-    pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=3, pos=(640, 360)))
+    _post_key(game.keys["ability_e"])
+    for click in clicks:
+        pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=click))
+    pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=3, pos=clicks[-1]))
     pygame.event.post(pygame.event.Event(pygame.QUIT))
     pygame.event.post(pygame.event.Event(pygame.QUIT))
     game.run()
-    assert len(game.match.effects) == before + 2
+    assert [effect.pos for effect in game.match.effects if effect.kind == "smoke"] == targets
+    assert me.charges["E"] == 1 and game.aiming is None

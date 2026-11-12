@@ -1,8 +1,8 @@
 """Checks an agent's exported strips against the blueprint and creates the enemy variants.
 
-Usage: python docs/design/check_agent_sprites.py kestrel [--no-enemy]
+Usage: python docs/design/check_agent_sprites.py omen [--no-enemy]
 For every state in docs/design/character_sheet_spec.py it checks size and frame count,
-the colour budget (outline excluded), reserved team colours and free columns 0 and 15, then writes *_feind.png
+the colour budget (outline excluded), reserved team colours and free columns 0 and 15, then writes *_enemy.png
 (red outer outline) next to each strip unless --no-enemy is given.
 Problems are printed as warnings; nothing is deleted.
 """
@@ -76,7 +76,7 @@ def check(key: str, make_enemy: bool) -> int:
             print(f"BORDER   {path.name}: {border_hits} px in column 0 or 15; keep both free outside ability frames")
             problems += 1
         if make_enemy and st.tag not in NO_ENEMY_VARIANT:
-            enemy_variant(im).save(folder / f"{key}_{st.tag}_feind.png")
+            enemy_variant(im).save(folder / f"{key}_{st.tag}_enemy.png")
     drawn = [c for c, n in colours.items() if n >= 6]  # single sparks and accents (< 6 px) don't count
     if len(drawn) > MAX_COLOURS + 4:  # outline pixels filling 1-px gaps (e.g. between the legs) count as drawn; allow for them
         print(f"PALETTE  {len(drawn)} drawn colours over all strips; the budget is {MAX_COLOURS}")

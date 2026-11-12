@@ -58,7 +58,7 @@ def check_ability(ab: dict) -> list[str]:
 
     def obj(spec_place: dict, where: str) -> None:
         for tr in spec_place.get("triggers", []):
-            if tr.get("when") not in TRIGGERS:
+            if tr.get("when") not in TRIGGERS and not (spec_place.get("manual") and tr.get("when") == "activate"):
                 problems.append(f"{where}: unknown trigger {tr.get('when')}")
             steps(tr.get("do", []), f"{where} > {tr.get('when')}")
 

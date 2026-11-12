@@ -89,6 +89,7 @@ class SettingsPanel:
             name = st["name"]
             self.settings = user_settings.defaults()
             self.settings["name"] = name
+            self.settings["weapon_skins"] = st["weapon_skins"]
         return None
 
     def close(self) -> str:
@@ -127,8 +128,7 @@ class SettingsPanel:
         if self.tab == "general":
             ui.text("Name", (box.x + 40, y + 10), "s", "muted", upper=True)
             field = pygame.Rect(box.x + 330, y, 360, 40)
-            ui.fill(field, "panel_light")
-            ui.outline(field, "accent" if self.typing_name else "line")
+            ui.textfield(field, self.typing_name)
             ui.text(st["name"] + ("_" if self.typing_name else ""), (field.x + 12, field.y + 12), "m")
             ui.area(field, "field:name")
             y += 64

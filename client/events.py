@@ -38,7 +38,7 @@ class EventsMixin:
         m = self.match
         if m.phase == "planted" and m.spike_pos is not None:
             left = m.spike_time_left()
-            interval = max(0.12, min(1.0, left / 40.0))
+            interval = 1 / 3 if left <= 10 else 0.5 if left <= 20 else 1.0
             if m.time >= self._next_beep:
                 self._next_beep = m.time + interval
                 self.sound.play("bomb_beep", me, m.spike_pos, 60, gain=0.8)
@@ -76,7 +76,7 @@ class EventsMixin:
                 if d["pid"] == self.me:
                     self.stats["shots"] += 1
                 if d.get("stop") == "wall":
-                    self.ui.oneshots.append(("fx/einschlag_wand.png", Vec(*d["to"]), t, 0.25, 8, (0.5, 0.5)))
+                    self.ui.oneshots.append(("fx/wall_impact.png", Vec(*d["to"]), t, 0.25, 8, (0.5, 0.5)))
                 a, b = Vec(*d["from"]), Vec(*d["to"])
                 shooter = m.players.get(d["pid"])
                 wd = m.weapons.get(str(d.get("weapon", "")))
@@ -139,7 +139,7 @@ class EventsMixin:
                     self.stats["heads"] += 1 if d.get("zone") == "head" else 0
                 victim = m.players.get(d["pid"])
                 if victim is not None:
-                    self.ui.oneshots.append(("fx/treffer_koerper.png", victim.pos, t, 0.25, 8, (0.5, 0.5)))
+                    self.ui.oneshots.append(("fx/body_hit.png", victim.pos, t, 0.25, 8, (0.5, 0.5)))
                 if d["by"] == self.me:
                     self.ui.hit_marker = t + 0.15
             elif e.kind == "kill":
@@ -160,7 +160,7 @@ class EventsMixin:
             elif e.kind == "plant":
                 self.stop_spike_sound(d["pid"])
                 self.ui.banner = (t + 2.5, f"Bomb planted on {d['site']}")
-                self.ui.banner_art = "spike_gelegt"
+                self.ui.banner_art = "bomb_planted"
                 self.sound.play("bomb_planted")
             elif e.kind == "blast":
                 self.sound.play("ab_blast", me, Vec(*d["pos"]), 45, occluded=self.occluded(me, Vec(*d["pos"])))
@@ -171,15 +171,24 @@ class EventsMixin:
                 revived = m.players.get(d["pid"])
                 self.ui.feed.append((t + 4, f"{revived.name if revived else '?'} revived", None,
                                      revived.agent if revived else None, False, "", revived.team if revived else None))
+            elif e.kind == "ability_return" and d["pid"] == self.me:
+                self.local_facing = float(d["facing"])
+                self.set_aim(None)
+                if self.mode == "client" and me is not None:
+                    me.pos = Vec(*d["pos"])
+                    me.facing = self.local_facing
+                    self.server_pos[self.me] = me.pos
             elif e.kind == "ability" and d.get("kind") == "wave":
                 self.ui.last_cast[d["pid"]] = (t, str(d.get("key", "C")))
                 self.ui.waves.append((d["pid"], Vec(*d["pos"]), t))
             elif e.kind == "ability":
                 self.ui.last_cast[d["pid"]] = (t, str(d.get("key", "C")))
+                if d["pid"] == self.me and self.aiming == d.get("key") and d.get("repeat_left") == 0:
+                    self.set_aim(None)
                 kind, at = str(d.get("kind")), Vec(*d["pos"])
                 caster = m.players.get(d["pid"])
                 if kind == "hop" and caster is not None:
-                    self.ui.oneshots.append(("fx/satz_staub.png", caster.pos, t, 0.35, 16, (1.0, 0.5)))
+                    self.ui.oneshots.append(("fx/hop_dust.png", caster.pos, t, 0.35, 16, (1.0, 0.5)))
                 elif kind == "reveal_all" and caster is not None:
                     self.ui.oneshots.append(("fx/ability/beacon.png", caster.pos, t, 1.5, 16, (1.0, 1.0)))
                 elif kind in ("zone", "sensor", "alarm", "tripwire", "blast", "smoke"):
@@ -190,21 +199,22 @@ class EventsMixin:
                 cast = str(d.get("sound") or "")  # an ability may name its own cast sound
                 key = cast if cast in self.sound.sounds else ABILITY_SOUND.get(kind, "cast_magic")
                 origin = caster.pos if caster is not None else at
-                self.sound.play(key, me, origin, 30, occluded=self.occluded(me, origin))
+                if d.get("cast_team") is None or d["cast_team"] == me.team:
+                    self.sound.play(key, me, origin, float(d.get("cast_radius", 30)), occluded=self.occluded(me, origin))
             elif e.kind == "round_end":
                 won = d["winner"] == me.team
                 self.sound.play("round_win" if won else "round_loss")
                 self.ui.banner = (t + 5, f"{d['reason']}  {d['score'][me.team]}:{d['score'][1 - me.team]}")
-                self.ui.banner_art = "sieg" if won else "niederlage"
+                self.ui.banner_art = "victory" if won else "defeat"
                 if d.get("reason") == "Bomb defused":
-                    self.ui.banner_art = "entschaerft" if won else "niederlage"
+                    self.ui.banner_art = "bomb_defused" if won else "defeat"
             elif e.kind == "explode":
                 self.ui.oneshots.append(("fx/spike_explosion.png", Vec(*d["pos"]), t, 1.0, 64, (24.0, 24.0)))
                 self.ui.scorches.append((Vec(*d["pos"]), t + 30.0))
                 self.sound.play("bomb_explode", me, Vec(*d["pos"]), 120)
             elif e.kind == "flash":
                 self.sound.play("ab_flash", me, Vec(*d["pos"]), 35, occluded=self.occluded(me, Vec(*d["pos"])))
-                self.ui.oneshots.append(("fx/funke_explosion.png", Vec(*d["pos"]), t, 0.3, 16, (1.0, 1.0)))
+                self.ui.oneshots.append(("fx/flash_burst.png", Vec(*d["pos"]), t, 0.3, 16, (1.0, 1.0)))
             elif e.kind == "round_title":
                 ours = d.get("team") == me.team
                 who = m.players.get(d["pid"]).name if d.get("pid") in m.players else ""

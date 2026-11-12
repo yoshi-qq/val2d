@@ -54,7 +54,7 @@ class WorldViewMixin:
             s.blit(lbl, (sx - lbl.get_width() / 2, sy - lbl.get_height() / 2))
         for drop in m.drops:  # weapons lying on the ground, hand sprite at 2x the world scale
             size = (round(2 * self.scale), round(self.scale))
-            gun = self.bank.scaled(f"weapons/val2d/{self.weapon_art(drop.key)}.png", size)
+            gun = self.bank.weapon(self.weapon_art(drop.key), size, drop.skin)
             dx, dy = self.to_screen(drop.pos, me)
             if gun is not None:
                 s.blit(gun, (dx - size[0] / 2, dy - size[1] / 2))
@@ -76,7 +76,15 @@ class WorldViewMixin:
             pygame.draw.polygon(s, (247, 240, 168), pts)
             pygame.draw.polygon(s, (120, 110, 60), pts, 2)
         for e in m.effects:
+            if self.mode != "client" and not m._effect_visible(e, me):
+                continue
             self.draw_effect(e, me)
+            remaining = self.smoke_warning(e)
+            if remaining:
+                diameter = max(1, round(2 * e.radius * self.scale))
+                ring = pygame.Rect(0, 0, diameter, diameter)
+                ring.center = self.to_screen(e.pos, me)
+                pygame.draw.arc(s, C_TEXT, ring, math.pi / 2, math.pi / 2 + math.tau * remaining, 2)
         if m.spike_pos is not None:
             px, py = self.to_screen(m.spike_pos, me)
             blink = m.phase != "planted" or int(m.time * (2 + 6 * (1 - m.spike_time_left() / 45))) % 2 == 0
@@ -87,6 +95,10 @@ class WorldViewMixin:
             else:
                 pygame.draw.rect(s, C_ENEMY if blink else (90, 40, 40), (px - 6, py - 6, 12, 12))
         self.draw_sight(me)
+        for e in m.effects:
+            if e.kind == "snapshot" and e.team == me.team and m.time < e.until:
+                center = self.to_screen(e.pos, me)
+                pygame.draw.circle(s, (247, 240, 168), center, max(4, round(self.scale * 0.26)), 2)
         for ring in list(self.ui.rings):
             age = m.time - ring.start
             if age > 0.6:
@@ -109,7 +121,7 @@ class WorldViewMixin:
             if tr.until - m.time > 0.1:  # long-lived cheat tracer: no muzzle flash after the first moment
                 continue
             size = max(1, round(self.scale * 0.5))
-            muzzle = self.bank.scaled("fx/muendung.png", (size, size), frame, 8) if tr.muzzle else None
+            muzzle = self.bank.scaled("fx/muzzle_flash.png", (size, size), frame, 8) if tr.muzzle else None
             if muzzle is not None and (tr.b - tr.a).length() > 0.7:
                 mx, my = self.to_screen(tr.a + (tr.b - tr.a).normalized() * 0.6, me)
                 s.blit(muzzle, (mx - size / 2, my - size / 2))
@@ -163,7 +175,8 @@ class WorldViewMixin:
         self.draw_bursts(me)
         if getattr(self, "scoped", False) and me.pid == self.me:
             self.draw_scope()
-        if self.aiming and me.pid == self.me and me.alive:
+        tactical = self.tactical_ability(me) if me.pid == self.me and me.alive else None
+        if self.aiming and me.pid == self.me and me.alive and not tactical:
             self.draw_aim_preview(me, self.aiming)
         self.draw_crosshair(me)
         sight_range = abilities.lowest(m, me, "sight_range")
@@ -178,6 +191,16 @@ class WorldViewMixin:
             flash.fill((255, 255, 255, int(min(1.0, (me.blind_until - m.time) / 0.6) * 245)))
             s.blit(flash, (0, 0))
         self.draw_hud(me)
+        if tactical and self.aiming:
+            self.draw_tactical_map(me, tactical, self.aiming)
+        elif me.pid == self.me and me.alive and not self.aiming and not self.ui.buy_open \
+                and m.phase in ("live", "planted"):
+            from gameplay.kit.engine import aimed_device
+            device = aimed_device(m, me, self.cursor_depth)
+            if device is not None:
+                key = pygame.key.name(self.keys["interact"]).upper()
+                action = f"Activate {device.props['manual']}" if device.props.get("manual") else "Recall utility"
+                self.ability_hint(f"{key} · {action}", C_TEXT)
         if self.ui.buy_open:
             self.draw_buy(me)
         own = m.players.get(self.me)
@@ -238,6 +261,10 @@ class WorldViewMixin:
         pygame.draw.polygon(shade, clear, [self.to_screen(p, me) for p in body_circle(me.pos, float(VIEW["body_sight"]))])
         self.screen.blit(shade, (0, 0))
 
+    def projectile_point(self, start: Vec, end: Vec, progress: float, me: PlayerState) -> tuple[float, float]:
+        x, y = self.to_screen(start + (end - start) * progress, me)
+        return x, y - math.sin(progress * math.pi) * self.scale * 0.8
+
     def draw_projectile(self, e: Effect, me: PlayerState) -> bool:
         """Thrown ability in flight: moves from the thrower to the target on a small arc. True while flying."""
         assert e.a is not None
@@ -245,22 +272,20 @@ class WorldViewMixin:
         progress = (self.match.time - e.start) / max(flight, 1e-6)
         if progress >= 1.0:
             return False
-        pos = e.a + (e.pos - e.a) * progress
-        x, y = self.to_screen(pos, me)
-        y -= math.sin(progress * math.pi) * self.scale * 0.8  # lift on screen to read as a throw
+        x, y = self.projectile_point(e.a, e.pos, progress, me)
         rel, size_m = ("fx/ability/grenade.png", (6 / 16, 5 / 16)) if e.kind == "blast" else ("fx/ability/projectile_orb.png", (12 / 16, 6 / 16))
         size = (max(1, round(size_m[0] * self.scale)), max(1, round(size_m[1] * self.scale)))
-        img = self.bank.scaled(rel, size)
+        img = self.effect_sprite(e, size[0]) or self.bank.scaled(rel, size)
         if img is not None:
-            self.screen.blit(img, (x - size[0] / 2, y - size[1] / 2))
+            self.screen.blit(img, (x - img.get_width() / 2, y - img.get_height() / 2))
         else:
             pygame.draw.circle(self.screen, C_SITE, (x, y), 4)
         dot = self.bank.scaled("fx/ability/arc_dot.png", (3, 3))
         if dot is not None:
             for i in range(1, 6):  # remaining path as dots
                 q = progress + (1 - progress) * i / 6
-                dx, dy = self.to_screen(e.a + (e.pos - e.a) * q, me)
-                self.screen.blit(dot, (dx - 1, dy - 1 - math.sin(q * math.pi) * self.scale * 0.8))
+                dx, dy = self.projectile_point(e.a, e.pos, q, me)
+                self.screen.blit(dot, (dx - 1, dy - 1))
         return True
 
     def radius_ring(self, pos: Vec, radius: float, color: tuple[int, int, int], me: PlayerState) -> None:
@@ -295,7 +320,7 @@ class WorldViewMixin:
             if p.alive and p.dash_until > t and p.vel.length() > 0.5:
                 back = p.pos - p.vel.normalized() * 0.8
                 size = (round(self.scale), round(2 * self.scale))
-                trail = self.bank.strip_frame("fx/gleiten_spur.png", size, (t * 10) % 1.0, 16)
+                trail = self.bank.strip_frame("fx/dash_trail.png", size, (t * 10) % 1.0, 16)
                 if trail is not None:
                     x, y = self.to_screen(back, me)
                     s.blit(trail, (x - size[0] / 2, y - size[1] / 2))
@@ -446,11 +471,59 @@ class WorldViewMixin:
                 col = C_PLATFORM
             pygame.draw.polygon(s, col, self.poly(w.rect, me))
 
+    def effect_sprite(self, e: Effect, diameter: int, warning: bool = False) -> pygame.Surface | None:
+        sprite = e.props.get("warning_sprite" if warning else "sprite")
+        if not sprite:
+            return None
+        path = f"fx/{sprite}.png"
+        raw = self.bank.raw(path)
+        if raw is None:
+            return None
+        width = min(raw.get_width(), int((None if warning else e.props.get("sprite_width")) or raw.get_height()))
+        if warning and raw.get_height() <= 16:
+            diameter = max(1, round(self.scale))
+        height = max(1, round(diameter * raw.get_height() / width))
+        if warning:
+            return self.bank.strip_frame(path, (diameter, height), 1 - (e.start - self.match.time) / 0.5, width)
+        age = max(0.0, self.match.time - e.start)
+        return self.bank.scaled(path, (diameter, height), int(age * 8) % self.bank.frames_in(path, width), width)
+
+    def smoke_warning(self, effect: Effect) -> float:
+        """Fraction of the visible expiry countdown still remaining."""
+        now = self.match.time
+        window = float(VIEW.get("smoke_warning_seconds", 2.0))
+        if effect.kind != "smoke" or effect.radius <= 0 or not effect.start <= now < effect.until or window <= 0:
+            return 0.0
+        left = effect.until - now
+        return left / window if left <= window else 0.0
+
     def draw_effect(self, e: Effect, me: PlayerState) -> None:
         s = self.screen
         ex, ey = self.to_screen(e.pos, me)
-        if e.kind == "zone" and e.start > self.match.time:
-            self.radius_ring(e.pos, e.radius, C_MUTED, me)
+        diameter = max(1, round(2 * e.radius * self.scale))
+        if (wall := e.props.get("barrier")) is not None:
+            points = self.poly(wall.rect, me)
+            pygame.draw.polygon(s, (45, 122, 139), points)
+            art = self.effect_sprite(e, max(1, round(self.scale)))
+            if art is not None:
+                s.blit(art, (ex - art.get_width() / 2, ey - art.get_height() / 2))
+            pygame.draw.polygon(s, (120, 233, 217), points, 2)
+            return
+        if e.kind == "zone" and e.a is not None and e.b is not None:
+            warmup = self.match.time < e.start
+            width = max(2, round(e.radius * self.scale * 2))
+            layer = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
+            start, end = self.to_screen(e.a, me), self.to_screen(e.b, me)
+            pygame.draw.line(layer, (84, 179, 255, 68 if warmup else 190), start, end, width)
+            pygame.draw.line(layer, (209, 240, 255, 175), start, end, 1 if warmup else max(2, width // 5))
+            s.blit(layer, (0, 0))
+            return
+        if e.start > self.match.time:
+            if e.radius > 0:
+                self.radius_ring(e.pos, e.radius, C_MUTED, me)
+            warning = self.effect_sprite(e, diameter, warning=True)
+            if warning is not None:
+                s.blit(warning, (ex - warning.get_width() / 2, ey - warning.get_height() / 2))
             return
         if e.kind in ("blast", "flash") and e.a is not None and e.until > e.start:
             if self.draw_projectile(e, me):
@@ -460,12 +533,21 @@ class WorldViewMixin:
         if e.kind == "blast":
             left = max(0.0, e.until - self.match.time)
             self.radius_ring(e.pos, e.radius, C_ENEMY if e.team != me.team else C_SITE, me)
-            nade = self.bank.scaled("fx/ability/grenade.png", (max(1, round(self.scale * 6 / 16)), max(1, round(self.scale * 5 / 16))))
+            nade = self.effect_sprite(e, max(1, round(self.scale * 6 / 16))) or self.bank.scaled(
+                "fx/ability/grenade.png", (max(1, round(self.scale * 6 / 16)), max(1, round(self.scale * 5 / 16))))
             if nade is not None:
                 s.blit(nade, (ex - nade.get_width() / 2, ey - nade.get_height() / 2))
             else:
                 pygame.draw.circle(s, C_SITE, (ex, ey), 4 + int(left * 6) % 4)
             return
+        if e.kind in ("zone", "smoke", "sensor", "alarm") and e.props.get("sprite"):
+            size = max(1, round(self.scale)) if e.kind in ("sensor", "alarm") else max(diameter, round(self.scale))
+            sprite = self.effect_sprite(e, size)
+            if sprite is not None:
+                s.blit(sprite, (ex - size / 2, ey + size / 2 - sprite.get_height()))
+                if e.kind in ("sensor", "alarm") and e.radius > 0:
+                    self.radius_ring(e.pos, e.radius, (60, 140, 140), me)
+                return
         if e.kind == "alarm":
             size = max(1, round(self.scale))
             img = self.bank.scaled("fx/alarm.png", (size, size), int(self.match.time * 2) % 2, 16)
@@ -496,11 +578,11 @@ class WorldViewMixin:
             return
         if e.kind == "smoke" and 0 < self.match.time - e.start < 0.5:
             d = max(1, round(2 * e.radius * self.scale))
-            img = self.bank.strip_frame("fx/dunst_aufbau.png", (d, d), (self.match.time - e.start) / 0.5, 64)
+            img = self.bank.strip_frame("fx/smoke_forming.png", (d, d), (self.match.time - e.start) / 0.5, 64)
             if img is not None:
                 s.blit(img, (ex - d / 2, ey - d / 2))
                 return
-        art = {"smoke": "fx/dunst.png"}.get(e.kind)
+        art = {"smoke": "fx/smoke.png"}.get(e.kind)
         if art:
             d = max(1, round(2 * e.radius * self.scale))
             img = self.bank.scaled(art, (d, d))
@@ -512,11 +594,11 @@ class WorldViewMixin:
                 pygame.draw.circle(s, (120, 80, 170), (ex, ey), e.radius * self.scale, 3)
         elif e.kind == "sensor":
             pulse_d = max(1, round(2 * self.scale))
-            pulse = self.bank.strip_frame("fx/lauscher_puls.png", (pulse_d, pulse_d), (self.match.time % 1.0), 32)
+            pulse = self.bank.strip_frame("fx/sensor_pulse.png", (pulse_d, pulse_d), (self.match.time % 1.0), 32)
             if pulse is not None:
                 s.blit(pulse, (ex - pulse_d / 2, ey - pulse_d / 2))
             size = max(1, round(self.scale * 0.6))
-            img = self.bank.scaled("fx/lauscher.png", (size, size))
+            img = self.bank.scaled("fx/sensor.png", (size, size))
             if img is not None:
                 s.blit(img, (ex - size / 2, ey - size / 2))
             else:
@@ -527,8 +609,8 @@ class WorldViewMixin:
             length = math.hypot(b[0] - a[0], b[1] - a[1])
             tile_px = max(1, round(self.scale))
             building = 0 < self.match.time - e.start < 0.4
-            tile = (self.bank.strip_frame("fx/schleier_aufbau.png", (tile_px, tile_px), (self.match.time - e.start) / 0.4, 16)
-                    if building else None) or self.bank.scaled("fx/schleier.png", (tile_px, tile_px))
+            tile = (self.bank.strip_frame("fx/vapor_wall_forming.png", (tile_px, tile_px), (self.match.time - e.start) / 0.4, 16)
+                    if building else None) or self.bank.scaled("fx/vapor_wall.png", (tile_px, tile_px))
             if tile is None or length < 1:
                 pygame.draw.line(s, (180, 190, 210), a, b, 8)
                 return

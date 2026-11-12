@@ -9,7 +9,6 @@ bottom/right edges, darker-shade outline around everything (style guide section 
 from __future__ import annotations
 
 import math
-import runpy
 import sys
 from pathlib import Path
 from typing import Callable
@@ -18,7 +17,6 @@ from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import sprites as base  # noqa: E402
-import sprites_roster as roster  # noqa: E402
 
 ROOT = base.ROOT
 hexc, darker, lighter, save = base.hexc, base.darker, base.lighter, base.save
@@ -151,24 +149,6 @@ def ability_icon(kind: str, accent: str, ult: bool) -> Image.Image:
     return im
 
 
-def agent_accents() -> dict[str, str]:
-    acc = {"kestrel": "#ffd75e", "marrow": "#bac4d6"}
-    acc.update({k: str(v["glow"]) for k, v in roster.AGENT_LOOKS.items()})
-    try:
-        import sprites_roster2 as roster2
-        acc.update({k: v[5] for k, v in roster2.AGENTS.items()})
-    except ImportError as exc:  # second roster optional
-        print(f"warning: sprites_roster2 not importable: {exc}")
-    return acc
-
-
-def make_ability_icons() -> None:
-    agents = roster._config("agents", "kestrel")
-    acc = agent_accents()
-    for key, info in agents.items():
-        for slot, ab in info["abilities"].items():
-            save(ability_icon(str(ab["kind"]), acc.get(key, GOLD), slot == "X"), f"ui/faehigkeit_{key}_{slot}.png")
-
 
 # ------------------------------------------------------------------ HUD, status, minimap (16 / 12 px)
 def small(paint: Painter, size: int, base_col: str, accent: str) -> Image.Image:
@@ -179,15 +159,15 @@ def small(paint: Painter, size: int, base_col: str, accent: str) -> Image.Image:
 
 
 HUD: dict[str, tuple[Painter, str, str]] = {
-    "leben": (lambda d, s: (d.rectangle((5, 1, 8, 12), fill=1), d.rectangle((1, 5, 12, 8), fill=1)), WHITE, WHITE),
-    "schild": (lambda d, s: (d.polygon([(1, 1), (12, 1), (12, 6), (6, 12), (1, 6)], fill=1), d.polygon([(4, 3), (9, 3), (9, 6), (6, 9), (4, 6)], fill=2)), "#8fb3bd", "#cfe3e8"),
+    "health": (lambda d, s: (d.rectangle((5, 1, 8, 12), fill=1), d.rectangle((1, 5, 12, 8), fill=1)), WHITE, WHITE),
+    "shield": (lambda d, s: (d.polygon([(1, 1), (12, 1), (12, 6), (6, 12), (1, 6)], fill=1), d.polygon([(4, 3), (9, 3), (9, 6), (6, 9), (4, 6)], fill=2)), "#8fb3bd", "#cfe3e8"),
     "credits": (lambda d, s: (d.ellipse((0, 0, 13, 13), fill=1), d.ellipse((3, 3, 10, 10), fill=2), d.rectangle((6, 4, 7, 9), fill=1)), GOLD, "#a8821f"),
-    "munition": (lambda d, s: (d.rectangle((4, 4, 9, 12), fill=1), d.pieslice((4, 0, 9, 8), 180, 360, fill=2), d.rectangle((4, 11, 9, 12), fill=2)), "#c7ccd2", GOLD),
-    "kopfschuss": (lambda d, s: (d.ellipse((2, 1, 11, 10), fill=1), d.rectangle((4, 9, 9, 12), fill=1), d.ellipse((4, 4, 6, 6), fill=2), d.ellipse((7, 4, 9, 6), fill=2),
+    "ammo": (lambda d, s: (d.rectangle((4, 4, 9, 12), fill=1), d.pieslice((4, 0, 9, 8), 180, 360, fill=2), d.rectangle((4, 11, 9, 12), fill=2)), "#c7ccd2", GOLD),
+    "headshot": (lambda d, s: (d.ellipse((2, 1, 11, 10), fill=1), d.rectangle((4, 9, 9, 12), fill=1), d.ellipse((4, 4, 6, 6), fill=2), d.ellipse((7, 4, 9, 6), fill=2),
                                  d.line([(6, 0), (6, 13)], fill=2), d.line([(0, 6), (13, 6)], fill=2)), WHITE, RED),
-    "spike_klein": (lambda d, s: (d.rectangle((1, 2, 12, 11), fill=1), d.rectangle((4, 4, 9, 9), fill=2), d.rectangle((1, 10, 12, 11), fill=2)), "#6b7480", "#ff5a4f"),
-    "uhr": (lambda d, s: (d.ellipse((0, 0, 13, 13), fill=1), d.ellipse((2, 2, 11, 11), fill=2), d.line([(6, 3), (6, 7), (9, 7)], fill=1, width=1)), WHITE, "#2a2933"),
-    "tot": (lambda d, s: (d.ellipse((1, 0, 12, 10), fill=1), d.rectangle((3, 9, 10, 12), fill=1), d.rectangle((3, 4, 5, 6), fill=2), d.rectangle((8, 4, 10, 6), fill=2),
+    "bomb_small": (lambda d, s: (d.rectangle((1, 2, 12, 11), fill=1), d.rectangle((4, 4, 9, 9), fill=2), d.rectangle((1, 10, 12, 11), fill=2)), "#6b7480", "#ff5a4f"),
+    "timer": (lambda d, s: (d.ellipse((0, 0, 13, 13), fill=1), d.ellipse((2, 2, 11, 11), fill=2), d.line([(6, 3), (6, 7), (9, 7)], fill=1, width=1)), WHITE, "#2a2933"),
+    "eliminated": (lambda d, s: (d.ellipse((1, 0, 12, 10), fill=1), d.rectangle((3, 9, 10, 12), fill=1), d.rectangle((3, 4, 5, 6), fill=2), d.rectangle((8, 4, 10, 6), fill=2),
                           d.line([(4, 11), (4, 12)], fill=2), d.line([(7, 11), (7, 12)], fill=2)), GREY, "#2a2933"),
 }
 
@@ -204,14 +184,14 @@ STATUS: dict[str, tuple[Painter, str, str]] = {
 }
 
 MINIMAP: dict[str, tuple[Painter, str, str]] = {
-    "selbst": (lambda d, s: d.polygon([(5, 0), (9, 9), (5, 7), (1, 9)], fill=1), WHITE, WHITE),
-    "verbuendet": (lambda d, s: (d.ellipse((0, 0, 9, 9), fill=1), d.ellipse((3, 3, 6, 6), fill=2)), TEAL, "#b4fff6"),
-    "feind": (lambda d, s: (d.polygon([(5, 0), (9, 5), (5, 9), (1, 5)], fill=1), d.rectangle((4, 4, 5, 5), fill=2)), RED, "#ffb4a8"),
-    "tot": (lambda d, s: (d.line([(1, 1), (8, 8)], fill=1, width=2), d.line([(8, 1), (1, 8)], fill=1, width=2)), GREY, GREY),
+    "self": (lambda d, s: d.polygon([(5, 0), (9, 9), (5, 7), (1, 9)], fill=1), WHITE, WHITE),
+    "ally": (lambda d, s: (d.ellipse((0, 0, 9, 9), fill=1), d.ellipse((3, 3, 6, 6), fill=2)), TEAL, "#b4fff6"),
+    "enemy": (lambda d, s: (d.polygon([(5, 0), (9, 5), (5, 9), (1, 5)], fill=1), d.rectangle((4, 4, 5, 5), fill=2)), RED, "#ffb4a8"),
+    "eliminated": (lambda d, s: (d.line([(1, 1), (8, 8)], fill=1, width=2), d.line([(8, 1), (1, 8)], fill=1, width=2)), GREY, GREY),
     "spike": (lambda d, s: (d.rectangle((0, 2, 9, 8), fill=1), d.rectangle((3, 4, 6, 6), fill=2)), GOLD, "#ff5a4f"),
-    "dunst": (lambda d, s: (d.ellipse((0, 2, 6, 8), fill=1), d.ellipse((3, 1, 9, 7), fill=1), d.ellipse((2, 4, 8, 9), fill=1)), "#9a9aac", "#c8c8d8"),
-    "bann": (lambda d, s: d.ellipse((0, 0, 9, 9), outline=1, width=2), "#9664c8", "#9664c8"),
-    "schleier": (lambda d, s: (d.rectangle((0, 3, 9, 6), fill=1), d.rectangle((0, 3, 9, 3), fill=2)), "#bac4d6", WHITE),
+    "smoke": (lambda d, s: (d.ellipse((0, 2, 6, 8), fill=1), d.ellipse((3, 1, 9, 7), fill=1), d.ellipse((2, 4, 8, 9), fill=1)), "#9a9aac", "#c8c8d8"),
+    "slow_field": (lambda d, s: d.ellipse((0, 0, 9, 9), outline=1, width=2), "#9664c8", "#9664c8"),
+    "vapor_wall": (lambda d, s: (d.rectangle((0, 3, 9, 6), fill=1), d.rectangle((0, 3, 9, 3), fill=2)), "#bac4d6", WHITE),
 }
 
 
@@ -261,8 +241,8 @@ def bar(fill: str | None) -> Image.Image:
     return im
 
 
-BANNERS = {"sieg": ("VICTORY", TEAL), "niederlage": ("DEFEAT", RED), "seitenwechsel": ("SWITCHING SIDES", GOLD),
-           "spike_gelegt": ("BOMB PLANTED", RED), "entschaerft": ("BOMB DEFUSED", TEAL), "verlaengerung": ("OVERTIME", GOLD)}
+BANNERS = {"victory": ("VICTORY", TEAL), "defeat": ("DEFEAT", RED), "switching_sides": ("SWITCHING SIDES", GOLD),
+           "bomb_planted": ("BOMB PLANTED", RED), "bomb_defused": ("BOMB DEFUSED", TEAL), "overtime": ("OVERTIME", GOLD)}
 
 
 def banner(text: str, accent: str) -> Image.Image:
@@ -292,18 +272,17 @@ def banner(text: str, accent: str) -> Image.Image:
 
 
 def make_panels() -> None:
-    save(frame("#0e0d12", None), "ui/hud/rahmen.png")
-    save(frame(TEAL, TEAL), "ui/hud/rahmen_aktiv.png")
-    save(bar(WHITE), "ui/hud/balken_leben.png")
-    save(bar("#8fb3bd"), "ui/hud/balken_schild.png")
-    save(bar(GOLD), "ui/hud/balken_fortschritt.png")
-    save(bar(None), "ui/hud/balken_leer.png")
+    save(frame("#0e0d12", None), "ui/hud/frame.png")
+    save(frame(TEAL, TEAL), "ui/hud/frame_active.png")
+    save(bar(WHITE), "ui/hud/bar_health.png")
+    save(bar("#8fb3bd"), "ui/hud/bar_shield.png")
+    save(bar(GOLD), "ui/hud/bar_progress.png")
+    save(bar(None), "ui/hud/bar_empty.png")
     for key, (text, accent) in BANNERS.items():
         save(banner(text, accent), f"ui/banner/{key}.png")
 
 
 def main() -> None:
-    make_ability_icons()
     make_small_icons()
     make_panels()
 

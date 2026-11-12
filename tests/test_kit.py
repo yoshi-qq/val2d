@@ -9,16 +9,16 @@ from gameplay.geometry import Vec
 from gameplay.kit import EFFECTS, TRIGGERS, check_ability, tick
 from gameplay.kit.dsl import ability, agent, damage, heal, on, preset, push, spawn, status, step, thing
 from gameplay.match import Command, Match
-from gameplay.world import load_map
+from map_fixtures import load_archived_map
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
 def setup(spec: dict) -> tuple[Match, int, int]:
-    m = Match(load_map("workyard"), seed=2)
+    m = Match(load_archived_map("workyard"), seed=2)
     m.agents = {**m.agents, "test": spec}
     a = m.add_player("A", 0, "test").pid
-    b = m.add_player("B", 1, "kestrel").pid
+    b = m.add_player("B", 1, "omen").pid
     m.start()
     m.phase, m.phase_until = "live", m.time + 100
     pa, pb = m.players[a], m.players[b]

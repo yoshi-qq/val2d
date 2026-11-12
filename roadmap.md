@@ -60,7 +60,7 @@ See the [current roster, maps and sprite previews](README.md#game-content).
     - [x] spread, spray pattern, alternate fire (zoom, burst, spread shot, spin-up)
 - [x] Abilities (ability kit with targets, triggers, effects and passives, and agent definitions in config/content/agents/)
 - [x] Worlds (standing in smoke -> only seeing inside smoke, standing outside -> only see outside)
-- [x] Stats (scoreboard: kills, deaths, credits, ping; range: accuracy and headshots)
+- [x] Scoreboard with kills, deaths, credits and ping
 - [x] Buy Menu
 - [x] Phases (Gamemode): buy, live, planted, round end, side switch, overtime
 - [x] Spike (named "bomb" in game): plant, defuse with checkpoint, detonation

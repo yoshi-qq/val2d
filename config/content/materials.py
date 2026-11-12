@@ -26,9 +26,9 @@ WALLS: dict[str, dict] = {
     "brick": dict(tile="maps/common/wall_brick.png", pen=2, sight=True, height=2),
     "wood_fence": dict(tile="maps/common/fence_wood.png", pen=0, sight=True, height=2),
     "glass": dict(tile="maps/common/window_glass.png", pen=0, sight=False, height=2),
-    "crate_metal": dict(tile="maps/werkhof/kiste_metall.png", pen=1, sight=False, height=1),
-    "werkhof_thick": dict(tile="maps/werkhof/wand.png", pen=2, sight=True, height=2),
-    "werkhof_thin": dict(tile="maps/werkhof/wand_duenn.png", pen=0, sight=True, height=2),
+    "crate_metal": dict(tile="maps/workyard/metal_crate.png", pen=1, sight=False, height=1),
+    "workyard_thick": dict(tile="maps/workyard/wall.png", pen=2, sight=True, height=2),
+    "workyard_thin": dict(tile="maps/workyard/wall_thin.png", pen=0, sight=True, height=2),
     "metal_sheet": dict(tile="maps/common/wall_metal_sheet.png", pen=1, sight=True, height=2),
     "sandbags": dict(tile="maps/common/wall_sandbags.png", pen=1, sight=False, height=1),
     "stone": dict(tile="maps/common/wall_stone.png", pen=3, sight=True, height=2),
@@ -47,7 +47,7 @@ WALLS: dict[str, dict] = {
 }
 
 FLOORS: dict[str, str] = {
-    "stone": "maps/werkhof/boden_stein.png",
+    "stone": "maps/workyard/stone_floor.png",
     "concrete": "maps/common/floor_concrete.png",
     "grate": "maps/common/floor_grate.png",
     "tiles": "maps/common/floor_tiles.png",

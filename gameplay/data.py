@@ -17,6 +17,20 @@ RULES_DIR = CONFIG_DIR / "rules"
 CLIENT_DIR = CONFIG_DIR / "client"
 WEAPONS_PATH = CONTENT_DIR / "weapons.py"
 
+# Saved balance patches may still refer to the original weapon and armor IDs.
+LEGACY_ITEM_KEYS = {
+    "weapons": {
+        "knife": "tactical_knife", "pistol": "classic", "shotgun_pistol": "shorty",
+        "auto_pistol": "frenzy", "silenced_pistol": "ghost", "heavy_pistol": "bandit",
+        "revolver": "sheriff", "smg": "stinger", "silenced_smg": "spectre",
+        "pump_shotgun": "bucky", "auto_shotgun": "judge", "burst_rifle": "bulldog",
+        "marksman_rifle": "guardian", "silenced_rifle": "phantom", "assault_rifle": "vandal",
+        "scoped_rifle": "warden", "bolt_sniper": "marshal", "double_sniper": "outlaw",
+        "heavy_sniper": "operator", "light_machine_gun": "ares", "heavy_machine_gun": "odin",
+    },
+    "armor": {"light_shield": "light_armor", "heavy_shield": "heavy_armor"},
+}
+
 
 def _load_json(path: Path) -> dict[str, Any]:
     try:
@@ -130,6 +144,9 @@ class ArmorDef:
     name: str
     price: int
     points: int
+    absorb: float | None = None
+    regen_pool: int = 0
+    regen_delay: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -146,7 +163,7 @@ class LobbySettings:
     all_around_sight: bool = False
     sound_rings: bool = False
     win_rounds: int = 13
-    overtime: bool = True             # win by two after a tie at the end of regulation
+    overtime: bool = False            # enable win by two in a custom game
     play_all_rounds: bool = False     # play every regulation round even after a team has won
     allow_cheats: bool = False        # the cheats below only count while this is on
     infinite_ammo: bool = False
@@ -227,7 +244,12 @@ def load_weapons() -> dict[str, WeaponDef]:
 def load_armor() -> dict[str, ArmorDef]:
     from gameplay.patches import apply_table
     raw = apply_table("armor", _load_py(WEAPONS_PATH, "ARMOR") or {}, create=True)
-    return {k: ArmorDef(k, a["name"], int(a["price"]), int(a["points"])) for k, a in raw.items()}
+    return {
+        k: ArmorDef(k, a["name"], int(a["price"]), int(a["points"]),
+                    float(a["absorb"]) if "absorb" in a else None,
+                    int(a.get("regen_pool", 0)), float(a.get("regen_delay", 0)))
+        for k, a in raw.items()
+    }
 
 
 @lru_cache(maxsize=1)

@@ -5,7 +5,7 @@ Outputs:
   character_guides.png        16x32 guide layer for Aseprite (hit zones, anchor, ground row)
   character_guides_x8.png     same, scaled x8 for reading
   character_sheet_layout.png  every state as a row with its frame slots (reference)
-  example_kestrel_sheet.png   the layout filled with Kestrel's existing strips
+  example_omen_sheet.png   the layout filled with Omen's existing strips
 """
 from __future__ import annotations
 
@@ -98,8 +98,8 @@ def main() -> None:
     g.save(OUT / "character_guides.png")
     g.resize((CELL_W * 8, CELL_H * 8), Image.NEAREST).save(OUT / "character_guides_x8.png")
     layout().save(OUT / "character_sheet_layout.png")
-    layout("kestrel").save(OUT / "example_kestrel_sheet.png")
-    for name in ("character_guides.png", "character_guides_x8.png", "character_sheet_layout.png", "example_kestrel_sheet.png"):
+    layout("omen").save(OUT / "example_omen_sheet.png")
+    for name in ("character_guides.png", "character_guides_x8.png", "character_sheet_layout.png", "example_omen_sheet.png"):
         print("written:", (OUT / name).relative_to(ROOT))
 
 

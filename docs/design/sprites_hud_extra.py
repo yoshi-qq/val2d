@@ -136,7 +136,7 @@ def make_panels() -> None:
 
 
 def make_carrier_hint() -> None:
-    bomb = hd.small(hd.HUD["spike_klein"][0], 16, hd.HUD["spike_klein"][1], hd.HUD["spike_klein"][2])
+    bomb = hd.small(hd.HUD["bomb_small"][0], 16, hd.HUD["bomb_small"][1], hd.HUD["bomb_small"][2])
     key = base.from_rows(["oooooo", "oWWWWo", "oWoooo", "oWWWo.", "oWooo.", "oWo...", "ooo..."], {"o": "#0e0d12", "W": GOLD})
     im = blank(16, 16)
     im.alpha_composite(bomb.crop((0, 0, 16, 16)), (0, 0))

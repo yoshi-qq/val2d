@@ -1,10 +1,9 @@
 """Generates the Val2d sprites of the design session as PNG files under assets/.
 
 Usage: python docs/design/sprites.py
-Rules (docs/ENTSCHEIDUNGEN.md, sprite concept): 16 px = 1 m, figure 16x32, tile 32x32,
+Rules (docs/DECISIONS.md, sprite concept): 16 px = 1 m, figure 16x32, tile 32x32,
 outline in a darker shade of the neighbouring colour, two shading steps, light from the top left,
-sprites are team-neutral; enemy variant with a red outline (*_feind.png). All figures and items
-File names stay German so existing code keeps working.
+sprites are team-neutral; enemy variant with a red outline (*_enemy.png). All figures and items
 """
 from __future__ import annotations
 
@@ -93,147 +92,25 @@ def strip(frames: list[Image.Image]) -> Image.Image:
     return out
 
 
-# ------------------------------------------------------------------ agents
-def legs(left: int, right: int, hip: str, rows_total: int = 11, coat_rows: int = 0) -> list[str]:
-    """Legs from row 21: hip, trouser legs (P/p), boots (B). Length 5 = fully extended."""
-    out = []
-    for i in range(rows_total):
-        y = 21 + i
-        a = ["."] * 16
-        if i < 2:
-            for x in range(5, 11):
-                a[x] = hip[x - 5]
-        if i < coat_rows:
-            for x in range(4, 12):
-                a[x] = "C" if x < 11 else "c"
-        for length, x0, outward in ((left, 5, 4), (right, 9, 12)):
-            end = 23 + length
-            if 23 <= y < end and not (i < coat_rows):
-                a[x0], a[x0 + 1], a[x0 + 2] = "P", "P", "p"
-            if y == end:
-                a[x0] = a[x0 + 1] = a[x0 + 2] = "B"
-            if y == end + 1:
-                a[x0] = a[x0 + 1] = a[x0 + 2] = "B"
-                a[outward] = "B"
-        out.append("".join(a))
-    return out
-
-
-KESTREL_TOP = [
-    "................",
-    "......H..H......",
-    ".....HHHHHH.....",
-    "....HHHHHHHH....",
-    "....HHHHHHHh....",
-    "....HhSSSSSh....",
-    "....SGGSSGGs....",
-    "....SggSSggs....",
-    "....SSSSSSSs....",
-    ".....SSSSSs.....",
-    "....FFFFFFFf....",
-    "...JFFFFFFFfj...",
-    "..JJJJFFJJJJj...",
-    "..JJjJFfJjJJj...",
-    "..JJJJJFfJJJj...",
-    "..JJ.JJJJJJ.Jj..",
-    "..JJ.JJJJJJ.Jj..",
-    "..JJ.KKKKKK.Jj..",
-    "..SS.PPPPPP.Ss..",
-    "..ss.PPPPPP.ss..",
-    ".....PPPPPP.....",
-]
-KESTREL_PAL = {"H": "#c4562c", "h": "#8f3a1f", "S": "#d9a07a", "s": "#a8735a", "G": "#8fb3bd", "g": "#4f6b73",
-               "F": "#d8b77a", "f": "#a88a52", "J": "#5b6b3a", "j": "#3f4c27", "K": "#3a2f25",
-               "P": "#3a3b44", "p": "#26272e", "B": "#1f1c1a"}
-
-MARROW_TOP = [
-    "................",
-    "................",
-    "......SSSS......",
-    ".....SSSSSS.....",
-    "....SSSSSSSs....",
-    "....SSSSSSSs....",
-    "....SEESSEEs....",
-    "....SMMMMMMs....",
-    "....SMmRRmMs....",
-    ".....MMMMMm.....",
-    "......nnnn......",
-    "...CCCCCCCCc....",
-    "..CCCCcCCCCCc...",
-    "..CCYCcCCYCCc...",
-    "..CCCCcCCCCCc...",
-    "..CC.CcCCCC.Cc..",
-    "..CC.CcCCCC.Cc..",
-    "..CC.KKKKKK.Cc..",
-    "..SS.CcCCCC.Ss..",
-    "..ss.CcCCCC.ss..",
-    ".....CcCCCc.....",
-]
-MARROW_PAL = {"S": "#8a5a43", "s": "#63402f", "E": "#1b1a1a", "M": "#7d8790", "m": "#545c64", "R": "#c9a227",
-              "n": "#2a2d33", "C": "#36454c", "c": "#243036", "Y": "#c9a227", "K": "#1f1c1a",
-              "P": "#2d2c31", "p": "#1f1e23", "B": "#1b1a1a"}
-
-WALK = [(5, 5), (5, 3), (5, 5), (3, 5)]
-
-
-def agent_frames(top: list[str], pal: dict[str, str], hip: str, coat_rows: int) -> dict[str, list[Image.Image]]:
-    def figure(rows: list[str]) -> Image.Image:
-        return outline(from_rows(rows, pal))
-
-    idle = figure(top + legs(5, 5, hip, coat_rows=coat_rows))
-    walk = [figure(top + legs(l, r, hip, coat_rows=coat_rows)) for l, r in WALK]
-    crouch_rows = ["................"] * 3 + top[:-0 or None] + legs(2, 2, hip, rows_total=8, coat_rows=min(coat_rows, 2))
-    crouch = figure(crouch_rows[:32])
-    jump = figure(top + legs(3, 3, hip, coat_rows=coat_rows))
-    dead = idle.rotate(90, expand=True)
-    dead = Image.eval(dead, lambda v: v)  # same colours
-    px = dead.load()
-    for y in range(dead.size[1]):
-        for x in range(dead.size[0]):
-            c = px[x, y]
-            if c[3]:
-                px[x, y] = (int(c[0] * 0.7), int(c[1] * 0.7), int(c[2] * 0.75), 255)
-    return {"idle": [idle], "walk": walk, "crouch": [crouch], "jump": [jump], "dead": [dead]}
-
-
-def portrait(top: list[str], pal: dict[str, str]) -> Image.Image:
-    head = outline(from_rows(top[:16], pal))
-    big = head.resize((32, 32), Image.NEAREST)
-    bg = Image.new("RGBA", (32, 32), hexc("#272631"))
-    bg.alpha_composite(big)
-    return bg
-
-
-def make_agents() -> None:
-    for key, top, pal, hip, coat in (("kestrel", KESTREL_TOP, KESTREL_PAL, "PPPPPp", 0),
-                                     ("marrow", MARROW_TOP, MARROW_PAL, "CCCCCc", 2)):
-        frames = agent_frames(top, pal, hip, coat)
-        for state, imgs in frames.items():
-            im = imgs[0] if len(imgs) == 1 else strip(imgs)
-            save(im, f"agents/{key}/{key}_{state}.png")
-            save(enemy_variant(im) if state != "dead" else im, f"agents/{key}/{key}_{state}_feind.png")
-        save(portrait(top, pal), f"agents/{key}/{key}_portrait.png")
-
-
 # ------------------------------------------------------------------ weapons
 GUN_SPECS: dict[str, dict[str, object]] = {
     # length in px (of 16), barrel, magazine, stock, scope, accent colour
-    "spatz":    {"len": 9,  "barrel": 3, "mag": "pistol", "stock": None, "scope": False, "accent": "#6c6b75"},
-    "hornisse": {"len": 9,  "barrel": 3, "mag": "pistol", "stock": None, "scope": False, "accent": "#c9a227"},
-    "bulle":    {"len": 10, "barrel": 4, "mag": "drum",   "stock": None, "scope": False, "accent": "#8a5a43"},
-    "stachel":  {"len": 8,  "barrel": 2, "mag": "pistol", "stock": None, "scope": False, "accent": "#a8521f"},
-    "wespe":    {"len": 11, "barrel": 2, "mag": "stick",  "stock": "wire", "scope": False, "accent": "#c9a227"},
-    "sirene":   {"len": 12, "barrel": 3, "mag": "stick",  "stock": "wire", "scope": False, "accent": "#4f6b73"},
-    "brecher":  {"len": 14, "barrel": 6, "mag": None,     "stock": "full", "scope": False, "accent": "#7a5233"},
-    "faecher":  {"len": 13, "barrel": 4, "mag": "box",    "stock": "full", "scope": False, "accent": "#a8521f"},
-    "falke":    {"len": 14, "barrel": 4, "mag": "curve",  "stock": "full", "scope": False, "accent": "#5b6b3a"},
-    "speer":    {"len": 15, "barrel": 5, "mag": "curve",  "stock": "full", "scope": False, "accent": "#36454c", "silencer": True},
-    "hammer":   {"len": 15, "barrel": 4, "mag": "curve",  "stock": "full", "scope": False, "accent": "#7a5233"},
-    "lanze":    {"len": 16, "barrel": 5, "mag": "box",    "stock": "full", "scope": True,  "accent": "#5b6b3a"},
-    "elster":   {"len": 15, "barrel": 6, "mag": "box",    "stock": "full", "scope": True,  "accent": "#4f6b73"},
-    "adler":    {"len": 16, "barrel": 7, "mag": "box",    "stock": "full", "scope": True,  "accent": "#2d2c31"},
-    "muehle":   {"len": 15, "barrel": 4, "mag": "drum",   "stock": "full", "scope": False, "accent": "#c9a227"},
-    "walze":    {"len": 16, "barrel": 5, "mag": "belt",   "stock": "full", "scope": False, "accent": "#a8521f"},
+    "classic":    {"len": 9,  "barrel": 3, "mag": "pistol", "stock": None, "scope": False, "accent": "#6c6b75"},
+    "frenzy": {"len": 9,  "barrel": 3, "mag": "pistol", "stock": None, "scope": False, "accent": "#c9a227"},
+    "sheriff":    {"len": 10, "barrel": 4, "mag": "drum",   "stock": None, "scope": False, "accent": "#8a5a43"},
+    "shorty":  {"len": 8,  "barrel": 2, "mag": "pistol", "stock": None, "scope": False, "accent": "#a8521f"},
+    "stinger":    {"len": 11, "barrel": 2, "mag": "stick",  "stock": "wire", "scope": False, "accent": "#c9a227"},
+    "spectre":   {"len": 12, "barrel": 3, "mag": "stick",  "stock": "wire", "scope": False, "accent": "#4f6b73"},
+    "bucky":  {"len": 14, "barrel": 6, "mag": None,     "stock": "full", "scope": False, "accent": "#7a5233"},
+    "judge":  {"len": 13, "barrel": 4, "mag": "box",    "stock": "full", "scope": False, "accent": "#a8521f"},
+    "bulldog":    {"len": 14, "barrel": 4, "mag": "curve",  "stock": "full", "scope": False, "accent": "#5b6b3a"},
+    "phantom":    {"len": 15, "barrel": 5, "mag": "curve",  "stock": "full", "scope": False, "accent": "#36454c", "silencer": True},
+    "vandal":   {"len": 15, "barrel": 4, "mag": "curve",  "stock": "full", "scope": False, "accent": "#7a5233"},
+    "guardian":    {"len": 16, "barrel": 5, "mag": "box",    "stock": "full", "scope": True,  "accent": "#5b6b3a"},
+    "marshal":   {"len": 15, "barrel": 6, "mag": "box",    "stock": "full", "scope": True,  "accent": "#4f6b73"},
+    "operator":    {"len": 16, "barrel": 7, "mag": "box",    "stock": "full", "scope": True,  "accent": "#2d2c31"},
+    "ares":   {"len": 15, "barrel": 4, "mag": "drum",   "stock": "full", "scope": False, "accent": "#c9a227"},
+    "odin":    {"len": 16, "barrel": 5, "mag": "belt",   "stock": "full", "scope": False, "accent": "#a8521f"},
 }
 
 
@@ -294,11 +171,11 @@ def draw_gun(spec: dict[str, object], w: int, h: int) -> Image.Image:
 def make_weapons() -> None:
     for key, spec in GUN_SPECS.items():
         save(draw_gun(spec, 16, 8), f"weapons/val2d/{key}.png")
-        save(draw_gun(spec, 32, 12), f"weapons/val2d/{key}_kauf.png")
+        save(draw_gun(spec, 32, 12), f"weapons/val2d/{key}_buy.png")
     knife = from_rows(["................", "................", "..........LLLL..", "kkkkkkLLLLLLLl..",
                        "kkkkkkLLLLLLl...", "..........ll....", "................", "................"],
                       {"k": "#3a2f25", "L": "#c7ccd2", "l": "#8a9199"})
-    save(knife, "weapons/val2d/messer.png")
+    save(knife, "weapons/val2d/tactical_knife.png")
 
 
 # ------------------------------------------------------------------ tiles
@@ -324,7 +201,7 @@ def make_tiles() -> None:
     for _ in range(8):
         x, y = rng.randrange(32), rng.randrange(32)
         px[x, y] = darker(px[x, y], 0.88) if rng.random() < 0.5 else lighter(px[x, y], 0.1)
-    save(stone, "maps/werkhof/boden_stein.png")
+    save(stone, "maps/workyard/stone_floor.png")
 
     wall = Image.new("RGBA", (32, 32), hexc("#5c5866"))
     wp = wall.load()
@@ -341,7 +218,7 @@ def make_tiles() -> None:
         for s in range(4):
             wp[x, y + s] = hexc("#4b4855")
             x += rng.choice((0, 1))
-    save(wall, "maps/werkhof/wand.png")
+    save(wall, "maps/workyard/wall.png")
 
     thin = Image.new("RGBA", (32, 32), hexc("#8a7660"))
     tp = thin.load()
@@ -353,7 +230,7 @@ def make_tiles() -> None:
                 tp[x, y] = hexc("#a08a70") if x % 8 else tp[x, y]
             if y == 31:
                 tp[x, y] = hexc("#4f4235")
-    save(thin, "maps/werkhof/wand_duenn.png")
+    save(thin, "maps/workyard/wall_thin.png")
 
     crate = Image.new("RGBA", (32, 32), hexc("#2b3c45"))
     cp = crate.load()
@@ -370,7 +247,7 @@ def make_tiles() -> None:
         cp[i, 29] = cp[29, i] = hexc("#1f2c33")
     for x, y in ((4, 4), (27, 4), (4, 27), (27, 27)):
         cp[x, y] = hexc("#a9c2cc")
-    save(crate, "maps/werkhof/kiste_metall.png")
+    save(crate, "maps/workyard/metal_crate.png")
 
     plat = Image.new("RGBA", (32, 32), hexc("#56535f"))
     pp = plat.load()
@@ -380,7 +257,7 @@ def make_tiles() -> None:
                 pp[x, y] = hexc("#4a4753")
             if y == 0 or x == 0:
                 pp[x, y] = hexc("#6e6a78")
-    save(plat, "maps/werkhof/plattform.png")
+    save(plat, "maps/workyard/platform.png")
 
     ramp = Image.new("RGBA", (32, 32), hexc("#5a5664"))
     rp = ramp.load()
@@ -390,7 +267,7 @@ def make_tiles() -> None:
                 rp[x, y] = hexc("#6f6b79")
             if y % 4 == 3:
                 rp[x, y] = hexc("#46434f")
-    save(ramp, "maps/werkhof/rampe.png")
+    save(ramp, "maps/workyard/ramp.png")
 
     site = Image.new("RGBA", (32, 32), CLEAR)
     sp = site.load()
@@ -398,7 +275,7 @@ def make_tiles() -> None:
         for x in range(32):
             if (x + y) % 8 < 2 and (x < 2 or y < 2 or x > 29 or y > 29):
                 sp[x, y] = (224, 180, 55, 200)
-    save(site, "maps/werkhof/platz_rand.png")
+    save(site, "maps/workyard/site_border.png")
 
 
 # ------------------------------------------------------------------ spike, effects, icons
@@ -419,7 +296,7 @@ def make_fx() -> None:
         ["........", "...g....", "..gGg...", "...gG...", "....g...", "........", "........", "........"],
     ]
     fpal = {"Y": "#ffd75e", "W": "#fffbe8", "O": "#f08a24", "G": "#8a8893", "g": "#5d5c66"}
-    save(strip([from_rows(r, fpal) for r in flash_rows]), "fx/muendung.png")
+    save(strip([from_rows(r, fpal) for r in flash_rows]), "fx/muzzle_flash.png")
 
     rng = random.Random(4)
 
@@ -439,7 +316,7 @@ def make_fx() -> None:
                     p[x, y] = col
         return im
 
-    save(disc(64, (136, 136, 152, 235), (110, 110, 126, 200), 0.35), "fx/dunst.png")
+    save(disc(64, (136, 136, 152, 235), (110, 110, 126, 200), 0.35), "fx/smoke.png")
     ring = Image.new("RGBA", (64, 64), CLEAR)
     rp = ring.load()
     for y in range(64):
@@ -449,55 +326,36 @@ def make_fx() -> None:
                 rp[x, y] = (150, 100, 200, 230)
             elif d < 29 and (x + y) % 6 == 0:
                 rp[x, y] = (120, 80, 170, 90)
-    save(ring, "fx/bann.png")
+    save(ring, "fx/slow_field.png")
     vapor = Image.new("RGBA", (16, 16), CLEAR)
     vp = vapor.load()
     for y in range(4, 12):
         for x in range(16):
             if rng.random() < (0.95 if 5 <= y <= 10 else 0.5):
                 vp[x, y] = (186, 196, 214, 230) if y < 8 else (150, 160, 180, 230)
-    save(vapor, "fx/schleier.png")
+    save(vapor, "fx/vapor_wall.png")
     sensor = from_rows(["..oo..", ".oCCo.", "oCLLCo", "oCLLCo", ".oCCo.", "..oo.."],
                        {"o": "#16151b", "C": "#545c64", "L": "#8fb3bd"})
-    save(sensor, "fx/lauscher.png")
-    funke = Image.new("RGBA", (16, 16), CLEAR)
-    fp = funke.load()
+    save(sensor, "fx/sensor.png")
+    flash = Image.new("RGBA", (16, 16), CLEAR)
+    fp = flash.load()
     for a in range(8):
         ang = a * math.pi / 4
         for r in range(1, 8):
             x, y = int(7.5 + math.cos(ang) * r), int(7.5 + math.sin(ang) * r)
             fp[x, y] = (255, 251, 232, 255) if r < 4 else (255, 215, 94, 255)
-    save(funke, "fx/funke.png")
-
-
-ICONS: dict[str, list[str]] = {
-    "kestrel_C": ["................", ".......W........", "...W...W...W....", "....W..W..W.....", ".....WWWWW......", "..WWWWYYYWWWW...", ".....WWWWW......", "....W..W..W.....", "...W...W...W....", ".......W........", "................", "................", "................", "................", "................", "................"],
-    "kestrel_Q": ["................", ".......W........", "......WWW.......", ".....WWWWW......", "....WW.W.WW.....", ".......W........", ".......W........", ".......W........", ".....YYYYY......", "....YYYYYYY.....", "................", "................", "................", "................", "................", "................"],
-    "kestrel_E": ["................", "................", "..W.....WW......", ".W.....WWWW.....", "W.....WWWWWW....", "WWWWWWWWWWWWW...", "W.....WWWWWW....", ".W.....WWWW.....", "..W.....WW......", "................", "................", "................", "................", "................", "................", "................"],
-    "kestrel_X": ["................", "......YYY.......", ".....YWWWY......", "....YWWWWWY.....", "....YWWYWWY.....", "....YWWYWWY.....", "....YWWWWWY.....", ".....YWWWY......", "......YYY.......", "................", "................", "................", "................", "................", "................", "................"],
-    "marrow_C": ["................", "......WWW.......", ".....W...W......", "....W..W..W.....", "....W.WWW.W.....", "....W..W..W.....", ".....W...W......", "......WWW.......", ".......W........", "......WWW.......", "................", "................", "................", "................", "................", "................"],
-    "marrow_Q": ["................", "..W..W..W..W....", "..W..W..W..W....", "..WWWWWWWWWW....", "..WWWWWWWWWW....", "..W..W..W..W....", "..W..W..W..W....", "................", "................", "................", "................", "................", "................", "................", "................", "................"],
-    "marrow_E": ["................", ".....WWWW.......", "...WWWWWWWW.....", "..WWWWWWWWWW....", "..WWWWWWWWWW....", "..WWWWWWWWWW....", "...WWWWWWWW.....", ".....WWWW.......", "................", "................", "................", "................", "................", "................", "................", "................"],
-    "marrow_X": ["................", "....YYYYYY......", "...Y......Y.....", "..Y..WWWW..Y....", "..Y.W....W.Y....", "..Y.W.WW.W.Y....", "..Y.W....W.Y....", "..Y..WWWW..Y....", "...Y......Y.....", "....YYYYYY......", "................", "................", "................", "................", "................", "................"],
-}
-
-
-def make_icons() -> None:
-    pal = {"W": "#e8e6ef", "Y": "#e0b437"}
-    for key, rows in ICONS.items():
-        rows = [r.ljust(16, ".")[:16] for r in rows]
-        save(from_rows(rows, pal), f"ui/faehigkeit_{key}.png")
+    save(flash, "fx/flash.png")
 
 
 HUD_ICONS: dict[str, tuple[list[str], dict[str, str]]] = {
-    "leben": (["..WW....", "..WW....", "WWWWWW..", "WWWWWW..", "..WW....", "..WW....", "........", "........"], {"W": "#e8e6ef"}),
-    "schild": (["SSSSSS..", "SsSSsS..", "SSSSSS..", "SSSSSS..", ".SSSS...", "..SS....", "........", "........"], {"S": "#8fb3bd", "s": "#4f6b73"}),
+    "health": (["..WW....", "..WW....", "WWWWWW..", "WWWWWW..", "..WW....", "..WW....", "........", "........"], {"W": "#e8e6ef"}),
+    "shield": (["SSSSSS..", "SsSSsS..", "SSSSSS..", "SSSSSS..", ".SSSS...", "..SS....", "........", "........"], {"S": "#8fb3bd", "s": "#4f6b73"}),
     "credits": (["..YYY...", ".YyyyY..", "YyYYyY..", "YyYYyY..", ".YyyyY..", "..YYY...", "........", "........"], {"Y": "#e0b437", "y": "#a8821f"}),
-    "munition": (["..Y.....", ".YYY....", ".WWW....", ".WWW....", ".WWW....", ".WWW....", ".ggg....", "........"], {"Y": "#e0b437", "W": "#c7ccd2", "g": "#8a9199"}),
-    "kopfschuss": (["..WWW...", ".W...W..", "W.W.W.W.", "W.....W.", ".W.W.W..", "..WWW...", "........", "........"], {"W": "#ee4c4a"}),
-    "spike_klein": (["oooooo..", "oMLLMo..", "oMLLMo..", "oYkYko..", "oooooo..", "........", "........", "........"], {"o": "#16151b", "M": "#6b7480", "L": "#ff5a4f", "Y": "#e0b437", "k": "#1b1a1a"}),
-    "uhr": (["..WWW...", ".W.W.W..", "W..W..W.", "W..WW.W.", "W.....W.", ".W...W..", "..WWW...", "........"], {"W": "#e8e6ef"}),
-    "tot": ([".WWWW...", "WWWWWW..", "W.WW.W..", "WWWWWW..", ".W.W.W..", "........", "........", "........"], {"W": "#9b98aa"}),
+    "ammo": (["..Y.....", ".YYY....", ".WWW....", ".WWW....", ".WWW....", ".WWW....", ".ggg....", "........"], {"Y": "#e0b437", "W": "#c7ccd2", "g": "#8a9199"}),
+    "headshot": (["..WWW...", ".W...W..", "W.W.W.W.", "W.....W.", ".W.W.W..", "..WWW...", "........", "........"], {"W": "#ee4c4a"}),
+    "bomb_small": (["oooooo..", "oMLLMo..", "oMLLMo..", "oYkYko..", "oooooo..", "........", "........", "........"], {"o": "#16151b", "M": "#6b7480", "L": "#ff5a4f", "Y": "#e0b437", "k": "#1b1a1a"}),
+    "timer": (["..WWW...", ".W.W.W..", "W..W..W.", "W..WW.W.", "W.....W.", ".W...W..", "..WWW...", "........"], {"W": "#e8e6ef"}),
+    "eliminated": ([".WWWW...", "WWWWWW..", "W.WW.W..", "WWWWWW..", ".W.W.W..", "........", "........", "........"], {"W": "#9b98aa"}),
 }
 
 
@@ -534,28 +392,27 @@ def bar(width: int, fill: str, shade: str) -> Image.Image:
 def make_hud() -> None:
     for key, (rows, pal) in HUD_ICONS.items():
         save(from_rows(rows, pal), f"ui/hud/{key}.png")
-    save(panel(12, "#1f1e27", "#0e0d12", "#2f2d3a"), "ui/hud/rahmen.png")
-    save(panel(12, "#2a2933", "#4fd6c8", "#3a3846"), "ui/hud/rahmen_aktiv.png")
-    save(bar(48, "#e8e6ef", "#9b98aa"), "ui/hud/balken_leben.png")
-    save(bar(48, "#8fb3bd", "#4f6b73"), "ui/hud/balken_schild.png")
-    save(bar(48, "#e0b437", "#a8821f"), "ui/hud/balken_fortschritt.png")
-    save(bar(48, "#3a3846", "#2a2933"), "ui/hud/balken_leer.png")
+    save(panel(12, "#1f1e27", "#0e0d12", "#2f2d3a"), "ui/hud/frame.png")
+    save(panel(12, "#2a2933", "#4fd6c8", "#3a3846"), "ui/hud/frame_active.png")
+    save(bar(48, "#e8e6ef", "#9b98aa"), "ui/hud/bar_health.png")
+    save(bar(48, "#8fb3bd", "#4f6b73"), "ui/hud/bar_shield.png")
+    save(bar(48, "#e0b437", "#a8821f"), "ui/hud/bar_progress.png")
+    save(bar(48, "#3a3846", "#2a2933"), "ui/hud/bar_empty.png")
 
 
 MINIMAP: dict[str, tuple[list[str], dict[str, str]]] = {
-    "selbst": (["...W....", "..WWW...", ".WWWWW..", "WWWWWWW.", "..WWW...", "..WWW...", "........", "........"], {"W": "#e8e6ef"}),
-    "verbuendet": (["..CCC...", ".CcccC..", "CcccccC.", "CcccccC.", ".CcccC..", "..CCC...", "........", "........"], {"C": "#16151b", "c": "#4fd6c8"}),
-    "feind": (["..RRR...", ".RrrrR..", "RrrrrrR.", "RrrrrrR.", ".RrrrR..", "..RRR...", "........", "........"], {"R": "#16151b", "r": "#ee4c4a"}),
-    "tot": (["r.....r.", ".r...r..", "..r.r...", "...r....", "..r.r...", ".r...r..", "r.....r.", "........"], {"r": "#9b98aa"}),
+    "self": (["...W....", "..WWW...", ".WWWWW..", "WWWWWWW.", "..WWW...", "..WWW...", "........", "........"], {"W": "#e8e6ef"}),
+    "ally": (["..CCC...", ".CcccC..", "CcccccC.", "CcccccC.", ".CcccC..", "..CCC...", "........", "........"], {"C": "#16151b", "c": "#4fd6c8"}),
+    "enemy": (["..RRR...", ".RrrrR..", "RrrrrrR.", "RrrrrrR.", ".RrrrR..", "..RRR...", "........", "........"], {"R": "#16151b", "r": "#ee4c4a"}),
+    "eliminated": (["r.....r.", ".r...r..", "..r.r...", "...r....", "..r.r...", ".r...r..", "r.....r.", "........"], {"r": "#9b98aa"}),
     "spike": (["oooooo..", "oYLLYo..", "oYLLYo..", "oooooo..", "........", "........", "........", "........"], {"o": "#16151b", "Y": "#e0b437", "L": "#ff5a4f"}),
-    "dunst": (["..ggg...", ".gGGGg..", "gGGGGGg.", "gGGGGGg.", ".gGGGg..", "..ggg...", "........", "........"], {"g": "#6e6e80", "G": "#9a9aac"}),
-    "bann": (["..ppp...", ".p...p..", "p.....p.", "p.....p.", ".p...p..", "..ppp...", "........", "........"], {"p": "#9664c8"}),
-    "schleier": (["........", "........", "WWWWWWW.", "wwwwwww.", "........", "........", "........", "........"], {"W": "#bac4d6", "w": "#8a94a6"}),
+    "smoke": (["..ggg...", ".gGGGg..", "gGGGGGg.", "gGGGGGg.", ".gGGGg..", "..ggg...", "........", "........"], {"g": "#6e6e80", "G": "#9a9aac"}),
+    "slow_field": (["..ppp...", ".p...p..", "p.....p.", "p.....p.", ".p...p..", "..ppp...", "........", "........"], {"p": "#9664c8"}),
+    "vapor_wall": (["........", "........", "WWWWWWW.", "wwwwwww.", "........", "........", "........", "........"], {"W": "#bac4d6", "w": "#8a94a6"}),
 }
 
 FONT5: dict[str, list[str]] = {
     "A": [".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
-    "Ä": [".#.#.", ".....", ".###.", "#...#", "#####", "#...#", "#...#"],
     "B": ["####.", "#...#", "#...#", "####.", "#...#", "#...#", "####."],
     "C": [".####", "#....", "#....", "#....", "#....", "#....", ".####"],
     "D": ["####.", "#...#", "#...#", "#...#", "#...#", "#...#", "####."],
@@ -581,12 +438,12 @@ FONT5: dict[str, list[str]] = {
 }
 
 BANNERS = {
-    "sieg": ("VICTORY", "#4fd6c8"),
-    "niederlage": ("DEFEAT", "#ee4c4a"),
-    "seitenwechsel": ("SWITCHING SIDES", "#e0b437"),
-    "spike_gelegt": ("BOMB PLANTED", "#ee4c4a"),
-    "entschaerft": ("BOMB DEFUSED", "#4fd6c8"),
-    "verlaengerung": ("OVERTIME", "#e0b437"),
+    "victory": ("VICTORY", "#4fd6c8"),
+    "defeat": ("DEFEAT", "#ee4c4a"),
+    "switching_sides": ("SWITCHING SIDES", "#e0b437"),
+    "bomb_planted": ("BOMB PLANTED", "#ee4c4a"),
+    "bomb_defused": ("BOMB DEFUSED", "#4fd6c8"),
+    "overtime": ("OVERTIME", "#e0b437"),
 }
 
 
@@ -635,63 +492,6 @@ def make_minimap_and_banners() -> None:
         save(banner(text, accent), f"ui/banner/{key}.png")
 
 
-def _set(rows: list[str], y: int, x: int, ch: str) -> None:
-    r = list(rows[y])
-    r[x] = ch
-    rows[y] = "".join(r)
-
-
-def _hands_off(top: list[str]) -> list[str]:
-    rows = list(top)
-    for y in (18, 19):
-        for x in (2, 3, 12, 13):
-            _set(rows, y, x, ".")
-    return rows
-
-
-def action_frames(top: list[str], pal: dict[str, str], hip: str, coat: int, glow: str) -> dict[str, list[Image.Image]]:
-    """Shoot (2), reload (4), cast (3). The game draws weapon and muzzle flash separately."""
-    pal = {**pal, "*": glow}
-    base_legs = legs(5, 5, hip, coat_rows=coat)
-
-    def fig(rows: list[str]) -> Image.Image:
-        return outline(from_rows(rows + base_legs, pal))
-
-    # shoot: recoil, upper body 1 px lower
-    recoil = ["................"] + top[:-1]
-    shoot = [fig(top), fig(recoil)]
-    # reload: hands to the belt and back
-    r1 = _hands_off(top)
-    for x, ch in ((4, "S"), (11, "s")):
-        _set(r1, 17, x, ch)
-    r2 = _hands_off(top)
-    for x, ch in ((6, "S"), (7, "S"), (8, "S"), (9, "s")):
-        _set(r2, 16, x, ch)
-    reload = [fig(top), fig(r1), fig(r2), fig(r1)]
-    # cast: right hand up, glow
-    c1 = list(top)
-    for y in (18, 19):
-        _set(c1, y, 12, ".")
-        _set(c1, y, 13, ".")
-    _set(c1, 13, 14, "S")
-    c2 = list(c1)
-    _set(c2, 13, 14, ".")
-    _set(c2, 10, 14, "S")
-    _set(c2, 9, 14, "*")
-    _set(c2, 9, 15, "*")
-    _set(c2, 8, 14, "*")
-    cast = [fig(c1), fig(c2), fig(c1)]
-    return {"shoot": shoot, "reload": reload, "cast": cast}
-
-
-def make_agent_actions() -> None:
-    for key, top, pal, hip, coat, glow in (("kestrel", KESTREL_TOP, KESTREL_PAL, "PPPPPp", 0, "#ffd75e"),
-                                           ("marrow", MARROW_TOP, MARROW_PAL, "CCCCCc", 2, "#bac4d6")):
-        for state, frames in action_frames(top, pal, hip, coat, glow).items():
-            im = strip(frames)
-            save(im, f"agents/{key}/{key}_{state}.png")
-            save(enemy_variant(im), f"agents/{key}/{key}_{state}_feind.png")
-
 
 def make_fx_anims() -> None:
     rng = random.Random(9)
@@ -713,7 +513,7 @@ def make_fx_anims() -> None:
                     p[x, y] = inner if d < rad * 0.75 else edge
         return im
 
-    save(strip([disc(64, f, (136, 136, 152, 235), (110, 110, 126, 200), 0.4) for f in (0.35, 0.6, 0.82, 1.0)]), "fx/dunst_aufbau.png")
+    save(strip([disc(64, f, (136, 136, 152, 235), (110, 110, 126, 200), 0.4) for f in (0.35, 0.6, 0.82, 1.0)]), "fx/smoke_forming.png")
 
     def ring(size: int, r0: float, r1: float, col: Color, fill_alpha: int) -> Image.Image:
         im = blank(size, size)
@@ -728,8 +528,8 @@ def make_fx_anims() -> None:
                     p[x, y] = col[:3] + (fill_alpha,)
         return im
 
-    save(strip([ring(64, 29 - i, 31.5, (150, 100, 200, 230 - i * 40), 90 - i * 25) for i in range(3)]), "fx/bann_puls.png")
-    save(strip([ring(32, r, r + 1.5, (143, 179, 189, 220 - i * 60), 0) for i, r in enumerate((4, 9, 14))]), "fx/lauscher_puls.png")
+    save(strip([ring(64, 29 - i, 31.5, (150, 100, 200, 230 - i * 40), 90 - i * 25) for i in range(3)]), "fx/slow_field_pulse.png")
+    save(strip([ring(32, r, r + 1.5, (143, 179, 189, 220 - i * 60), 0) for i, r in enumerate((4, 9, 14))]), "fx/sensor_pulse.png")
 
     def burst(size: int, length: int, core: Color, tip: Color) -> Image.Image:
         im = blank(size, size)
@@ -744,7 +544,7 @@ def make_fx_anims() -> None:
         return im
 
     save(strip([burst(16, 3, (255, 251, 232, 255), (255, 215, 94, 255)), burst(16, 8, (255, 251, 232, 255), (255, 215, 94, 255)),
-                burst(16, 8, (255, 251, 232, 120), (255, 215, 94, 90))]), "fx/funke_explosion.png")
+                burst(16, 8, (255, 251, 232, 120), (255, 215, 94, 90))]), "fx/flash_burst.png")
 
     trail = []
     for i in range(3):
@@ -756,7 +556,7 @@ def make_fx_anims() -> None:
                 if rng.random() < 0.8:
                     p[x, y] = (255, 251, 232, alpha)
         trail.append(im)
-    save(strip(trail), "fx/gleiten_spur.png")
+    save(strip(trail), "fx/dash_trail.png")
 
     dust = []
     for i in range(3):
@@ -768,7 +568,7 @@ def make_fx_anims() -> None:
             if 0 <= x < 16 and 0 <= y < 8:
                 p[x, y] = (196, 174, 136, 220 - i * 60)
         dust.append(im)
-    save(strip(dust), "fx/satz_staub.png")
+    save(strip(dust), "fx/hop_dust.png")
 
     veil = []
     for dens in (0.3, 0.65, 0.95):
@@ -779,7 +579,7 @@ def make_fx_anims() -> None:
                 if rng.random() < dens * (1.0 if 5 <= y <= 10 else 0.5):
                     p[x, y] = (186, 196, 214, 230) if y < 8 else (150, 160, 180, 230)
         veil.append(im)
-    save(strip(veil), "fx/schleier_aufbau.png")
+    save(strip(veil), "fx/vapor_wall_forming.png")
 
     boom = []
     for i, frac in enumerate((0.2, 0.45, 0.7, 0.9, 1.0, 1.0)):
@@ -807,22 +607,19 @@ def make_fx_anims() -> None:
         ["........", "........", "...W....", "..WYW...", "...W....", "........", "........", "........"],
         ["........", ".Y...Y..", "..Y.Y...", "...W....", "..Y.Y...", ".g...g..", "........", "........"],
         ["........", "........", "..g.g...", "...g....", "..g.g...", "........", "........", "........"])]
-    save(strip(wall_hit), "fx/einschlag_wand.png")
+    save(strip(wall_hit), "fx/wall_impact.png")
     body_hit = [from_rows(r, {"R": "#ee4c4a", "r": "#a8322f", "W": "#ffffff"}) for r in (
         ["........", "........", "...R....", "..RWR...", "...R....", "........", "........", "........"],
         ["........", ".R...R..", "..r.r...", "...W....", "..r.r...", ".R...R..", "........", "........"],
         ["........", "........", "..r.r...", "........", "..r.r...", "........", "........", "........"])]
-    save(strip(body_hit), "fx/treffer_koerper.png")
+    save(strip(body_hit), "fx/body_hit.png")
 
 
 def main() -> None:
-    make_agents()
-    make_agent_actions()
     make_fx_anims()
     make_weapons()
     make_tiles()
     make_fx()
-    make_icons()
     make_hud()
     make_minimap_and_banners()
 

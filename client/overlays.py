@@ -54,12 +54,16 @@ class OverlaysMixin:
         from gameplay.data import load_armor, load_weapons
         from gameplay.kit.library import load_library
         from gameplay.kit.statuses import load_statuses
-        from gameplay.match import load_agents
+        from gameplay.match import playable_agents
         from gameplay.patches import reload_all
         reload_all()
         load_library.cache_clear()
         m = self.match
-        m.agents, m.weapons, m.armor, m.statuses = load_agents(), load_weapons(), load_armor(), load_statuses()
+        roster = playable_agents()
+        if any(p.agent not in roster for p in m.players.values()):
+            self.status = "Content reload skipped: an agent in the match is unavailable."
+            return
+        m.agents, m.weapons, m.armor, m.statuses = roster, load_weapons(), load_armor(), load_statuses()
         self.status = f"Content reloaded: {len(m.agents)} agents, {len(m.weapons)} weapons (maps and rules: next match)"
         self.sound.play("ui_click", gain=0.6)
 

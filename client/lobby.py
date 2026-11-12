@@ -114,7 +114,7 @@ class LobbyMixin:
         y = 230
         for slot in ("C", "Q", "E", "X"):
             ab = agent.get("abilities", {}).get(slot, {})
-            icon = self.bank.scaled(f"ui/faehigkeit_{mine.agent}_{slot}.png", (28, 28))
+            icon = self.bank.scaled(f"ui/ability_{mine.agent}_{slot}.png", (28, 28))
             if icon is not None:
                 s.blit(icon, (cx + 104, y))
             ui.text(slot, (cx + 140, y + 6), "xs", "muted", bold=True)

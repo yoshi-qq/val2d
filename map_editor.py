@@ -19,7 +19,7 @@ from typing import Any
 
 import pygame
 
-from gameplay.world import MAP_DIR, load_map_raw, load_materials, load_things, parse_map
+from gameplay.world import DEFAULT_MAP, MAP_DIR, load_map_raw, load_materials, load_things, parse_map
 from sprite_bank import SpriteBank, build_map_surface
 
 TOOLS = {pygame.K_1: "wall", pygame.K_2: "floor", pygame.K_3: "object", pygame.K_4: "decal", pygame.K_5: "crate",
@@ -187,6 +187,14 @@ class Editor:
         for team, pts in d["spawns"].items():
             for x, y in pts:
                 pygame.draw.circle(s, (79, 214, 200) if team == "0" else (238, 76, 74), self.to_screen(x, y), max(3, self.zoom * 0.4))
+        for teleporter in d.get("teleporters", []):
+            x0, y0, x1, y1 = teleporter["entry"]
+            a, b = self.to_screen(x0, y1), self.to_screen(x1, y0)
+            entry = self.to_screen((x0 + x1) / 2, (y0 + y1) / 2)
+            destination = self.to_screen(*teleporter["exit"])
+            pygame.draw.rect(s, C_SEL, (a[0], a[1], b[0] - a[0], b[1] - a[1]), 2)
+            pygame.draw.line(s, C_SEL, entry, destination, 1)
+            pygame.draw.circle(s, C_SEL, destination, 5, 2)
         if self.drag_start is not None:
             a = self.to_screen(*self.drag_start)
             b = self.to_screen(*self.to_world(pygame.mouse.get_pos()))
@@ -262,7 +270,7 @@ class Editor:
 
 
 def main() -> None:
-    key = sys.argv[1] if len(sys.argv) > 1 else "alley"
+    key = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_MAP
     if not key.replace("_", "").isalnum():
         print("Map key: letters, digits and _ only")
         return

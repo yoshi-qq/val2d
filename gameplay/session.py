@@ -38,7 +38,7 @@ class HostSession:
 
     def fill_bots(self, team_size: int) -> None:
         """Fills both teams with bots up to team_size."""
-        agents = list(self.match.agents) or ["kestrel"]
+        agents = list(self.match.agents)
         with self.net.lock:
             for team in (0, 1):
                 count = self.team_counts()[team]

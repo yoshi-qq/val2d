@@ -131,6 +131,8 @@ class CharactersMixin:
             return "ability", cast[1]
         if p.pid == self.me and self.aiming:
             return "ability", self.aiming
+        if p.blades_equipped:
+            return "ability", "X"
         if p.plant_progress > 0 or p.defuse_progress > 0:
             return "spike", ""
         if p.weapon:
@@ -155,7 +157,8 @@ class CharactersMixin:
             # held at the side like in a hand, pointing left or right on screen (the exact aim is the facing marker)
             d = m.weapons.get(key)
             length = 0.68 if d is not None and d.slot == "melee" else 0.84 if d is not None and d.slot == "sidearm" else 1.24
-            img = self.bank.scaled(f"weapons/val2d/{self.weapon_art(key)}.png", (max(4, round(self.scale * length)), max(2, round(self.scale * length / 2))))
+            size = (max(4, round(self.scale * length)), max(2, round(self.scale * length / 2)))
+            img = self.bank.weapon(self.weapon_art(key), size, p.weapon.skin if p.weapon else "")
             right = dx >= -0.5
             gx = px + (1 if right else -1) * self.scale * 0.43
             gy = py + body_h * 0.08
@@ -166,7 +169,7 @@ class CharactersMixin:
                 img = pygame.transform.flip(img, True, False)
             s.blit(img, (gx - img.get_width() / 2, gy - img.get_height() / 2))
         elif kind == "ability":
-            icon = self.bank.scaled(f"ui/faehigkeit_{p.agent}_{key}.png", (max(4, round(self.scale * 0.42)),) * 2)
+            icon = self.bank.scaled(f"ui/ability_{p.agent}_{key}.png", (max(4, round(self.scale * 0.42)),) * 2)
             if icon is not None:
                 s.blit(icon, (hx - icon.get_width() / 2, hy - icon.get_height() / 2))
         elif kind == "spike":

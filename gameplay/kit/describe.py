@@ -113,6 +113,8 @@ def alt_text(ab: dict[str, Any]) -> str:
         return ""
     if alt.get("desc"):
         return str(alt["desc"])
+    if alt.get("name"):
+        return str(alt["name"])
     if alt.get("throw") == "underhand":
         return "underhand throw, shorter and quicker"
     if alt.get("throw") == "lob":

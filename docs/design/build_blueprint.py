@@ -48,7 +48,7 @@ def states_table() -> str:
         size = f"{st.size[0]}×{st.size[1]}"
         rows.append(f"<tr><td class='grp'>{g}</td><td><code>{st.tag}</code></td><td>{fr}</td><td>{speed}</td>"
                     f"<td>{'yes' if st.loop else ''}</td><td>{size}</td><td>{need}</td><td>{st.note}</td>"
-                    f"<td class='ex'>{strip_cell('kestrel', st.tag, 3)}</td></tr>")
+                    f"<td class='ex'>{strip_cell('omen', st.tag, 3)}</td></tr>")
     return "\n".join(rows)
 
 
@@ -64,7 +64,7 @@ def zones_table() -> str:
 def build() -> str:
     t = HERE / "templates"
     guide = uri(t / "character_guides_x8.png")
-    layout = uri(t / "example_kestrel_sheet.png")
+    layout = uri(t / "example_omen_sheet.png")
     req = sum(1 for s in STATES if s.required)
     return TEMPLATE.format(guide=guide, layout=layout, zones=zones_table(), states=states_table(), required=req)
 
@@ -103,7 +103,7 @@ pre{{background:var(--panel);border:1px solid var(--line);padding:12px 14px;over
 <main>
 <header style="display:flex;flex-direction:column;gap:10px">
   <h1>Val2d Character Blueprint</h1>
-  <p class="muted">Everything needed to draw an agent's sprite sheets by hand in Aseprite. The examples use Kestrel; the file <code>docs/design/CHARACTER_SHEETS.md</code> has the same rules as text. {required} states are required, everything else has a fallback.</p>
+  <p class="muted">Everything needed to draw an agent's sprite sheets by hand in Aseprite. The examples use Omen; the file <code>docs/design/CHARACTER_SHEETS.md</code> has the same rules as text. {required} states are required, everything else has a fallback.</p>
 </header>
 
 <section>
@@ -139,7 +139,7 @@ pre{{background:var(--panel);border:1px solid var(--line);padding:12px 14px;over
   <h2>States</h2>
   <p class="muted">One Aseprite tag per state; the tag name is the state name. Abilities each need their own animation (C, Q, E, X).</p>
   <div class="tbl"><table>
-    <thead><tr><th>Group</th><th>State</th><th>Frames</th><th>Speed</th><th>Loops</th><th>Cell</th><th>Needed</th><th>What it shows</th><th>Kestrel</th></tr></thead>
+    <thead><tr><th>Group</th><th>State</th><th>Frames</th><th>Speed</th><th>Loops</th><th>Cell</th><th>Needed</th><th>What it shows</th><th>Omen</th></tr></thead>
     <tbody>{states}</tbody>
   </table></div>
 </section>
@@ -170,9 +170,9 @@ python docs/design/check_agent_sprites.py vesper</code></pre>
 </section>
 
 <section>
-  <h2>Sheet layout with Kestrel</h2>
-  <p class="muted">Light slots are the minimum frame count, dark slots are optional extra frames. Empty rows are optional states Kestrel doesn't have yet.</p>
-  <div class="tbl" style="border:0"><img class="px" src="{layout}" alt="Every state as a row with its frame slots, filled with Kestrel's frames" style="max-width:none"></div>
+  <h2>Sheet layout with Omen</h2>
+  <p class="muted">Light slots are the minimum frame count, dark slots are optional extra frames. Empty rows are optional states Omen doesn't have yet.</p>
+  <div class="tbl" style="border:0"><img class="px" src="{layout}" alt="Every state as a row with its frame slots, filled with Omen's frames" style="max-width:none"></div>
 </section>
 </main>"""
 

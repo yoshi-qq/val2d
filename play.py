@@ -1,6 +1,6 @@
 """Play Val2d: practice match against bots on the own game core (gameplay).
 
-Usage:  python play.py [--agent kestrel|marrow] [--team-size 1..5] [--rounds 13] [--map workyard|alley]
+Usage:  python play.py [--agent omen] [--team-size 1..5] [--rounds 13] [--map ascent]
                         [--all-around] [--sound-rings]
 Network:  python play.py --host            open a match (host = player 1), Enter starts
           python play.py --find            find a match on the local network and join
@@ -23,7 +23,9 @@ import pygame
 
 from client.common import FONT_PATH, display_mode
 from client.game import Game
+from gameplay.match import DEFAULT_AGENT, playable_agents
 from gameplay.netgame import DEFAULT_PORT, discover
+from gameplay.world import DEFAULT_MAP, PLAYABLE_MAP_KEYS
 
 
 def main() -> None:
@@ -32,10 +34,10 @@ def main() -> None:
         report = Path(sys.argv[2]) if len(sys.argv) >= 3 else None
         sys.exit(0 if self_test.run(report) else 1)
     ap = argparse.ArgumentParser(description="Play Val2d against bots or online")
-    ap.add_argument("--agent", default="kestrel", help="agent key (file name in config/content/agents/)")
+    ap.add_argument("--agent", default=DEFAULT_AGENT, choices=tuple(playable_agents()))
     ap.add_argument("--team-size", type=int, default=5, choices=range(1, 6))
     ap.add_argument("--rounds", type=int, default=13)
-    ap.add_argument("--map", default="workyard")
+    ap.add_argument("--map", default=DEFAULT_MAP, choices=PLAYABLE_MAP_KEYS)
     ap.add_argument("--all-around", action="store_true", help="Lobby rule: all-around sight")
     ap.add_argument("--sound-rings", action="store_true", help="Lobby rule: sound rings")
     ap.add_argument("--name", default="Player", help="Name in the match (up to 16 characters)")
@@ -46,7 +48,6 @@ def main() -> None:
     net.add_argument("--find", action="store_true", help="Find a match on the local network and join")
     ap.add_argument("--port", type=int, default=DEFAULT_PORT)
     ap.add_argument("--no-menu", action="store_true", help="Start the practice match directly, without the main menu")
-    ap.add_argument("--range", dest="practice", action="store_true", help="Practice range instead of a match")
     ap.add_argument("--mode", default="standard", choices=["standard", "quick", "deathmatch"])
     args = ap.parse_args()
     args.online = bool(args.host_online)
@@ -68,7 +69,7 @@ def main() -> None:
         args.join = f"{address}:{port}"
     try:
         game = Game(args)
-    except (OSError, ConnectionError) as exc:
+    except (OSError, ValueError) as exc:
         print(f"No connection: {exc}")
         pygame.quit()
         return
@@ -82,7 +83,7 @@ def run_menu(args: argparse.Namespace) -> None:
     """Main menu loop: each match returns to the menu; quitting the menu ends the program."""
     from menu import MainMenu
     pygame.init()
-    screen = pygame.display.set_mode((1280, 720))
+    screen = display_mode(False)
     pygame.display.set_caption("Val2d")
     try:
         font, big = pygame.font.Font(str(FONT_PATH), 18), pygame.font.Font(str(FONT_PATH), 36)
@@ -98,7 +99,7 @@ def run_menu(args: argparse.Namespace) -> None:
             game.run()
             if game.quit_program:
                 break
-        except (OSError, ConnectionError) as exc:
+        except (OSError, ValueError) as exc:
             menu.status = f"No connection: {exc}"
             warnings.warn(menu.status)
         screen = display_mode(bool(getattr(menu.args, "fullscreen", False)))

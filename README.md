@@ -20,6 +20,12 @@ python map_editor.py ascent
 
 Use the main menu to play Unrated, Swiftplay or Team Deathmatch against bots, or choose Custom to host or join a private match. Join over LAN by address or discovery, or over the internet with a join code. Run `python play.py --help` or `python server.py --help` for command-line options.
 
+Open the Bind or Haven blockout with `python map_editor.py bind` or `python map_editor.py haven`. Both have plant sites, team spawns and walkable routes from each spawn to each site. Bind has two one-way player teleporters. Elevations, buy barriers and a side-by-side cover pass are still pending. [Map references](https://playvalorant.com/en-us/maps/)
+
+Recorded footsteps, rifle fire, magazine handling, Spike pulses and menu clicks use the [CC0 sound sources](assets/sounds/cc0/SOURCES.md).
+
+Open **Inventory**, choose a weapon and preview a skin, then select **Equip** to save it. Every weapon has a Standard look and at least one variant inspired by Prime, Reaver, Oni, RGX 11z Pro or Kuronami.
+
 | Controls | Action |
 | --- | --- |
 | WASD, Shift, Ctrl, Space | Run, walk, crouch, jump |
@@ -39,10 +45,8 @@ Use the main menu to play Unrated, Swiftplay or Team Deathmatch against bots, or
 | Icon | Map | Availability |
 | --- | --- | --- |
 | ![Ascent map icon](assets/maps/ascent/icon.png) | Ascent | Default |
-| ![Alley map icon](assets/maps/alley/icon.png) | Alley | Map editor |
-| ![Harbour map icon](assets/maps/harbour/icon.png) | Harbour | Map editor |
-| ![Range map icon](assets/maps/range/icon.png) | Range | Map editor |
-| ![Workyard map icon](assets/maps/workyard/icon.png) | Workyard | Map editor |
+| Missing | Bind | Map editor |
+| Missing | Haven | Map editor |
 
 ### Agents
 
@@ -87,6 +91,7 @@ Use the main menu to play Unrated, Swiftplay or Team Deathmatch against bots, or
 | Heavy | Ares | ![Ares sprite](assets/weapons/val2d/ares.png) | 1,600 credits |
 | Heavy | Odin | ![Odin sprite](assets/weapons/val2d/odin.png) | 3,200 credits |
 | Armor | Light Armor | <img src="assets/ui/buy/vest_light.png" alt="Light Armor buy sprite" width="48"> | 400 credits |
+| Armor | Regen Shield | <img src="assets/ui/buy/regen_shield.png" alt="Regen Shield buy sprite" width="48"> | 650 credits |
 | Armor | Heavy Armor | <img src="assets/ui/buy/vest_heavy.png" alt="Heavy Armor buy sprite" width="48"> | 1,000 credits |
 
 <!-- END GAME CONTENT -->
@@ -97,7 +102,7 @@ Use the main menu to play Unrated, Swiftplay or Team Deathmatch against bots, or
 - [ ] Verify ability animations and FX in a match for every active agent.
 - [ ] Add rear and side character sprites for the active agents. [Figure views](docs/design/FIGURE_VIEWS.md)
 - [ ] Check weapon sprites in hand, in the HUD and in the buy menu during a match.
-- [ ] Tune gameplay and bot balance. Check the defender advantage on Harbour and the attacker advantage in Alley 1v1.
+- [ ] Tune gameplay and bot balance on the playable maps.
 - [ ] Verify internet play across two separate networks.
 
 See the [detailed roadmap](roadmap.md) and [sprite handover](docs/SPRITES.md).

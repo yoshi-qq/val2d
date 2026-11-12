@@ -11,6 +11,7 @@ from pathlib import Path
 import pygame
 
 from gameplay.geometry import Rect, Vec
+from gameplay.skins import SKIN_LINES
 
 ROOT = Path(__file__).resolve().parent
 ASSETS = ROOT / "assets"
@@ -23,9 +24,11 @@ class SpriteBank:
         self._raw: dict[str, pygame.Surface | None] = {}
         self._scaled: dict[tuple[str, int, int, int], pygame.Surface] = {}
         self._warned: set[str] = set()
+        self._weapon_skins: dict[tuple[str, str], pygame.Surface] = {}
+        self._weapon_pictures: dict[tuple[str, str, tuple[int, int], str], pygame.Surface] = {}
 
     def raw(self, rel: str) -> pygame.Surface | None:
-        """Image relative to assets/, e.g. 'agents/kestrel/kestrel_idle.png'."""
+        """Image relative to assets/, e.g. 'agents/omen/omen_idle.png'."""
         if rel not in self._raw:
             path = ASSETS / rel
             try:
@@ -66,10 +69,58 @@ class SpriteBank:
         img = self.raw(rel)
         return max(1, img.get_width() // frame_w) if img else 1
 
+    def weapon(self, art: str, bounds: tuple[int, int], skin: str = "", *, view: str = "hand") -> pygame.Surface | None:
+        """Draw the hand sprite at world scale, or fit a cropped sprite into a UI slot."""
+        key = (art, skin, bounds, view)
+        if key in self._weapon_pictures:
+            return self._weapon_pictures[key]
+        path = f"weapons/val2d/{art}.png"
+        buy = f"weapons/val2d/{art}_buy.png"
+        if view == "preview" and (ASSETS / buy).is_file():
+            path = buy
+        source = self.raw(path)
+        if source is None:
+            return None
+        if skin in SKIN_LINES:
+            source = self._skin_weapon(path, source, skin)
+        size = bounds
+        if view != "hand":
+            crop = source.get_bounding_rect()
+            if not crop:
+                return None
+            source = source.subsurface(crop)
+            size = crop.fit(pygame.Rect(0, 0, *bounds)).size
+        image = pygame.transform.scale(source, size)
+        if len(self._weapon_pictures) >= 1024:
+            self._weapon_pictures.clear()
+        self._weapon_pictures[key] = image
+        return image
+
+    def _skin_weapon(self, path: str, source: pygame.Surface, skin: str) -> pygame.Surface:
+        key = (path, skin)
+        if key not in self._weapon_skins:
+            line = SKIN_LINES[skin]
+            palette = [pygame.Color(tone) for tone in line.palette]
+            image = source.copy()
+            for y in range(source.get_height()):
+                pattern = line.pattern[y % len(line.pattern)]
+                for x in range(source.get_width()):
+                    pixel = source.get_at((x, y))
+                    if not pixel.a:
+                        continue
+                    value = (pixel.r * 3 + pixel.g * 6 + pixel.b) // 10
+                    tone = sum(value >= stop for stop in (35, 76, 110))
+                    if tone in (1, 2) and pattern[x % len(pattern)] == "#":
+                        tone = 4
+                    ink = palette[tone]
+                    image.set_at((x, y), (ink.r, ink.g, ink.b, pixel.a))
+            self._weapon_skins[key] = image
+        return self._weapon_skins[key]
+
     # ------------------------------------------------------------ Characters
     def agent(self, agent: str, pose: str, enemy: bool, scale: float, t: float) -> pygame.Surface | None:
         """pose: idle, walk, crouch, jump, dead. Size from the scale, walk cycle at WALK_FPS frames per second."""
-        suffix = "_feind" if enemy else ""
+        suffix = "_enemy" if enemy else ""
         rel = f"agents/{agent}/{agent}_{pose}{suffix}.png"
         if pose == "dead":
             return self.scaled(rel, (round(2 * scale), round(1 * scale)))
@@ -81,7 +132,7 @@ class SpriteBank:
 
     def agent_frame(self, agent: str, pose: str, enemy: bool, scale: float, progress: float) -> pygame.Surface | None:
         """Action strip (shoot, reload, cast) at progress 0..1; None if the strip is missing."""
-        suffix = "_feind" if enemy else ""
+        suffix = "_enemy" if enemy else ""
         rel = f"agents/{agent}/{agent}_{pose}{suffix}.png"
         if self.raw(rel) is None:
             return None
@@ -136,7 +187,7 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
     tile_px = max(1, round(2 * scale))  # tile 32 px = 2 m
 
     def tile(name: str) -> pygame.Surface | None:
-        rel = f"{folder}/{name}.png" if (ASSETS / folder / f"{name}.png").exists() else f"maps/werkhof/{name}.png"
+        rel = f"{folder}/{name}.png" if (ASSETS / folder / f"{name}.png").exists() else f"maps/workyard/{name}.png"
         return bank.scaled(rel, (tile_px, tile_px))
 
     from gameplay.world import load_materials
@@ -146,7 +197,7 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
         return bank.scaled(rel, (tile_px, tile_px)) if (ASSETS / rel).exists() else None
 
     floor = mat_tile(floor_mats.get(world.floor, "")) if world.floor else None
-    floor = floor or tile("boden_stein")
+    floor = floor or tile("stone_floor")
     if floor is None:
         return None
     w_px, h_px = round(world.width * scale), round(world.height * scale)
@@ -163,10 +214,10 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
         if patch is not None:
             _tile_rect(surf, patch, to_px(rect))
     layers: list[tuple[str, pygame.Rect]] = []
-    layers += [("platz_rand", to_px(s.rect)) for s in world.sites]
+    layers += [("site_border", to_px(s.rect)) for s in world.sites]
     # platform look: its own floor material, "floor" = keep the floor art under it, empty = the shared platform tile
-    layers += [(f"floor:{p.mat}" if p.mat else "plattform", to_px(p.rect)) for p in world.platforms if p.mat != "floor"]
-    layers += [("rampe", to_px(r)) for r in world.ramps]
+    layers += [(f"floor:{p.mat}" if p.mat else "platform", to_px(p.rect)) for p in world.platforms if p.mat != "floor"]
+    layers += [("ramp", to_px(r)) for r in world.ramps]
     platform_rects = {p.rect for p in world.platforms}
     object_rects = {o.rect for o in world.objects} | {w.rect for w in world.walls if w.material.startswith("obj:")}
     for wall in world.walls:
@@ -178,9 +229,9 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
             layers.append(("mat:" + wall_mats[wall.material].get("tile", ""), to_px(wall.rect)))
             continue
         if wall.height == 1 and not wall.blocks_sight:
-            name = "kiste_metall"
+            name = "metal_crate"
         else:
-            name = "wand_duenn" if wall.penetration <= 1 else "wand"
+            name = "wall_thin" if wall.penetration <= 1 else "wall"
         layers.append((name, to_px(wall.rect)))
     for name, rect in layers:
         if name.startswith("floor:"):
@@ -291,12 +342,12 @@ class CharacterSprites:
     def __init__(self, bank: SpriteBank) -> None:
         self.bank = bank
         self.states = load_states()
-        self._resolved: dict[tuple[str, str, bool, str | None], tuple[str, str] | None] = {}
+        self._resolved: dict[tuple[str, str, bool, str | None, str], tuple[str, str] | None] = {}
 
     def _file(self, agent: str, name: str, enemy: bool) -> str:
         if enemy and name.endswith(SCREEN_STATES):  # screen pictures have no enemy outline
             enemy = False
-        return f"agents/{agent}/{name}{'_feind' if enemy else ''}.png"
+        return f"agents/{agent}/{name}{'_enemy' if enemy else ''}.png"
 
     def resolve(self, agent: str, state: str, enemy: bool, form: str | None = None, view: str = "") -> tuple[str, str] | None:
         """(file, state actually used) after fallbacks, or None if not even idle exists (cached per call key).
@@ -304,7 +355,7 @@ class CharacterSprites:
         key = (agent, state, enemy, form, view)
         if key not in self._resolved:
             found = None
-            if view:
+            if view and not form:
                 rel = self._file(agent, f"{agent}_{state}_{view}", enemy)
                 found = (rel, state) if (ASSETS / rel).exists() else None
             self._resolved[key] = found or self._resolve(agent, state, enemy, form)
@@ -338,7 +389,7 @@ class CharacterSprites:
 
     def has_view(self, agent: str, state: str, enemy: bool, view: str) -> bool:
         found = self.resolve(agent, state, enemy, None, view)
-        return bool(found and found[0].endswith(f"_{view}{'_feind' if enemy else ''}.png"))
+        return bool(found and found[0].endswith(f"_{view}{'_enemy' if enemy else ''}.png"))
 
     def frame(self, agent: str, state: str, enemy: bool, scale: float, clock: float,
               form: str | None = None, speed: float = 1.0, view: str = "") -> pygame.Surface | None:

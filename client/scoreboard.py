@@ -47,11 +47,9 @@ class ScoreboardMixin:
         for winner, reason in m.history:
             won = me is not None and winner == me.team
             r = pygame.Rect(round(x), round(y), 24, 24)
-            if won:
-                pygame.draw.rect(self.screen, color("ally"), r)
-            else:
-                ui.outline(r, "enemy", 2)
-            ui.text(letters.get(reason, "?"), (r.centerx, r.y + 4), "xs", "bg" if won else "enemy", "center", bold=True)
+            col = "ally" if won else "enemy"
+            ui.skin("scoreboard/header_team_a" if won else "scoreboard/header_team_b", r)
+            ui.text(letters.get(reason, "?"), (r.centerx, r.y + 4), "xs", col, "center", bold=True)
             x += 28
 
     def draw_scores(self) -> None:
@@ -76,30 +74,28 @@ class ScoreboardMixin:
             top += 16
         x, w = self.w / 2 - 380, 760
         y = top
-        for label, cx in COLUMNS:
-            ui.text(label, (x + cx, y), "xs", "muted", upper=True)
-        y += 22
         teams = (me.team, 1 - me.team) if me is not None else (0, 1)
         for team in teams:
             own = me is not None and team == me.team
+            ui.skin("scoreboard/header_team_a" if own else "scoreboard/header_team_b", pygame.Rect(x, y, w, 24))
+            ui.sprite("icons/side_attack" if m.side(team) == "attack" else "icons/side_defense",
+                      pygame.Rect(x + 12, y + 3, 18, 18))
+            for label, cx in COLUMNS:
+                ui.text(label, (x + cx, y + 4), "xs", "text", upper=True)
+            y += 26
             players = sorted((p for p in m.players.values() if p.team == team), key=lambda p: -self.score_of(p))
             for p in players:
-                row = pygame.Rect(x, y, w, 34)
-                ui.panel(row, "panel_light" if p.pid == self.me else "panel")
-                tint = color("ally" if own else "enemy")
-                band = pygame.Surface(row.size, pygame.SRCALPHA)
-                band.fill((tint.r, tint.g, tint.b, 46 if p.pid != self.me else 80))
-                self.screen.blit(band, row.topleft)
-                pygame.draw.rect(self.screen, tint, (row.x, row.y, 4, row.h))
+                row = pygame.Rect(x, y, w, 32)
+                ui.skin("scoreboard/row_self" if p.pid == self.me else "scoreboard/row", row)
                 ab = m.agents.get(p.agent, {}).get("abilities", {}).get("X", {})
                 cost = int(ab.get("cost", 7))
                 for j in range(cost):
                     pygame.draw.rect(self.screen, color("ult" if j < min(p.ult_points, cost) else "line"),
                                      (x + 268 + j * 7, y + 14, 5, 5))
                 if p.weapon and p.alive:
-                    gun = self.bank.scaled(f"weapons/val2d/{self.weapon_art(p.weapon.key)}.png", (48, 24))
+                    gun = ui.silhouette(f"weapons/val2d/{self.weapon_art(p.weapon.key)}.png", (46, 16))
                     if gun is not None:
-                        self.screen.blit(gun, (x + 510, y + 5))
+                        self.screen.blit(gun, (x + 510, y + 16 - gun.get_height() // 2))
                     if p.armor:
                         ui.text(str(p.armor), (x + 566, y + 9), "xs", "muted")
                 head = self.bank.scaled(f"agents/{p.agent}/{p.agent}_killfeed.png", (24, 24))
@@ -121,8 +117,8 @@ class ScoreboardMixin:
                     ui.text("bot", (x + 700, y + 9), "xs", "muted", upper=True)
                 elif p.ping_ms is not None:
                     ui.text(f"{p.ping_ms} ms", (x + 700, y + 8), "s", "muted")
-                y += 38
-            y += 14
+                y += 34
+            y += 8
         if m.history:
             self.draw_round_history(self.h - 84)
         if over:

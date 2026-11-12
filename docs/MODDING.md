@@ -17,7 +17,10 @@ changes. Broken entries are skipped with a warning that names the problem (the r
 | Materials, props, decals | `config/content/materials.py` | – |
 | Prop heights (low props are seen and shot over) | `config/content/prop_heights.py` | – |
 
-Files starting with `_` are templates and are never loaded. In a match against bots or in the range, the escape
+Normal matches use the agent list in `gameplay/match.py` and the map list in `gameplay/world.py`.
+The map editor can still open development maps by key.
+
+Files starting with `_` are templates and are never loaded. In a match against bots, the escape
 menu has **Reload content**: agents, abilities, weapons, armor, statuses and patches are read again without
 restarting (maps and rules from the next match).
 
@@ -28,16 +31,15 @@ A file in `config/patches/` changes values of existing content; patches apply in
 
 ```python
 VERSION = "1.02"
-NOTES = "Kestrel flash shorter, Hammer more expensive"
+NOTES = "Phoenix flash cheaper, Vandal more expensive"
 PATCH = {
-    "agents":   {"kestrel": {"C": {"blind": 1.2}, "X": {"cost": 8}}},
-    "weapons":  {"assault_rifle": {"price": 3000}},
-    "armor":    {"heavy_shield": {"price": 1100}},
+    "agents":   {"phoenix": {"Q": {"price": 200}, "X": {"cost": 8}}},
+    "weapons":  {"vandal": {"price": 3000}},
+    "armor":    {"heavy_armor": {"price": 1100}},
     "statuses": {"slow": {"speed": 0.6}, "frozen": {"speed": 0.1}},   # new statuses too
     "rules":    {"economy": {"start": 900}},
     "settings": {"hit_zones": {"head_half_width": 0.27}},
-    "maps":     {"workyard": {"set": {"name": "Workyard"}, "add": {"crates": [[20, 20, 22, 22]]},
-                             "remove": {"crates": [[30, 10, 32, 12]]}}},
+    "maps":     {"ascent": {"set": {"name": "Ascent (practice)"}}},
 }
 ```
 

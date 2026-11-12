@@ -83,7 +83,7 @@ Some abilities change how an agent moves or looks. There are three building bloc
 | Form | `{key}@{form}_{state}.png` | like the normal state | the normal state | the whole look changes while something is active (ultimate transformation, disguise, armoured mode). Draw at least `idle` and `walk`; every state you leave out uses the normal sprite |
 | Overlay | `{key}_overlay_{name}.png` | 16 × 32, 1 frame or as many as `walk` | none | a layer on top of every state: glowing eyes, shield shell, mark on an enemy, burning, frozen |
 
-- Names are lower case with underscores, e.g. `kestrel_mech_glide.png`, `nyx@eclipse_walk.png`, `rook_overlay_plating.png`.
+- Names are lower case with underscores, e.g. `omen_mech_glide.png`, `nyx@eclipse_walk.png`, `rook_overlay_plating.png`.
 - Forms may break the palette budget by up to 8 colours. Overlays keep columns 0 and 15 free unless they are glow.
 - See-through, invisible and tinted looks (stealth, damage flash, slow) are done by the game with transparency and tint, so no extra sprites are needed for them.
 - Enemy variants for extra states and forms are generated like all others. Overlays get no enemy variant.
@@ -114,7 +114,7 @@ python docs/design/check_agent_sprites.py vesper
 ```
 
 - The script checks for each state: size, frame count, free columns 0 and 15, reserved colours and the colour budget.
-- It also writes the enemy variants `{key}_{state}_feind.png` with a red outline. Never draw those by hand.
+- It also writes the enemy variants `{key}_{state}_enemy.png` with a red outline. Never draw those by hand.
 - Extra states, forms and overlays are not checked yet; check them by eye against the guides.
 - Missing optional states are only listed, with the state the game uses instead.
 

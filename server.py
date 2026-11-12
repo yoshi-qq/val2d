@@ -1,6 +1,6 @@
 """Val2d as a dedicated server process (no window).
 
-Usage:  python server.py [--map workyard] [--team-size 5] [--rounds 13] [--players 2] [--port 9009]
+Usage:  python server.py [--map ascent] [--team-size 5] [--rounds 13] [--players 2] [--port 9009]
 The match starts once --players humans have joined or --start-after seconds have passed;
 bots fill free slots. Players join with  python play.py --join <address>.
 """
@@ -11,10 +11,10 @@ import time
 import warnings
 
 from gameplay.data import LobbySettings, load_config
-from gameplay.match import Match
+from gameplay.match import Match, playable_agents
 from gameplay.netgame import DEFAULT_PORT
 from gameplay.session import HostSession
-from gameplay.world import load_map
+from gameplay.world import DEFAULT_MAP, PLAYABLE_MAP_KEYS, load_playable_map
 
 TICK_RATE = 64.0
 
@@ -24,14 +24,15 @@ def build_match(map_key: str, rounds: int, team_size: int, all_around: bool, sou
     from dataclasses import replace
     lobby = replace(base.lobby, all_around_sight=all_around or base.lobby.all_around_sight,
                     sound_rings=sound_rings or base.lobby.sound_rings, win_rounds=rounds, team_size=team_size)
-    match = Match(load_map(map_key), type(base)(hit_zones=base.hit_zones, lobby=lobby, player=base.player))
+    match = Match(load_playable_map(map_key), type(base)(hit_zones=base.hit_zones, lobby=lobby, player=base.player),
+                  agent_roster=playable_agents())
     match.set_mode(mode)
     return match
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Val2d server without a window")
-    ap.add_argument("--map", default="workyard")
+    ap.add_argument("--map", default=DEFAULT_MAP, choices=PLAYABLE_MAP_KEYS)
     ap.add_argument("--team-size", type=int, default=5, choices=range(1, 6))
     ap.add_argument("--rounds", type=int, default=13)
     ap.add_argument("--players", type=int, default=2, help="Start once this many humans have joined")

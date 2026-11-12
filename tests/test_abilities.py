@@ -9,14 +9,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from gameplay import abilities
 from gameplay.geometry import Vec
 from gameplay.match import Command, Match, load_agents
-from gameplay.world import load_map
+from map_fixtures import load_archived_map
 
 KINDS = {"smoke", "wall", "flash", "zone", "blast", "wave", "sensor", "alarm", "tripwire", "dash", "hop", "teleport",
          "anchor", "heal", "stim", "shield", "revive", "reveal_all", "overdrive", "immunity", "decoy"}
 
 
-def setup(agent_a: str = "kestrel", agent_b: str = "kestrel") -> tuple[Match, int, int]:
-    m = Match(load_map("workyard"), seed=2)
+def setup(agent_a: str = "omen", agent_b: str = "omen") -> tuple[Match, int, int]:
+    m = Match(load_archived_map("workyard"), seed=2)
     a = m.add_player("A", 0, agent_a).pid
     b = m.add_player("B", 1, agent_b).pid
     m.start()
@@ -43,7 +43,7 @@ def run(m: Match, seconds: float) -> None:
 
 def test_all_agents_use_known_blocks() -> None:
     agents = load_agents()
-    assert len(agents) >= 10
+    assert set(agents) == {"brimstone", "omen", "jett", "sova", "sage", "cypher", "phoenix", "killjoy"}
     for key, agent in agents.items():
         for slot, ab in agent["abilities"].items():
             assert ab["kind"] in KINDS or ab["kind"] == "custom", (key, slot, ab["kind"])  # custom: composed with the kit
@@ -57,7 +57,7 @@ def test_every_ability_of_every_agent_runs_without_error() -> None:
             run(m, 3)
 
 
-def test_blast_applies_status_and_damage() -> None:
+def test_blast_applies_status_and_damage(archived_agents) -> None:
     m, a, b = setup()
     cast(m, a, "okoro", "E")  # concussing blast at the cursor (8 m ahead = on B)
     run(m, 1.0)
@@ -82,7 +82,7 @@ def test_suppress_blocks_abilities() -> None:
     m, a, _ = setup()
     abilities.apply_status(m, m.players[a], "suppress", 3)
     before = len(m.effects)
-    cast(m, a, "marrow", "E")
+    cast(m, a, "omen", "E")
     assert len(m.effects) == before
 
 
@@ -115,7 +115,7 @@ def test_nearsight_hides_far_enemies() -> None:
     assert not m.can_see(m.players[a], m.players[b])
 
 
-def test_tripwire_detains_crossing_enemy() -> None:
+def test_tripwire_detains_crossing_enemy(archived_agents) -> None:
     m, a, b = setup()
     cast(m, a, "harrow", "C", depth=3.0)
     wire = next(e for e in m.effects if e.kind == "tripwire")
@@ -128,11 +128,11 @@ def test_tripwire_detains_crossing_enemy() -> None:
     assert abilities.has(m, pb, "detain")
 
 
-def test_revive_brings_back_fallen_ally() -> None:
-    m = Match(load_map("workyard"), seed=1)
+def test_revive_brings_back_fallen_ally(archived_agents) -> None:
+    m = Match(load_archived_map("workyard"), seed=1)
     a = m.add_player("A", 0, "harrow").pid
-    c = m.add_player("C", 0, "kestrel").pid
-    m.add_player("B", 1, "kestrel")
+    c = m.add_player("C", 0, "omen").pid
+    m.add_player("B", 1, "omen")
     m.start()
     m.phase, m.phase_until = "live", m.time + 100
     pa, pc = m.players[a], m.players[c]
@@ -142,7 +142,7 @@ def test_revive_brings_back_fallen_ally() -> None:
     assert pc.alive and pc.hp == 100
 
 
-def test_anchor_returns_to_set_point() -> None:
+def test_anchor_returns_to_set_point(archived_agents) -> None:
     m, a, _ = setup()
     start = m.players[a].pos
     cast(m, a, "sable", "C")
@@ -151,7 +151,7 @@ def test_anchor_returns_to_set_point() -> None:
     assert (m.players[a].pos - start).length() < 0.01
 
 
-def test_heal_restores_health_over_time() -> None:
+def test_heal_restores_health_over_time(archived_agents) -> None:
     m, a, _ = setup()
     pa = m.players[a]
     pa.hp = 30
@@ -160,7 +160,7 @@ def test_heal_restores_health_over_time() -> None:
     assert pa.hp >= 85
 
 
-def test_bot_uses_offensive_ability_on_close_enemy() -> None:
+def test_bot_uses_offensive_ability_on_close_enemy(archived_agents) -> None:
     from gameplay.bots import BotBrain
     m, a, b = setup("okoro")
     m.players[a].is_bot = True
@@ -170,7 +170,7 @@ def test_bot_uses_offensive_ability_on_close_enemy() -> None:
     assert cmd.ability == "E"
 
 
-def test_bot_buys_abilities_with_spare_credits() -> None:
+def test_bot_buys_abilities_with_spare_credits(archived_agents) -> None:
     from gameplay.bots import BotBrain
     m, a, _ = setup("tamsin")
     m.phase = "buy"

@@ -12,8 +12,8 @@ RAW = {"name": "Test", "width": 20, "height": 10, "walls": [{"rect": [8, 0, 8.5,
 
 def setup() -> tuple[Match, int]:
     m = Match(parse_map("test", RAW), seed=1)
-    pid = m.add_player("A", 0, "kestrel").pid
-    m.add_player("B", 1, "kestrel")
+    pid = m.add_player("A", 0, "omen").pid
+    m.add_player("B", 1, "omen")
     m.start()
     m.phase, m.phase_until = "live", m.time + 100
     return m, pid
@@ -79,14 +79,14 @@ def test_teleport_onto_higher_ground_within_3d_range() -> None:
     m, pid = setup()
     place(m, pid, Vec(3.0, 5), 0.0)
     _teleporter(m, pid, 6.0)
-    m.tick(1 / 64, {pid: Command(facing=90.0, cursor_depth=4.3, ability="C")})  # aim stops 0.3 m short: 4 m flat, 1 m up = 4.12 m
+    m.tick(1 / 64, {pid: Command(facing=90.0, cursor_depth=4.3, ability="C")})
     p = m.players[pid]
-    assert abs(p.pos.x - 7.0) < 0.1 and p.ground == 1.0 and p.level == 1
+    assert abs(p.pos.x - 7.3) < 0.1 and p.ground == 1.0 and p.level == 1
 
 
 def test_teleport_refuses_when_the_3d_distance_is_too_far() -> None:
     m, pid = setup()
     place(m, pid, Vec(5.0, 5), 0.0)
-    _teleporter(m, pid, 1.5)  # aim lands 1.2 m ahead on the crate: flat fits, with 1 m of height it is 1.56 m
+    _teleporter(m, pid, 1.5)  # flat range fits, but adding a metre of height takes it over the limit
     m.tick(1 / 64, {pid: Command(facing=90.0, cursor_depth=4.3, ability="C")})
     assert m.players[pid].pos.x < 5.5 and m.players[pid].charges["C"] == 1

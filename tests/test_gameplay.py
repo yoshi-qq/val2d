@@ -11,7 +11,7 @@ from gameplay.data import HitZoneConfig, load_weapons
 from gameplay.geometry import Vec, heading
 from gameplay.hitzones import resolve_zone
 from gameplay.match import Command, Match
-from gameplay.world import load_map
+from map_fixtures import load_archived_map
 
 CFG = HitZoneConfig()
 UP = heading(0)
@@ -44,10 +44,10 @@ def test_hitzone_miss_outside_body_and_other_level() -> None:
     assert zone(Vec(0, 10), 10, cursor_level=False) is None
 
 
-def duel(seed: int = 1) -> tuple[Match, int, int]:
-    m = Match(load_map("workyard"), seed=seed)
-    a = m.add_player("A", 0, "kestrel").pid
-    b = m.add_player("B", 1, "marrow").pid
+def duel(seed: int = 1, agents: tuple[str, str] = ("jett", "omen")) -> tuple[Match, int, int]:
+    m = Match(load_archived_map("workyard"), seed=seed)
+    a = m.add_player("A", 0, agents[0]).pid
+    b = m.add_player("B", 1, agents[1]).pid
     m.start()
     return m, a, b
 
@@ -60,8 +60,8 @@ def run(m: Match, seconds: float, cmds: dict[int, Command] | None = None, dt: fl
 def test_buy_phase_then_live() -> None:
     m, a, _ = duel()
     assert m.phase == "buy"
-    assert m.buy(m.players[a], "auto_pistol")
-    assert m.players[a].credits == 800 - m.weapons["auto_pistol"].price
+    assert m.buy(m.players[a], "frenzy")
+    assert m.players[a].credits == 800 - m.weapons["frenzy"].price
     run(m, 31)
     assert m.phase == "live"
 
@@ -73,7 +73,7 @@ def test_first_shot_standing_is_exact_and_kills_with_headshots() -> None:
     pa.pos, pb.pos = Vec(24, 16), Vec(24, 24)  # mid, clear sight? the pillar at 22-26/18-22 blocks
     pa.pos, pb.pos = Vec(17, 15), Vec(17, 25)
     pa.facing = 0.0
-    d = m.weapons["pistol"]
+    d = m.weapons["classic"]
     assert m.current_spread(pa, d) == 0.0
     shots = 0
     while pb.alive and shots < 10:
@@ -148,6 +148,7 @@ def test_loss_streak_economy() -> None:
 
 def test_side_switch_and_overtime_win_by_two() -> None:
     m, _, _ = duel()
+    m.overtime = True
     m.score = [12, 12]
     m.round_no = 24
     m.phase = "live"
@@ -158,8 +159,8 @@ def test_side_switch_and_overtime_win_by_two() -> None:
     assert m.match_winner == 0
 
 
-def test_abilities_smoke_blocks_sight_and_dash_moves() -> None:
-    m, a, b = duel()
+def test_abilities_smoke_blocks_sight_and_dash_moves(archived_agents) -> None:
+    m, a, b = duel(agents=("kestrel", "marrow"))
     run(m, 31)
     pa, pb = m.players[a], m.players[b]
     pa.pos, pb.pos = Vec(17, 15), Vec(17, 25)
@@ -175,8 +176,8 @@ def test_abilities_smoke_blocks_sight_and_dash_moves() -> None:
     assert (pa.pos - start).length() > 4.0
 
 
-def test_flash_blinds_viewer() -> None:
-    m, a, b = duel()
+def test_flash_blinds_viewer(archived_agents) -> None:
+    m, a, b = duel(agents=("kestrel", "marrow"))
     run(m, 31)
     pa, pb = m.players[a], m.players[b]
     pa.pos, pb.pos = Vec(17, 15), Vec(17, 25)
@@ -194,10 +195,10 @@ def test_weapons_complete() -> None:
 
 
 def test_bot_match_runs_to_end() -> None:
-    m = Match(load_map("workyard"), seed=3)
+    m = Match(load_archived_map("workyard"), seed=3)
     for i in range(5):
-        m.add_player(f"Bot A{i}", 0, "kestrel" if i % 2 else "marrow", is_bot=True)
-        m.add_player(f"Bot B{i}", 1, "marrow" if i % 2 else "kestrel", is_bot=True)
+        m.add_player(f"Bot A{i}", 0, "jett" if i % 2 else "omen", is_bot=True)
+        m.add_player(f"Bot B{i}", 1, "omen" if i % 2 else "jett", is_bot=True)
     m.win_rounds = 3
     m.overtime = False
     director = BotDirector(m, seed=3)
@@ -214,15 +215,15 @@ def test_bot_match_runs_to_end() -> None:
 def test_weapons_come_from_python_config() -> None:
     weapons = load_weapons()
     assert len([w for w in weapons.values() if w.slot != "melee"]) == 20
-    assert weapons["scoped_rifle"].mag == 18 and weapons["scoped_rifle"].price == 2900
-    assert weapons["heavy_machine_gun"].rate_ramp is not None
+    assert weapons["warden"].mag == 18 and weapons["warden"].price == 2900
+    assert weapons["odin"].rate_ramp is not None
 
 
 def test_rate_ramp_speeds_up_held_fire() -> None:
     m, a, _ = duel()
     run(m, 31)
     p = m.players[a]
-    p.weapons["primary"] = m._new_weapon("heavy_machine_gun")
+    p.weapons["primary"] = m._new_weapon("odin")
     p.slot = "primary"
     p.equip_until = 0.0
     shots_early = shots_late = 0
@@ -237,21 +238,21 @@ def test_rate_ramp_speeds_up_held_fire() -> None:
 
 
 def test_map_materials_set_wall_properties() -> None:
-    m = load_map("alley")
+    m = load_archived_map("alley")
     glass = [w for w in m.walls if w.material == "glass"]
     assert glass and not glass[0].blocks_sight and glass[0].height == 2 and glass[0].penetration == 0
     assert m.floor == "concrete" and any(mat == "tiles" for mat, _ in m.floors)
 
 
 def test_map_objects_block_and_spawn_barrier_only_in_buy_phase() -> None:
-    m = load_map("alley")
+    m = load_archived_map("alley")
     keys = {o.key for o in m.objects}
     assert {"door", "barrel", "spawn_barrier", "bench"} <= keys and m.decals
     barrier_walls = [w for w in m.walls if w.buy_phase_only]
     assert barrier_walls
     match = Match(m, seed=1)
-    a = match.add_player("A", 0, "kestrel").pid
-    match.add_player("B", 1, "kestrel")
+    a = match.add_player("A", 0, "jett").pid
+    match.add_player("B", 1, "jett")
     match.start()
     p = match.players[a]
     p.pos = Vec(12, 4.0)
@@ -274,7 +275,7 @@ def _armed(key: str) -> tuple[Match, int, int]:
 
 
 def test_alt_burst_fires_a_burst_per_press() -> None:
-    m, a, _ = _armed("burst_rifle")
+    m, a, _ = _armed("bulldog")
     shots = 0
     for i in range(40):
         events = m.tick(1 / 64, {a: Command(facing=180.0, alt_fire=i < 2)})
@@ -283,9 +284,9 @@ def test_alt_burst_fires_a_burst_per_press() -> None:
 
 
 def test_alt_zoom_reduces_spread_and_speed() -> None:
-    m, a, _ = _armed("bolt_sniper")
+    m, a, _ = _armed("marshal")
     p = m.players[a]
-    d = m.weapons["bolt_sniper"]
+    d = m.weapons["marshal"]
     p.vel = Vec(3.0, 0.0)
     plain_spread, plain_speed = m.current_spread(p, d), m._max_speed(p)
     m.tick(1 / 64, {a: Command(facing=180.0, alt_fire=True)})
@@ -305,7 +306,7 @@ def test_alt_spread_shot_fires_three_pellets_for_one_round() -> None:
 
 
 def test_alt_spin_fires_at_top_rate_immediately() -> None:
-    m, a, _ = _armed("heavy_machine_gun")
+    m, a, _ = _armed("odin")
     shots = 0
     for _ in range(64):
         shots += sum(1 for e in m.tick(1 / 64, {a: Command(facing=180.0, alt_fire=True)}) if e.kind == "shot")
@@ -313,9 +314,9 @@ def test_alt_spin_fires_at_top_rate_immediately() -> None:
 
 
 def test_door_opens_with_f_and_lets_players_through() -> None:
-    m = Match(load_map("alley"), seed=1)
-    a = m.add_player("A", 0, "kestrel").pid
-    m.add_player("B", 1, "kestrel")
+    m = Match(load_archived_map("alley"), seed=1)
+    a = m.add_player("A", 0, "jett").pid
+    m.add_player("B", 1, "jett")
     m.start()
     m.phase, m.phase_until = "live", m.time + 90
     door = next(w for w in m.world.walls if w.door)
@@ -334,13 +335,13 @@ def test_door_opens_with_f_and_lets_players_through() -> None:
 
 def test_spray_pattern_first_bullets_on_target_then_drift_to_one_side() -> None:
     from gameplay.match import spray_offset
-    d = load_weapons()["silenced_rifle"]
+    d = load_weapons()["phantom"]
     offsets = [spray_offset(d, i) for i in range(20)]
     assert offsets[0] == offsets[1] == 0.0
     later = offsets[6:16]
     assert all(abs(o) <= d.spray_max for o in offsets)
     assert sum(1 for o in later if o > 0) in (0, 1, 9, 10) or abs(sum(later)) > 0.5 * sum(abs(o) for o in later)
-    assert spray_offset(load_weapons()["marksman_rifle"], 8) == 0.0  # semi-automatic: no pattern
+    assert spray_offset(load_weapons()["guardian"], 8) == 0.0  # semi-automatic: no pattern
 
 
 def test_drop_bomb_and_weapon_with_g() -> None:
@@ -350,17 +351,17 @@ def test_drop_bomb_and_weapon_with_g() -> None:
     m.spike_carrier = a
     m.tick(1 / 64, {a: Command(facing=0.0, drop=True)})
     assert m.spike_carrier is None and m.spike_pos is not None
-    p.weapons["primary"] = m._new_weapon("assault_rifle")
+    p.weapons["primary"] = m._new_weapon("vandal")
     p.slot = "primary"
     m.tick(1 / 64, {a: Command(facing=0.0, drop=True)})
-    assert "primary" not in p.weapons and any(d.key == "assault_rifle" for d in m.drops) and p.slot == "sidearm"
+    assert "primary" not in p.weapons and any(d.key == "vandal" for d in m.drops) and p.slot == "sidearm"
     m.tick(1 / 64, {a: Command(facing=0.0)})
     assert "primary" not in p.weapons  # not picked up again right away
 
 
 def test_nav_path_goes_around_walls() -> None:
     from gameplay.nav import grid_for
-    world = load_map("workyard")
+    world = load_archived_map("workyard")
     grid = grid_for(world)
     goal = grid.center(grid.nearest_free(grid.cell(Vec(8, 33.5))))  # site A, next to the platform
     path = grid.path(Vec(24, 3), goal)
@@ -370,17 +371,17 @@ def test_nav_path_goes_around_walls() -> None:
 
 
 def test_practice_range_buys_anywhere_and_targets_respawn() -> None:
-    m = Match(load_map("range"), seed=1)
-    a = m.add_player("A", 0, "kestrel").pid
+    m = Match(load_archived_map("range"), seed=1)
+    a = m.add_player("A", 0, "jett").pid
     targets = []
     for pos, _ in m.world.practice_targets:
-        d = m.add_player("T", 1, "kestrel", is_bot=True)
+        d = m.add_player("T", 1, "jett", is_bot=True)
         d.dummy, d.home = True, pos
         targets.append(d)
     m.start_practice()
     p = m.players[a]
     p.pos = Vec(30, 20)
-    assert m.buy(p, "heavy_sniper") and m.phase == "live"
+    assert m.buy(p, "operator") and m.phase == "live"
     m._kill(p, targets[0], "test", "head")
     run(m, 2.5)
     assert targets[0].alive and (targets[0].pos - targets[0].home).length() < 0.01
@@ -416,35 +417,50 @@ def test_damage_report_history_and_combat_score() -> None:
 
 
 def test_team_buy_request_and_gift() -> None:
-    m = Match(load_map("workyard"), seed=1)
-    a = m.add_player("A", 0, "kestrel").pid
-    b = m.add_player("B", 0, "marrow").pid
-    m.add_player("E", 1, "kestrel")
+    m = Match(load_archived_map("workyard"), seed=1)
+    a = m.add_player("A", 0, "jett").pid
+    b = m.add_player("B", 0, "omen").pid
+    m.add_player("E", 1, "jett")
     m.start()
     pa, pb = m.players[a], m.players[b]
     pa.credits = 5000
-    m.tick(1 / 64, {b: Command(request="assault_rifle")})
-    assert pb.request == "assault_rifle"
-    m.tick(1 / 64, {a: Command(buy=[f"gift:{b}:assault_rifle"])})
-    assert pb.weapons["primary"].key == "assault_rifle" and pa.credits == 5000 - m.weapons["assault_rifle"].price
+    m.tick(1 / 64, {b: Command(request="vandal")})
+    assert pb.request == "vandal"
+    m.tick(1 / 64, {a: Command(buy=[f"gift:{b}:vandal"])})
+    assert pb.weapons["primary"].key == "vandal" and pa.credits == 5000 - m.weapons["vandal"].price
     assert pb.request == ""
-    assert not m.buy(pa, f"gift:{m.players[3].pid}:assault_rifle")  # never for the other team
+    assert not m.buy(pa, f"gift:{m.players[3].pid}:vandal")  # never for the other team
 
 
 def test_quick_mode_short_match() -> None:
-    m = Match(load_map("alley"), seed=1)
+    from gameplay.world import load_map
+
+    m = Match(load_map("ascent"), seed=1)
+    a = m.add_player("A", 0, "omen")
+    b = m.add_player("B", 1, "killjoy")
     m.set_mode("quick")
-    assert m.win_rounds == 4 and not m.overtime and int(m._r["half_after"]) == 3
+    m.start()
+    assert m.win_rounds == 5 and not m.overtime and int(m._r["half_after"]) == 4
+    assert (a.ult_points, b.ult_points) == (2, 3)
+    a.credits = b.credits = 0
+    m._end_round(0, "test")
+    assert (a.credits, b.credits) == (3000, 2400)
+    m.round_no, m.score = 8, [4, 4]
+    m.attacking_team = 1
+    m._start_round()
+    assert (a.credits, b.credits) == (5000, 5000) and m.attacking_team == 1
+    m._end_round(0, "test")
+    assert m.match_winner == 0
 
 
 def test_deathmatch_respawns_and_kill_limit() -> None:
-    m = Match(load_map("workyard"), seed=1)
-    a = m.add_player("A", 0, "kestrel").pid
-    b = m.add_player("B", 1, "kestrel").pid
+    m = Match(load_archived_map("workyard"), seed=1)
+    a = m.add_player("A", 0, "jett").pid
+    b = m.add_player("B", 1, "jett").pid
     m.set_mode("deathmatch")
     m.start()
     pa, pb = m.players[a], m.players[b]
-    assert m.phase == "live" and m.spike_carrier is None and m.buy(pa, "assault_rifle")
+    assert m.phase == "live" and m.spike_carrier is None and m.buy(pa, "vandal")
     m._kill(pa, pb, "test", "head")
     run(m, 3.5)
     assert pb.alive and m.score[pa.team] == 1
