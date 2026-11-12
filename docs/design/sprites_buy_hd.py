@@ -3,7 +3,7 @@
 Usage: python docs/design/sprites_buy_hd.py
 Writes assets/weapons/val2d/{key}_kauf.png and assets/ui/buy/vest_{light,heavy}.png.
 Shapes are drawn as value masks (1 body, 2 accent, 3 dark metal, 4 glass, 5 steel, 6 gold) and lit
-automatically: highlight top/left, shadow bottom/right, darker-shade outline. Original designs.
+automatically: highlight top/left, shadow bottom/right, darker-shade outline.
 """
 from __future__ import annotations
 

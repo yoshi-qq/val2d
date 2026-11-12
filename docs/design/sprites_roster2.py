@@ -1,9 +1,9 @@
-"""Third roster: twenty more original agents, so Val2d has thirty. Same building blocks and states as the others.
+"""Third roster: twenty more agents, so Val2d has thirty. Same building blocks and states as the others.
 
 Usage: python docs/design/sprites_roster2.py
 Writes every required state (idle, walk, crouch, jump, dead, shoot, reload, cast, cast_c/q/e/x, portrait,
 killfeed, select). Enemy variants: python docs/design/check_agent_sprites.py <key>.
-All looks are original; names and roles are proposals for config/agents.py.
+Names and roles are proposals for config/agents.py.
 """
 from __future__ import annotations
 

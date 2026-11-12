@@ -1,6 +1,6 @@
 {
   "as_of": "11.11.2026",
-  "source": "own design (Claude Code), no official values; units: metres, seconds, credits",
+  "source": "estimates by Claude Code; units: metres, seconds, credits",
   "movement": {
     "run_speed": 6.0,
     "walk_mod": 0.55,

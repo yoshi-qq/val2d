@@ -51,7 +51,7 @@ def load_status_rules() -> dict[str, float]:
 def spray_offset(d: WeaponDef, index: int) -> float:
     """Deterministic part of the spray in degrees for bullet `index` of a spray (0 = first bullet).
 
-    Own design: the first bullets stay on target, then the aim drifts to one side (side and sway
+    The first bullets stay on target, then the aim drifts to one side (side and sway
     taste per weapon from its key), with a slow sway back and forth; capped at the weapon's spray_max.
     Counter it by moving the mouse against the drift. Semi-automatic weapons and shotguns have none.
     """

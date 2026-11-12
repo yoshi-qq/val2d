@@ -1,5 +1,5 @@
 """Second sprite batch: eight new agents, ability icons by building block, new weapons,
-generic effects and status icons. All looks are original designs in the Val2d style.
+generic effects and status icons. In the Val2d style.
 
 Usage: python docs/design/sprites_roster.py
 Reads agent and weapon keys from config/agents.py and config/weapons.py.

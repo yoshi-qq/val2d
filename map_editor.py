@@ -26,7 +26,7 @@ TOOLS = {pygame.K_1: "wall", pygame.K_2: "floor", pygame.K_3: "object", pygame.K
          pygame.K_6: "platform", pygame.K_7: "ramp", pygame.K_8: "site", pygame.K_9: "spawn_zone", pygame.K_0: "spawn",
          pygame.K_c: "callout"}
 C_BG, C_TEXT, C_MUTED, C_ACCENT, C_SEL = (22, 21, 28), (232, 230, 239), (155, 152, 170), (224, 180, 55), (79, 214, 200)
-EMPTY_MAP: dict[str, Any] = {"name": "New map", "source": "own design", "width": 40, "height": 40, "floor": "concrete",
+EMPTY_MAP: dict[str, Any] = {"name": "New map", "source": "", "width": 40, "height": 40, "floor": "concrete",
                              "walls": [], "crates": [], "platforms": [], "ramps": [], "sites": [], "spawns": {"0": [], "1": []},
                              "spawn_zones": {}, "callouts": [], "floors": [], "objects": [], "decals": []}
 

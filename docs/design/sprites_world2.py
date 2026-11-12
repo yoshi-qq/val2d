@@ -1,4 +1,4 @@
-"""Map elements, second set: more floors, walls, large objects, nature and decals. Original designs.
+"""Map elements, second set: more floors, walls, large objects, nature and decals.
 
 Usage: python docs/design/sprites_world2.py
 Output: assets/maps/common (tiles), assets/maps/common/props (objects), assets/maps/common/decals.

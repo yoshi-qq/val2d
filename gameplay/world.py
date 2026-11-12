@@ -1,4 +1,4 @@
-"""Map: walls, crates, levels, bomb sites, spawns. Own maps, no recreations."""
+"""Map: walls, crates, levels, bomb sites, spawns."""
 from __future__ import annotations
 
 import json

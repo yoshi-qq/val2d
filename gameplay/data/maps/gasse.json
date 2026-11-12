@@ -1,6 +1,6 @@
 {
   "name": "Alley",
-  "source": "own design (Claude Code), 11.11.2026; small 1v1 map with one bomb site; dimensions in metres",
+  "source": "Claude Code, 11.11.2026; small 1v1 map with one bomb site; dimensions in metres",
   "width": 24,
   "height": 32,
   "walls": [

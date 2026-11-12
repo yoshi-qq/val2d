@@ -75,17 +75,16 @@ The zone (head, body, legs) is determined along two axes relative to the line of
   - **Shape:** circle, wall or line, cone, point; size, height level, duration.
   - **Effect (also several):** block vision, blind, slow, damage over time or instant, heal, reveal, movement (dash, jump, teleport), shield or barrier, make noise.
   New parts are added as code, new abilities only via the config. Technical names in the code, displayed names in the config.
-- **Modeled on Valorant:** roles (Duelist, Initiator, Controller, Sentinel), design principles (every ability has counterplay, is readable at a glance, costs credits or has charges and a cooldown; teams need info, vision block, entry and site protection) and the game feel of a round. Individual agents, kits and maps are not counterparts to specific Valorant content.
-- **Shipped** are only our own example agents with their own kits. No presets that imitate the kits, names or values of Valorant agents.
+- **Modeled on Valorant:** roles (Duelist, Initiator, Controller, Sentinel), design principles (every ability has counterplay, is readable at a glance, costs credits or has charges and a cooldown; teams need info, vision block, entry and site protection) and the game feel of a round.
 - Errors in the config (unknown building block, missing value) are reported at startup and the agent is skipped; the game does not crash.
 
 ## First finished version
 
 - Mode: Unrated
-- Maps: one custom standard map following the familiar layout (two bomb sites, mid, attacker and defender spawn, callouts) and a simple 1 vs 1 map; both editable in the map editor
-- Agents: two custom example agents (one Controller, one Duelist) with their own kits, defined in `config/agents.json`
+- Maps: one standard map following the familiar layout (two bomb sites, mid, attacker and defender spawn, callouts) and a simple 1 vs 1 map; both editable in the map editor
+- Agents: two example agents (one Controller, one Duelist), defined in `config/agents.json`
 - Ability building blocks for both kits, extensible
-- All weapons (own names, real numbers), buy menu, economy, bomb, rounds
+- All weapons (real numbers), buy menu, economy, bomb, rounds
 - Networking via the new wrapper (LAN and internet)
 
 ## After that

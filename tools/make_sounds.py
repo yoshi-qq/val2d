@@ -64,7 +64,14 @@ def at(x: np.ndarray, delay: float) -> np.ndarray:
     return np.concatenate([np.zeros(int(RATE * delay)), x])
 
 
-def save(name: str, x: np.ndarray, gain: float = 0.9) -> None:
+DEFAULT_CUTOFF = 2800.0  # every sound is softened above this (Hz) so nothing sounds sharp or bright
+
+
+def save(name: str, x: np.ndarray, gain: float = 0.7, cutoff: float = DEFAULT_CUTOFF) -> None:
+    x = lowpass(lowpass(x, cutoff), cutoff * 1.3)  # two passes: gentle, darker top end
+    fade = min(len(x), int(RATE * 0.01))
+    if fade:
+        x[-fade:] *= np.linspace(1.0, 0.0, fade)  # no click at the end
     peak = float(np.max(np.abs(x))) or 1.0
     data = (x / peak * gain * 32767).astype(np.int16)
     OUT.mkdir(parents=True, exist_ok=True)
@@ -78,7 +85,7 @@ def save(name: str, x: np.ndarray, gain: float = 0.9) -> None:
 # ------------------------------------------------------------------ recipes
 def gunshot(body: float, crack: float, tail: float, dur: float, thump: float = 0.0) -> np.ndarray:
     n = noise(dur)
-    crack_part = highpass(n, crack) * env(dur, 0.0005, 60)
+    crack_part = highpass(n, crack) * env(dur, 0.0008, 70) * 0.35  # only a hint of crack
     body_part = lowpass(n, body) * env(dur, 0.001, tail) * 1.6
     out = crack_part + body_part
     if thump:
@@ -86,9 +93,12 @@ def gunshot(body: float, crack: float, tail: float, dur: float, thump: float = 0
     return out
 
 
-def step(cut: float, click: float, dur: float = 0.09) -> np.ndarray:
+def step(cut: float, thump: float, dur: float = 0.14) -> np.ndarray:
+    """Low, muffled footstep: dull noise and a soft low thump, slow attack, no click."""
     n = noise(dur)
-    return lowpass(n, cut) * env(dur, 0.001, 45) + highpass(noise(dur), click) * env(dur, 0.0005, 120) * 0.4
+    body = lowpass(lowpass(n, cut), cut) * env(dur, 0.006, 26)
+    low = sine(np.linspace(thump, thump * 0.7, int(RATE * dur)), dur) * env(dur, 0.008, 30) * 0.7
+    return body + low
 
 
 def build() -> None:
@@ -107,27 +117,27 @@ def build() -> None:
                        at(highpass(noise(0.04), 3500) * env(0.04, 0.0005, 120), 0.5)))
     save("equip", mix(highpass(noise(0.12), 1500) * env(0.12, 0.01, 30) * 0.6, at(highpass(noise(0.03), 4000) * env(0.03, 0.0005, 150), 0.1)))
     # footsteps by surface
-    save("step_hard", step(1400, 3500))
-    save("step_metal", step(2400, 4000) + sine(np.full(int(RATE * 0.09), 620.0), 0.09) * env(0.09, 0.001, 35) * 0.5)
-    save("step_soft", step(600, 2500) * 0.8)
-    save("step_wood", step(900, 2500) + sine(np.full(int(RATE * 0.09), 190.0), 0.09) * env(0.09, 0.001, 40) * 0.6)
-    save("land", lowpass(noise(0.2), 500) * env(0.2, 0.001, 22))
+    save("step_hard", step(420, 80), gain=0.32, cutoff=900)
+    save("step_metal", step(520, 95) + sine(np.full(int(RATE * 0.14), 240.0), 0.14) * env(0.14, 0.006, 28) * 0.25, gain=0.32, cutoff=1100)
+    save("step_soft", step(300, 65), gain=0.26, cutoff=700)
+    save("step_wood", step(380, 110) + sine(np.full(int(RATE * 0.14), 150.0), 0.14) * env(0.14, 0.006, 30) * 0.3, gain=0.3, cutoff=900)
+    save("land", lowpass(noise(0.25), 300) * env(0.25, 0.006, 18) + sine(np.linspace(70, 45, int(RATE * 0.25)), 0.25) * env(0.25, 0.006, 16), gain=0.4, cutoff=700)
     # hits and kills
     save("hit_body", lowpass(noise(0.08), 900) * env(0.08, 0.001, 40) + sine(np.full(int(RATE * 0.08), 180.0), 0.08) * env(0.08, 0.001, 30))
-    save("hit_head", mix(highpass(noise(0.05), 3000) * env(0.05, 0.0005, 90), sine(np.full(int(RATE * 0.25), 1760.0), 0.25) * env(0.25, 0.001, 14) * 0.6))
-    save("kill", mix(sine(np.full(int(RATE * 0.12), 880.0), 0.12) * env(0.12, 0.001, 20),
-                     at(sine(np.full(int(RATE * 0.18), 1320.0), 0.18) * env(0.18, 0.001, 14), 0.07)))
+    save("hit_head", mix(lowpass(noise(0.05), 1500) * env(0.05, 0.002, 70), sine(np.full(int(RATE * 0.22), 880.0), 0.22) * env(0.22, 0.003, 16) * 0.5), gain=0.5, cutoff=1600)
+    save("kill", mix(sine(np.full(int(RATE * 0.14), 523.0), 0.14) * env(0.14, 0.004, 18),
+                     at(sine(np.full(int(RATE * 0.2), 659.0), 0.2) * env(0.2, 0.004, 13), 0.08)), gain=0.5)
     save("death", lowpass(noise(0.4), 400) * env(0.4, 0.005, 9))
     # abilities (one per building block family)
     save("ab_smoke", lowpass(noise(1.2), 1800) * env(1.2, 0.05, 2.5))
     save("ab_wall", lowpass(noise(0.9), 2500) * env(0.9, 0.02, 3.5) + sine(np.linspace(120, 80, int(RATE * 0.9)), 0.9) * env(0.9, 0.02, 4) * 0.4)
     save("ab_throw", highpass(noise(0.18), 1200) * env(0.18, 0.04, 14))
-    save("ab_flash", mix(sine(np.linspace(2400, 3200, int(RATE * 0.35)), 0.35) * env(0.35, 0.001, 9), highpass(noise(0.35), 4000) * env(0.35, 0.0005, 30)))
+    save("ab_flash", mix(sine(np.linspace(700, 1100, int(RATE * 0.35)), 0.35) * env(0.35, 0.003, 9), lowpass(noise(0.35), 2000) * env(0.35, 0.002, 25)), gain=0.55)
     save("ab_blast", mix(lowpass(noise(0.9), 600) * env(0.9, 0.001, 5) * 1.5, sine(np.linspace(90, 35, int(RATE * 0.9)), 0.9) * env(0.9, 0.001, 6)))
     save("ab_wave", sine(np.linspace(140, 420, int(RATE * 0.6)), 0.6) * env(0.6, 0.02, 5) + lowpass(noise(0.6), 900) * env(0.6, 0.02, 6) * 0.5)
     save("ab_sensor", mix(sine(np.full(int(RATE * 0.15), 1200.0), 0.15) * env(0.15, 0.001, 18),
                           at(sine(np.full(int(RATE * 0.15), 1600.0), 0.15) * env(0.15, 0.001, 18), 0.12)))
-    save("ab_alarm", np.sign(sine(np.full(int(RATE * 0.5), 900.0), 0.5)) * env(0.5, 0.005, 3) * 0.4)
+    save("ab_alarm", sine(np.full(int(RATE * 0.5), 520.0), 0.5) * env(0.5, 0.01, 3) * (0.6 + 0.4 * sine(np.full(int(RATE * 0.5), 8.0), 0.5)), gain=0.5)
     save("ab_trap", mix(highpass(noise(0.06), 3000) * env(0.06, 0.0005, 70), at(sine(np.full(int(RATE * 0.2), 300.0), 0.2) * env(0.2, 0.001, 15), 0.03)))
     save("ab_dash", highpass(noise(0.35), 800) * env(0.35, 0.03, 9) * sine(np.linspace(6, 2, int(RATE * 0.35)), 0.35) ** 2)
     save("ab_hop", mix(lowpass(noise(0.25), 700) * env(0.25, 0.001, 18), sine(np.linspace(200, 500, int(RATE * 0.25)), 0.25) * env(0.25, 0.005, 12) * 0.5))
@@ -141,8 +151,8 @@ def build() -> None:
     save("ab_zone", lowpass(noise(1.0), 1200) * env(1.0, 0.1, 3) + sine(np.full(int(RATE * 1.0), 70.0), 1.0) * env(1.0, 0.1, 3) * 0.6)
     save("ab_power", mix(sine(np.linspace(100, 600, int(RATE * 0.8)), 0.8) * env(0.8, 0.05, 3), lowpass(noise(0.8), 2000) * env(0.8, 0.05, 4) * 0.4))
     # bomb
-    save("bomb_beep", sine(np.full(int(RATE * 0.08), 2000.0), 0.08) * env(0.08, 0.001, 30))
-    save("bomb_plant", mix(*(at(np.sign(sine(np.full(int(RATE * 0.06), 1500.0), 0.06)) * env(0.06, 0.001, 30) * 0.4, d) for d in (0, 0.15, 0.3))))
+    save("bomb_beep", sine(np.full(int(RATE * 0.09), 1100.0), 0.09) * env(0.09, 0.004, 26), gain=0.45)
+    save("bomb_plant", mix(*(at(sine(np.full(int(RATE * 0.07), 880.0), 0.07) * env(0.07, 0.004, 26), d) for d in (0, 0.15, 0.3))), gain=0.45)
     save("bomb_planted", mix(sine(np.full(int(RATE * 0.6), 660.0), 0.6) * env(0.6, 0.005, 5), at(sine(np.full(int(RATE * 0.6), 990.0), 0.6) * env(0.6, 0.005, 5), 0.2)))
     save("bomb_defuse", mix(*(at(highpass(noise(0.04), 3500) * env(0.04, 0.0005, 100), d) for d in np.arange(0, 0.8, 0.16))))
     save("bomb_defused", sine(np.linspace(900, 300, int(RATE * 0.7)), 0.7) * env(0.7, 0.005, 5))
@@ -151,8 +161,8 @@ def build() -> None:
     save("round_start", mix(*(at(sine(np.full(int(RATE * 0.25), f), 0.25) * env(0.25, 0.005, 10), d) for f, d in ((440, 0), (660, 0.15)))))
     save("round_win", mix(*(at(sine(np.full(int(RATE * 0.5), f), 0.5) * env(0.5, 0.005, 5) * 0.5, d) for f, d in ((523, 0), (659, 0.15), (784, 0.3), (1047, 0.45)))))
     save("round_loss", mix(*(at(sine(np.full(int(RATE * 0.6), f), 0.6) * env(0.6, 0.005, 4) * 0.5, d) for f, d in ((392, 0), (330, 0.2), (262, 0.4)))))
-    save("ui_click", highpass(noise(0.03), 2000) * env(0.03, 0.0005, 120) + sine(np.full(int(RATE * 0.03), 1200.0), 0.03) * env(0.03, 0.0005, 80))
-    save("ui_buy", mix(sine(np.full(int(RATE * 0.12), 1046.0), 0.12) * env(0.12, 0.001, 20), at(sine(np.full(int(RATE * 0.12), 1568.0), 0.12) * env(0.12, 0.001, 20), 0.06)))
+    save("ui_click", lowpass(noise(0.04), 1500) * env(0.04, 0.002, 90) + sine(np.full(int(RATE * 0.04), 600.0), 0.04) * env(0.04, 0.002, 70), gain=0.4)
+    save("ui_buy", mix(sine(np.full(int(RATE * 0.12), 523.0), 0.12) * env(0.12, 0.004, 20), at(sine(np.full(int(RATE * 0.12), 784.0), 0.12) * env(0.12, 0.004, 20), 0.06)), gain=0.45)
     save("door", lowpass(noise(0.5), 700) * env(0.5, 0.05, 6) + sine(np.linspace(140, 100, int(RATE * 0.5)), 0.5) * env(0.5, 0.05, 7) * 0.5)
 
 

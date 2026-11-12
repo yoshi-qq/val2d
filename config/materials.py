@@ -18,7 +18,7 @@ OBJECTS (map file: "objects": [{"key": "barrel", "pos": [x, y], "rot": 0}] or wi
   trunk    only this share of the size blocks (centred), e.g. trees; sight_only  blocks sight but not movement (bushes)
 DECALS (map file: "decals": [{"key": "crack", "rect": [...]}] or {"key": "arrow", "pos": [x, y], "rot": 90}):
   tile, size (w, h) metres, tiled; never block, drawn under objects and figures.
-Source: own design by Claude Code, 12.11.2026; tiles by the design session (docs/SPRITES.md).
+Source: Claude Code, 12.11.2026; tiles by the design session (docs/SPRITES.md).
 """
 
 WALLS: dict[str, dict] = {

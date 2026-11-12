@@ -1,5 +1,5 @@
 """Third sprite batch: interface (menus, buttons, icons), map set (tiles, props, decals)
-and generic ability sprites (projectiles, devices, character effects). All original designs.
+and generic ability sprites (projectiles, devices, character effects).
 
 Usage: python docs/design/sprites_world.py
 Output: assets/ui/menu, assets/ui/icons, assets/ui/buy, assets/maps/common, assets/fx/ability
@@ -103,7 +103,7 @@ def make_menu() -> None:
 
 
 def make_title_background() -> None:
-    """480x270 menu background: the Workyard at night, built from the real tiles, two own agents in a view cone."""
+    """480x270 menu background: the Workyard at night, built from the real tiles, two agents in a view cone."""
     w, h = 480, 270
     A = base.ASSETS
     tile = lambda rel: Image.open(A / rel).convert("RGBA")  # noqa: E731

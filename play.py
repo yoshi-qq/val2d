@@ -510,7 +510,9 @@ class Game:
                 if me.status.get("deaf", 0.0) > t:
                     continue
                 pos = Vec(*d["pos"])
-                self.sound.play(self.sound_key(d, pos), me, pos, d["radius"], occluded=self.occluded(me, pos))
+                key = self.sound_key(d, pos)
+                self.sound.play(key, me, pos, d["radius"], occluded=self.occluded(me, pos),
+                                gain=0.55 if key.startswith("step") else 1.0)
                 if m.cfg.lobby.sound_rings and d["pid"] != self.me:
                     self.ui.rings.append(Ring(pos, min(d["radius"], 6.0), t))
             elif e.kind == "hit":

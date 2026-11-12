@@ -2,7 +2,7 @@
 
 Usage: python docs/design/sprites_hud_extra.py
 World effects (white, tinted in code), crosshair, nine-slice panels (24x24, 8 px corners),
-minimap fills and the bomb-carrier hint. Original designs in the Val2d style.
+minimap fills and the bomb-carrier hint. In the Val2d style.
 """
 from __future__ import annotations
 

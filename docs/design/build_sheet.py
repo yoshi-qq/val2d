@@ -150,7 +150,7 @@ def build() -> str:
     parts.append(section("Round banners", "height 32 px, game font", [img(bn + f"{k}.png", 3, l) for k, l in (
         ("sieg", "Victory"), ("niederlage", "Defeat"), ("seitenwechsel", "Switching sides"),
         ("spike_gelegt", "Bomb planted"), ("entschaerft", "Bomb defused"), ("verlaengerung", "Overtime"))]))
-    logo = section("Logo", "chosen: crosshair; replaces the former Riot logo", [
+    logo = section("Logo", "chosen: crosshair", [
         img("assets/logo.png", 4, "Logo 48×48"), img("assets/menu/lobby/playercard.png", 2, "Player card"),
         img("assets/logo.png", 1, "Actual size")])
     parts.append(logo)
@@ -178,7 +178,7 @@ figcaption{font-size:12px;display:flex;flex-direction:column} figcaption span{fo
 </style>
 <main>
 <header style="display:flex;flex-direction:column;gap:8px"><h1>Val2d Sprite Sheet</h1>
-<p>Sprites from the design session, following the concept rules: outline in a darker shade of the neighbouring colour, two shading steps, light from the top left, team-neutral, enemies with a red outline. All figures and items are original designs. 16 px = 1 m.</p></header>
+<p>Sprites from the design session, following the concept rules: outline in a darker shade of the neighbouring colour, two shading steps, light from the top left, team-neutral, enemies with a red outline. 16 px = 1 m.</p></header>
 {{SECTIONS}}
 </main>"""
 

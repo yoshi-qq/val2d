@@ -4,7 +4,7 @@ Usage: python docs/design/sprites.py
 Rules (docs/ENTSCHEIDUNGEN.md, sprite concept): 16 px = 1 m, figure 16x32, tile 32x32,
 outline in a darker shade of the neighbouring colour, two shading steps, light from the top left,
 sprites are team-neutral; enemy variant with a red outline (*_feind.png). All figures and items
-are original designs. File names stay German so existing code keeps working.
+File names stay German so existing code keeps working.
 """
 from __future__ import annotations
 

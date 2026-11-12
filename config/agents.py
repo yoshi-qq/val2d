@@ -2,7 +2,7 @@
 
 Every ability is one building block (`kind`) with its own values. You can move blocks between
 agents, change values, or add new agents without touching the code.
-Source of all values: own design by Claude Code, 11.11.2026 (no official data). Tune freely.
+Source of all values: estimates by Claude Code, 11.11.2026. Tune freely.
 
 Slots: C and Q are bought in the buy phase, E is the signature (free each round, may recharge),
 X is the ultimate (costs `cost` ultimate points).
@@ -137,7 +137,7 @@ AGENTS: dict[str, dict] = {
         E=dict(name="Mend", kind="heal", price=0, max=1, start=1, amount=60, duration=4.0, range=12.0, recharge=40.0),
         X=dict(name="Watchtower", kind="reveal_all", cost=7, duration=4.0),
     )),
-    # ------------------------------------------------------------------ added 12.11.2026 (own kits, own looks)
+    # ------------------------------------------------------------------ added 12.11.2026
     "brann": dict(name="Brann", role="Duelist", abilities=dict(
         C=dict(name="Clinker", kind="blast", price=200, max=2, start=0, range=14.0, radius=2.2, delay=0.7, damage=45),
         Q=dict(name="Bellows", kind="hop", price=150, max=1, start=0, velocity=6.0),

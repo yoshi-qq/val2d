@@ -1,6 +1,6 @@
 {
   "name": "Range",
-  "source": "own design (Claude Code), 12.11.2026; practice range with lanes at 10, 20, 30 and 45 m",
+  "source": "Claude Code, 12.11.2026; practice range with lanes at 10, 20, 30 and 45 m",
   "width": 64,
   "height": 32,
   "floor": "concrete",
