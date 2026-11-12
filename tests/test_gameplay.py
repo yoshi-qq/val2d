@@ -399,3 +399,17 @@ def test_fall_damage_only_above_safe_speed() -> None:
     p.z, p.vz = 3.5, 0.0  # dropping from 3.5 m
     run(m, 1.5)
     assert 40 <= p.hp < 100
+
+
+def test_damage_report_history_and_combat_score() -> None:
+    m, a, b = duel()
+    run(m, 31)
+    pa, pb = m.players[a], m.players[b]
+    m._damage(pa, pb, 30, "body", "test")
+    m._damage(pb, pa, 20, "head", "test")
+    report = m.damage_report(a)
+    assert report[0]["dealt"] == 30 and report[0]["taken"] > 0 and report[0]["dealt_hits"] == 1
+    m._kill(pa, pb, "test", "head")
+    run(m, 0.1)
+    assert m.history and m.history[-1][0] == pa.team
+    assert m.combat_score(pa) >= 150 + 30 and pa.first_kills == 1

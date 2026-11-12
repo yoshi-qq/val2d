@@ -705,6 +705,10 @@ class Game:
         self.draw_hud(me)
         if self.ui.buy_open:
             self.draw_buy(me)
+        own = m.players.get(self.me)
+        if own is not None and (not own.alive or m.phase == "end") and m.phase in ("live", "planted", "end") \
+                and not self.ui.show_scores:
+            self.draw_damage_report(own)
         if self.ui.show_scores or m.phase == "over":
             self.draw_scores()
         pygame.display.flip()
@@ -1585,6 +1589,43 @@ class Game:
             s.blit(cost, (r.right - cost.get_width() - 10, r.bottom - 22))
         self.text("Click buys · B closes", (70, self.h - 76 + 10), C_MUTED)
 
+    def score_of(self, p: PlayerState) -> int:
+        return p.remote_score if self.mode == "client" else self.match.combat_score(p)
+
+    def draw_damage_report(self, me: PlayerState) -> None:
+        """After dying or at round end: damage dealt to and taken from each opponent this round."""
+        m = self.match
+        rows = m.remote_report if self.mode == "client" else m.damage_report(me.pid)
+        if not rows:
+            return
+        x, y, w = 24, self.h / 2 - 40, 330
+        self.panel("ui/hud/ability_panel.png", pygame.Rect(x - 10, y - 34, w + 20, 40 + 30 * len(rows[:5])))
+        self.text("This round: dealt / taken", (x, y - 26), C_MUTED)
+        for row in rows[:5]:
+            other = m.players.get(int(row["pid"]))
+            if other is None:
+                continue
+            head = self.bank.scaled(f"agents/{other.agent}/{other.agent}_killfeed.png", (24, 24))
+            if head is not None:
+                self.screen.blit(head, (x, y))
+            self.text(other.name[:12], (x + 30, y + 3), C_TEXT)
+            self.text(f"{row['dealt']} ({row['dealt_hits']})", (x + 170, y + 3), C_ALLY)
+            self.text(f"{row['taken']} ({row['taken_hits']})", (x + 250, y + 3), C_ENEMY)
+            y += 30
+
+    def draw_round_history(self, y: float) -> None:
+        """One mark per finished round: colour = winning side for me, letter = how it ended."""
+        m = self.match
+        me = m.players.get(self.me)
+        letters = {"Attackers eliminated": "E", "Defenders eliminated": "E", "Time ran out": "T",
+                   "Bomb defused": "D", "Bomb detonated": "B"}
+        x = self.w / 2 - len(m.history) * 13
+        for winner, reason in m.history:
+            won = me is not None and winner == me.team
+            pygame.draw.rect(self.screen, C_ALLY if won else C_ENEMY, (x, y, 22, 22), 0 if won else 2)
+            self.text(letters.get(reason, "?"), (x + 6, y + 2), C_BG if won else C_ENEMY)
+            x += 26
+
     def draw_scores(self) -> None:
         m = self.match
         me = m.players.get(self.me)
@@ -1592,12 +1633,18 @@ class Game:
         overlay.fill((10, 10, 16, 200))
         self.screen.blit(overlay, (0, 0))
         title = "Match over" if m.phase == "over" else "Scoreboard"
+        if m.history:
+            self.draw_round_history(self.h - 74)
+        if m.phase == "over" and m.players:
+            mvp = max(m.players.values(), key=self.score_of)
+            self.text(f"MVP: {mvp.name} ({m.agents.get(mvp.agent, {}).get('name', mvp.agent)}) – {self.score_of(mvp)} points",
+                      (self.w / 2, 122), C_SITE, center=True)
         if m.phase == "over":
             self.text("Enter or Esc: back to the menu", (self.w / 2, self.h - 40), C_SITE, center=True)
         if m.phase == "over" and me is not None:
             title += ": won" if m.match_winner == me.team else ": lost"
         self.text(f"{title}   {m.score[0]} : {m.score[1]}", (self.w / 2, 92), C_TEXT, big=True, center=True)
-        x, w, y = self.w / 2 - 320, 640, 146
+        x, w, y = self.w / 2 - 320, 640, 150
         for team in (0, 1):
             own = me is not None and team == me.team
             header = pygame.Rect(x, y, w, 32)
@@ -1624,6 +1671,7 @@ class Game:
                 self.text(m.agents.get(p.agent, {}).get("name", p.agent), (x + 220, y + 9), C_MUTED)
                 self.text(str(p.kills), (x + 384, y + 9), col)
                 self.text(str(p.deaths), (x + 454, y + 9), col)
+                self.text(str(self.score_of(p)), (x + 490, y + 9), C_MUTED)
                 credits = "" if (me is not None and p.team != me.team) else str(p.credits)
                 self.text(credits, (x + 544, y + 9), C_SITE)
                 if p.is_bot:

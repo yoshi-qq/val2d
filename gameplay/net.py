@@ -127,6 +127,8 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
                         Vec(*e["a"]) if e["a"] else None, Vec(*e["b"]) if e["b"] else None,
                         start=float(e.get("start", 0.0)), props={"status": e.get("status")}) for e in snap["effects"]]
     m.drops = [Drop(d["key"], 0, 0, Vec(d["x"], d["y"])) for d in snap.get("drops", [])]
+    m.history = [(int(w), str(r)) for w, r in snap.get("history", []) if isinstance(r, str)]
+    m.remote_report = [r for r in snap.get("report", []) if isinstance(r, dict)]
     m.open_doors = {Rect(*r) for r in snap.get("doors_open", []) if isinstance(r, list) and len(r) == 4}
     for row in snap.get("roster", []):
         pid = int(row["pid"])
@@ -137,6 +139,8 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
         p.name, p.team, p.agent = row["name"], row["team"], row["agent"]
         p.kills, p.deaths, p.alive = row["kills"], row["deaths"], row["alive"]
         p.is_bot = bool(row.get("bot", p.is_bot))
+        p.damage_total = int(row.get("damage", p.damage_total) or 0)
+        p.remote_score = int(row.get("score", 0) or 0)
         ping = row.get("ping")
         p.ping_ms = int(ping) if isinstance(ping, (int, float)) else None
         p.visible = False

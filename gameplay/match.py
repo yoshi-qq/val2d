@@ -132,6 +132,11 @@ class PlayerState:
     sig_kills: int = 0
     ult_points: int = 0
     kills: int = 0
+    damage_total: int = 0
+    headshots: int = 0
+    first_kills: int = 0
+    plants: int = 0
+    defuses: int = 0
     deaths: int = 0
     blind_until: float = 0.0
     revealed_until: float = 0.0
@@ -155,6 +160,7 @@ class PlayerState:
     visible: bool = True  # only meaningful in a client's shadow match
     ping_ms: int | None = None  # round trip to the host; None for bots and the host itself
     dummy: bool = False  # practice-range target: does nothing, respawns after death
+    remote_score: int = 0  # client copy of the host's combat score
     home: Vec = Vec(0, 0)
     died_at: float = -99.0
 
@@ -207,6 +213,10 @@ class Match:
         self.drops: list[Drop] = []
         self.events: list[GameEvent] = []
         self.open_doors: set[Rect] = set()
+        self.round_damage: dict[tuple[int, int], list[int]] = {}  # (attacker, target) -> [damage, hits] this round
+        self.history: list[tuple[int, str]] = []  # (winning team, reason) per finished round
+        self.remote_report: list[dict[str, int]] = []  # client copy of the viewer's damage report
+        self._first_kill_done = False
         self.practice = False  # practice range: endless live phase, free buying, respawning dummies
         self.time = 0.0
         self.phase = "lobby"  # lobby, buy, live, planted, end, over
@@ -297,6 +307,8 @@ class Match:
         self.effects.clear()
         self.drops.clear()
         self.open_doors.clear()
+        self.round_damage = {}
+        self._first_kill_done = False
         self.round_winner = None
         self.round_reason = ""
         self.spike_pos = None
@@ -368,6 +380,7 @@ class Match:
             else:
                 p.credits += int(losses[min(self.loss_streak[loser], len(losses)) - 1])
             p.credits = min(p.credits, int(self._eco["max"]))
+        self.history.append((winner_team, reason))
         self.events.append(GameEvent("round_end", self.time, {"winner": winner_team, "reason": reason, "score": list(self.score)}))
         if self._match_decided():
             self.match_winner = winner_team
@@ -835,7 +848,15 @@ class Match:
             dmg = int(round(dmg * abilities.rule(self, "vulnerable_mult")))
         absorbed = min(target.armor, int(round(dmg * self._absorb)))
         target.armor -= absorbed
+        dealt = min(dmg, max(0, target.hp + absorbed))
         target.hp -= dmg - absorbed
+        if attacker is not None and attacker.team != target.team:
+            entry = self.round_damage.setdefault((attacker.pid, target.pid), [0, 0])
+            entry[0] += dealt
+            entry[1] += 1
+            attacker.damage_total += dealt
+            if zone == "head":
+                attacker.headshots += 1
         self.events.append(GameEvent("hit", self.time, {"by": attacker.pid if attacker else None, "pid": target.pid, "dmg": dmg, "zone": zone}))
         if target.hp <= 0:
             self._kill(attacker, target, source, zone)
@@ -857,6 +878,11 @@ class Match:
                 break
         if attacker and attacker.team != target.team:
             attacker.kills += 1
+            if not self._first_kill_done and not self.practice:
+                attacker.first_kills += 1
+        if not self.practice:
+            self._first_kill_done = True
+        if attacker and attacker.team != target.team:
             attacker.credits = min(int(self._eco["max"]), attacker.credits + int(self._eco["kill"]))
             attacker.ult_points += int(self._ult["per_kill"])
             ab = self.agents[attacker.agent]["abilities"].get("E", {})
@@ -988,6 +1014,7 @@ class Match:
                     p.defuse_progress += dt
                     if p.defuse_progress >= float(self._spike["defuse_time"]):
                         p.ult_points += int(self._ult["per_defuse"])
+                        p.defuses += 1
                         self.events.append(GameEvent("defuse", self.time, {"pid": p.pid}))
                         self._end_round(p.team, "Bomb defused")
                         return
@@ -1008,6 +1035,7 @@ class Match:
         self.spike_carrier = None
         self.spike_planted_at = self.time
         p.plant_progress = 0.0
+        p.plants += 1
         p.ult_points += int(self._ult["per_plant"])
         for t in self.players.values():
             if t.team == p.team:
@@ -1015,6 +1043,24 @@ class Match:
         self.events.append(GameEvent("plant", self.time, {"pid": p.pid, "site": site}))
 
     # ------------------------------------------------------------------ Snapshot
+    def combat_score(self, p: PlayerState) -> int:
+        """Own score for MVP and the scoreboard: damage plus bonuses for kills and objectives."""
+        return p.damage_total + 150 * p.kills + 50 * p.first_kills + 100 * (p.plants + p.defuses)
+
+    def damage_report(self, pid: int) -> list[dict[str, int]]:
+        """This round: per opponent, damage and hits dealt by pid and taken from them."""
+        rows: dict[int, dict[str, int]] = {}
+        for (attacker, target), (dmg, hits) in self.round_damage.items():
+            if attacker == pid:
+                rows.setdefault(target, {"pid": target, "dealt": 0, "dealt_hits": 0, "taken": 0, "taken_hits": 0})
+                rows[target]["dealt"] += dmg
+                rows[target]["dealt_hits"] += hits
+            elif target == pid:
+                rows.setdefault(attacker, {"pid": attacker, "dealt": 0, "dealt_hits": 0, "taken": 0, "taken_hits": 0})
+                rows[attacker]["taken"] += dmg
+                rows[attacker]["taken_hits"] += hits
+        return sorted(rows.values(), key=lambda r: -(r["dealt"] + r["taken"]))
+
     def _effect_visible(self, e: Effect, viewer: PlayerState | None) -> bool:
         """Flashes and decoys are never drawn; enemy traps only for their own team."""
         if e.kind == "decoy":
@@ -1069,8 +1115,11 @@ class Match:
                         for e in self.effects if self._effect_visible(e, viewer)],
             "players": players,
             "roster": [{"pid": p.pid, "name": p.name, "team": p.team, "agent": p.agent, "kills": p.kills,
-                        "deaths": p.deaths, "alive": p.alive, "bot": p.is_bot, "ping": p.ping_ms}
+                        "deaths": p.deaths, "alive": p.alive, "bot": p.is_bot, "ping": p.ping_ms,
+                        "score": self.combat_score(p), "damage": p.damage_total}
                        for p in self.players.values()],
+            "history": [[w, r] for w, r in self.history],
+            "report": self.damage_report(viewer.pid) if viewer is not None else [],
             "drops": [{"key": d.key, "x": d.pos.x, "y": d.pos.y} for d in self.drops],
             "doors_open": [[r.x0, r.y0, r.x1, r.y1] for r in self.open_doors],
         }
