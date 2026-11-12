@@ -95,45 +95,61 @@ STATUS_TINT = {"slow": (150, 110, 220), "decay": (120, 200, 90), "vulnerable": (
                "stim": (90, 220, 160)}
 
 
+SOUND_DIR = ROOT / "assets" / "sounds"
+STEP_SOUND = {"metal_plate": "step_metal", "grate": "step_metal", "grass": "step_soft", "dirt": "step_soft",
+              "sand": "step_soft", "gravel": "step_soft", "carpet": "step_soft", "planks": "step_wood"}
+SHOT_SOUND = {"sidearm": "shot_pistol", "smg": "shot_smg", "shotgun": "shot_shotgun", "rifle": "shot_rifle",
+              "sniper": "shot_sniper", "heavy": "shot_heavy", "melee": "knife"}
+ABILITY_SOUND = {"smoke": "ab_smoke", "wall": "ab_wall", "vapor_wall": "ab_wall", "flash": "ab_throw", "blast": "ab_throw",
+                 "wave": "ab_wave", "sensor": "ab_sensor", "alarm": "ab_alarm", "tripwire": "ab_trap", "dash": "ab_dash",
+                 "hop": "ab_hop", "teleport": "ab_teleport", "anchor": "ab_teleport", "heal": "ab_heal", "shield": "ab_shield",
+                 "revive": "ab_revive", "stim": "ab_stim", "reveal_all": "ab_reveal", "decoy": "ab_decoy", "zone": "ab_zone",
+                 "slow_field": "ab_zone", "overdrive": "ab_power", "immunity": "ab_power"}
+
+
 class Sound:
-    """Synthetic placeholder sounds with stereo panning and distance attenuation."""
+    """Sound effects from assets/sounds (made by tools/make_sounds.py) with stereo panning, distance falloff and
+    muffling behind walls. Missing files are skipped with one warning; no sound device means silent play."""
 
     def __init__(self) -> None:
         self.ok = False
         self.sounds: dict[str, pygame.mixer.Sound] = {}
         self.volume = 0.8
+        self._warned: set[str] = set()
         try:
-            import numpy as np
             pygame.mixer.init(frequency=44100, size=-16, channels=2)
-            rate = 44100
-
-            def tone(freq: float, dur: float, noise: float, decay: float) -> pygame.mixer.Sound:
-                t = np.linspace(0, dur, int(rate * dur), False)
-                wave = (np.sin(2 * np.pi * freq * t) * (1 - noise) + np.random.uniform(-1, 1, t.size) * noise) * np.exp(-t * decay)
-                data = (wave * 12000).astype(np.int16)
-                return pygame.sndarray.make_sound(np.column_stack([data, data]))
-
-            self.sounds = {"shot": tone(140, 0.18, 0.8, 22), "step": tone(70, 0.06, 0.6, 50),
-                           "plant": tone(880, 0.25, 0.0, 6), "kill": tone(520, 0.12, 0.1, 18), "ability": tone(320, 0.3, 0.4, 8)}
+            pygame.mixer.set_num_channels(48)
+            for path in sorted(SOUND_DIR.glob("*.wav")):
+                self.sounds[path.stem] = pygame.mixer.Sound(str(path))
             self.ok = True
         except Exception as exc:  # sound is not essential to play
             warnings.warn(f"Sound disabled: {exc}")
 
-    def play(self, kind: str, listener: PlayerState | None, pos: Vec | None, radius: float = 40.0) -> None:
-        if not self.ok or kind not in self.sounds:
+    def play(self, key: str, listener: PlayerState | None = None, pos: Vec | None = None, radius: float = 40.0,
+             occluded: bool = False, gain: float = 1.0) -> None:
+        if not self.ok:
             return
-        left = right = 0.6
-        if listener and pos:
+        snd = self.sounds.get(key)
+        if snd is None:
+            if key not in self._warned:
+                self._warned.add(key)
+                warnings.warn(f"Sound missing: assets/sounds/{key}.wav")
+            return
+        left = right = 0.7
+        if listener is not None and pos is not None:
             rel = (pos - listener.pos).rotated(-listener.facing)
             dist = rel.length()
-            vol = max(0.0, 1.0 - dist / max(radius, 1.0))
+            vol = max(0.0, 1.0 - dist / max(radius, 1.0)) ** 1.3
+            if occluded:
+                vol *= 0.45
             pan = max(-1.0, min(1.0, rel.x / max(dist, 1.0)))
-            left, right = vol * (1 - max(0.0, pan)), vol * (1 + min(0.0, pan))
-        if left + right < 0.02:
+            left, right = vol * (1 - max(0.0, pan) * 0.85), vol * (1 + min(0.0, pan) * 0.85)
+        left, right = left * gain * self.volume, right * gain * self.volume
+        if left + right < 0.01:
             return
-        ch = self.sounds[kind].play()
+        ch = snd.play()
         if ch:
-            ch.set_volume(left * self.volume, right * self.volume)
+            ch.set_volume(min(1.0, left), min(1.0, right))
 
 
 class Game:
@@ -200,6 +216,8 @@ class Game:
         self.local_facing = 0.0
         self.seen_round = -1
         self.spectate_index = 0
+        self._next_beep = 0.0
+        self._last_phase = ""
         self.server_pos: dict[int, Vec] = {}  # client: host positions, smoothed towards each frame
         self.ui = UiState()
         self.sound = Sound()
@@ -259,6 +277,7 @@ class Game:
                     item = self.buy_item_at(ev.pos)
                     if item:
                         cmd.buy.append(item)
+                        self.sound.play("ui_buy", gain=0.6)
             keys = pygame.key.get_pressed()
             buttons = pygame.mouse.get_pressed()
             self.ui.show_scores = keys[pygame.K_TAB]
@@ -294,6 +313,8 @@ class Game:
                 self.seen_round = self.match.round_no  # new round: take the facing from the spawn
                 self.local_facing = self.match.players[self.me].facing
             self.handle_events(events)
+            if self.match.players.get(self.me) is not None:
+                self.audio_tick(self.match.players[self.me])
             self.draw()
             if self.client and not self.client.connected:
                 self.status = "Lost connection to host"
@@ -375,6 +396,40 @@ class Game:
             else:
                 p.pos = p.pos + error * min(1.0, dt * 15.0)
 
+    def sound_key(self, data: dict, pos: Vec) -> str:
+        """Sample for a sound event: the weapon class for shots, the floor for steps."""
+        if data.get("kind") == "shot":
+            d = self.match.weapons.get(str(data.get("weapon", "")))
+            if d is None:
+                return "shot_rifle"
+            return "shot_silenced" if d.silenced else SHOT_SOUND.get(d.category, SHOT_SOUND.get(d.slot, "shot_rifle"))
+        return STEP_SOUND.get(self.match.world.floor_material(pos), "step_hard")
+
+    def occluded(self, listener: PlayerState, pos: Vec) -> bool:
+        """True if a wall stands between listener and sound (sound is muffled, not silenced)."""
+        try:
+            return not self.match._line_clear(listener.pos, pos, listener.level, ignore_effects=True)
+        except (AttributeError, TypeError, ValueError):
+            return False
+
+    def audio_tick(self, me: PlayerState) -> None:
+        """Bomb beeps faster as the timer runs down; landing thuds; round start cue."""
+        m = self.match
+        if m.phase == "planted" and m.spike_pos is not None:
+            left = m.spike_time_left()
+            interval = max(0.12, min(1.0, left / 40.0))
+            if m.time >= self._next_beep:
+                self._next_beep = m.time + interval
+                self.sound.play("bomb_beep", me, m.spike_pos, 60, gain=0.8)
+        else:
+            self._next_beep = 0.0
+        for pid, landed in self.ui.landed_at.items():
+            if landed == m.time and pid in m.players:
+                self.sound.play("land", me, m.players[pid].pos, 18, occluded=self.occluded(me, m.players[pid].pos), gain=0.6)
+        if m.phase == "buy" and self._last_phase != "buy":
+            self.sound.play("round_start", gain=0.8)
+        self._last_phase = m.phase
+
     def handle_events(self, events: list[GameEvent]) -> None:
         m, t = self.match, self.match.time
         me = m.players.get(self.me)
@@ -393,11 +448,13 @@ class Game:
                 if me.status.get("deaf", 0.0) > t:
                     continue
                 pos = Vec(*d["pos"])
-                self.sound.play(d["kind"], me, pos, d["radius"])
+                self.sound.play(self.sound_key(d, pos), me, pos, d["radius"], occluded=self.occluded(me, pos))
                 if m.cfg.lobby.sound_rings and d["pid"] != self.me:
                     self.ui.rings.append(Ring(pos, min(d["radius"], 6.0), t))
             elif e.kind == "hit":
                 self.ui.last_hit[d["pid"]] = t
+                if d.get("by") == self.me:
+                    self.sound.play("hit_head" if d.get("zone") == "head" else "hit_body", gain=0.7)
                 if d.get("by") == self.me:
                     self.stats["hits"] += 1
                     self.stats["heads"] += 1 if d.get("zone") == "head" else 0
@@ -413,13 +470,16 @@ class Game:
                 by = killer.name if killer else "Bomb"
                 self.ui.feed.append((t + 5, f"{by} → {victim.name if victim else '?'}", killer.agent if killer else None,
                                      victim.agent if victim else None, bool(d["head"])))
-                self.sound.play("kill", None, None)
+                if d["by"] == self.me:
+                    self.sound.play("kill")
+                elif d["pid"] == self.me:
+                    self.sound.play("death")
             elif e.kind == "plant":
                 self.ui.banner = (t + 2.5, f"Bomb planted on {d['site']}")
                 self.ui.banner_art = "spike_gelegt"
-                self.sound.play("plant", None, None)
+                self.sound.play("bomb_planted")
             elif e.kind == "blast":
-                self.sound.play("shot", me, Vec(*d["pos"]), 40)
+                self.sound.play("ab_blast", me, Vec(*d["pos"]), 45, occluded=self.occluded(me, Vec(*d["pos"])))
                 self.ui.blasts.append((Vec(*d["pos"]), float(d["radius"]), t))
                 self.ui.scorches.append((Vec(*d["pos"]), t + 20.0))
             elif e.kind == "revive":
@@ -442,9 +502,10 @@ class Game:
                 fx = {"teleport": ("teleport", 0.4), "shield": ("shield_shell", 0.6), "anchor": ("teleport", 0.4)}.get(str(d.get("kind")))
                 if fx:
                     self.ui.figure_fx.append((d["pid"], fx[0], t, fx[1]))
-                self.sound.play("ability", me, Vec(*d["pos"]), 30)
+                self.sound.play(ABILITY_SOUND.get(kind, "ab_power"), me, at, 30, occluded=self.occluded(me, at))
             elif e.kind == "round_end":
                 won = d["winner"] == me.team
+                self.sound.play("round_win" if won else "round_loss")
                 self.ui.banner = (t + 5, f"{d['reason']}  {d['score'][me.team]}:{d['score'][1 - me.team]}")
                 self.ui.banner_art = "sieg" if won else "niederlage"
                 if d.get("reason") == "Bomb defused":
@@ -452,13 +513,14 @@ class Game:
             elif e.kind == "explode":
                 self.ui.oneshots.append(("fx/spike_explosion.png", Vec(*d["pos"]), t, 1.0, 64, (24.0, 24.0)))
                 self.ui.scorches.append((Vec(*d["pos"]), t + 30.0))
-                self.sound.play("shot", me, Vec(*d["pos"]), 80)
+                self.sound.play("bomb_explode", me, Vec(*d["pos"]), 120)
             elif e.kind == "flash":
+                self.sound.play("ab_flash", me, Vec(*d["pos"]), 35, occluded=self.occluded(me, Vec(*d["pos"])))
                 self.ui.oneshots.append(("fx/funke_explosion.png", Vec(*d["pos"]), t, 0.3, 16, (1.0, 1.0)))
             elif e.kind == "door":
-                self.sound.play("step", me, Vec(*d["pos"]), 15)
+                self.sound.play("door", me, Vec(*d["pos"]), 20)
             elif e.kind == "defuse":
-                self.sound.play("plant", None, None)
+                self.sound.play("bomb_defused")
 
     # ------------------------------------------------------------ Zeichnen
     def to_screen(self, p: Vec, me: PlayerState) -> tuple[float, float]:

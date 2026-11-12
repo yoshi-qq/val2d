@@ -759,7 +759,8 @@ class Match:
         spread = self.current_spread(p, d) * spread_mult + extra_spread
         loud = self._sound["silenced_radius"] if d.silenced else self._sound["shot_radius"]
         if d.is_gun:
-            self.events.append(GameEvent("sound", self.time, {"pid": p.pid, "pos": (p.pos.x, p.pos.y), "radius": loud, "kind": "shot"}))
+            self.events.append(GameEvent("sound", self.time, {"pid": p.pid, "pos": (p.pos.x, p.pos.y), "radius": loud, "kind": "shot",
+                                                              "weapon": d.key}))
         if p.spray <= 0.0:
             p.shot_index = 0
         pattern = spray_offset(d, p.shot_index) * spread_mult if pellets == 1 else 0.0

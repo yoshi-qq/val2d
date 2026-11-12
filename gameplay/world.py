@@ -75,6 +75,14 @@ class WorldMap:
                 level = max(level, 1)
         return level
 
+    def floor_material(self, p: Vec) -> str:
+        """Floor material key under a point (last matching patch wins), else the map's floor."""
+        found = self.floor
+        for mat, rect in self.floors:
+            if rect.contains(p):
+                found = mat
+        return found
+
     def on_ramp(self, p: Vec) -> bool:
         return any(r.contains(p) for r in self.ramps)
 
