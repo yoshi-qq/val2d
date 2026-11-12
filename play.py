@@ -137,7 +137,7 @@ class Sound:
 class Game:
     def __init__(self, args: argparse.Namespace) -> None:
         pygame.init()
-        self.screen = pygame.display.set_mode((1280, 720))
+        self.screen = display_mode(bool(getattr(args, "fullscreen", False)))
         pygame.display.set_caption("Val2d")
         self.w, self.h = self.screen.get_size()
         self.scale = self.w / VIEW_METERS
@@ -1372,6 +1372,16 @@ def main() -> None:
     pygame.quit()
 
 
+def display_mode(fullscreen: bool) -> pygame.Surface:
+    """1280x720 game area; fullscreen scales it to the monitor (nearest, keeps the pixel look)."""
+    flags = (pygame.FULLSCREEN | pygame.SCALED) if fullscreen else 0
+    try:
+        return pygame.display.set_mode((1280, 720), flags)
+    except pygame.error as exc:
+        warnings.warn(f"Fullscreen not available ({exc}); using a window.")
+        return pygame.display.set_mode((1280, 720))
+
+
 def run_menu(args: argparse.Namespace) -> None:
     """Main menu loop: each match returns to the menu; quitting the menu ends the program."""
     from menu import MainMenu
@@ -1392,7 +1402,7 @@ def run_menu(args: argparse.Namespace) -> None:
         except (OSError, ConnectionError) as exc:
             menu.status = f"No connection: {exc}"
             warnings.warn(menu.status)
-        screen = pygame.display.set_mode((1280, 720))
+        screen = display_mode(bool(getattr(menu.args, "fullscreen", False)))
         menu.screen = screen
     pygame.quit()
 

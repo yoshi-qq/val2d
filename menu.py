@@ -61,22 +61,24 @@ class MainMenu:
         a.sensitivity, a.camera_push, a.volume = st["sensitivity"], st["camera_push"], st["volume"]
         a.name = st["name"]
         a.all_around, a.sound_rings = st["all_around"] or a.all_around, st["sound_rings"] or a.sound_rings
+        a.fullscreen = bool(st.get("fullscreen", False))
 
     # ------------------------------------------------------------ settings view
     SLIDERS = (("sensitivity", "Mouse sensitivity"), ("camera_push", "Camera ahead"), ("volume", "Volume"))
-    CHECKS = (("all_around", "All-around sight (lobby rule)"), ("sound_rings", "Sound rings (lobby rule)"))
+    CHECKS = (("all_around", "All-around sight (lobby rule)"), ("sound_rings", "Sound rings (lobby rule)"),
+              ("fullscreen", "Fullscreen"))
 
     def slider_rect(self, i: int) -> pygame.Rect:
         return pygame.Rect(360, 220 + i * 70, 420, 24)
 
     def check_rect(self, i: int) -> pygame.Rect:
-        return pygame.Rect(80, 440 + i * 56, 36, 36)
+        return pygame.Rect(80, 420 + i * 50, 36, 36)
 
     def name_rect(self) -> pygame.Rect:
         return pygame.Rect(360, 150, 420, 44)
 
     def back_button(self) -> Button:
-        return Button(pygame.Rect(80, 600, 300, 48), "Save and back", "back")
+        return Button(pygame.Rect(80, 600 + 20, 300, 48), "Save and back", "back")
 
     def settings_click(self, pos: tuple[int, int]) -> None:
         self.typing_name = self.name_rect().collidepoint(pos)

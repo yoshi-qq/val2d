@@ -18,7 +18,8 @@ LIMITS: dict[str, tuple[float, float]] = {"sensitivity": (0.05, 1.0), "camera_pu
 def defaults() -> dict[str, Any]:
     cfg = load_config()
     return {"sensitivity": cfg.player.sensitivity, "camera_push": cfg.player.camera_push, "volume": 0.8,
-            "name": "Player", "all_around": cfg.lobby.all_around_sight, "sound_rings": cfg.lobby.sound_rings}
+            "name": "Player", "all_around": cfg.lobby.all_around_sight, "sound_rings": cfg.lobby.sound_rings,
+            "fullscreen": False}
 
 
 def clamp(key: str, value: float) -> float:
@@ -36,7 +37,7 @@ def load() -> dict[str, Any]:
                     values[key] = clamp(key, value)
                 elif key == "name" and isinstance(value, str):
                     values[key] = value[:16] or "Player"
-                elif key in ("all_around", "sound_rings") and isinstance(value, bool):
+                elif key in ("all_around", "sound_rings", "fullscreen") and isinstance(value, bool):
                     values[key] = value
     except (OSError, json.JSONDecodeError) as exc:
         warnings.warn(f"Settings unreadable ({exc}); using defaults.")
