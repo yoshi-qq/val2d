@@ -86,13 +86,14 @@ def use(m: Match, p: PlayerState, key: str, ab: dict[str, Any]) -> Vec | None:
     aim = heading(p.facing)
     if kind == "smoke":
         pos = _target_point(m, p, ab, clip=not ab.get("remote", False))
-        m.effects.append(Effect("smoke", p.pid, p.team, pos, now + float(ab["duration"]), radius=float(ab["radius"])))
+        m.effects.append(Effect("smoke", p.pid, p.team, pos, now + float(ab["duration"]), radius=float(ab["radius"]), start=now))
         return pos
     if kind in ("wall", "vapor_wall"):
         pos = _target_point(m, p, ab)
         side = aim.rotated(90) * (float(ab["length"]) / 2)
         props = {"cross_status": ab.get("cross_status"), "cross_time": float(ab.get("cross_time", 0.0))}
-        m.effects.append(Effect("wall", p.pid, p.team, pos, now + float(ab["duration"]), a=pos - side, b=pos + side, props=props))
+        m.effects.append(Effect("wall", p.pid, p.team, pos, now + float(ab["duration"]), a=pos - side, b=pos + side, start=now,
+                                props=props))
         return pos
     if kind == "flash":
         pos = _target_point(m, p, ab, clip=not ab.get("through_walls", False))
@@ -154,7 +155,7 @@ def use(m: Match, p: PlayerState, key: str, ab: dict[str, Any]) -> Vec | None:
             target = p.anchor
             p.pos, p.vel, p.anchor = target, Vec(0, 0), None
             return target
-        p.anchor, p.anchor_until = p.pos, now + float(ab.get("duration", 60.0))
+        p.anchor, p.anchor_until = p.pos, now + float(ab.get("duration", 60.0))  # shown to the owner's team
         p.charges[key] = p.charges.get(key, 0) + 1  # setting is free; the charge is used on return
         return p.pos
     if kind == "heal":
@@ -264,6 +265,7 @@ def tick(m: Match, dt: float) -> None:
 
 
 def _pop_flash(m: Match, e: Effect) -> None:
+    m.events.append(_event(m, "flash", {"pos": (e.pos.x, e.pos.y), "pid": e.owner}))
     through = bool(e.props.get("through_walls"))
     for t in m.players.values():
         if not t.alive:

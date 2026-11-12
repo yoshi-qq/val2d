@@ -83,6 +83,8 @@ class UiState:
     landed_at: dict[int, float] = field(default_factory=dict)
     prev_z: dict[int, float] = field(default_factory=dict)
     blasts: list[tuple[Vec, float, float]] = field(default_factory=list)  # pos, radius, start
+    oneshots: list[tuple[str, Vec, float, float, int, tuple[float, float]]] = field(default_factory=list)
+    # (file, world pos, start, duration, frame width in px, size in metres)
     scorches: list[tuple[Vec, float]] = field(default_factory=list)       # pos, until
     figure_fx: list[tuple[int, str, float, float]] = field(default_factory=list)  # pid, fx file, start, duration
     waves: list[tuple[int, Vec, float]] = field(default_factory=list)      # pid, end point, start
@@ -328,6 +330,8 @@ class Game:
             d = e.data
             if e.kind == "shot":
                 self.ui.last_shot[d["pid"]] = t
+                if d.get("stop") == "wall":
+                    self.ui.oneshots.append(("fx/einschlag_wand.png", Vec(*d["to"]), t, 0.25, 8, (0.5, 0.5)))
                 self.ui.tracers.append(Tracer(Vec(*d["from"]), Vec(*d["to"]), t + 0.08, d["pid"] == self.me))
             elif e.kind == "sound":
                 if me.status.get("deaf", 0.0) > t:
@@ -338,6 +342,9 @@ class Game:
                     self.ui.rings.append(Ring(pos, min(d["radius"], 6.0), t))
             elif e.kind == "hit":
                 self.ui.last_hit[d["pid"]] = t
+                victim = m.players.get(d["pid"])
+                if victim is not None:
+                    self.ui.oneshots.append(("fx/treffer_koerper.png", victim.pos, t, 0.25, 8, (0.5, 0.5)))
                 if d["by"] == self.me:
                     self.ui.hit_marker = t + 0.15
             elif e.kind == "kill":
@@ -365,6 +372,14 @@ class Game:
                 self.ui.waves.append((d["pid"], Vec(*d["pos"]), t))
             elif e.kind == "ability":
                 self.ui.last_cast[d["pid"]] = (t, str(d.get("key", "C")))
+                kind, at = str(d.get("kind")), Vec(*d["pos"])
+                caster = m.players.get(d["pid"])
+                if kind == "hop" and caster is not None:
+                    self.ui.oneshots.append(("fx/satz_staub.png", caster.pos, t, 0.35, 16, (1.0, 0.5)))
+                elif kind == "reveal_all" and caster is not None:
+                    self.ui.oneshots.append(("fx/ability/beacon.png", caster.pos, t, 1.5, 16, (1.0, 1.0)))
+                elif kind in ("zone", "sensor", "alarm", "tripwire", "blast", "smoke"):
+                    self.ui.oneshots.append(("fx/ability/impact_puff.png", at, t, 0.3, 16, (1.0, 1.0)))
                 fx = {"teleport": ("teleport", 0.4), "shield": ("shield_shell", 0.6), "anchor": ("teleport", 0.4)}.get(str(d.get("kind")))
                 if fx:
                     self.ui.figure_fx.append((d["pid"], fx[0], t, fx[1]))
@@ -375,6 +390,12 @@ class Game:
                 self.ui.banner_art = "sieg" if won else "niederlage"
                 if d.get("reason") == "Bomb defused":
                     self.ui.banner_art = "entschaerft" if won else "niederlage"
+            elif e.kind == "explode":
+                self.ui.oneshots.append(("fx/spike_explosion.png", Vec(*d["pos"]), t, 1.0, 64, (24.0, 24.0)))
+                self.ui.scorches.append((Vec(*d["pos"]), t + 30.0))
+                self.sound.play("shot", me, Vec(*d["pos"]), 80)
+            elif e.kind == "flash":
+                self.ui.oneshots.append(("fx/funke_explosion.png", Vec(*d["pos"]), t, 0.3, 16, (1.0, 1.0)))
             elif e.kind == "door":
                 self.sound.play("step", me, Vec(*d["pos"]), 15)
             elif e.kind == "defuse":
@@ -644,8 +665,34 @@ class Game:
                 self.screen.blit(img, (at[0] - size[0] / 2, at[1] - size[1] / 2))
 
     def draw_bursts(self, me: PlayerState) -> None:
-        """Short-lived explosions and wave lines from events."""
+        """Short-lived explosions, wave lines, one-shot effects, dash trails and anchor markers."""
         s, t = self.screen, self.match.time
+        live = []
+        for rel, pos, start, duration, frame_w, size_m in self.ui.oneshots:
+            age = t - start
+            if age > duration or age < 0:
+                continue
+            live.append((rel, pos, start, duration, frame_w, size_m))
+            size = (max(1, round(size_m[0] * self.scale)), max(1, round(size_m[1] * self.scale)))
+            img = self.bank.strip_frame(rel, size, age / duration, frame_w)
+            if img is not None:
+                x, y = self.to_screen(pos, me)
+                s.blit(img, (x - size[0] / 2, y - size[1] / 2))
+        self.ui.oneshots = live[-200:]
+        for p in self.match.players.values():
+            if p.alive and p.dash_until > t and p.vel.length() > 0.5:
+                back = p.pos - p.vel.normalized() * 0.8
+                size = (round(self.scale), round(2 * self.scale))
+                trail = self.bank.strip_frame("fx/gleiten_spur.png", size, (t * 10) % 1.0, 16)
+                if trail is not None:
+                    x, y = self.to_screen(back, me)
+                    s.blit(trail, (x - size[0] / 2, y - size[1] / 2))
+            if p.anchor is not None and p.anchor_until > t and p.team == me.team:
+                size = (round(self.scale * 20 / 16), round(self.scale * 8 / 16))
+                mark = self.bank.scaled("fx/ability/anchor_marker.png", size)
+                if mark is not None:
+                    x, y = self.to_screen(p.anchor, me)
+                    s.blit(mark, (x - size[0] / 2, y - size[1] / 2))
         keep = []
         for pos, radius, start in self.ui.blasts:
             age = t - start
@@ -820,6 +867,12 @@ class Game:
             else:
                 pygame.draw.circle(s, (120, 80, 170), (ex, ey), e.radius * self.scale, 3)
             return
+        if e.kind == "smoke" and 0 < self.match.time - e.start < 0.5:
+            d = max(1, round(2 * e.radius * self.scale))
+            img = self.bank.strip_frame("fx/dunst_aufbau.png", (d, d), (self.match.time - e.start) / 0.5, 64)
+            if img is not None:
+                s.blit(img, (ex - d / 2, ey - d / 2))
+                return
         art = {"smoke": "fx/dunst.png"}.get(e.kind)
         if art:
             d = max(1, round(2 * e.radius * self.scale))
@@ -831,6 +884,10 @@ class Game:
             else:
                 pygame.draw.circle(s, (120, 80, 170), (ex, ey), e.radius * self.scale, 3)
         elif e.kind == "sensor":
+            pulse_d = max(1, round(2 * self.scale))
+            pulse = self.bank.strip_frame("fx/lauscher_puls.png", (pulse_d, pulse_d), (self.match.time % 1.0), 32)
+            if pulse is not None:
+                s.blit(pulse, (ex - pulse_d / 2, ey - pulse_d / 2))
             size = max(1, round(self.scale * 0.6))
             img = self.bank.scaled("fx/lauscher.png", (size, size))
             if img is not None:
@@ -842,7 +899,9 @@ class Game:
             a, b = self.to_screen(e.a, me), self.to_screen(e.b, me)
             length = math.hypot(b[0] - a[0], b[1] - a[1])
             tile_px = max(1, round(self.scale))
-            tile = self.bank.scaled("fx/schleier.png", (tile_px, tile_px))
+            building = 0 < self.match.time - e.start < 0.4
+            tile = (self.bank.strip_frame("fx/schleier_aufbau.png", (tile_px, tile_px), (self.match.time - e.start) / 0.4, 16)
+                    if building else None) or self.bank.scaled("fx/schleier.png", (tile_px, tile_px))
             if tile is None or length < 1:
                 pygame.draw.line(s, (180, 190, 210), a, b, 8)
                 return

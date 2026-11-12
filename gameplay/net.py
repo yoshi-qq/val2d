@@ -161,6 +161,10 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int) -> None:
         p.reload_until = m.time + 0.3 if row["reloading"] else 0.0
         p.plant_progress, p.defuse_progress = row["plant"], row["defuse"]
         p.status = {k: m.time + 0.3 for k in row.get("status", [])}
+        anchor = row.get("anchor")
+        p.anchor = Vec(*anchor) if isinstance(anchor, list) and len(anchor) == 2 else None
+        p.anchor_until = m.time + 1.0 if p.anchor is not None else 0.0
+        p.dash_until = m.time + 0.1 if row.get("dashing") else 0.0
 
 
 def events_from_json(rows: list[dict[str, Any]]) -> list[GameEvent]:

@@ -759,11 +759,13 @@ class Match:
         hits.sort(key=lambda h: h[0])
         mult = 1.0
         end = d.range
+        stopped_by = ""
         for dist, kind, payload in hits:
             if kind == "wall":
                 wall, thickness = payload
                 if wall.penetration >= 3 or wall.penetration > d.penetration or thickness > 1.0 + d.penetration:
                     end = dist
+                    stopped_by = "wall"
                     break
                 mult *= PEN_DAMAGE.get(wall.penetration, 0.5)
                 continue
@@ -771,9 +773,11 @@ class Match:
             dmg = int(round(d.damage_at(dist, zone) * mult))
             self._damage(p, target, dmg, zone, d.key)
             end = dist
+            stopped_by = "player"
             break
         tip = origin + direction * end
-        self.events.append(GameEvent("shot", self.time, {"pid": p.pid, "from": (origin.x, origin.y), "to": (tip.x, tip.y), "weapon": d.key}))
+        self.events.append(GameEvent("shot", self.time, {"pid": p.pid, "from": (origin.x, origin.y), "to": (tip.x, tip.y), "weapon": d.key,
+                                                          "stop": stopped_by}))
 
     def _damage(self, attacker: PlayerState | None, target: PlayerState, dmg: int, zone: str, source: str) -> None:
         if not target.alive or dmg <= 0:
@@ -999,6 +1003,9 @@ class Match:
                 "plant": p.plant_progress, "defuse": p.defuse_progress,
                 "status": sorted(k for k, v in p.status.items() if v > self.time)
                 if viewer is None or viewer.team == p.team else [],
+                "anchor": [p.anchor.x, p.anchor.y] if p.anchor is not None and p.anchor_until > self.time
+                and (viewer is None or viewer.team == p.team) else None,
+                "dashing": p.dash_until > self.time,
                 "vx": p.vel.x, "vy": p.vel.y, "spray": p.spray,
             })
         return {
