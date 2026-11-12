@@ -1,43 +1,237 @@
-"""HUD: score, bars, abilities, crosshair, aim preview, feed, banners."""
+"""HUD: bottom centre vitals and abilities, bottom right weapon, left minimap and score, right kill feed, F1 ability
+help; crosshair and ability aim preview. Layout values: config/client/hud.py."""
 from __future__ import annotations
 
 from client.common import *  # noqa: F403  (pygame, colours, types)
+from client.ui import color
 
 
 class HudMixin:
-    def draw_score_pips(self, me: PlayerState) -> None:
-        """Round pips left (own wins) and right (enemy wins) of the timer, up to the rounds needed to win."""
-        m = self.match
-        need = max(1, m.win_rounds)
-        px = 12
-        mine, theirs = m.score[me.team], m.score[1 - me.team]
-        for side, won, name in ((-1, mine, "round_win"), (1, theirs, "round_loss")):
-            for i in range(need):
-                rel = f"ui/icons/{name if i < won else 'round_empty'}.png"
-                img = self.bank.scaled(rel, (px, px))
-                x = self.w / 2 + side * (130 + i * (px + 3)) - (px if side < 0 else 0)
-                if img is not None:
-                    self.screen.blit(img, (x, 26))
-                else:
-                    pygame.draw.rect(self.screen, C_ALLY if side < 0 and i < won else C_ENEMY if i < won else C_MUTED,
-                                     (x, 26, px, px), 0 if i < won else 1)
+    # ------------------------------------------------------------ layout
+    def hud_cfg(self) -> dict:
+        return HUD
 
-    def draw_bar(self, icon: str, fill: str, value: int, top: int, pos: tuple[int, int]) -> None:
-        """HUD bar: icon (16x16), empty bar, fill clipped to value/top (96x12), number; native size at k = 2."""
-        x, y = pos
-        k = 2
-        sym = self.bank.scaled(f"ui/hud/{icon}.png", (8 * k, 8 * k))
-        empty = self.bank.scaled("ui/hud/balken_leer.png", (48 * k, 6 * k))
-        full = self.bank.scaled(f"ui/hud/{fill}.png", (48 * k, 6 * k))
-        if sym is None or empty is None or full is None:
-            self.text(f"{icon.title()} {value}", (x, y))
+    def draw_hud(self, me: PlayerState) -> None:
+        """Bottom centre: health, armor, abilities. Bottom right: weapon, ammo, credits. Left side: minimap, score,
+        timer. Right side: kill feed. The upper middle stays free for the view ahead."""
+        m, ui = self.match, self.kit
+        ui.begin()
+        self.draw_minimap(me)
+        self.draw_score_box(me)
+        self.draw_vitals(me)
+        self.draw_ability_bar(me)
+        self.draw_weapon_box(me)
+        self.draw_feed(me)
+        self.draw_statuses(me)
+        self.draw_messages(me)
+        if getattr(self, "help_held", False):
+            self.draw_ability_help(me)
+
+    def draw_score_box(self, me: PlayerState) -> None:
+        """Left side under the minimap: own score, timer (or bomb), enemy score, round and side."""
+        m, ui = self.match, self.kit
+        r = int(HUD["minimap_radius"])
+        box = pygame.Rect(16, 24 + 2 * r + 14, 2 * r + 8, 74)
+        ui.panel(box, "panel")
+        mine, theirs = m.score[me.team], m.score[1 - me.team]
+        if m.mode == "deathmatch" and not m.practice:
+            left = max(0.0, m.dm_ends_at - m.time)
+        else:
+            left = m.phase_time_left()
+        clock = f"{int(left) // 60}:{int(left) % 60:02d}"
+        if m.practice:
+            st = self.stats
+            acc = 100 * st["hits"] / st["shots"] if st["shots"] else 0
+            heads = 100 * st["heads"] / st["hits"] if st["hits"] else 0
+            ui.text("Range", (box.centerx, box.y + 8), "m", "text", "center", upper=True, bold=True)
+            ui.text(f"{st['hits']}/{st['shots']} hits · {acc:.0f} %", (box.centerx, box.y + 32), "s", "muted", "center")
+            ui.text(f"{heads:.0f} % head", (box.centerx, box.y + 52), "s", "muted", "center")
             return
-        self.screen.blit(sym, (x, y))
-        self.screen.blit(empty, (x + 30, y + 3))
-        width = round(full.get_width() * max(0.0, min(1.0, value / max(top, 1))))
-        if width > 0:
-            self.screen.blit(full, (x + 30, y + 3), (0, 0, width, full.get_height()))
-        self.text(str(value), (x + 36 + empty.get_width(), y))
+        ui.text(str(mine), (box.x + 22, box.y + 10), "xl", "ally", "center", bold=True, kind="numbers")
+        ui.text(str(theirs), (box.right - 22, box.y + 10), "xl", "enemy", "center", bold=True, kind="numbers")
+        if m.phase == "planted":
+            spike = self.bank.scaled("ui/hud/carrier_hint.png", (30, 30))
+            if spike is not None:
+                self.screen.blit(spike, (box.centerx - 15, box.y + 10))
+            ui.text("planted", (box.centerx, box.y + 44), "xs", "enemy", "center", upper=True, bold=True)
+        else:
+            ui.text(clock, (box.centerx, box.y + 8), "l", "text" if left > 10 or m.phase != "live" else "enemy", "center",
+                    bold=True, kind="numbers")
+            phase = {"buy": "buy phase", "end": "round over", "over": "match over"}.get(m.phase, "")
+            side = "attack" if m.side(me.team) == "attack" else "defense"
+            sub = f"dm · first to {int(rule_value('modes', 'deathmatch', {}).get('kill_limit', 40))}" if m.mode == "deathmatch" \
+                else f"round {m.round_no} · {phase or side}"
+            ui.text(sub, (box.centerx, box.y + 48), "xs", "muted", "center", upper=True)
+
+    def draw_vitals(self, me: PlayerState) -> None:
+        """Health and armor left of the ability bar."""
+        ui = self.kit
+        x, y = self.w // 2 - 330, self.h - 92
+        box = pygame.Rect(x, y, 170, 76)
+        ui.panel(box, "panel", edge="bottom", edge_col="ally" if me.hp > 30 else "enemy")
+        ui.text(str(max(0, me.hp)), (x + 14, y + 6), "xl", "text" if me.hp > 30 else "enemy", bold=True, kind="numbers")
+        if me.armor:
+            ui.text(str(me.armor), (x + 112, y + 16), "m", "muted", bold=True, kind="numbers")
+            shield = self.bank.scaled("ui/hud/schild.png", (14, 14))
+            if shield is not None:
+                self.screen.blit(shield, (x + 94, y + 20))
+        bar = pygame.Rect(x + 14, y + 58, 142, 4)
+        ui.fill(bar, "line")
+        pygame.draw.rect(self.screen, color("text" if me.hp > 30 else "enemy"), (bar.x, bar.y, round(bar.w * max(0, me.hp) / 100), bar.h))
+        if me.armor:
+            pygame.draw.rect(self.screen, color("muted"), (bar.x, bar.y + 6, round(bar.w * me.armor / 50), 2))
+
+    def ability_ready(self, me: PlayerState, slot: str) -> bool:
+        ab = self.match.agents[me.agent]["abilities"][slot]
+        return me.ult_points >= int(ab["cost"]) if slot == "X" else me.charges.get(slot, 0) > 0
+
+    def draw_ability_bar(self, me: PlayerState) -> None:
+        """Four slots in the bottom centre: icon, key, charges as pips, ultimate points as dots."""
+        m, ui = self.match, self.kit
+        abil = m.agents[me.agent]["abilities"]
+        keys = {"C": "ability_c", "Q": "ability_q", "E": "ability_e", "X": "ability_x"}
+        x0, y = self.w // 2 - 150, self.h - 92
+        for i, slot in enumerate(("C", "Q", "E", "X")):
+            ab = abil[slot]
+            r = pygame.Rect(x0 + i * 76, y, 68, 76)
+            ready = self.ability_ready(me, slot)
+            ui.panel(r, "panel", edge="bottom" if ready else "", edge_col="gold" if slot == "X" else "text")
+            icon = self.bank.scaled(f"ui/faehigkeit_{me.agent}_{slot}.png", (34, 34))
+            if icon is not None:
+                if not ready:
+                    icon = icon.copy()
+                    icon.fill((80, 80, 80, 255), special_flags=pygame.BLEND_RGBA_MULT)
+                self.screen.blit(icon, (r.centerx - 17, r.y + 14))
+            else:
+                ui.text(ab["name"][:2], (r.centerx, r.y + 20), "m", "text" if ready else "muted", "center", upper=True)
+            if slot == "X":
+                cost = int(ab["cost"])
+                pts = min(me.ult_points, cost)
+                for j in range(cost):
+                    cx = r.centerx - (cost - 1) * 4 + j * 8
+                    pygame.draw.circle(self.screen, color("gold" if j < pts else "line"), (cx, r.y + 7), 2)
+            else:
+                count = me.charges.get(slot, 0)
+                for j in range(int(ab.get("max", 1))):
+                    px = r.centerx - (int(ab.get("max", 1)) - 1) * 5 + j * 10 - 3
+                    pygame.draw.rect(self.screen, color("text" if j < count else "line"), (px, r.y + 5, 6, 3))
+            name = pygame.key.name(self.keys.get(keys[slot], 0)) if self.keys.get(keys[slot]) else slot
+            ui.keycap((r.centerx - 10, r.bottom - 22), name if len(name) <= 3 else slot, "xs")
+        hint = pygame.key.name(self.help_key).upper() if getattr(self, "help_key", None) else "F1"
+        ui.text(f"hold {hint}: ability info", (x0 + 4 * 76 - 8, y - 18), "xs", "muted", "right", upper=True)
+
+    def draw_weapon_box(self, me: PlayerState) -> None:
+        """Bottom right: current weapon, magazine and reserve, other carried weapons, credits."""
+        m, ui = self.match, self.kit
+        x, y = self.w - 260, self.h - 92
+        box = pygame.Rect(x, y, 244, 76)
+        ui.panel(box, "panel")
+        if me.weapon:
+            d = m.weapons.get(me.weapon.key)
+            name = d.name if d else me.weapon.key
+            gun = self.bank.scaled(f"weapons/val2d/{me.weapon.key}.png", (64, 32))
+            if gun is not None:
+                self.screen.blit(gun, (x + 12, y + 8))
+            ui.text(name, (x + 12, y + 50), "xs", "muted", upper=True)
+            if d and d.is_gun:
+                reloading = me.reload_until > m.time
+                ui.text(str(me.weapon.mag), (box.right - 70, y + 4), "xl", "enemy" if me.weapon.mag == 0 else "text", "right",
+                        bold=True, kind="numbers")
+                ui.text(f"/ {me.weapon.reserve}", (box.right - 12, y + 18), "m", "muted", "right", kind="numbers")
+                if reloading:
+                    ui.text("reloading", (box.right - 12, y + 52), "xs", "gold", "right", upper=True, bold=True)
+        slots = [s for s in ("primary", "sidearm", "melee") if s in me.weapons]
+        for i, slot in enumerate(slots):
+            ws = me.weapons[slot]
+            d = m.weapons.get(ws.key)
+            ui.text(d.name if d else ws.key, (box.right - 4, y - 22 - (len(slots) - 1 - i) * 18), "xs",
+                    "text" if me.slot == slot else "muted", "right", upper=True, bold=me.slot == slot)
+        if m.phase == "buy" or self.ui.buy_open or m.mode == "deathmatch":
+            ui.text(f"{me.credits}", (box.right - 4, y - 24 - len(slots) * 18), "m", "gold", "right", bold=True, kind="numbers")
+
+    def draw_feed(self, me: PlayerState) -> None:
+        """Right side: kill feed rows."""
+        m, ui = self.match, self.kit
+        y = 20
+        self.ui.feed = [f for f in self.ui.feed if m.time <= f[0]]
+        for _, msg, killer, victim, head in self.ui.feed[-6:]:
+            mine = bool(me.name) and me.name in msg
+            w = ui.size(msg, "s")[0] + 2 * 28 + 28 + (20 if head else 0)
+            r = pygame.Rect(self.w - 16 - w, y, w, 28)
+            ui.panel(r, "panel", edge="left" if mine else "", edge_col="gold")
+            x = r.x + 8
+            for agent in (killer, victim):
+                icon = self.bank.scaled(f"agents/{agent}/{agent}_killfeed.png", (22, 22)) if agent else None
+                if icon is not None:
+                    self.screen.blit(icon, (x, r.y + 3))
+                x += 26
+            ui.text(msg, (x + 4, r.y + 5), "s", "text")
+            if head:
+                mark = self.bank.scaled("ui/hud/kopfschuss.png", (14, 14))
+                if mark is not None:
+                    self.screen.blit(mark, (r.right - 22, r.y + 7))
+            y += 32
+
+    def draw_statuses(self, me: PlayerState) -> None:
+        """Active statuses above the vitals."""
+        m, ui = self.match, self.kit
+        x, y = self.w // 2 - 330, self.h - 124
+        for k in sorted(k for k, until in me.status.items() if until > m.time and k != "blind"):
+            icon = self.bank.scaled(f"ui/status/{k}.png", (20, 20))
+            left = me.status[k] - m.time
+            positive = bool(m.statuses.get(k, {}).get("positive")) if hasattr(m, "statuses") else False
+            if icon is not None:
+                self.screen.blit(icon, (x, y))
+            ui.text(f"{k} {left:.0f}", (x + 24, y + 2), "xs", "ally" if positive else "enemy", upper=True, bold=True)
+            x += 34 + ui.size(f"{k} {left:.0f}", "xs", upper=True, bold=True)[0]
+
+    def draw_messages(self, me: PlayerState) -> None:
+        """Banners, bomb hints, plant progress, spectating and connection messages, all above the bottom HUD."""
+        m, ui = self.match, self.kit
+        cx, base = self.w // 2, self.h - 150
+        if m.spike_carrier == self.me:
+            ui.text("You carry the bomb · hold F on a site", (self.w // 2 - 330, base - 10), "xs", "gold", upper=True, bold=True)
+        prog = me.plant_progress / 4.0 if me.plant_progress else me.defuse_progress / 7.0
+        if prog > 0:
+            bar = pygame.Rect(cx - 120, base - 30, 240, 8)
+            ui.fill(bar, "panel")
+            pygame.draw.rect(self.screen, color("gold"), (bar.x, bar.y, round(bar.w * min(prog, 1.0)), bar.h))
+            ui.text("planting" if me.plant_progress else "defusing", (cx, base - 54), "s", "gold", "center", upper=True, bold=True)
+        if m.time < self.ui.banner[0]:
+            text = self.ui.banner[1]
+            tw = ui.size(text, "l", upper=True, bold=True, kind="title")[0] + 80
+            r = pygame.Rect(cx - tw // 2, int(self.h * 0.62), tw, 56)
+            won = self.ui.banner_art in ("sieg", "entschaerft")
+            ui.panel(r, "panel", edge="top", edge_col="ally" if won else "accent")
+            ui.text(text, (cx, r.y + 12), "l", "text", "center", upper=True, bold=True, kind="title")
+        own = m.players.get(self.me)
+        if own is not None and not own.alive and m.phase in ("live", "planted"):
+            watching = f"Spectating {me.name} · click: next teammate" if me.pid != own.pid else "Eliminated · next round soon"
+            ui.text(watching, (cx, base + 4), "s", "muted", "center", upper=True)
+        if self.status:
+            ui.text(self.status, (cx, base - 80), "s", "enemy", "center")
+        if m.phase == "buy" and not self.ui.buy_open:
+            ui.text("B: buy", (self.w - 16, self.h - 140), "xs", "muted", "right", upper=True)
+
+    def draw_ability_help(self, me: PlayerState) -> None:
+        """Held F1: one card per ability above the ability bar with key, name, cost and what it does."""
+        from gameplay.kit.describe import cost_text, describe
+        m, ui = self.match, self.kit
+        abil = m.agents[me.agent]["abilities"]
+        card_w, gap = 290, 10
+        x0 = self.w // 2 - (4 * card_w + 3 * gap) // 2
+        texts = {s: ui.wrap(describe(abil[s]), "xs", card_w - 24) for s in abil}
+        height = 70 + 16 * max(len(t) for t in texts.values())
+        y = self.h - 110 - height
+        for i, slot in enumerate(("C", "Q", "E", "X")):
+            ab = abil[slot]
+            r = pygame.Rect(x0 + i * (card_w + gap), y, card_w, height)
+            ui.panel(r, "bg", edge="top", edge_col="gold" if slot == "X" else "accent")
+            ui.keycap((r.x + 12, r.y + 14), slot, "s")
+            ui.text(ab["name"], (r.x + 46, r.y + 14), "m", "text", upper=True, bold=True)
+            ui.text(cost_text(slot, ab), (r.x + 12, r.y + 42), "xs", "gold" if slot == "X" else "muted")
+            for j, ln in enumerate(texts[slot]):
+                ui.text(ln, (r.x + 12, r.y + 62 + j * 16), "xs", "text")
 
     AIM_KINDS = {"smoke", "wall", "vapor_wall", "flash", "zone", "slow_field", "blast", "wave", "sensor", "alarm",
                  "tripwire", "teleport", "heal", "shield", "revive"}
@@ -129,121 +323,3 @@ class HudMixin:
         if center:
             x -= img.get_width() / 2
         self.screen.blit(img, (x, y))
-
-    def draw_hud(self, me: PlayerState) -> None:
-        m = self.match
-        self.panel("ui/hud/score_panel.png", pygame.Rect(self.w / 2 - 330, 4, 660, 76))
-        self.panel("ui/hud/ability_panel.png", pygame.Rect(8, self.h - 160, 330, 154))
-        self.panel("ui/hud/weapon_panel.png", pygame.Rect(self.w - 340, self.h - 84, 330, 78))
-        left = m.phase_time_left()
-        phase = {"buy": "Buy phase", "live": "", "planted": "Bomb planted", "end": "Round over", "over": "Match over"}.get(m.phase, "")
-        mine, theirs = m.score[me.team], m.score[1 - me.team]
-        if m.mode == "deathmatch" and not m.practice:
-            left = max(0.0, m.dm_ends_at - m.time)
-            self.text(f"{mine}  {int(left) // 60}:{int(left) % 60:02d}  {theirs}", (self.w / 2, 12), big=True, center=True)
-            limit = int(rule_value("modes", "deathmatch", {}).get("kill_limit", 40))
-            self.text(f"Team deathmatch · first to {limit} kills · B buys anywhere", (self.w / 2, 54), C_MUTED, center=True)
-        elif m.practice:
-            st = self.stats
-            acc = 100 * st["hits"] / st["shots"] if st["shots"] else 0
-            heads = 100 * st["heads"] / st["hits"] if st["hits"] else 0
-            self.text("Practice range", (self.w / 2, 12), big=True, center=True)
-            self.text(f"shots {st['shots']} · hits {st['hits']} ({acc:.0f} %) · head {heads:.0f} % · B buys anywhere",
-                      (self.w / 2, 54), C_MUTED, center=True)
-        else:
-            self.text(f"{mine}  {int(left) // 60}:{int(left) % 60:02d}  {theirs}", (self.w / 2, 12), big=True, center=True)
-            self.draw_score_pips(me)
-            side = "Attack" if m.side(me.team) == "attack" else "Defense"
-            self.text(f"Round {m.round_no} · {side} {('· ' + phase) if phase else ''}", (self.w / 2, 54), C_MUTED, center=True)
-        self.draw_bar("leben", "balken_leben", max(me.hp, 0), 100, (20, self.h - 40))
-        self.draw_bar("schild", "balken_schild", me.armor, 50, (250, self.h - 40))
-        self.draw_minimap(me)
-        if me.weapon:
-            d = m.weapons.get(me.weapon.key)
-            name = d.name if d else me.weapon.key
-            ammo = "" if not d or not d.is_gun else f"  {me.weapon.mag} / {me.weapon.reserve}"
-            self.text(f"{name}{ammo}{'  reloading…' if me.reload_until > m.time else ''}", (self.w - 320, self.h - 40))
-        self.text(f"{me.credits} ¤", (self.w - 320, self.h - 70), C_SITE)
-        abil = m.agents[me.agent]["abilities"]
-        parts = [f"{k} {abil[k]['name']} ×{me.charges.get(k, 0)}" for k in ("C", "Q", "E")]
-        parts.append(f"X {abil['X']['name']} {me.ult_points}/{abil['X']['cost']}")
-        icon_px = 32
-        x = 20
-        for k in ("C", "Q", "E", "X"):
-            icon = self.bank.scaled(f"ui/faehigkeit_{me.agent}_{k}.png", (icon_px, icon_px))
-            if icon is None:
-                break
-            ready = me.ult_points >= int(abil["X"]["cost"]) if k == "X" else me.charges.get(k, 0) > 0
-            if not ready:
-                icon = icon.copy()
-                icon.fill((90, 90, 90, 255), special_flags=pygame.BLEND_RGBA_MULT)
-            self.screen.blit(icon, (x, self.h - 112))
-            label = f"{min(me.ult_points, int(abil['X']['cost']))}/{abil['X']['cost']}" if k == "X" else str(me.charges.get(k, 0))
-            self.text(f"{k} {label}", (x, self.h - 76), C_MUTED)
-            x += icon_px + 40
-        else:
-            x = -1
-        if x != -1:
-            self.text("   ".join(parts), (20, self.h - 70), C_MUTED)
-        active = sorted(k for k, until in me.status.items() if until > m.time and k != "blind")
-        sx = 20
-        for k in active:
-            icon = self.bank.scaled(f"ui/status/{k}.png", (24, 24))
-            if icon is not None:
-                self.screen.blit(icon, (sx, self.h - 150))
-            self.text(k, (sx + 28, self.h - 147), C_ALLY if k == "stim" else C_ENEMY)
-            sx += 28 + self.font.size(k)[0] + 16
-        self.text(f"{m.agents[me.agent]['name']} · {m.world.callout_at(me.pos)}", (20, 16), C_MUTED)
-        if m.spike_carrier == self.me:
-            hint = self.bank.scaled("ui/hud/carrier_hint.png", (32, 32))
-            if hint is not None:
-                self.screen.blit(hint, (20, 242))
-            self.text("You carry the bomb (hold F on A or B)", (60 if hint else 20, 248), C_SITE)
-        prog = me.plant_progress / 4.0 if me.plant_progress else me.defuse_progress / 7.0
-        if prog > 0:
-            empty = self.bank.scaled("ui/hud/balken_leer.png", (192, 24))
-            full = self.bank.scaled("ui/hud/balken_fortschritt.png", (192, 24))
-            x0, y0 = self.w / 2 - 96, self.h / 2 + 60
-            if empty is not None and full is not None:
-                self.screen.blit(empty, (x0, y0))
-                self.screen.blit(full, (x0, y0), (0, 0, round(192 * min(prog, 1)), 24))
-            else:
-                pygame.draw.rect(self.screen, C_MUTED, (x0, y0, 192, 10), 1)
-                pygame.draw.rect(self.screen, C_SITE, (x0, y0, 192 * min(prog, 1), 10))
-        y = 90
-        self.ui.feed = [f for f in self.ui.feed if m.time <= f[0]]
-        for _, msg, killer, victim, head in self.ui.feed:
-            x = self.w - 420
-            mine = me.name and me.name in msg
-            width = 28 * 2 + 16 + self.font.size(msg)[0] + (28 if head else 0)
-            self.panel("ui/hud/killfeed_row_self.png" if mine else "ui/hud/killfeed_row.png", pygame.Rect(x - 8, y - 6, width, 32))
-            for agent in (killer, victim):
-                icon = self.bank.scaled(f"agents/{agent}/{agent}_killfeed.png", (24, 24)) if agent else None
-                if icon is not None:
-                    self.screen.blit(icon, (x, y - 2))
-                x += 28
-            self.text(msg, (x + 4, y))
-            if head:
-                mark = self.bank.scaled("ui/hud/kopfschuss.png", (16, 16))
-                if mark is not None:
-                    self.screen.blit(mark, (x + 8 + self.font.size(msg)[0], y + 2))
-            y += 28
-        if self.status:
-            self.text(self.status, (self.w / 2, self.h / 2 - 110), C_ENEMY, center=True)
-
-        if m.time < self.ui.banner[0]:
-            art = self.bank.raw(f"ui/banner/{self.ui.banner_art}.png") if self.ui.banner_art else None
-            y = 96
-            if art is not None:
-                k = 2  # banners are 32 px high
-                img = self.bank.scaled(f"ui/banner/{self.ui.banner_art}.png", (art.get_width() * k, art.get_height() * k))
-                if img is not None:
-                    self.screen.blit(img, (self.w / 2 - img.get_width() / 2, y))
-                    y += img.get_height() + 8
-            self.text(self.ui.banner[1], (self.w / 2, y), C_SITE, big=art is None, center=True)
-        own = m.players.get(self.me)
-        if own is not None and not own.alive and m.phase in ("live", "planted"):
-            watching = f"Watching {me.name} – click for the next teammate" if me.pid != own.pid else "Eliminated – waiting for the next round"
-            self.text(watching, (self.w / 2, self.h / 2 - 80), C_ENEMY, center=True)
-        if m.phase == "buy":
-            self.text("B: buy menu", (20, 272), C_MUTED)

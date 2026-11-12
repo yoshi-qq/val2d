@@ -69,3 +69,39 @@ def test_menu_start_path_local_and_range() -> None:
         else:
             game.match.start()
         frames(game, 10)
+
+
+def test_escape_pauses_and_double_alt_f4_quits() -> None:
+    game = Game(args())
+    game.match.start()
+    pygame.event.clear()
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE, mod=0, unicode="", scancode=41))
+    pygame.event.post(pygame.event.Event(pygame.QUIT))
+    pygame.event.post(pygame.event.Event(pygame.QUIT))
+    game.run()  # returns once the second Alt+F4 arrives
+    assert game.quit_program
+
+
+def test_escape_opens_pause_and_closes_it_again() -> None:
+    game = Game(args())
+    game.match.start()
+    game.open_overlay("pause")
+    game.draw()
+    game.draw_overlay()
+    assert game.overlay == "pause" and any(h.action == "resume" for h in game.kit.hits)
+    game.overlay_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE, mod=0, unicode="", scancode=41))
+    assert game.overlay == ""
+
+
+def test_menu_escape_never_quits_and_alt_f4_asks_first() -> None:
+    from menu import MainMenu
+    pygame.init()
+    screen = pygame.display.set_mode((1280, 720))
+    menu = MainMenu(screen, pygame.font.Font(None, 22), pygame.font.Font(None, 22), args(no_menu=False))
+    menu.tab, menu.view = "agents", "settings"
+    esc = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE, mod=0, unicode="", scancode=41)
+    assert menu.handle(esc) is None and menu.view == "main"
+    assert menu.handle(esc) is None and menu.tab == "play"
+    assert menu.handle(esc) is None
+    assert menu.handle(pygame.event.Event(pygame.QUIT)) is None and menu.dialog == "quit"
+    assert menu.handle(pygame.event.Event(pygame.QUIT)) is False

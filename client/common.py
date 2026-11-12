@@ -24,7 +24,14 @@ from sprite_bank import CharacterSprites, SpriteBank, build_map_surface, draw_ni
 
 ROOT = Path(__file__).resolve().parent.parent
 FONT_PATH = ROOT / "font" / "fixed_sys.ttf"
-VIEW_METERS = 30.0
+from gameplay.data import CONFIG_DIR, _load_py  # noqa: E402
+
+VIEW_DEFAULTS = {"view_meters": 30.0, "height_draw": 0.7, "outside_darkness": 175, "sight_rays": 220, "body_sight": 0.9}
+VIEW = {**VIEW_DEFAULTS, **(_load_py(CONFIG_DIR / "client" / "view.py", "VIEW") or {})}
+VIEW_METERS = float(VIEW["view_meters"])
+HUD_DEFAULTS = {"minimap_radius": 104, "minimap_meters": 46.0, "minimap_rotate": True, "sound_circle_seconds": 0.8,
+                "feed_seconds": 5.0, "help_key": "f1"}
+HUD = {**HUD_DEFAULTS, **(_load_py(CONFIG_DIR / "client" / "hud.py", "HUD") or {})}
 
 C_BG = (22, 21, 28)
 C_FLOOR = (52, 50, 60)
@@ -78,6 +85,7 @@ class UiState:
     scorches: list[tuple[Vec, float]] = field(default_factory=list)       # pos, until
     figure_fx: list[tuple[int, str, float, float]] = field(default_factory=list)  # pid, fx file, start, duration
     waves: list[tuple[int, Vec, float]] = field(default_factory=list)      # pid, end point, start
+    noise: list[tuple[float, float]] = field(default_factory=list)         # own sounds: radius, start (minimap circle)
 
 
 STATUS_TINT = {"slow": (150, 110, 220), "decay": (120, 200, 90), "vulnerable": (230, 120, 80), "deaf": (120, 160, 230),
@@ -86,7 +94,7 @@ STATUS_TINT = {"slow": (150, 110, 220), "decay": (120, 200, 90), "vulnerable": (
 
 
 SOUND_DIR = ROOT / "assets" / "sounds"
-HEIGHT_DRAW = 0.7  # screen lift per metre of height, as a share of the map scale
+HEIGHT_DRAW = float(VIEW["height_draw"])  # screen lift per metre of height, as a share of the map scale
 def key_codes(names: dict[str, str]) -> dict[str, int]:
     """Action -> pygame key code from the player's bindings; unknown names fall back to the default key."""
     import user_settings
@@ -173,4 +181,4 @@ def display_mode(fullscreen: bool) -> pygame.Surface:
         return pygame.display.set_mode((1280, 720))
 
 
-__all__ = ['display_mode', 'ABILITY_SOUND', 'BotDirector', 'C_ALLY', 'C_BG', 'C_CRATE', 'C_ENEMY', 'C_FLOOR', 'C_MUTED', 'C_PLATFORM', 'C_RAMP', 'C_SITE', 'C_SMOKE', 'C_TEXT', 'C_WALL', 'C_WALL_THIN', 'CharacterSprites', 'Command', 'DEFAULT_PORT', 'Effect', 'FONT_PATH', 'GameEvent', 'HEIGHT_DRAW', 'HostSession', 'LobbySettings', 'Match', 'NetClient', 'Path', 'PlayerState', 'ROOT', 'Ring', 'SHOT_SOUND', 'SOUND_DIR', 'STATUS_TINT', 'STEP_SOUND', 'Sound', 'SpriteBank', 'Tracer', 'UiState', 'VIEW_METERS', 'Vec', 'abilities', 'apply_snapshot', 'argparse', 'build_map_surface', 'dataclass', 'discover', 'draw_nine_slice', 'events_from_json', 'field', 'heading', 'key_codes', 'load_config', 'load_map', 'math', 'pygame', 'rule_value', 'sys', 'warnings']
+__all__ = ['display_mode', 'VIEW', 'HUD', 'ABILITY_SOUND', 'BotDirector', 'C_ALLY', 'C_BG', 'C_CRATE', 'C_ENEMY', 'C_FLOOR', 'C_MUTED', 'C_PLATFORM', 'C_RAMP', 'C_SITE', 'C_SMOKE', 'C_TEXT', 'C_WALL', 'C_WALL_THIN', 'CharacterSprites', 'Command', 'DEFAULT_PORT', 'Effect', 'FONT_PATH', 'GameEvent', 'HEIGHT_DRAW', 'HostSession', 'LobbySettings', 'Match', 'NetClient', 'Path', 'PlayerState', 'ROOT', 'Ring', 'SHOT_SOUND', 'SOUND_DIR', 'STATUS_TINT', 'STEP_SOUND', 'Sound', 'SpriteBank', 'Tracer', 'UiState', 'VIEW_METERS', 'Vec', 'abilities', 'apply_snapshot', 'argparse', 'build_map_surface', 'dataclass', 'discover', 'draw_nine_slice', 'events_from_json', 'field', 'heading', 'key_codes', 'load_config', 'load_map', 'math', 'pygame', 'rule_value', 'sys', 'warnings']

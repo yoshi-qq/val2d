@@ -11,6 +11,7 @@ AGENT = agent(
     # a composed ability: a firebomb that bursts and leaves a burning patch
     C=ability(
         "Firebomb", price=200, max=1, target="aim", range=14.0, preview="zone", bot="offense",
+        desc="Throws a firebomb that bursts after a moment and leaves a burning patch for 4 s.",
         place=thing("blast", lasts=0.8, radius=3.0, thrown=True, triggers=[
             on("expire", who="enemies", sight="walls", do=[
                 damage(40, falloff=0.5),
@@ -27,6 +28,7 @@ AGENT = agent(
     # an ultimate (cost = ultimate points) that marks every enemy and speeds up the team
     X=ability(
         "Wildfire", cost=7, target="self", bot="buff",
+        desc="Reveals every enemy for 3 s and speeds up your team for 6 s.",
         do=[reveal(3.0, who="enemies", area="everywhere"), status("haste", 6.0, who="team")],
     ),
     # passive: every kill heals 25 over two seconds

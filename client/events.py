@@ -57,6 +57,8 @@ class EventsMixin:
                 if me.status.get("deaf", 0.0) > t:
                     continue
                 pos = Vec(*d["pos"])
+                if d.get("pid") == self.me and not d.get("decoy"):
+                    self.ui.noise.append((float(d["radius"]), t))  # own noise circle on the minimap
                 key = self.sound_key(d, pos)
                 self.sound.play(key, me, pos, d["radius"], occluded=self.occluded(me, pos),
                                 gain=0.45 if key.startswith("step") else 1.0)

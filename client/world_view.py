@@ -18,7 +18,6 @@ class WorldViewMixin:
         me = m.players.get(self.me)
         if me is None or m.phase == "lobby":
             self.draw_lobby()
-            pygame.display.flip()
             return
         me = self.view_player(me)
         s.fill(C_BG)
@@ -60,15 +59,7 @@ class WorldViewMixin:
                 s.blit(img, (px - size / 2, py - size / 2))
             else:
                 pygame.draw.rect(s, C_ENEMY if blink else (90, 40, 40), (px - 6, py - 6, 12, 12))
-        # sight cone: darken everything outside
-        if not m.cfg.lobby.all_around_sight and me.alive:
-            shade = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
-            shade.fill((0, 0, 0, 150))
-            cx, cy = self.to_screen(me.pos, me)
-            half = math.radians(m.fov / 2)
-            far = 3000
-            pygame.draw.polygon(shade, (0, 0, 0, 0), [(cx, cy), (cx - math.sin(half) * far, cy - math.cos(half) * far), (cx + math.sin(half) * far, cy - math.cos(half) * far)])
-            s.blit(shade, (0, 0))
+        self.draw_sight(me)
         for ring in list(self.ui.rings):
             age = m.time - ring.start
             if age > 0.6:
@@ -171,7 +162,22 @@ class WorldViewMixin:
             self.draw_damage_report(own)
         if self.ui.show_scores or m.phase == "over":
             self.draw_scores()
-        pygame.display.flip()
+
+    def draw_sight(self, me: PlayerState) -> None:
+        """Darkens everything the player cannot see: outside the field of view, behind walls and smokes."""
+        from client.vision import body_circle, sight_polygon
+        m = self.match
+        if not me.alive:
+            return
+        fov = 360.0 if m.cfg.lobby.all_around_sight else m.fov
+        reach = float(rule_value("sight", "view_distance", 60.0))
+        pts = sight_polygon(m, me, fov, reach, int(VIEW["sight_rays"]))
+        shade = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
+        shade.fill((4, 6, 10, int(VIEW["outside_darkness"])))
+        clear = (0, 0, 0, 0)
+        pygame.draw.polygon(shade, clear, [self.to_screen(p, me) for p in pts])
+        pygame.draw.polygon(shade, clear, [self.to_screen(p, me) for p in body_circle(me.pos, float(VIEW["body_sight"]))])
+        self.screen.blit(shade, (0, 0))
 
     def draw_projectile(self, e: Effect, me: PlayerState) -> bool:
         """Thrown ability in flight: moves from the thrower to the target on a small arc. True while flying."""

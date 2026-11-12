@@ -10,9 +10,11 @@ from client.hud import HudMixin
 from client.minimap import MinimapMixin
 from client.buy import BuyMixin
 from client.scoreboard import ScoreboardMixin
+from client.overlays import NO_KEYS, OverlaysMixin
+from client.ui import Ui
 
 
-class Game(EventsMixin, CharactersMixin, WorldViewMixin, LobbyMixin, HudMixin, MinimapMixin, BuyMixin, ScoreboardMixin):
+class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMixin, HudMixin, MinimapMixin, BuyMixin, ScoreboardMixin):
     def __init__(self, args: argparse.Namespace) -> None:
         pygame.init()
         self.screen = display_mode(bool(getattr(args, "fullscreen", False)))
@@ -99,6 +101,16 @@ class Game(EventsMixin, CharactersMixin, WorldViewMixin, LobbyMixin, HudMixin, M
         self.clock = pygame.time.Clock()
         self.grab(False)
         self.agent_cards: list[tuple[pygame.Rect, str]] = []
+        self.kit = Ui(self.screen)
+        self.overlay = ""          # "", pause, leave or quit
+        self.quit_program = False  # True: the player chose to quit the whole game, not just the match
+        self._drag: str | None = None
+        try:
+            self.help_key = pygame.key.key_code(str(HUD["help_key"]))
+        except (ValueError, pygame.error):
+            warnings.warn(f"Unknown help key {HUD['help_key']!r}; F1 used.")
+            self.help_key = pygame.K_F1
+        self.help_held = False
 
     def grab(self, on: bool) -> None:
         self.grabbed = on
@@ -115,8 +127,24 @@ class Game(EventsMixin, CharactersMixin, WorldViewMixin, LobbyMixin, HudMixin, M
             if me is None:  # client before the first snapshot
                 me = PlayerState(pid=self.me, name="", team=0, agent="kestrel")
             for ev in pygame.event.get():
-                if ev.type == pygame.QUIT or (ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE):
-                    running = False
+                if ev.type == pygame.QUIT:  # window closed or Alt+F4: ask; a second time quits at once
+                    if self.overlay == "quit":
+                        self.quit_program, running = True, False
+                    else:
+                        self._from_pause = self.overlay == "pause"
+                        self.open_overlay("quit")
+                    continue
+                if self.overlay:
+                    if self.overlay_event(ev) in ("leave", "quit"):
+                        running = False
+                    continue
+                if ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE:
+                    if self.ui.buy_open:
+                        self.ui.buy_open = False
+                    elif self.aiming:
+                        self.aiming, self.released_slot = None, self.aiming
+                    else:
+                        self.open_overlay("pause")
                 elif ev.type == pygame.KEYDOWN and ev.key == pygame.K_RETURN and self.match.phase == "over":
                     running = False  # back to the menu
                 elif ev.type == pygame.KEYDOWN:
@@ -162,7 +190,8 @@ class Game(EventsMixin, CharactersMixin, WorldViewMixin, LobbyMixin, HudMixin, M
             keys = pygame.key.get_pressed()
             buttons = pygame.mouse.get_pressed()
             self.ui.show_scores = keys[self.keys["scoreboard"]]
-            if not self.ui.buy_open:
+            self.help_held = bool(keys[self.help_key]) and not self.overlay
+            if not self.ui.buy_open and not self.overlay:
                 dx, dy = pygame.mouse.get_rel()
                 self.local_facing = (self.local_facing + dx * self.sens) % 360
                 me.facing = self.local_facing
@@ -172,6 +201,8 @@ class Game(EventsMixin, CharactersMixin, WorldViewMixin, LobbyMixin, HudMixin, M
             cmd.facing = me.facing
             cmd.cursor_depth = self.cursor_depth
             kb = self.keys
+            if self.overlay:  # menus open: stand still, keep facing
+                keys = NO_KEYS
             cmd.move_y = (1 if keys[kb["forward"]] else 0) - (1 if keys[kb["back"]] else 0)
             cmd.move_x = (1 if keys[kb["right"]] else 0) - (1 if keys[kb["left"]] else 0)
             cmd.walk = keys[kb["walk"]]
@@ -195,7 +226,7 @@ class Game(EventsMixin, CharactersMixin, WorldViewMixin, LobbyMixin, HudMixin, M
                 self.aiming, self.released_slot = None, self.aiming  # right click cancels
             self.apply_zoom(me, cmd.alt_fire and not self.ui.buy_open)
             events = self.step(dt, cmd)
-            if self.match.phase != "lobby" and not self.grabbed and not self.ui.buy_open:
+            if self.match.phase != "lobby" and not self.grabbed and not self.ui.buy_open and not self.overlay:
                 self.grab(True)
             if self.match.round_no != self.seen_round and self.seen_round > 0 and self.me in self.match.players:
                 half = int(self.match._r["half_after"])
@@ -210,6 +241,8 @@ class Game(EventsMixin, CharactersMixin, WorldViewMixin, LobbyMixin, HudMixin, M
             if self.match.players.get(self.me) is not None:
                 self.audio_tick(self.match.players[self.me])
             self.draw()
+            self.draw_overlay()
+            pygame.display.flip()
             if self.client and not self.client.connected:
                 self.status = "Lost connection to host – press Enter to rejoin"
         if self.session:

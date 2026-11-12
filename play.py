@@ -8,7 +8,7 @@ Network:  python play.py --host            open a match (host = player 1), Enter
 Dedicated server process: python server.py (see there).
 Controls: WASD run, Shift walk, Ctrl crouch, Space jump, left mouse shoot,
 mouse horizontal turn, mouse vertical aim depth, R reload, 1/2/3 weapon, C/Q/E/X abilities,
-hold F plant/defuse the bomb, B buy menu, Tab scoreboard, Esc quit.
+hold F plant/defuse the bomb, B buy menu, Tab scoreboard, Esc pause menu, Alt+F4 quit (asks first).
 Graphics: sprites from the design session (docs/SPRITES.md); placeholders where a file is missing.
 """
 
@@ -94,7 +94,10 @@ def run_menu(args: argparse.Namespace) -> None:
         if chosen is None:
             break
         try:
-            Game(chosen).run()
+            game = Game(chosen)
+            game.run()
+            if game.quit_program:
+                break
         except (OSError, ConnectionError) as exc:
             menu.status = f"No connection: {exc}"
             warnings.warn(menu.status)
