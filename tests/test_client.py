@@ -232,3 +232,19 @@ def test_buy_menu_sells_with_a_second_click_and_surrender_ends_the_match() -> No
     for kind in (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
         game.overlay_event(pygame.event.Event(kind, button=1, pos=yes.rect.center))
     assert game.match.phase == "over"
+
+
+def test_multi_placement_marks_with_left_and_confirms_with_right_click() -> None:
+    game = Game(args(agent="juniper"))
+    game.match.start()
+    key_e = game.keys["ability_e"]
+    before = len(game.match.effects)
+    pygame.event.clear()
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=key_e, mod=0, unicode="", scancode=0))
+    pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(640, 360)))
+    pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(640, 360)))
+    pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=3, pos=(640, 360)))
+    pygame.event.post(pygame.event.Event(pygame.QUIT))
+    pygame.event.post(pygame.event.Event(pygame.QUIT))
+    game.run()
+    assert len(game.match.effects) == before + 2

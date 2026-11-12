@@ -398,7 +398,7 @@ class HudMixin:
 
     def needs_aim(self, me: PlayerState, slot: str) -> bool:
         ab = self.match.agents.get(me.agent, {}).get("abilities", {}).get(slot, {})
-        return self.preview_kind(ab) in self.AIM_KINDS or bool(ab.get("alt"))  # a right-click choice needs the ability in hand
+        return self.preview_kind(ab) in self.AIM_KINDS or bool(ab.get("alt")) or int(ab.get("multi", 1)) > 1  # a right-click choice needs the ability in hand
 
     @staticmethod
     def preview_kind(ab: dict) -> str:
@@ -409,6 +409,9 @@ class HudMixin:
         """Where the held ability will land: ring, line or arc, clipped at walls like the real throw."""
         m, s = self.match, self.screen
         ab = m.agents.get(me.agent, {}).get("abilities", {}).get(slot, {})
+        if int(ab.get("multi", 1)) > 1:
+            self.draw_multi_preview(me, ab, slot)
+            return
         if self.is_throwable(ab):
             self.draw_throw_cursor(me, ab, slot)
             return
@@ -448,6 +451,18 @@ class HudMixin:
         alt = " · right click: " + alt_text(ab) if ab.get("alt") else ""
         label = f"{ab.get('name', '')}: left click{alt} · {slot} again, 1/2/3 or Esc: put away"
         self.text(label, (self.w / 2, self.h - 150), color, center=True)
+
+    def draw_multi_preview(self, me: PlayerState, ab: dict, slot: str) -> None:
+        """Multi-placement: rings on the marked points and at the cursor, count and how to confirm."""
+        radius = float(ab.get("radius", 1.0))
+        limit = int(ab["multi"]) if slot == "X" else min(int(ab["multi"]), max(1, me.charges.get(slot, 0)))
+        for x, y in self.multi_points:
+            self.radius_ring(Vec(x, y), radius, (255, 220, 120), me)
+        if len(self.multi_points) < limit:
+            self.radius_ring(self.multi_target(me, ab), radius, (120, 255, 200), me)
+        label = (f"{ab.get('name', '')}: left click marks ({len(self.multi_points)}/{limit}) · right click confirms · "
+                 f"{slot} again or Esc: put away")
+        self.text(label, (self.w / 2, self.h - 150), (236, 232, 225), center=True)
 
     def draw_throw_cursor(self, me: PlayerState, ab: dict, slot: str) -> None:
         """Throw cursor at the crosshair: four corner brackets, no landing point, no arc."""

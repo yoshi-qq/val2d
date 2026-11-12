@@ -79,7 +79,8 @@ def _steps(steps: list[dict[str, Any]]) -> str:
 
 def describe(ab: dict[str, Any]) -> str:
     alt = f" Right click: {alt_text(ab)}." if alt_text(ab) else ""
-    return _describe(ab) + alt
+    multi = f" Mark up to {ab['multi']} points with left click, confirm with right click." if int(ab.get("multi", 1)) > 1 else ""
+    return _describe(ab) + multi + alt
 
 
 def _describe(ab: dict[str, Any]) -> str:

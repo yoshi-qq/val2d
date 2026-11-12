@@ -78,6 +78,9 @@ def command_from_json(raw: dict[str, Any]) -> Command:
     ab = raw.get("ability")
     cmd.ability = ab if ab in ("C", "Q", "E", "X") else None
     cmd.ability_alt = bool(raw.get("ability_alt", False)) and cmd.ability is not None
+    pts = raw.get("points", [])
+    cmd.points = [(float(x), float(y)) for x, y in pts[:8] if isinstance(x, (int, float)) and isinstance(y, (int, float))] \
+        if isinstance(pts, list) and cmd.ability else []
     buy = raw.get("buy", [])
     cmd.buy = [b for b in buy if isinstance(b, str) and len(b) <= 32][:8] if isinstance(buy, list) else []
     req = raw.get("request")
@@ -95,7 +98,7 @@ def merge_commands(old: Command | None, new: Command) -> Command:
     new.request = new.request if new.request is not None else old.request
     new.slot = new.slot or old.slot
     if not new.ability:
-        new.ability, new.ability_alt = old.ability, old.ability_alt
+        new.ability, new.ability_alt, new.points = old.ability, old.ability_alt, old.points
     return new
 
 

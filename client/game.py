@@ -89,6 +89,7 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
         self.ability_keys = {self.keys["ability_c"]: "C", self.keys["ability_q"]: "Q", self.keys["ability_e"]: "E",
                              self.keys["ability_x"]: "X"}
         self.aiming: str | None = None      # ability in hand (preview shown), cast with a click
+        self.multi_points: list[tuple[float, float]] = []  # points marked for a multi-placement ability
         self.swallow_buttons: set[int] = set()  # mouse buttons that cast an ability: no shot until released
         self._next_beep = 0.0
         self._last_phase = ""
@@ -184,6 +185,20 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
                     elif ev.key == self.keys["drop"]:
                         cmd.drop = True
                 elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button in (1, 3) and self.aiming and me.alive \
+                        and not self.ui.buy_open and self.match.phase != "lobby" \
+                        and int(self.match.agents.get(me.agent, {}).get("abilities", {}).get(self.aiming, {}).get("multi", 1)) > 1:
+                    # multi-placement: left click marks a point, right click confirms all marked points
+                    ab = self.match.agents[me.agent]["abilities"][self.aiming]
+                    limit = int(ab["multi"]) if self.aiming == "X" else min(int(ab["multi"]), max(1, me.charges.get(self.aiming, 0)))
+                    if ev.button == 1 and len(self.multi_points) < limit:
+                        spot = self.multi_target(me, ab)
+                        self.multi_points.append((spot.x, spot.y))
+                        self.sound.play("ui_click", gain=0.5)
+                    elif ev.button == 3 and self.multi_points:
+                        cmd.ability, cmd.points = self.aiming, list(self.multi_points)
+                        self.aiming, self.multi_points = None, []
+                        self.swallow_buttons.add(3)
+                elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button in (1, 3) and self.aiming and me.alive \
                         and not self.ui.buy_open and self.match.phase != "lobby":
                     ab = self.match.agents.get(me.agent, {}).get("abilities", {}).get(self.aiming, {})
                     if ev.button == 1 or ab.get("alt"):
@@ -232,6 +247,8 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
             cmd.interact = keys[kb["interact"]]
             if not me.alive:
                 self.aiming = None
+            if self.aiming is None:
+                self.multi_points = []
             events = self.step(dt, cmd)
             me_now = self.match.players.get(self.me)
             if me_now is not None:
@@ -271,6 +288,11 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
             self.session.close()
         if self.client:
             self.client.close()
+
+    def multi_target(self, me: PlayerState, ab: dict) -> Vec:
+        """Map point under the cursor for multi-placement, within the ability's range (walls do not stop it)."""
+        reach = min(self.cursor_depth, float(ab.get("range", self.cursor_depth)))
+        return me.pos + heading(me.facing) * reach
 
     def screen_button(self, pos: tuple[int, int]) -> str | None:
         """Action of a button drawn this frame on the match screen (back to menu, rejoin), if one is under pos."""

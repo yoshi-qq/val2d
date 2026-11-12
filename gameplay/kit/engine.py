@@ -96,14 +96,25 @@ def place(ctx: Ctx, spec: dict[str, Any], point: Vec) -> Effect:
     return e
 
 
-def use(m: Match, p: PlayerState, key: str, ab: dict[str, Any]) -> Vec | None:
-    """Carries out ability `ab`. Returns the target point, or None if nothing happened (no charge used)."""
+def use(m: Match, p: PlayerState, key: str, ab: dict[str, Any], point: Vec | None = None) -> Vec | None:
+    """Carries out ability `ab`. Returns the target point, or None if nothing happened (no charge used).
+    point: a point chosen on the map (multi-placement); it is kept within `range` of the user."""
     spec = expand(ab)
+    if point is not None:
+        reach = float(spec.get("range", 30.0))
+        offset = point - p.pos
+        if offset.length() > reach:
+            point = p.pos + offset.normalized() * reach
+        return _use_at(m, p, key, spec, point)
     target_name = str(spec.get("target", "aim"))
     finder = TARGETS.get(target_name)
     if finder is None:
         raise ValueError(f"unknown target '{target_name}'")
     point = finder(m, p, spec)
+    return _use_at(m, p, key, spec, point)
+
+
+def _use_at(m: Match, p: PlayerState, key: str, spec: dict[str, Any], point: Vec | None) -> Vec | None:
     if point is None:
         return None
     ctx = Ctx(m, p, p.team, point, p.pos, heading(p.facing), ability=spec, key=key)

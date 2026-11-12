@@ -95,6 +95,7 @@ class Command:
     slot: str | None = None
     ability: str | None = None   # "C", "Q", "E", "X"
     ability_alt: bool = False    # cast with the alternate (right click) variant
+    points: list = field(default_factory=list)  # multi-placement: chosen map points (x, y) for the ability
     interact: bool = False       # plant or defuse the bomb (hold)
     drop: bool = False           # G: drop the bomb if carried, else the weapon in hand
     buy: list[str] = field(default_factory=list)  # item keys, or "gift:<pid>:<weapon>" to buy for a teammate
@@ -809,7 +810,10 @@ class Match:
             self.events.append(GameEvent("jump", self.time, {"pid": p.pid, "pos": (p.pos.x, p.pos.y)}))
         # ability (only on a new key press)
         if cmd.ability and cmd.ability != p.prev_ability and self.phase in ("buy", "live", "planted"):
-            self._use_ability(p, cmd.ability, cmd.ability_alt)
+            if cmd.points:
+                self._use_multi(p, cmd.ability, cmd.points)
+            else:
+                self._use_ability(p, cmd.ability, cmd.ability_alt)
         # shooting
         if self.time >= p.reload_until > 0:
             self._finish_reload(p)
@@ -1287,27 +1291,42 @@ class Match:
             self.last_alive_vs[target.team] = len([q for q in self.players.values() if q.team != target.team and q.alive])
 
     # ------------------------------------------------------------------ Abilities
-    def _use_ability(self, p: PlayerState, key: str, alt: bool = False) -> None:
+    def _use_multi(self, p: PlayerState, key: str, points: list) -> None:
+        """Multi-placement (multi=N): one charge per point for C/Q/E; the ultimate costs once for all of its points."""
+        ab = self.agents[p.agent]["abilities"].get(key, {})
+        limit = max(1, int(ab.get("multi", 1)))
+        chosen = [Vec(float(x), float(y)) for x, y in points[:limit]]
+        if key == "X":
+            if not chosen or (p.ult_points < int(ab.get("cost", 99)) and not self.cheat("infinite_abilities")):
+                return
+            used = [q for q in chosen if self._use_ability(p, key, point=q, free=True)]
+            if used and not self.cheat("infinite_abilities"):
+                p.ult_points -= int(ab["cost"])
+            return
+        for q in chosen:
+            self._use_ability(p, key, point=q)
+
+    def _use_ability(self, p: PlayerState, key: str, alt: bool = False, point: Vec | None = None, free: bool = False) -> bool:
         ab = self.agents[p.agent]["abilities"].get(key)
         if ab and alt and isinstance(ab.get("alt"), dict):
             ab = {**ab, **ab["alt"]}  # right-click variant: its values replace the normal ones
         if not ab or abilities.flag(self, p, "no_abilities"):
-            return
-        endless = self.cheat("infinite_abilities")
+            return False
+        endless = self.cheat("infinite_abilities") or free
         if endless:
             pass
         elif key == "X":
             if p.ult_points < int(ab["cost"]):
-                return
+                return False
         elif p.charges.get(key, 0) <= 0:
-            return
+            return False
         try:
-            target = abilities.use(self, p, key, ab)
+            target = abilities.use(self, p, key, ab, point=point)
         except (KeyError, TypeError, ValueError) as exc:
             warnings.warn(f"Ability {ab.get('name', key)} of {p.agent} misconfigured: {exc}")
-            return
+            return False
         if target is None:
-            return
+            return False
         if endless:
             pass
         elif key == "X":
@@ -1316,6 +1335,7 @@ class Match:
             p.charges[key] -= 1
         self.events.append(GameEvent("ability", self.time, {"pid": p.pid, "key": key, "kind": ab["kind"], "pos": (target.x, target.y),
                                                             "sound": str(ab.get("sound", ""))}))
+        return True
 
     def _clip_to_walls(self, a: Vec, b: Vec, level: int) -> Vec:
         direction = (b - a).normalized()

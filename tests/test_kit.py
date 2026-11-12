@@ -117,3 +117,13 @@ def test_throwables_fly_a_hidden_share_of_the_cursor_distance() -> None:
     nade = next(e for e in m.effects if e.kind == "blast")
     factor = float(rule("abilities", "throw_factor", 0.8))
     assert abs((nade.pos - pa.pos).length() - 10.0 * factor) < 0.35  # walls may stop it a little earlier
+
+
+def test_multi_placement_puts_one_object_per_point_and_charge() -> None:
+    m, a, _ = setup(agent("T", C=preset("smoke", "Skies", max=3, range=40.0, radius=3.0, duration=10.0, multi=3), **filler()))
+    pa = m.players[a]
+    pa.charges["C"] = 2
+    pa.prev_ability = None
+    m.tick(1 / 64, {a: Command(ability="C", points=[(10.0, 10.0), (20.0, 10.0), (30.0, 10.0)])})
+    smokes = [e for e in m.effects if e.kind == "smoke"]
+    assert len(smokes) == 2 and pa.charges["C"] == 0  # only as many points as charges
