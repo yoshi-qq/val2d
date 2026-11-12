@@ -19,12 +19,14 @@ from gameplay.world import load_map
 TICK_RATE = 64.0
 
 
-def build_match(map_key: str, rounds: int, team_size: int, all_around: bool, sound_rings: bool) -> Match:
+def build_match(map_key: str, rounds: int, team_size: int, all_around: bool, sound_rings: bool, mode: str = "standard") -> Match:
     base = load_config()
     lobby = LobbySettings(all_around_sight=all_around or base.lobby.all_around_sight,
                           sound_rings=sound_rings or base.lobby.sound_rings,
                           win_rounds=rounds, overtime=base.lobby.overtime, team_size=team_size)
-    return Match(load_map(map_key), type(base)(hit_zones=base.hit_zones, lobby=lobby, player=base.player))
+    match = Match(load_map(map_key), type(base)(hit_zones=base.hit_zones, lobby=lobby, player=base.player))
+    match.set_mode(mode)
+    return match
 
 
 def main() -> None:
@@ -36,11 +38,12 @@ def main() -> None:
     ap.add_argument("--start-after", type=float, default=0.0, help="Start after this many seconds at the latest (0 = never)")
     ap.add_argument("--port", type=int, default=DEFAULT_PORT)
     ap.add_argument("--online", action="store_true", help="Internet match with a join code instead of LAN")
+    ap.add_argument("--mode", default="standard", choices=["standard", "quick", "deathmatch"])
     ap.add_argument("--all-around", action="store_true", help="Lobby rule: all-around sight")
     ap.add_argument("--sound-rings", action="store_true", help="Lobby rule: sound rings")
     args = ap.parse_args()
 
-    match = build_match(args.map, args.rounds, args.team_size, args.all_around, args.sound_rings)
+    match = build_match(args.map, args.rounds, args.team_size, args.all_around, args.sound_rings, args.mode)
     try:
         session = HostSession(match, "Val2d-Server", None if args.online else args.port,
                               mode="internet" if args.online else "lan")

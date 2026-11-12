@@ -149,7 +149,13 @@ class BotBrain:
 
     # ---------------------------------------------------------------- Laufen
     def _navigate(self, m: Match, p: PlayerState, dt: float, cmd: Command) -> Command:
-        attack = m.side(p.team) == "attack"
+        if m.mode == "deathmatch":  # hunt: walk towards the nearest enemy
+            enemies = [t for t in m.players.values() if t.alive and t.team != p.team]
+            if enemies:
+                self.goal = min(enemies, key=lambda t: (t.pos - p.pos).length()).pos
+            attack = False
+        else:
+            attack = m.side(p.team) == "attack"
         if attack:
             site = self._pick_site(m, attacking=True)
             if m.phase == "planted" and m.spike_pos is not None:
@@ -168,7 +174,7 @@ class BotBrain:
                 self.goal = site
             if m.phase == "live" and site is not None and self.goal is not None and not self._may_push(m, p, site):
                 self.goal = self._staging(m, site)
-        else:
+        elif m.mode != "deathmatch":
             if m.phase == "planted" and m.spike_pos is not None:
                 self.goal = m.spike_pos
                 if (p.pos - m.spike_pos).length() <= 1.2:

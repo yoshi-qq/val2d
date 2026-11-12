@@ -25,6 +25,7 @@ import pygame
 from gameplay import abilities
 from gameplay.bots import BotDirector
 from gameplay.data import LobbySettings, load_config
+from gameplay.data import rule as rule_value
 from gameplay.geometry import Vec, heading
 from gameplay.match import Command, Effect, GameEvent, Match, PlayerState
 from gameplay.net import apply_snapshot, events_from_json
@@ -209,6 +210,7 @@ class Game:
                 self.match.add_player(f"Bot {i + 1}", 0, others[i % len(others)], is_bot=True)
             for i in range(args.team_size):
                 self.match.add_player(f"Enemy {i + 1}", 1, list(self.match.agents)[i % len(self.match.agents)], is_bot=True)
+        self.match.set_mode(str(getattr(args, "mode", "standard")))
         self.bots = BotDirector(self.match)
         self.bank = SpriteBank()
         self.chars = CharacterSprites(self.bank)
@@ -715,7 +717,7 @@ class Game:
             self.draw_buy(me)
         own = m.players.get(self.me)
         if own is not None and (not own.alive or m.phase == "end") and m.phase in ("live", "planted", "end") \
-                and not self.ui.show_scores:
+                and not self.ui.show_scores and m.mode != "deathmatch":
             self.draw_damage_report(own)
         if self.ui.show_scores or m.phase == "over":
             self.draw_scores()
@@ -1397,7 +1399,12 @@ class Game:
         left = m.phase_time_left()
         phase = {"buy": "Buy phase", "live": "", "planted": "Bomb planted", "end": "Round over", "over": "Match over"}.get(m.phase, "")
         mine, theirs = m.score[me.team], m.score[1 - me.team]
-        if m.practice:
+        if m.mode == "deathmatch" and not m.practice:
+            left = max(0.0, m.dm_ends_at - m.time)
+            self.text(f"{mine}  {int(left) // 60}:{int(left) % 60:02d}  {theirs}", (self.w / 2, 12), big=True, center=True)
+            limit = int(rule_value("modes", "deathmatch", {}).get("kill_limit", 40))
+            self.text(f"Team deathmatch · first to {limit} kills · B buys anywhere", (self.w / 2, 54), C_MUTED, center=True)
+        elif m.practice:
             st = self.stats
             acc = 100 * st["hits"] / st["shots"] if st["shots"] else 0
             heads = 100 * st["heads"] / st["hits"] if st["hits"] else 0
@@ -1738,6 +1745,7 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=DEFAULT_PORT)
     ap.add_argument("--no-menu", action="store_true", help="Start the practice match directly, without the main menu")
     ap.add_argument("--range", dest="practice", action="store_true", help="Practice range instead of a match")
+    ap.add_argument("--mode", default="standard", choices=["standard", "quick", "deathmatch"])
     args = ap.parse_args()
     args.online = bool(args.host_online)
     if args.host_online:

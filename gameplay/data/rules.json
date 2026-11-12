@@ -64,5 +64,20 @@
     "safe_speed": 7.0,
     "damage_per_speed": 15.0,
     "max_damage": 60
+  },
+  "modes": {
+    "quick": {
+      "win_rounds": 4,
+      "half_after": 3,
+      "buy_time": 20,
+      "round_time": 80,
+      "overtime": false
+    },
+    "deathmatch": {
+      "kill_limit": 40,
+      "time_limit": 360,
+      "respawn": 3.0,
+      "spawn_shield": 50
+    }
   }
 }

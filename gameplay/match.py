@@ -220,6 +220,8 @@ class Match:
         self.remote_report: list[dict[str, int]] = []  # client copy of the viewer's damage report
         self._first_kill_done = False
         self.practice = False  # practice range: endless live phase, free buying, respawning dummies
+        self.mode = "standard"
+        self.dm_ends_at = 0.0
         self.time = 0.0
         self.phase = "lobby"  # lobby, buy, live, planted, end, over
         self.phase_until = 0.0
@@ -256,7 +258,21 @@ class Match:
         self.players[pid] = p
         return p
 
+    def set_mode(self, mode: str) -> None:
+        """"standard", "quick" or "deathmatch" (values in rules.json "modes"); call before start()."""
+        self.mode = mode if mode in ("standard", "quick", "deathmatch") else "standard"
+        if self.mode == "quick":
+            q = rule("modes", "quick", {})
+            self.win_rounds = int(q.get("win_rounds", 4))
+            self.overtime = bool(q.get("overtime", False))
+            for key in ("half_after", "buy_time", "round_time"):
+                if key in q:
+                    self._r[key] = q[key]
+
     def start(self) -> None:
+        if self.mode == "deathmatch":
+            self._start_deathmatch()
+            return
         self.round_no = 0
         self.score = [0, 0]
         self.match_winner = None
@@ -286,6 +302,54 @@ class Match:
                 ab = self.agents[p.agent]["abilities"].get(key, {})
                 p.charges[key] = int(ab.get("max", 1))
             p.ult_points = 99
+
+    def _start_deathmatch(self) -> None:
+        """Team deathmatch: one long round, buy anything anywhere, respawn after a delay, first team to the kill limit."""
+        dm = rule("modes", "deathmatch", {})
+        self.round_no, self.score, self.match_winner, self.attacking_team = 0, [0, 0], None, 0
+        self._start_round()
+        self.spike_carrier = None
+        self.phase, self.phase_until = "live", self.time + 10 ** 7
+        self.dm_ends_at = self.time + float(dm.get("time_limit", 360))
+        for p in self.players.values():
+            p.credits = 99_000
+
+    def _deathmatch_upkeep(self) -> None:
+        dm = rule("modes", "deathmatch", {})
+        self.score = [sum(p.kills for p in self.players.values() if p.team == t) for t in (0, 1)]
+        limit = int(dm.get("kill_limit", 40))
+        if max(self.score) >= limit or self.time >= self.dm_ends_at:
+            if self.score[0] != self.score[1]:
+                self.match_winner = 0 if self.score[0] > self.score[1] else 1
+                self.phase = "over"
+                self.events.append(GameEvent("round_end", self.time, {"winner": self.match_winner, "reason": "Kill limit"
+                                                                      if max(self.score) >= limit else "Time limit",
+                                                                      "score": list(self.score)}))
+                return
+            self.dm_ends_at = self.time + 30  # tied: 30 s sudden death
+        delay = float(dm.get("respawn", 3.0))
+        for p in self.players.values():
+            p.credits = max(p.credits, 99_000)
+            if not p.alive and self.time - p.died_at >= delay:
+                self._respawn(p, int(dm.get("spawn_shield", 50)))
+
+    def _respawn(self, p: PlayerState, shield: int) -> None:
+        """Back to life at the own side's spawn, far from enemies, with the weapons still in the inventory."""
+        side_idx = 0 if self.side(p.team) == "attack" else 1
+        points = self.world.spawns.get(side_idx) or [self.world.spawn_zones.get(side_idx, Rect(0, 0, 1, 1)).center]
+        enemies = [e.pos for e in self.players.values() if e.alive and e.team != p.team]
+        best = max(points, key=lambda pt: min(((pt - e).length() for e in enemies), default=99.0))
+        p.alive, p.hp, p.armor = True, self._hp, shield
+        p.pos, p.vel, p.z, p.vz, p.level = best, Vec(0, 0), 0.0, 0.0, 0
+        p.status, p.blind_until = {}, 0.0
+        if "sidearm" not in p.weapons:
+            p.weapons["sidearm"] = self._new_weapon("spatz")
+        for ws in p.weapons.values():
+            wd = self.weapons.get(ws.key)
+            if wd:
+                ws.mag, ws.reserve = wd.mag, wd.reserve
+        p.slot = "primary" if "primary" in p.weapons else "sidearm"
+        self.events.append(GameEvent("respawn", self.time, {"pid": p.pid}))
 
     def _practice_upkeep(self) -> None:
         for p in self.players.values():
@@ -405,12 +469,13 @@ class Match:
 
     # ------------------------------------------------------------------ Buying
     def buy(self, p: PlayerState, item: str) -> bool:
-        if not p.alive or (self.phase != "buy" and not self.practice):
+        free_buy = self.practice or self.mode == "deathmatch"
+        if not p.alive or (self.phase != "buy" and not free_buy):
             return False
         if item.startswith("gift:"):
             return self._gift(p, item)
         zone = self.world.spawn_zones.get(0 if self.side(p.team) == "attack" else 1)
-        if zone and not zone.contains(p.pos) and not self.practice:
+        if zone and not zone.contains(p.pos) and not free_buy:
             return False
         if item in self.weapons:
             d = self.weapons[item]
@@ -495,6 +560,10 @@ class Match:
     def _check_round(self) -> None:
         if self.practice:
             self._practice_upkeep()
+            return
+        if self.mode == "deathmatch":
+            if self.phase == "live":
+                self._deathmatch_upkeep()
             return
         if self.phase not in ("live", "planted"):
             return
@@ -1136,6 +1205,7 @@ class Match:
             })
         return {
             "time": self.time, "phase": self.phase, "phase_left": self.phase_time_left(), "round": self.round_no,
+            "mode": self.mode, "dm_left": max(0.0, self.dm_ends_at - self.time) if self.mode == "deathmatch" else 0.0,
             "score": list(self.score), "attacking_team": self.attacking_team, "winner": self.match_winner,
             "round_winner": self.round_winner, "round_reason": self.round_reason,
             "spike": {"carrier": self.spike_carrier, "pos": (self.spike_pos.x, self.spike_pos.y) if self.spike_pos else None, "site": self.spike_site},

@@ -22,6 +22,7 @@ C_MUTED = (155, 152, 170)
 C_ACCENT = (224, 180, 55)
 C_ERROR = (238, 76, 74)
 SCALE = 3  # pixel-art scale of the menu kit
+MODE_NAMES = {"standard": "Standard", "quick": "Quick (first to 4)", "deathmatch": "Team deathmatch"}
 
 
 @dataclass
@@ -145,13 +146,14 @@ class MainMenu:
     def buttons(self) -> list[Button]:
         if self.view == "settings":
             return [self.back_button()]
-        x, y, w, h, gap = 60, 150, 360, 40, 8
+        x, y, w, h, gap = 60, 140, 360, 38, 6
         rows = [("Practice vs bots", "local"), ("Practice range", "range"), ("Host LAN match", "host"),
                 ("Host online (join code)", "host_online"),
                 ("Find LAN match", "find"),
                 (f"Join {self.address or '…'}", "join"), (f"Map: {self.args.map}", "map"),
                 (f"Team size: {self.args.team_size}v{self.args.team_size}", "size"),
-                (f"Rounds to win: {self.args.rounds}", "rounds"), ("Settings", "settings"), ("Quit", "quit")]
+                (f"Rounds to win: {self.args.rounds}", "rounds"), (f"Mode: {MODE_NAMES[getattr(self.args, 'mode', 'standard')]}", "mode"),
+                ("Settings", "settings"), ("Quit", "quit")]
         out = []
         for i, (label, action) in enumerate(rows):
             enabled = action != "join" or bool(self.address)
@@ -256,6 +258,9 @@ class MainMenu:
             a.map = self.maps[(self.maps.index(a.map) + 1) % len(self.maps)]
         elif action == "size":
             a.team_size = a.team_size % 5 + 1
+        elif action == "mode":
+            order = list(MODE_NAMES)
+            a.mode = order[(order.index(getattr(a, "mode", "standard")) + 1) % len(order)]
         elif action == "rounds":
             a.rounds = {13: 5, 5: 9, 9: 13}.get(a.rounds, 13)
         return None

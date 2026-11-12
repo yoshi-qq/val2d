@@ -117,6 +117,8 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
     if m.phase == "planted":
         m.spike_planted_at = m.time + left - float(m._spike["fuse_time"])
     m.round_no = int(snap["round"])
+    m.mode = str(snap.get("mode", "standard"))
+    m.dm_ends_at = m.time + float(snap.get("dm_left", 0.0))
     m.score = list(snap["score"])
     m.attacking_team = int(snap["attacking_team"])
     m.match_winner = snap["winner"]

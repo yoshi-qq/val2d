@@ -429,3 +429,25 @@ def test_team_buy_request_and_gift() -> None:
     assert pb.weapons["primary"].key == "hammer" and pa.credits == 5000 - m.weapons["hammer"].price
     assert pb.request == ""
     assert not m.buy(pa, f"gift:{m.players[3].pid}:hammer")  # never for the other team
+
+
+def test_quick_mode_short_match() -> None:
+    m = Match(load_map("gasse"), seed=1)
+    m.set_mode("quick")
+    assert m.win_rounds == 4 and not m.overtime and int(m._r["half_after"]) == 3
+
+
+def test_deathmatch_respawns_and_kill_limit() -> None:
+    m = Match(load_map("werkhof"), seed=1)
+    a = m.add_player("A", 0, "kestrel").pid
+    b = m.add_player("B", 1, "kestrel").pid
+    m.set_mode("deathmatch")
+    m.start()
+    pa, pb = m.players[a], m.players[b]
+    assert m.phase == "live" and m.spike_carrier is None and m.buy(pa, "hammer")
+    m._kill(pa, pb, "test", "head")
+    run(m, 3.5)
+    assert pb.alive and m.score[pa.team] == 1
+    pa.kills = 40
+    run(m, 0.1)
+    assert m.phase == "over" and m.match_winner == pa.team
