@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_THEME: dict[str, Any] = {
     "colors": {"bg": "#0f1923", "panel": "#0f1923d8", "panel_light": "#1f2d3ae6", "line": "#ece8e133", "text": "#ece8e1",
                "muted": "#8b978f", "accent": "#ff4655", "accent_dark": "#bd3944", "ally": "#4fd6c8", "enemy": "#ff4655",
-               "gold": "#f2c94c", "good": "#5ee38a", "shade": "#000000b4"},
+               "gold": "#f2c94c", "ult": "#f7f0a8", "good": "#5ee38a", "shade": "#000000b4"},
     "fonts": {"ui": "fixed_sys.ttf", "title": "fixed_sys.ttf", "numbers": "fixed_sys.ttf"},
     "pixel": True, "native": 16, "border": 2,
     "sizes": {"xs": 1, "s": 1, "m": 1, "l": 2, "xl": 3, "xxl": 4},
@@ -187,7 +187,7 @@ class Ui:
         hover = enabled and rect.collidepoint(pygame.mouse.get_pos())
         down = hover and self.pressed == action
         if primary:
-            base = "accent_dark" if down else "accent"
+            base = "panel_light" if not enabled else "accent_dark" if down else "accent"
             pygame.draw.rect(self.screen, color(base), rect)
             if hover and not down:
                 pygame.draw.rect(self.screen, color("text"), rect.inflate(6, 6), 1)

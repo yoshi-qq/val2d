@@ -21,9 +21,15 @@ from sprite_bank import ASSETS, SpriteBank
 MODES = (("standard", "Standard", "13 rounds to win, sides switch after 12. Plant or defuse the bomb."),
          ("quick", "Quick", "First to 4, shorter rounds, same economy."),
          ("deathmatch", "Team deathmatch", "Respawns, free buying, first team to the kill limit."))
-TABS = (("play", "Play"), ("practice", "Practice"), ("online", "Multiplayer"), ("agents", "Agents"))
-SETTINGS_TABS = (("general", "General"), ("crosshair", "Crosshair"), ("controls", "Controls"))
-SLIDERS = {"general": (("sensitivity", "Mouse sensitivity"), ("camera_push", "Camera ahead"), ("volume", "Volume")),
+TABS = (("agents", "Agents"), ("play", "Play"), ("career", "Career"))  # PLAY sits in the middle, large
+PLAY_MODES = (("standard", "Unrated", "13 rounds to win, sides switch after 12. Plant or defuse the spike."),
+              ("quick", "Swiftplay", "First to 4, shorter rounds, same economy."),
+              ("deathmatch", "Team deathmatch", "Respawns, free buying, first team to the kill limit."),
+              ("range", "Range", "Practice alone: lanes at 10, 20, 30 and 45 m, standing and moving targets."),
+              ("custom", "Custom", "Host or join a match with friends on your network or over the internet."))
+SETTINGS_TABS = (("general", "General"), ("controls", "Controls"), ("crosshair", "Crosshair"), ("audio", "Audio"))
+SLIDERS = {"general": (("sensitivity", "Mouse sensitivity"), ("camera_push", "Camera ahead")),
+           "audio": (("volume", "Overall volume"),),
            "crosshair": (("crosshair_size", "Size"), ("crosshair_gap", "Gap"))}
 CHECKS = {"general": (("fullscreen", "Fullscreen"),),
           "crosshair": (("crosshair_dot", "Centre dot"),)}
@@ -51,7 +57,8 @@ class MainMenu:
         self.status = ""
         self.found: list[tuple[str, int, str]] = []
         self.tab = "play"
-        self.view = "main"            # main or settings (overlay)
+        self.view = "main"
+        self.play_mode = getattr(self.args, "mode", "standard") if not getattr(self.args, "practice", False) else "range"            # main or settings (overlay)
         self.settings_tab = "general"
         self.dialog = ""              # "" or "quit"
         self.settings = user_settings.load()
@@ -158,6 +165,8 @@ class MainMenu:
             self.activate("settings_close")
         elif self.tab != "play":
             self.tab = "play"
+        elif self.play_mode == "custom":
+            self.play_mode = "standard"
 
     def slide(self, pos: tuple[int, int]) -> None:
         hit = next((h for h in self.ui.hits if h.action == f"slider:{self.dragging}"), None)
@@ -225,7 +234,19 @@ class MainMenu:
             a.host, a.join = False, f"{address}:{port}"
             return a
         elif action.startswith("mode:"):
-            a.mode = action[5:]
+            self.play_mode = action[5:]
+            if self.play_mode in ("standard", "quick", "deathmatch"):
+                a.mode = self.play_mode
+        elif action == "start":
+            if self.play_mode == "range":
+                return self.activate("range")
+            if self.play_mode != "custom":
+                a.mode = self.play_mode
+                return self.activate("local")
+        elif action == "party_add":
+            a.team_size = min(5, a.team_size + 1)
+        elif action == "party_remove":
+            a.team_size = max(1, a.team_size - 1)
         elif action in ("map_next", "map_prev"):
             step = 1 if action == "map_next" else -1
             a.map = self.maps[(self.maps.index(a.map) + step) % len(self.maps)]
@@ -256,7 +277,7 @@ class MainMenu:
         else:
             s.fill(color("bg"))
         self.draw_top_bar(w)
-        {"play": self.draw_play, "practice": self.draw_practice, "online": self.draw_online, "agents": self.draw_agents}[self.tab](w, h)
+        {"play": self.draw_play, "agents": self.draw_agents, "career": self.draw_career}[self.tab](w, h)
         if self.status:
             ui.text(self.status, (40, h - 34), "s", "enemy" if "No match" in self.status or "No connection" in self.status else "gold")
         if self.view == "settings":
@@ -265,100 +286,142 @@ class MainMenu:
             ui.dialog("Quit Val2d?", "Alt+F4 again quits at once.", [("Cancel", "quit_no", False), ("Quit", "quit_yes", True)])
 
     def draw_top_bar(self, w: int) -> None:
-        ui = self.ui
-        ui.panel(pygame.Rect(0, 0, w, 64), "panel")
-        ui.line((0, 64), (w, 64), "line")
-        logo = self.bank.scaled("logo.png", (40, 40))
+        """Valorant-style navigation: logo left, AGENTS · PLAY · CAREER centred with PLAY larger, name, settings and
+        quit on the right."""
+        ui, s = self.ui, self.screen
+        bar = pygame.Rect(0, 0, w, 64)
+        ui.fill(bar, "#0f1923e6")
+        pygame.draw.rect(s, color("line"), (0, 63, w, 1))
+        logo = self.bank.scaled("logo.png", (36, 36))
         if logo is not None:
-            self.screen.blit(logo, (24, 12))
-        ui.text("VAL2D", (74 if logo else 24, 18), "l", "text", bold=True, kind="title")
-        x = 300
+            s.blit(logo, (24, 14))
+        ui.text("VAL2D", (68 if logo else 24, 22), "m", "text", bold=True, kind="title")
+        cx = w // 2
         for key, label in TABS:
-            tw = ui.size(label, "m", upper=True, bold=True)[0] + 40
-            ui.tab(pygame.Rect(x, 8, tw, 52), label, f"tab:{key}", self.tab == key)
-            x += tw
-        ui.button(pygame.Rect(w - 260, 14, 130, 36), "Settings", "settings", size="s")
-        ui.button(pygame.Rect(w - 116, 14, 92, 36), "Quit", "quit", size="s")
-        ui.text(f"Playing as {self.settings['name']}  ·  {self.agents().get(self.args.agent, {}).get('name', self.args.agent)}",
-                (w - 24, 72), "s", "muted", "right")
-
-    def section(self, title: str, pos: tuple[int, int], sub: str = "") -> None:
-        self.ui.text(title, pos, "xl", "text", upper=True, bold=True, kind="title")
-        if sub:
-            self.ui.text(sub, (pos[0] + 2, pos[1] + 56), "s", "muted")
+            big = key == "play"
+            size = "l" if big else "m"
+            tw = ui.size(label, size, upper=True, bold=True)[0]
+            x = cx - tw // 2 if big else (cx - 120 - tw if key == "agents" else cx + 120)
+            r = pygame.Rect(x - 12, 0, tw + 24, 64)
+            active = self.tab == key
+            hover = r.collidepoint(pygame.mouse.get_pos())
+            ui.text(label, (r.centerx, 32 - ui.size(label, size)[1] // 2), size, "text" if active or hover else "muted",
+                    "center", upper=True, bold=True, kind="title")
+            if active:
+                pygame.draw.rect(s, color("accent"), (r.x + 12, 60, tw, 4))
+            ui.area(r, f"tab:{key}")
+        ui.text(self.settings["name"], (w - 196, 24), "s", "text", "right", bold=True)
+        ui.button(pygame.Rect(w - 180, 14, 96, 36), "Settings", "settings", size="xs")
+        ui.button(pygame.Rect(w - 76, 14, 56, 36), "X", "quit", size="s")
 
     def draw_play(self, w: int, h: int) -> None:
-        ui, a = self.ui, self.args
-        self.section("Play", (40, 96), "Match against bots. Pick a mode and a map, then start.")
-        for i, (key, name, text) in enumerate(MODES):
-            r = pygame.Rect(40 + i * 300, 190, 284, 120)
-            chosen = getattr(a, "mode", "standard") == key
-            ui.panel(r, "panel_light" if chosen else "panel", edge="left" if chosen else "", edge_col="accent")
-            ui.outline(r, "text" if r.collidepoint(pygame.mouse.get_pos()) else "line")
-            ui.text(name, (r.x + 18, r.y + 16), "m", "text", upper=True, bold=True)
-            for j, ln in enumerate(ui.wrap(text, "s", r.w - 36)):
-                ui.text(ln, (r.x + 18, r.y + 50 + j * 20), "s", "muted")
+        """Mode row under the top bar, the party in the centre, map selection and START at the bottom centre."""
+        ui, a, s = self.ui, self.args, self.screen
+        x = w // 2 - sum(ui.size(n, "s", upper=True, bold=True)[0] + 44 for _, n, _ in PLAY_MODES) // 2
+        for key, name, _ in PLAY_MODES:
+            tw = ui.size(name, "s", upper=True, bold=True)[0] + 44
+            r = pygame.Rect(x, 76, tw - 6, 34)
+            active = self.play_mode == key
+            hover = r.collidepoint(pygame.mouse.get_pos())
+            ui.fill(r, "text" if active else "panel_light" if hover else "panel")
+            ui.text(name, (r.centerx, r.y + 9), "s", "bg" if active else "text", "center", upper=True, bold=True)
             ui.area(r, f"mode:{key}")
-        self._options_row(330)
-        ui.button(pygame.Rect(w - 340, h - 110, 300, 64), "Start", "local", primary=True, size="l")
+            x += tw
+        about = dict((k, t) for k, _, t in PLAY_MODES)[self.play_mode]
+        ui.text(about, (w // 2, 120), "xs", "muted", "center", upper=True)
+        if self.play_mode == "custom":
+            self.draw_custom(w, h)
+            return
+        self.draw_party(w, h)
+        if self.play_mode != "range":
+            ui.text("Map", (w // 2, h - 168), "xs", "muted", "center", upper=True)
+            ui.button(pygame.Rect(w // 2 - 170, h - 148, 40, 36), "<", "map_prev", size="s")
+            ui.fill(pygame.Rect(w // 2 - 126, h - 148, 252, 36), "panel")
+            ui.text(a.map, (w // 2, h - 140), "m", "text", "center", upper=True, bold=True)
+            ui.button(pygame.Rect(w // 2 + 130, h - 148, 40, 36), ">", "map_next", size="s")
+        ui.button(pygame.Rect(w // 2 - 170, h - 96, 340, 64), "Start", "start", primary=True, size="xl")
+        ui.text("Rounds, overtime and cheats are set in the lobby", (w // 2, h - 26), "xs", "muted", "center", upper=True)
 
-    def _options_row(self, y: int) -> None:
-        ui, a = self.ui, self.args
-        ui.text("Map", (40, y), "s", "muted", upper=True)
-        ui.button(pygame.Rect(40, y + 26, 44, 44), "<", "map_prev")
-        ui.panel(pygame.Rect(92, y + 26, 240, 44), "panel")
-        ui.text(a.map, (212, y + 36), "m", "text", "center", upper=True, bold=True)
-        ui.button(pygame.Rect(340, y + 26, 44, 44), ">", "map_next")
-        ui.text("Team size", (440, y), "s", "muted", upper=True)
-        for i in range(1, 6):
-            ui.button(pygame.Rect(440 + (i - 1) * 52, y + 26, 44, 44), f"{i}", f"size:{i}", selected=a.team_size == i)
-        ui.text("Rounds, overtime and cheats are set in the lobby", (740, y + 38), "xs", "muted", upper=True)
-        has_preview = (ASSETS / "maps" / a.map / "preview.png").exists()  # optional, from the design session
-        preview = self.bank.scaled(f"maps/{a.map}/preview.png", (344, 194)) if has_preview else None
-        if preview is not None:
-            self.screen.blit(preview, (40, y + 90))
+    def draw_party(self, w: int, h: int) -> None:
+        """Five player-card slots like a party: you in the middle, bots of your team around you; click + to add a bot,
+        a bot card to remove it (team size)."""
+        ui, a, s = self.ui, self.args, self.screen
+        card_w, card_h, gap = 150, 300, 16
+        slots = 1 if self.play_mode == "range" else 5
+        order = [2, 1, 3, 0, 4][:slots] if slots == 5 else [0]
+        left = w // 2 - (slots * card_w + (slots - 1) * gap) // 2
+        mates = a.team_size - 1
+        bot_slots = [1, 3, 0, 4][:mates]
+        for i in range(slots):
+            r = pygame.Rect(left + i * (card_w + gap), 148, card_w, card_h)
+            if slots == 1 or i == 2:
+                ui.fill(r, "panel")
+                pygame.draw.rect(s, color("accent"), (r.x, r.y, r.w, 4))
+                art = self.bank.scaled(f"agents/{a.agent}/{a.agent}_select.png", (120, 240))
+                if art is not None:
+                    s.blit(art, (r.centerx - 60, r.y + 18))
+                band = pygame.Rect(r.x, r.bottom - 44, r.w, 44)
+                ui.fill(band, "#0f1923f0")
+                ui.text(self.settings["name"], (r.centerx, band.y + 6), "s", "text", "center", bold=True)
+                ui.text(self.agents().get(a.agent, {}).get("name", a.agent), (r.centerx, band.y + 24), "xs", "accent", "center",
+                        upper=True)
+            elif i in bot_slots:
+                ui.fill(r, "panel")
+                ui.text("Bot", (r.centerx, r.centery - 10), "m", "muted", "center", upper=True, bold=True)
+                ui.text("click to remove", (r.centerx, r.centery + 16), "xs", "muted", "center", upper=True)
+                ui.outline(r, "text" if r.collidepoint(pygame.mouse.get_pos()) else "line")
+                ui.area(r, "party_remove")
+            else:
+                ui.outline(r, "text" if r.collidepoint(pygame.mouse.get_pos()) else "line")
+                ui.text("+", (r.centerx, r.centery - 20), "xl", "muted", "center", bold=True)
+                ui.text("add a bot", (r.centerx, r.centery + 24), "xs", "muted", "center", upper=True)
+                ui.area(r, "party_add")
+        del order
+        if self.play_mode != "range":
+            ui.text(f"{a.team_size} vs {a.team_size}", (w // 2, 148 + card_h + 10), "s", "text", "center", upper=True, bold=True)
 
-    def draw_practice(self, w: int, h: int) -> None:
+    def draw_custom(self, w: int, h: int) -> None:
+        """Custom games: host a lobby (LAN or with a join code) or join one."""
         ui = self.ui
-        self.section("Practice", (40, 96), "Warm up alone.")
-        cards = (("Range", "Lanes at 10, 20, 30 and 45 m with standing and moving targets. Buy anything, accuracy shown on top.", "range"),
-                 ("Bots", "A match against bots with the mode and map from the Play tab.", "local"))
-        for i, (title, text, action) in enumerate(cards):
-            r = pygame.Rect(40 + i * 460, 190, 440, 220)
-            ui.panel(r, "panel", edge="left")
-            ui.text(title, (r.x + 24, r.y + 20), "l", "text", upper=True, bold=True, kind="title")
-            for j, ln in enumerate(ui.wrap(text, "s", r.w - 48)):
-                ui.text(ln, (r.x + 24, r.y + 70 + j * 22), "s", "muted")
-            ui.button(pygame.Rect(r.x + 24, r.bottom - 64, 180, 44), "Start", action, primary=True)
-
-    def draw_online(self, w: int, h: int) -> None:
-        ui = self.ui
-        self.section("Multiplayer", (40, 96), "Play with friends on the same network or over the internet.")
-        host = pygame.Rect(40, 190, 440, 240)
-        ui.panel(host, "panel", edge="left")
+        host = pygame.Rect(w // 2 - 470, 160, 440, 280)
+        ui.panel(host, "panel", edge="top")
         ui.text("Host", (host.x + 24, host.y + 20), "l", "text", upper=True, bold=True, kind="title")
-        ui.text(f"Map {self.args.map} · {dict((k, n) for k, n, _ in MODES)[getattr(self.args, 'mode', 'standard')]}",
-                (host.x + 24, host.y + 66), "s", "muted")
-        ui.button(pygame.Rect(host.x + 24, host.y + 110, 392, 44), "Host LAN match", "host", primary=True)
-        ui.button(pygame.Rect(host.x + 24, host.y + 166, 392, 44), "Host online (join code)", "host_online")
-        join = pygame.Rect(520, 190, 520, 240)
-        ui.panel(join, "panel", edge="left")
+        ui.text(f"Map {self.args.map} · lobby rules are set in the lobby", (host.x + 24, host.y + 66), "xs", "muted", upper=True)
+        ui.button(pygame.Rect(host.x + 24, host.y + 110, 392, 48), "Host LAN match", "host", primary=True)
+        ui.button(pygame.Rect(host.x + 24, host.y + 170, 392, 48), "Host online (join code)", "host_online")
+        ui.button(pygame.Rect(host.x + 24, host.y + 228, 40, 36), "<", "map_prev", size="s")
+        ui.text(self.args.map, (host.x + 220, host.y + 236), "s", "text", "center", upper=True, bold=True)
+        ui.button(pygame.Rect(host.right - 64, host.y + 228, 40, 36), ">", "map_next", size="s")
+        join = pygame.Rect(w // 2 + 30, 160, 440, 280)
+        ui.panel(join, "panel", edge="top")
         ui.text("Join", (join.x + 24, join.y + 20), "l", "text", upper=True, bold=True, kind="title")
-        field = pygame.Rect(join.x + 24, join.y + 70, 340, 44)
+        field = pygame.Rect(join.x + 24, join.y + 70, 272, 44)
         ui.fill(field, "panel_light")
         ui.outline(field, "accent" if self.typing else "line")
         shown = self.address + ("_" if self.typing else "")
-        ui.text(shown or "Join code or LAN address", (field.x + 14, field.y + 12), "m", "text" if self.address else "muted")
+        ui.text(shown or "Join code or address", (field.x + 12, field.y + 14), "s", "text" if self.address else "muted")
         ui.area(field, "field:address")
-        ui.button(pygame.Rect(field.right + 12, field.y, 120, 44), "Join", "join", primary=True, enabled=bool(self.address))
-        ui.button(pygame.Rect(join.x + 24, join.y + 130, 220, 40), "Find LAN match", "find")
-        for i, (address, port, host_name) in enumerate(self.found[:4]):
-            ui.button(pygame.Rect(join.x + 24, join.y + 250 + i * 48, 472, 40), f"{host_name}  {address}", f"lan:{i}")
+        ui.button(pygame.Rect(field.right + 12, field.y, 108, 44), "Join", "join", primary=True, enabled=bool(self.address))
+        ui.button(pygame.Rect(join.x + 24, join.y + 130, 220, 40), "Find LAN match", "find", size="s")
+        for i, (address, port, host_name) in enumerate(self.found[:3]):
+            ui.button(pygame.Rect(join.x + 24, join.y + 180 + i * 32, 392, 28), f"{host_name}  {address}", f"lan:{i}", size="xs")
+
+    def draw_career(self, w: int, h: int) -> None:
+        """Placeholder page like the real career tab: what this computer remembers about your matches."""
+        ui = self.ui
+        ui.text("Career", (40, 96), "xl", "text", upper=True, bold=True, kind="title")
+        ui.text("Match history is not recorded yet.", (42, 160), "s", "muted", upper=True)
+
+
+
+
+
+
 
     def draw_agents(self, w: int, h: int) -> None:
         ui = self.ui
         agents = self.agents()
-        self.section("Agents", (40, 96))
+        ui.text("Agents", (40, 84), "xl", "text", upper=True, bold=True, kind="title")
         x0, y0, cell = 40, 170, 64
         ordered = sorted(agents.items(), key=lambda kv: (ROLE_ORDER.index(kv[1]["role"]) if kv[1]["role"] in ROLE_ORDER else 9, kv[1]["name"]))
         for i, (key, info) in enumerate(ordered):

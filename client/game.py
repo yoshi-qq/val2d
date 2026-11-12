@@ -171,6 +171,7 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
                             self.aiming, cmd.ability = None, slot  # no aiming needed: cast at once
                     elif ev.key in (self.keys["primary"], self.keys["sidearm"], self.keys["melee"]):
                         self.aiming = None
+                        self._switched_at = self.match.time  # show the inventory for a moment
                         cmd.slot = {self.keys["primary"]: "primary", self.keys["sidearm"]: "sidearm",
                                     self.keys["melee"]: "melee"}[ev.key]
                     elif ev.key == self.keys["reload"]:

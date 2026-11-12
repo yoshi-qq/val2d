@@ -134,7 +134,8 @@ class EventsMixin:
                 victim = m.players.get(d["pid"])
                 by = killer.name if killer else "Bomb"
                 self.ui.feed.append((t + 5, f"{by} → {victim.name if victim else '?'}", killer.agent if killer else None,
-                                     victim.agent if victim else None, bool(d["head"])))
+                                     victim.agent if victim else None, bool(d["head"]), str(d.get("weapon", "")),
+                                     killer.team if killer else None))
                 if d["by"] == self.me:
                     self.sound.play("kill")
                 elif d["pid"] == self.me:
@@ -150,7 +151,8 @@ class EventsMixin:
             elif e.kind == "revive":
                 self.ui.figure_fx.append((d["pid"], "revive", t, 0.6))
                 revived = m.players.get(d["pid"])
-                self.ui.feed.append((t + 4, f"{revived.name if revived else '?'} revived", None, revived.agent if revived else None, False))
+                self.ui.feed.append((t + 4, f"{revived.name if revived else '?'} revived", None,
+                                     revived.agent if revived else None, False, "", revived.team if revived else None))
             elif e.kind == "ability" and d.get("kind") == "wave":
                 self.ui.last_cast[d["pid"]] = (t, str(d.get("key", "C")))
                 self.ui.waves.append((d["pid"], Vec(*d["pos"]), t))

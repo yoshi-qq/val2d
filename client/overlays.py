@@ -7,7 +7,7 @@ from __future__ import annotations
 import pygame
 
 import user_settings
-from client.ui import Ui
+from client.ui import Ui, color
 
 class _NoKeys:
     """Stands in for pygame.key.get_pressed() while a menu is open: nothing is held."""
@@ -99,27 +99,31 @@ class OverlaysMixin:
         ui.begin()
         w, h = self.screen.get_size()
         if self.overlay in ("pause", "leave", "quit"):
-            ui.shade()
-            panel = pygame.Rect(0, 0, 420, h)
-            ui.panel(panel, "bg")
-            ui.line((panel.right, 0), (panel.right, h))
-            ui.text("Paused", (48, 70), "xl", "text", upper=True, bold=True, kind="title")
-            ui.text("The match keeps running.", (50, 128), "s", "muted")
-            y = 180
-            for label, action, primary in (("Resume", "resume", True), ("Leave match", "leave", False), ("Quit game", "quit", False)):
-                ui.button(pygame.Rect(48, y, 320, 48), label, action, primary=primary)
-                y += 60
+            # like the real escape menu: dimmed game, a centred column of large text buttons
+            ui.fill(self.screen.get_rect(), "#0f1923d0")
+            ui.modal_from = len(ui.hits)
+            cx = w // 2
+            y = h // 2 - 170
+            for label, action in (("Resume", "resume"), ("Leave match", "leave"), ("Quit game", "quit")):
+                r = pygame.Rect(cx - 170, y, 340, 54)
+                hover = r.collidepoint(pygame.mouse.get_pos())
+                if hover:
+                    ui.fill(r, "#ece8e126")
+                    pygame.draw.rect(self.screen, color("accent"), (r.x, r.y, 4, r.h))
+                ui.text(label, (cx, r.y + 12), "l", "text" if hover else "muted", "center", upper=True, bold=True, kind="title")
+                ui.area(r, action)
+                y += 62
+            y += 30
+            ui.line((cx - 170, y), (cx + 170, y))
             y += 20
-            ui.text("Quick settings", (48, y), "s", "muted", upper=True)
-            y += 34
             for key, label, _ in PAUSE_SLIDERS:
                 value = self.sens if key == "sensitivity" else self.sound.volume
                 low, high = user_settings.LIMITS[key]
-                ui.text(label, (48, y), "xs", "muted", upper=True)
-                ui.slider(pygame.Rect(48, y + 24, 260, 18), (value - low) / (high - low), f"slider:{key}")
-                ui.text(f"{value:.2f}", (324, y + 22), "s")
-                y += 64
-            ui.text("Esc resumes", (48, h - 48), "xs", "muted", upper=True)
+                ui.text(label, (cx - 170, y), "xs", "muted", upper=True)
+                ui.slider(pygame.Rect(cx - 170, y + 22, 280, 18), (value - low) / (high - low), f"slider:{key}")
+                ui.text(f"{value:.2f}", (cx + 170, y + 20), "s", "text", "right")
+                y += 60
+            ui.text("Esc resumes · the match keeps running", (cx, h - 44), "xs", "muted", "center", upper=True)
         if self.overlay == "leave":
             ui.dialog("Leave match?", "You go back to the main menu." + (" The match ends for everyone." if self.session else ""),
                       [("Cancel", "cancel", False), ("Leave", "leave_yes", True)])

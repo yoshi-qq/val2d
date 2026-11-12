@@ -4,7 +4,7 @@ from __future__ import annotations
 from client.common import *  # noqa: F403  (pygame, colours, types)
 from client.ui import color
 
-COLUMNS = (("Agent", 44), ("K", 330), ("D", 380), ("Score", 500), ("Credits", 590), ("Ping", 680))
+COLUMNS = (("Agent", 44), ("Ult", 268), ("K", 330), ("D", 380), ("Score", 430), ("Loadout", 510), ("Credits", 620), ("Ping", 700))
 
 
 class ScoreboardMixin:
@@ -86,7 +86,22 @@ class ScoreboardMixin:
             for p in players:
                 row = pygame.Rect(x, y, w, 34)
                 ui.panel(row, "panel_light" if p.pid == self.me else "panel")
-                pygame.draw.rect(self.screen, color("ally" if own else "enemy"), (row.x, row.y, 4, row.h))
+                tint = color("ally" if own else "enemy")
+                band = pygame.Surface(row.size, pygame.SRCALPHA)
+                band.fill((tint.r, tint.g, tint.b, 46 if p.pid != self.me else 80))
+                self.screen.blit(band, row.topleft)
+                pygame.draw.rect(self.screen, tint, (row.x, row.y, 4, row.h))
+                ab = m.agents.get(p.agent, {}).get("abilities", {}).get("X", {})
+                cost = int(ab.get("cost", 7))
+                for j in range(cost):
+                    pygame.draw.rect(self.screen, color("ult" if j < min(p.ult_points, cost) else "line"),
+                                     (x + 268 + j * 7, y + 14, 5, 5))
+                if p.weapon and p.alive:
+                    gun = self.bank.scaled(f"weapons/val2d/{p.weapon.key}.png", (48, 24))
+                    if gun is not None:
+                        self.screen.blit(gun, (x + 510, y + 5))
+                    if p.armor:
+                        ui.text(str(p.armor), (x + 566, y + 9), "xs", "muted")
                 head = self.bank.scaled(f"agents/{p.agent}/{p.agent}_killfeed.png", (24, 24))
                 if head is not None:
                     if not p.alive:
@@ -95,16 +110,16 @@ class ScoreboardMixin:
                     self.screen.blit(head, (x + 12, y + 5))
                 col = "text" if p.alive or over else "muted"
                 ui.text(p.name, (x + 44, y + 8), "s", col, bold=p.pid == self.me)
-                ui.text(m.agents.get(p.agent, {}).get("name", p.agent), (x + 190, y + 9), "xs", "muted", upper=True)
+                ui.text(m.agents.get(p.agent, {}).get("name", p.agent), (x + 170, y + 9), "xs", "muted", upper=True)
                 ui.text(str(p.kills), (x + 330, y + 8), "s", col, bold=True)
                 ui.text(str(p.deaths), (x + 380, y + 8), "s", col)
-                ui.text(str(self.score_of(p)), (x + 500, y + 8), "s", col)
+                ui.text(str(self.score_of(p)), (x + 430, y + 8), "s", col)
                 if own:
-                    ui.text(str(p.credits), (x + 590, y + 8), "s", "gold")
+                    ui.text(str(p.credits), (x + 620, y + 8), "s", "gold")
                 if p.is_bot:
-                    ui.text("bot", (x + 680, y + 9), "xs", "muted", upper=True)
+                    ui.text("bot", (x + 700, y + 9), "xs", "muted", upper=True)
                 elif p.ping_ms is not None:
-                    ui.text(f"{p.ping_ms} ms", (x + 680, y + 8), "s", "muted")
+                    ui.text(f"{p.ping_ms} ms", (x + 700, y + 8), "s", "muted")
                 y += 38
             y += 14
         if m.history:

@@ -71,7 +71,7 @@ class UiState:
     show_scores: bool = False
     tracers: list[Tracer] = field(default_factory=list)
     rings: list[Ring] = field(default_factory=list)
-    feed: list[tuple[float, str, str | None, str | None, bool]] = field(default_factory=list)  # until, text, killer agent, victim agent, head
+    feed: list[tuple] = field(default_factory=list)  # until, text, killer agent, victim agent, head, weapon, killer team
     banner: tuple[float, str] = (0.0, "")
     banner_art: str = ""  # file name under assets/ui/banner/ shown above the banner text
     hit_marker: float = 0.0

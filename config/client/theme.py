@@ -17,7 +17,8 @@ THEME = {
         "accent_dark": "#bd3944",
         "ally": "#4fd6c8",
         "enemy": "#ff4655",
-        "gold": "#f2c94c",         # credits, ultimate ready
+        "gold": "#f2c94c",         # credits, own highlights
+        "ult": "#f7f0a8",          # ultimate points and ready ultimate
         "good": "#5ee38a",
         "shade": "#000000b4",      # dimming behind dialogs
     },
