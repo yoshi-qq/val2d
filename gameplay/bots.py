@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 
 from gameplay.geometry import Vec, angle_diff, angle_of
 from gameplay.match import Command, Match, PlayerState
+from gameplay.nav import grid_for
 
 
 @dataclass
@@ -21,6 +22,9 @@ class BotBrain:
     last_pos: Vec | None = None
     detour: Vec | None = None
     ability_ready_at: float = 0.0
+    path: list[Vec] = field(default_factory=list)
+    path_goal: Vec | None = None
+    path_time: float = -99.0
 
     def think(self, m: Match, dt: float) -> Command:
         p = m.players[self.pid]
@@ -167,9 +171,14 @@ class BotBrain:
                 self.goal = self._pick_site(m)
         if self.goal is None:
             return cmd
-        target = self.detour or self.goal
+        if self.path_goal is None or (self.path_goal - self.goal).length() > 0.5 or m.time - self.path_time > 3.0:
+            self.path = grid_for(m.world).path(p.pos, self.goal)
+            self.path_goal, self.path_time = self.goal, m.time
+        while self.path and (self.path[0] - p.pos).length() < 0.6:
+            self.path.pop(0)
+        target = self.detour or (self.path[0] if self.path else self.goal)
         to = target - p.pos
-        if to.length() < 1.0:
+        if to.length() < 1.0 and not self.path:
             if self.detour:
                 self.detour = None
             return cmd
@@ -184,8 +193,11 @@ class BotBrain:
         self.last_pos = p.pos
         if self.stuck_time > 0.4:
             side = 1 if self.rng.random() < 0.5 else -1
-            self.detour = p.pos + to.normalized().rotated(90 * side) * 4.0
+            self.detour = p.pos + to.normalized().rotated(90 * side) * 1.5
+            self.path_time = -99.0  # plan again after the sidestep
             self.stuck_time = 0.0
+        if self.detour is not None and (self.detour - p.pos).length() < 0.5:
+            self.detour = None
         return cmd
 
     def _pick_site(self, m: Match) -> Vec | None:

@@ -356,3 +356,13 @@ def test_drop_bomb_and_weapon_with_g() -> None:
     assert "primary" not in p.weapons and any(d.key == "hammer" for d in m.drops) and p.slot == "sidearm"
     m.tick(1 / 64, {a: Command(facing=0.0)})
     assert "primary" not in p.weapons  # not picked up again right away
+
+
+def test_nav_path_goes_around_walls() -> None:
+    from gameplay.nav import grid_for
+    world = load_map("werkhof")
+    grid = grid_for(world)
+    path = grid.path(Vec(24, 3), Vec(8, 33.5))
+    assert path and (path[-1] - Vec(8, 33.5)).length() < 0.01
+    points = [Vec(24, 3)] + path
+    assert all(grid.line_free(a, b) for a, b in zip(points, points[1:]))
