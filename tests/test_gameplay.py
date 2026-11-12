@@ -362,7 +362,8 @@ def test_nav_path_goes_around_walls() -> None:
     from gameplay.nav import grid_for
     world = load_map("werkhof")
     grid = grid_for(world)
-    path = grid.path(Vec(24, 3), Vec(8, 33.5))
-    assert path and (path[-1] - Vec(8, 33.5)).length() < 0.01
+    goal = grid.center(grid.nearest_free(grid.cell(Vec(8, 33.5))))  # site A, next to the platform
+    path = grid.path(Vec(24, 3), goal)
+    assert path and (path[-1] - goal).length() < 0.01
     points = [Vec(24, 3)] + path
     assert all(grid.line_free(a, b) for a, b in zip(points, points[1:]))
