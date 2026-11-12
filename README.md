@@ -28,7 +28,8 @@ Tests: `python -m pytest tests`.
 - [x] LAN and internet play via netplay (join code), dedicated server, client prediction
 - [x] Main menu, settings, agent select, HUD, minimap, scoreboard with ping, spectating
 - [ ] Played with a window and balanced
-- [ ] Real sounds
+- [x] Own sound effects; modes quick and team deathmatch; rejoin; team buy; aim preview
+- [x] Windows build with self test: `python build.py` → `dist/Val2d/Val2d.exe`
 - [ ] Internet tested across two real networks
 
 Detailed list: [roadmap.md](roadmap.md). The section below is the original plan from before the gameplay core and is kept as it was.

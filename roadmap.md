@@ -64,7 +64,7 @@ Status 12.11.2026. Items marked "(new core)" are done in the new gameplay core (
 - [x] Main Menu
 - [x] Animations – character sheet states from docs/design (graphy Aseprite export still open in graphy)
 - [x] small adjustments from local to server tolerance – client prediction with reconciliation
-- [ ] AFKing and Rejoins (a disconnected player is taken over by a bot; rejoin missing)
+- [x] AFKing and Rejoins (a bot plays for a dropped player; rejoin by token or same name, Enter on the client)
 - [ ] Replay System :>
 
 ## Can Wait
@@ -75,15 +75,22 @@ Status 12.11.2026. Items marked "(new core)" are done in the new gameplay core (
 - [x] Replace all DEFAULTS with settings, config, etc. (config/*.py, config/game_config.json, ~/.val2d/settings.json)
 - [x] More Weapons (20)
 - [x] More Agents (30)
-- [ ] More Gamemodes
+- [x] More Gamemodes (quick, team deathmatch, practice range)
 - [x] More Maps (Werkhof, Gasse, Harbour)
 - [x] The Range
 
+## Done 12.11.2026 (second pass)
+- [x] Own sound effects (tools/make_sounds.py, 52 WAVs) with stereo, distance and wall muffling
+- [x] Windows build: python build.py (dependency check, tests, Val2d.exe + Val2d-Server.exe, self test, zip)
+- [x] Ability aim preview (hold to aim, release to use, right click cancels)
+- [x] Fall damage (rules.json "fall")
+- [x] Round damage report, round history, combat score, MVP
+- [x] Team buy (request a weapon, buy for a teammate)
+- [x] Key bindings and crosshair settings
+
 ## Open
-- [ ] Real sounds (synthetic placeholders today)
 - [ ] Internet test across two real networks (Pakete/netplay/TESTING.md)
 - [ ] Relay for players behind strict routers
-- [ ] Rejoin after disconnect
 
 ## Maybe
 - [ ] Client sort of waiting for server response

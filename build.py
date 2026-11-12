@@ -13,13 +13,18 @@ import importlib
 import importlib.metadata as md
 import os
 import shutil
+import stat
 import subprocess
 import sys
+import tempfile
+import time
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-DIST, WORK = ROOT / "dist", ROOT / "build"
+DIST = ROOT / "dist"
+# PyInstaller's scratch folder lives outside the project: synced folders (OneDrive) lock files while it deletes them
+WORK = Path(tempfile.gettempdir()) / "val2d-build"
 NAME, SERVER = "Val2d", "Val2d-Server"
 
 # (import name, distribution name, install hint). Keep in sync with requirements.txt.
@@ -42,6 +47,23 @@ COLLECT = ["netplay", "networking", "gameplay"]
 def fail(message: str) -> None:
     print(f"\nBUILD FAILED: {message}")
     sys.exit(1)
+
+
+def remove_tree(path: Path) -> None:
+    """Delete a folder, retrying on files that a sync or virus scanner holds open for a moment."""
+    def unlock(func, target, _info):  # type: ignore[no-untyped-def]
+        os.chmod(target, stat.S_IWRITE)
+        func(target)
+    for attempt in range(6):
+        if not path.exists():
+            return
+        try:
+            shutil.rmtree(path, onerror=unlock)
+            return
+        except OSError:
+            time.sleep(0.5 * (attempt + 1))
+    if path.exists():
+        fail(f"cannot delete {path} – close programs using it (Explorer window, running game) and pause OneDrive sync")
 
 
 def check_dependencies() -> None:
@@ -112,7 +134,8 @@ def main() -> None:
     check_dependencies()
     if not args.skip_tests:
         run_tests()
-    shutil.rmtree(DIST, ignore_errors=True)
+    remove_tree(DIST)
+    remove_tree(WORK)
     pyinstaller("play.py", NAME, windowed=True)
     pyinstaller("server.py", SERVER, windowed=False)
     # one folder for players: the server exe and its own files go next to the game
@@ -122,7 +145,7 @@ def main() -> None:
         target = game_dir / "_internal" / item.name
         if not target.exists():
             (shutil.copytree if item.is_dir() else shutil.copy2)(item, target)
-    shutil.rmtree(server_dir)
+    remove_tree(server_dir)
     print("\nSelf test of the built game …")
     self_test(game_dir / f"{NAME}.exe")
     version = subprocess.run(["git", "describe", "--always", "--dirty"], cwd=ROOT, capture_output=True, text=True).stdout.strip() or "local"
