@@ -15,6 +15,7 @@ OBJECTS (map file: "objects": [{"key": "barrel", "pos": [x, y], "rot": 0}] or wi
   frames, fps   animation strip (optional); tiled  repeat over the rect instead of stretching
   buy_phase_only  blocks only during the buy phase (spawn barrier)
   door, open_tile  F within reach opens/closes it; open doors block nothing (all doors close at round start)
+  trunk    only this share of the size blocks (centred), e.g. trees; sight_only  blocks sight but not movement (bushes)
 DECALS (map file: "decals": [{"key": "crack", "rect": [...]}] or {"key": "arrow", "pos": [x, y], "rot": 90}):
   tile, size (w, h) metres, tiled; never block, drawn under objects and figures.
 Source: own design by Claude Code, 12.11.2026; tiles by the design session (docs/SPRITES.md).
@@ -28,6 +29,13 @@ WALLS: dict[str, dict] = {
     "crate_metal": dict(tile="maps/werkhof/kiste_metall.png", pen=1, sight=False, height=1),
     "werkhof_thick": dict(tile="maps/werkhof/wand.png", pen=2, sight=True, height=2),
     "werkhof_thin": dict(tile="maps/werkhof/wand_duenn.png", pen=0, sight=True, height=2),
+    "metal_sheet": dict(tile="maps/common/wall_metal_sheet.png", pen=1, sight=True, height=2),
+    "sandbags": dict(tile="maps/common/wall_sandbags.png", pen=1, sight=False, height=1),
+    "stone": dict(tile="maps/common/wall_stone.png", pen=3, sight=True, height=2),
+    "container": dict(tile="maps/common/wall_container.png", pen=2, sight=True, height=2),
+    "chainlink": dict(tile="maps/common/fence_chainlink.png", pen=0, sight=False, height=2),
+    "hedge": dict(tile="maps/common/wall_hedge.png", pen=0, sight=True, height=2),
+    "jersey_barrier": dict(tile="maps/common/wall_jersey_barrier.png", pen=2, sight=False, height=1),
 }
 
 FLOORS: dict[str, str] = {
@@ -38,6 +46,14 @@ FLOORS: dict[str, str] = {
     "sand": "maps/common/floor_sand.png",
     "dirt": "maps/common/floor_dirt.png",
     "stone_cracked": "maps/common/floor_stone_cracked.png",
+    "asphalt": "maps/common/floor_asphalt.png",
+    "metal_plate": "maps/common/floor_metal_plate.png",
+    "planks": "maps/common/floor_planks.png",
+    "carpet": "maps/common/floor_carpet.png",
+    "grass": "maps/common/floor_grass.png",
+    "gravel": "maps/common/floor_gravel.png",
+    "tiles_dark": "maps/common/floor_tiles_dark.png",
+    "cobble": "maps/common/floor_cobble.png",
 }
 
 OBJECTS: dict[str, dict] = {
@@ -53,6 +69,23 @@ OBJECTS: dict[str, dict] = {
     "lamp": dict(tile="maps/common/props/lamp.png", size=(1.0, 1.0), blocks=False),
     "bench": dict(tile="maps/common/props/bench.png", size=(2.0, 0.5), blocks=True, pen=0, sight=False, height=1),
     "debris": dict(tile="maps/common/props/debris.png", size=(0.62, 0.44), blocks=False),
+    "container_large": dict(tile="maps/common/props/container_large.png", size=(6.0, 2.0), blocks=True, pen=2, sight=True, height=2),
+    "car": dict(tile="maps/common/props/car.png", size=(4.0, 2.0), blocks=True, pen=1, sight=False, height=1),
+    "generator": dict(tile="maps/common/props/generator.png", size=(1.5, 1.0), blocks=True, pen=1, sight=False, height=1),
+    "dumpster": dict(tile="maps/common/props/dumpster.png", size=(2.0, 1.25), blocks=True, pen=1, sight=False, height=1),
+    "crate_stack": dict(tile="maps/common/props/crate_stack.png", size=(1.5, 1.5), blocks=True, pen=1, sight=True, height=2),
+    "vending_machine": dict(tile="maps/common/props/vending_machine.png", size=(1.0, 0.75), blocks=True, pen=1, sight=True, height=2),
+    "table": dict(tile="maps/common/props/table.png", size=(1.5, 1.0), blocks=True, pen=0, sight=False, height=1),
+    "chair": dict(tile="maps/common/props/chair.png", size=(0.5, 0.5), blocks=False),
+    "tree": dict(tile="maps/common/props/tree.png", size=(2.0, 2.0), blocks=True, pen=2, sight=False, height=2, trunk=0.3),
+    "bush": dict(tile="maps/common/props/bush.png", size=(1.0, 1.0), blocks=False, sight_only=True),
+    "rock": dict(tile="maps/common/props/rock.png", size=(1.0, 0.75), blocks=True, pen=3, sight=False, height=1),
+    "pipe": dict(tile="maps/common/props/pipe.png", size=(2.0, 0.5), blocks=True, pen=2, sight=False, height=1),
+    "pillar": dict(tile="maps/common/props/pillar.png", size=(1.0, 1.0), blocks=True, pen=3, sight=True, height=2),
+    "boxes_cardboard": dict(tile="maps/common/props/boxes_cardboard.png", size=(1.0, 0.75), blocks=True, pen=0, sight=False, height=1),
+    "trash_bin": dict(tile="maps/common/props/trash_bin.png", size=(0.5, 0.5), blocks=True, pen=0, sight=False, height=1),
+    "ladder": dict(tile="maps/common/props/ladder.png", size=(1.0, 2.0), blocks=False),
+    "warning_sign": dict(tile="maps/common/props/warning_sign.png", size=(0.75, 0.75), blocks=False),
 }
 
 DECALS: dict[str, dict] = {
@@ -65,4 +98,12 @@ DECALS: dict[str, dict] = {
     "site_a": dict(tile="maps/common/decals/site_a.png", size=(1.0, 1.0)),
     "site_b": dict(tile="maps/common/decals/site_b.png", size=(1.0, 1.0)),
     "site_c": dict(tile="maps/common/decals/site_c.png", size=(1.0, 1.0)),
+    "puddle": dict(tile="maps/common/decals/puddle.png", size=(2.0, 2.0)),
+    "tire_marks": dict(tile="maps/common/decals/tire_marks.png", size=(2.0, 2.0)),
+    "paint_line": dict(tile="maps/common/decals/paint_line.png", size=(2.0, 0.25), tiled=True),
+    "footprints": dict(tile="maps/common/decals/footprints.png", size=(1.0, 1.0)),
+    "grass_tuft": dict(tile="maps/common/decals/grass_tuft.png", size=(0.5, 0.25)),
+    "manhole": dict(tile="maps/common/decals/manhole.png", size=(1.0, 1.0)),
+    "leaves": dict(tile="maps/common/decals/leaves.png", size=(2.0, 2.0)),
+    "paint_x": dict(tile="maps/common/decals/paint_x.png", size=(1.0, 1.0)),
 }

@@ -165,7 +165,7 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
     layers += [("plattform", to_px(p.rect)) for p in world.platforms]
     layers += [("rampe", to_px(r)) for r in world.ramps]
     platform_rects = {p.rect for p in world.platforms}
-    object_rects = {o.rect for o in world.objects}
+    object_rects = {o.rect for o in world.objects} | {w.rect for w in world.walls if w.material.startswith("obj:")}
     for wall in world.walls:
         if wall.rect in platform_rects or wall.rect in object_rects:
             continue

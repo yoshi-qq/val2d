@@ -497,14 +497,16 @@ class Match:
     def drops_near(self, p: PlayerState) -> bool:
         return any((d.pos - p.pos).length() <= PICKUP_RANGE for d in self.drops)
 
-    def wall_active(self, w: Wall) -> bool:
-        """False for open doors and for spawn barriers outside the buy phase."""
+    def wall_active(self, w: Wall, for_sight: bool = False) -> bool:
+        """False for open doors, spawn barriers outside the buy phase, and (unless for sight) bushes."""
+        if not w.solid and not for_sight:
+            return False
         if w.buy_phase_only and self.phase != "buy":
             return False
         return not (w.door and w.rect in self.open_doors)
 
     def active_sight_walls(self, level: int) -> list[Wall]:
-        return [w for w in self.world.sight_walls(level) if self.wall_active(w)]
+        return [w for w in self.world.sight_walls(level) if self.wall_active(w, for_sight=True)]
 
     def _toggle_door(self, p: PlayerState) -> bool:
         """F press: open or close the nearest door within reach. True if a door moved."""
@@ -869,6 +871,23 @@ class Match:
                 from gameplay.geometry import segments_intersect
                 if segments_intersect(a, b, e.a, e.b):
                     return False
+        return True
+
+    def line_of_fire(self, shooter: PlayerState, target: PlayerState) -> bool:
+        """True if a bullet from the shooter's current weapon can get through to the target."""
+        d = self._weapon_def(shooter)
+        pen = d.penetration if d else 0
+        a, b = shooter.pos, target.pos
+        dist = (b - a).length()
+        if dist < 1e-6:
+            return True
+        u = (b - a) * (1.0 / dist)
+        for w in self.world.walls:
+            if w.height <= shooter.level or not self.wall_active(w):
+                continue
+            iv = w.rect.ray_interval(a, u)
+            if iv and iv[0] < dist and (w.penetration >= 3 or w.penetration > pen or iv[1] - iv[0] > 1.0 + pen):
+                return False
         return True
 
     def can_see(self, viewer: PlayerState, target: PlayerState) -> bool:

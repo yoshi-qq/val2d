@@ -1,0 +1,733 @@
+{
+  "name": "Harbour",
+  "source": "own design (Claude Code), 12.11.2026; container yard (A), car park (B), road in the middle; metres",
+  "width": 56,
+  "height": 44,
+  "floor": "asphalt",
+  "floors": [
+    {
+      "rect": [
+        0,
+        31,
+        14,
+        44
+      ],
+      "mat": "metal_plate"
+    },
+    {
+      "rect": [
+        42,
+        31,
+        56,
+        44
+      ],
+      "mat": "asphalt"
+    },
+    {
+      "rect": [
+        0,
+        13,
+        9,
+        30
+      ],
+      "mat": "grass"
+    },
+    {
+      "rect": [
+        48,
+        13,
+        56,
+        30
+      ],
+      "mat": "grass"
+    },
+    {
+      "rect": [
+        16,
+        0,
+        40,
+        6
+      ],
+      "mat": "cobble"
+    },
+    {
+      "rect": [
+        16,
+        38,
+        40,
+        44
+      ],
+      "mat": "planks"
+    },
+    {
+      "rect": [
+        9,
+        13,
+        47,
+        30
+      ],
+      "mat": "gravel"
+    }
+  ],
+  "walls": [
+    {
+      "rect": [
+        0,
+        12,
+        16,
+        13
+      ],
+      "mat": "container"
+    },
+    {
+      "rect": [
+        22,
+        12,
+        34,
+        13
+      ],
+      "mat": "metal_sheet"
+    },
+    {
+      "rect": [
+        40,
+        12,
+        56,
+        13
+      ],
+      "mat": "stone"
+    },
+    {
+      "rect": [
+        20,
+        30,
+        36,
+        31
+      ],
+      "mat": "chainlink"
+    },
+    {
+      "rect": [
+        14,
+        31,
+        15,
+        38
+      ],
+      "mat": "metal_sheet"
+    },
+    {
+      "rect": [
+        41,
+        31,
+        42,
+        37
+      ],
+      "mat": "hedge"
+    },
+    {
+      "rect": [
+        24,
+        19,
+        26,
+        20
+      ],
+      "mat": "jersey_barrier"
+    },
+    {
+      "rect": [
+        30,
+        23,
+        32,
+        24
+      ],
+      "mat": "jersey_barrier"
+    },
+    {
+      "rect": [
+        20,
+        21,
+        21,
+        25
+      ],
+      "mat": "sandbags"
+    },
+    {
+      "rect": [
+        35,
+        18,
+        36,
+        22
+      ],
+      "mat": "sandbags"
+    },
+    {
+      "rect": [
+        8,
+        18,
+        9,
+        26
+      ],
+      "mat": "stone"
+    },
+    {
+      "rect": [
+        47,
+        17,
+        48,
+        25
+      ],
+      "mat": "stone"
+    },
+    {
+      "rect": [
+        0,
+        30,
+        5,
+        31
+      ],
+      "mat": "brick"
+    },
+    {
+      "rect": [
+        8,
+        30,
+        14,
+        31
+      ],
+      "mat": "brick"
+    },
+    {
+      "rect": [
+        42,
+        30,
+        48,
+        31
+      ],
+      "mat": "brick"
+    },
+    {
+      "rect": [
+        51,
+        30,
+        56,
+        31
+      ],
+      "mat": "brick"
+    }
+  ],
+  "crates": [],
+  "platforms": [
+    [
+      0,
+      40,
+      6,
+      44
+    ]
+  ],
+  "ramps": [
+    [
+      6,
+      41,
+      8,
+      43
+    ]
+  ],
+  "sites": [
+    {
+      "name": "A",
+      "rect": [
+        1,
+        32,
+        13,
+        43
+      ]
+    },
+    {
+      "name": "B",
+      "rect": [
+        43,
+        32,
+        55,
+        43
+      ]
+    }
+  ],
+  "spawns": {
+    "0": [
+      [
+        28,
+        3
+      ],
+      [
+        24,
+        3
+      ],
+      [
+        32,
+        3
+      ],
+      [
+        20,
+        4
+      ],
+      [
+        36,
+        4
+      ]
+    ],
+    "1": [
+      [
+        28,
+        41
+      ],
+      [
+        24,
+        41
+      ],
+      [
+        32,
+        41
+      ],
+      [
+        20,
+        40
+      ],
+      [
+        36,
+        40
+      ]
+    ]
+  },
+  "spawn_zones": {
+    "0": [
+      16,
+      0,
+      40,
+      6
+    ],
+    "1": [
+      16,
+      38,
+      40,
+      44
+    ]
+  },
+  "callouts": [
+    {
+      "name": "Attacker Gate",
+      "rect": [
+        16,
+        0,
+        40,
+        6
+      ]
+    },
+    {
+      "name": "Defender Quay",
+      "rect": [
+        16,
+        38,
+        40,
+        44
+      ]
+    },
+    {
+      "name": "Road",
+      "rect": [
+        9,
+        13,
+        47,
+        30
+      ]
+    },
+    {
+      "name": "West Green",
+      "rect": [
+        0,
+        13,
+        9,
+        30
+      ]
+    },
+    {
+      "name": "East Green",
+      "rect": [
+        47,
+        13,
+        56,
+        30
+      ]
+    },
+    {
+      "name": "Container Yard",
+      "rect": [
+        0,
+        31,
+        14,
+        44
+      ]
+    },
+    {
+      "name": "Car Park",
+      "rect": [
+        42,
+        31,
+        56,
+        44
+      ]
+    },
+    {
+      "name": "South Yard",
+      "rect": [
+        0,
+        0,
+        56,
+        12
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "key": "spawn_barrier",
+      "rect": [
+        18,
+        6,
+        38,
+        6.5
+      ]
+    },
+    {
+      "key": "spawn_barrier",
+      "rect": [
+        18,
+        37.5,
+        38,
+        38
+      ]
+    },
+    {
+      "key": "container_large",
+      "pos": [
+        5,
+        34
+      ],
+      "rot": 0
+    },
+    {
+      "key": "container_large",
+      "pos": [
+        9,
+        40
+      ],
+      "rot": 90
+    },
+    {
+      "key": "crate_stack",
+      "pos": [
+        3,
+        38
+      ]
+    },
+    {
+      "key": "crate_stack",
+      "pos": [
+        11.5,
+        33
+      ]
+    },
+    {
+      "key": "car",
+      "pos": [
+        47,
+        34
+      ]
+    },
+    {
+      "key": "car",
+      "pos": [
+        52,
+        39
+      ],
+      "rot": 90
+    },
+    {
+      "key": "dumpster",
+      "pos": [
+        44,
+        40
+      ]
+    },
+    {
+      "key": "generator",
+      "pos": [
+        27,
+        27
+      ]
+    },
+    {
+      "key": "pipe",
+      "pos": [
+        16,
+        16
+      ],
+      "rot": 90
+    },
+    {
+      "key": "vending_machine",
+      "pos": [
+        33.5,
+        9
+      ]
+    },
+    {
+      "key": "trash_bin",
+      "pos": [
+        21,
+        9
+      ]
+    },
+    {
+      "key": "boxes_cardboard",
+      "pos": [
+        19,
+        3
+      ]
+    },
+    {
+      "key": "table",
+      "pos": [
+        38,
+        3
+      ]
+    },
+    {
+      "key": "chair",
+      "pos": [
+        38,
+        4.2
+      ]
+    },
+    {
+      "key": "chair",
+      "pos": [
+        39.4,
+        3
+      ]
+    },
+    {
+      "key": "tree",
+      "pos": [
+        4,
+        22
+      ]
+    },
+    {
+      "key": "tree",
+      "pos": [
+        52,
+        21
+      ]
+    },
+    {
+      "key": "bush",
+      "pos": [
+        5,
+        16
+      ]
+    },
+    {
+      "key": "bush",
+      "pos": [
+        51,
+        27
+      ]
+    },
+    {
+      "key": "bush",
+      "pos": [
+        12,
+        27
+      ]
+    },
+    {
+      "key": "rock",
+      "pos": [
+        44,
+        15
+      ]
+    },
+    {
+      "key": "pillar",
+      "pos": [
+        28,
+        15
+      ]
+    },
+    {
+      "key": "pillar",
+      "pos": [
+        28,
+        33
+      ]
+    },
+    {
+      "key": "ladder",
+      "pos": [
+        15.5,
+        40
+      ]
+    },
+    {
+      "key": "warning_sign",
+      "pos": [
+        17,
+        29
+      ]
+    },
+    {
+      "key": "door",
+      "pos": [
+        38,
+        30.5
+      ],
+      "rot": 0
+    },
+    {
+      "key": "barrel",
+      "pos": [
+        1.5,
+        14.5
+      ]
+    },
+    {
+      "key": "lamp",
+      "pos": [
+        28,
+        21
+      ]
+    },
+    {
+      "key": "cone",
+      "pos": [
+        23,
+        17
+      ]
+    },
+    {
+      "key": "cone",
+      "pos": [
+        33,
+        26
+      ]
+    }
+  ],
+  "decals": [
+    {
+      "key": "paint_line",
+      "rect": [
+        16,
+        21.6,
+        40,
+        21.85
+      ]
+    },
+    {
+      "key": "manhole",
+      "pos": [
+        28,
+        24
+      ]
+    },
+    {
+      "key": "tire_marks",
+      "rect": [
+        36,
+        25,
+        38,
+        27
+      ]
+    },
+    {
+      "key": "puddle",
+      "rect": [
+        10,
+        6,
+        12,
+        8
+      ]
+    },
+    {
+      "key": "leaves",
+      "rect": [
+        2,
+        20,
+        4,
+        22
+      ]
+    },
+    {
+      "key": "leaves",
+      "rect": [
+        50,
+        19,
+        52,
+        21
+      ]
+    },
+    {
+      "key": "grass_tuft",
+      "pos": [
+        6,
+        25
+      ]
+    },
+    {
+      "key": "grass_tuft",
+      "pos": [
+        50,
+        24
+      ]
+    },
+    {
+      "key": "footprints",
+      "pos": [
+        27,
+        10
+      ]
+    },
+    {
+      "key": "paint_x",
+      "pos": [
+        46,
+        37
+      ]
+    },
+    {
+      "key": "oil_stain",
+      "rect": [
+        48,
+        32,
+        50,
+        34
+      ]
+    },
+    {
+      "key": "hazard_stripe",
+      "rect": [
+        5,
+        31.2,
+        8,
+        31.7
+      ]
+    },
+    {
+      "key": "hazard_stripe",
+      "rect": [
+        48,
+        31.2,
+        51,
+        31.7
+      ]
+    }
+  ]
+}

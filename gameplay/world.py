@@ -21,6 +21,7 @@ class Wall:
     material: str = ""  # key in config/materials.py WALLS (decides the tile)
     buy_phase_only: bool = False  # blocks only during the buy phase (spawn barrier)
     door: bool = False  # can be opened; then it blocks nothing
+    solid: bool = True  # False: blocks only sight (bushes), never movement or bullets
 
 
 @dataclass(frozen=True)
@@ -90,7 +91,7 @@ class WorldMap:
 
     def blocking_walls(self, level: int) -> list[Wall]:
         """Walls that block movement on this level."""
-        return [w for w in self.walls if w.height > level]
+        return [w for w in self.walls if w.height > level and w.solid]
 
     def sight_walls(self, level: int) -> list[Wall]:
         return [w for w in self.walls if w.blocks_sight and w.height > level]
@@ -169,9 +170,17 @@ def parse_map(key: str, raw: dict) -> WorldMap:
             target.append(thing)
             spec = table[thing.key]
             if kind == "objects" and spec.get("blocks"):
-                m.walls.append(Wall(thing.rect, int(spec.get("pen", 1)), bool(spec.get("sight", True)),
-                                    int(spec.get("height", 2)), "", bool(spec.get("buy_phase_only", False)),
+                rect = thing.rect
+                share = float(spec.get("trunk", 1.0))
+                if share < 1.0:  # only the centre blocks (tree trunk)
+                    c = rect.center
+                    hw, hh = (rect.x1 - rect.x0) * share / 2, (rect.y1 - rect.y0) * share / 2
+                    rect = Rect(c.x - hw, c.y - hh, c.x + hw, c.y + hh)
+                m.walls.append(Wall(rect, int(spec.get("pen", 1)), bool(spec.get("sight", True)),
+                                    int(spec.get("height", 2)), "obj:" + thing.key, bool(spec.get("buy_phase_only", False)),
                                     bool(spec.get("door", False))))
+            elif kind == "objects" and spec.get("sight_only"):
+                m.walls.append(Wall(thing.rect, 0, True, 2, "obj:" + thing.key, False, False, False))
     m.floor = str(raw.get("floor", ""))
     m.floors = [(str(f["mat"]), _rect(f["rect"])) for f in raw.get("floors", [])]
     for b in raw.get("crates", []):

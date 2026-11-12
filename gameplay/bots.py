@@ -123,8 +123,8 @@ class BotBrain:
         for t in m.players.values():
             if t.team == p.team or not t.alive or t.level != p.level:
                 continue
-            if not m.can_see(p, t):
-                continue
+            if not m.can_see(p, t) or not m.line_of_fire(p, t):
+                continue  # seen but not hittable (e.g. behind low cover): keep moving instead of a standoff
             d = (t.pos - p.pos).length()
             if d < best_d:
                 best, best_d = t, d
@@ -151,16 +151,23 @@ class BotBrain:
     def _navigate(self, m: Match, p: PlayerState, dt: float, cmd: Command) -> Command:
         attack = m.side(p.team) == "attack"
         if attack:
-            if m.spike_carrier == p.pid:
-                site = self._pick_site(m)
+            site = self._pick_site(m, attacking=True)
+            if m.phase == "planted" and m.spike_pos is not None:
+                self.goal = self._guard_spot(m, p)
+                if (p.pos - self.goal).length() < 1.2:
+                    cmd.facing = angle_of(m.spike_pos - p.pos) if (m.spike_pos - p.pos).length() > 0.5 else p.facing
+                    return cmd
+            elif m.spike_carrier == p.pid:
                 self.goal = site
                 if m.world.site_at(p.pos) and m.phase == "live":
                     cmd.interact = True
                     return cmd
             elif m.spike_pos is not None and m.phase == "live":
                 self.goal = m.spike_pos
-            elif self.goal is None:
-                self.goal = self._pick_site(m)
+            else:
+                self.goal = site
+            if m.phase == "live" and site is not None and self.goal is not None and not self._may_push(m, p, site):
+                self.goal = self._staging(m, site)
         else:
             if m.phase == "planted" and m.spike_pos is not None:
                 self.goal = m.spike_pos
@@ -200,15 +207,49 @@ class BotBrain:
             self.detour = None
         return cmd
 
-    def _pick_site(self, m: Match) -> Vec | None:
+    def _pick_site(self, m: Match, attacking: bool = False) -> Vec | None:
+        """Defenders spread over the sites; attackers all take the same site this round."""
         if not m.world.sites:
             return None
         if m.spike_site:
             for s in m.world.sites:
                 if s.name == m.spike_site:
                     return s.rect.center
-        idx = (m.round_no + self.pid) % len(m.world.sites)
-        return m.world.sites[idx].rect.center
+        idx = (m.round_no * 7 + 3) % len(m.world.sites) if attacking else (m.round_no + self.pid) % len(m.world.sites)
+        site = m.world.sites[idx].rect.center
+        grid = grid_for(m.world)
+        return grid.center(grid.nearest_free(grid.cell(site)))
+
+    def _staging(self, m: Match, site: Vec) -> Vec:
+        """Gathering point about 10 m before the site, on the side of the attackers' spawn."""
+        zone = m.world.spawn_zones.get(0)
+        origin = zone.center if zone else site
+        away = (origin - site)
+        point = site + (away.normalized() * min(10.0, away.length() * 0.6) if away.length() > 0.1 else Vec(0, 0))
+        grid = grid_for(m.world)
+        return grid.center(grid.nearest_free(grid.cell(point)))
+
+    def _may_push(self, m: Match, p: PlayerState, site: Vec) -> bool:
+        """Push onto the site once enough attackers have gathered or the round is getting late."""
+        if m.phase_time_left() < 55.0:
+            return True
+        attackers = [t for t in m.players.values() if t.alive and m.side(t.team) == "attack"]
+        need = min(3, len(attackers))
+        stage = self._staging(m, site)
+        gathered = sum(1 for t in attackers if (t.pos - stage).length() < 7.0 or (t.pos - site).length() < (stage - site).length())
+        return gathered >= need
+
+    def _guard_spot(self, m: Match, p: PlayerState) -> Vec:
+        """After the plant: hold a spot 5-7 m from the bomb, spread by player id, with sight on it."""
+        assert m.spike_pos is not None
+        grid = grid_for(m.world)
+        angle = (self.pid * 77) % 360
+        for step in range(8):
+            spot = m.spike_pos + Vec(1, 0).rotated(angle + step * 45) * 6.0
+            cell = grid.cell(spot)
+            if grid.free(cell) and grid.line_free(spot, m.spike_pos):
+                return grid.center(cell)
+        return m.spike_pos
 
 
 class BotDirector:

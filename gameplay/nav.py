@@ -23,7 +23,7 @@ class NavGrid:
         self.rows = max(1, int(math.ceil(world.height / CELL)))
         self.blocked = [[False] * self.cols for _ in range(self.rows)]
         for w in world.walls:
-            if w.height <= 0 or w.buy_phase_only:
+            if w.height <= 0 or w.buy_phase_only or not w.solid:
                 continue  # spawn barriers open after the buy phase; closed doors count as walls for bots
             x0 = max(0, int((w.rect.x0 - RADIUS) / CELL))
             x1 = min(self.cols - 1, int((w.rect.x1 + RADIUS) / CELL))
