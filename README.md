@@ -19,7 +19,7 @@ Content (own designs): 10 agents in `config/agents.py`, 20 weapons in `config/we
 materials, objects and decals in `config/materials.py`. Tests: `python -m pytest tests`.
 
 ## Old roadmap (before the gameplay core)
- Available Content at the time
+### Available content at the time
 ### Game
 #### Game Modes
 - [ ] Range
