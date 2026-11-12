@@ -59,7 +59,7 @@ def recv_msg(sock: socket.socket) -> dict[str, Any] | None:
 
 
 # ------------------------------------------------------------------ Command validation
-_BOOL = ("fire", "walk", "crouch", "jump", "reload", "interact")
+_BOOL = ("fire", "alt_fire", "walk", "crouch", "jump", "reload", "interact")
 
 
 def command_from_json(raw: dict[str, Any]) -> Command:

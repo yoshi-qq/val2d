@@ -58,6 +58,10 @@ class WeaponDef:
     silenced: bool = False
     rate_ramp: tuple[float, float] | None = None  # (max_rate, seconds of held fire to reach it)
     category: str = ""  # buy-menu column
+    alt: tuple[tuple[str, Any], ...] = ()  # alternate fire settings (key, value) pairs; see config/weapons.py
+
+    def alt_get(self, key: str, default: Any = None) -> Any:
+        return dict(self.alt).get(key, default)
 
     def damage_at(self, distance: float, zone: str) -> int:
         idx = {"head": 1, "body": 2, "legs": 3}[zone]
@@ -148,6 +152,7 @@ def load_weapons() -> dict[str, WeaponDef]:
                 burst=bool(w.get("burst", False)), silenced=bool(w.get("silenced", False)),
                 rate_ramp=(float(w["rate_ramp"][0]), float(w["rate_ramp"][1])) if w.get("rate_ramp") else None,
                 category=str(w.get("category", w["slot"])),
+                alt=tuple(sorted(dict(w.get("alt") or {}).items())),
             )
         except (KeyError, TypeError, ValueError) as exc:
             warnings.warn(f"Weapon {key} skipped: {exc}")

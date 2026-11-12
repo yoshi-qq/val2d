@@ -262,3 +262,51 @@ def test_map_objects_block_and_spawn_barrier_only_in_buy_phase() -> None:
     for _ in range(64):
         match.tick(1 / 64, {a: Command(facing=0.0, move_y=1.0)})
     assert p.pos.y > 5.5
+
+
+def _armed(key: str) -> tuple[Match, int, int]:
+    m, a, b = duel()
+    run(m, 31)
+    p = m.players[a]
+    p.weapons["primary"] = m._new_weapon(key)
+    p.slot, p.equip_until = "primary", 0.0
+    return m, a, b
+
+
+def test_alt_burst_fires_a_burst_per_press() -> None:
+    m, a, _ = _armed("falke")
+    shots = 0
+    for i in range(40):
+        events = m.tick(1 / 64, {a: Command(facing=180.0, alt_fire=i < 2)})
+        shots += sum(1 for e in events if e.kind == "shot")
+    assert shots == 3
+
+
+def test_alt_zoom_reduces_spread_and_speed() -> None:
+    m, a, _ = _armed("elster")
+    p = m.players[a]
+    d = m.weapons["elster"]
+    p.vel = Vec(3.0, 0.0)
+    plain_spread, plain_speed = m.current_spread(p, d), m._max_speed(p)
+    m.tick(1 / 64, {a: Command(facing=180.0, alt_fire=True)})
+    p.vel = Vec(3.0, 0.0)
+    assert p.zoomed
+    assert m.current_spread(p, d) < plain_spread and m._max_speed(p) < plain_speed
+
+
+def test_alt_spread_shot_fires_three_pellets_for_one_round() -> None:
+    m, a, _ = duel()
+    run(m, 31)
+    p = m.players[a]
+    p.equip_until = 0.0
+    mag = p.weapon.mag
+    events = m.tick(1 / 64, {a: Command(facing=180.0, alt_fire=True)})
+    assert sum(1 for e in events if e.kind == "shot") == 3 and p.weapon.mag == mag - 1
+
+
+def test_alt_spin_fires_at_top_rate_immediately() -> None:
+    m, a, _ = _armed("walze")
+    shots = 0
+    for _ in range(64):
+        shots += sum(1 for e in m.tick(1 / 64, {a: Command(facing=180.0, alt_fire=True)}) if e.kind == "shot")
+    assert shots >= 15

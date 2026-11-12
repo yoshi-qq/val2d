@@ -179,6 +179,7 @@ class Game:
         self.bank = SpriteBank()
         self.chars = CharacterSprites(self.bank)
         self.map_surface = build_map_surface(self.match.world, self.bank, self.scale)
+        self.map_cache: dict[float, pygame.Surface | None] = {round(self.scale, 3): self.map_surface}
         self._crop: pygame.Surface | None = None
         self.local_facing = 0.0
         self.seen_round = -1
@@ -237,6 +238,7 @@ class Game:
                 me.facing = self.local_facing
                 self.cursor_depth = max(0.5, min(VIEW_METERS, self.cursor_depth - dy * 0.03))
                 cmd.fire = buttons[0]
+                cmd.alt_fire = buttons[2]
             cmd.facing = me.facing
             cmd.cursor_depth = self.cursor_depth
             cmd.move_y = (1 if keys[pygame.K_w] else 0) - (1 if keys[pygame.K_s] else 0)
@@ -248,6 +250,7 @@ class Game:
             for key, ab in ((pygame.K_c, "C"), (pygame.K_q, "Q"), (pygame.K_e, "E"), (pygame.K_x, "X")):
                 if keys[key]:
                     cmd.ability = ab
+            self.apply_zoom(me, cmd.alt_fire and not self.ui.buy_open)
             events = self.step(dt, cmd)
             if self.match.phase != "lobby" and not self.grabbed and not self.ui.buy_open:
                 self.grab(True)
@@ -268,6 +271,20 @@ class Game:
             self.session.close()
         if self.client:
             self.client.close()
+
+    def apply_zoom(self, me: PlayerState, holding_alt: bool) -> None:
+        """Camera zoom while a zoom weapon's alternate fire is held; map image cached per zoom level."""
+        d = self.match.weapons.get(me.weapon.key) if me.weapon else None
+        factor = float(d.alt_get("factor", 1.0)) if d and holding_alt and d.alt_get("kind") == "zoom" and me.alive else 1.0
+        scale = self.w / (VIEW_METERS / factor)
+        if abs(scale - self.scale) < 1e-6:
+            return
+        self.scale = scale
+        key = round(scale, 3)
+        if key not in self.map_cache:
+            self.map_cache[key] = build_map_surface(self.match.world, self.bank, scale)
+        self.map_surface = self.map_cache[key]
+        self._crop = None
 
     def step(self, dt: float, cmd: Command) -> list[GameEvent]:
         if self.mode == "local":

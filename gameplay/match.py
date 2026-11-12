@@ -54,6 +54,7 @@ class Command:
     facing: float | None = None  # compass angle in degrees
     cursor_depth: float = 8.0    # distance of the cursor ahead of the player (metres)
     fire: bool = False
+    alt_fire: bool = False       # right mouse button: alternate fire of the weapon
     walk: bool = False
     crouch: bool = False
     jump: bool = False
@@ -100,6 +101,11 @@ class PlayerState:
     fire_held: float = 0.0  # seconds of continuous fire (for rate_ramp)
     burst_left: int = 0
     prev_fire: bool = False
+    prev_alt: bool = False
+    zoomed: bool = False
+    burst_gap: float = 0.075
+    burst_cool: float = 0.0
+    burst_spread: float = 1.0
     charges: dict[str, int] = field(default_factory=dict)
     sig_timer: float = 0.0
     sig_kills: int = 0
@@ -382,6 +388,7 @@ class Match:
             if p.alive:
                 self._apply_command(p, cmd, dt)
             p.prev_fire = cmd.fire
+            p.prev_alt = cmd.alt_fire
             p.prev_ability = cmd.ability
         for p in self.players.values():
             if p.alive:
@@ -425,6 +432,8 @@ class Match:
             p.burst_left = 0
         if cmd.reload:
             self._start_reload(p)
+        d_now = self._weapon_def(p)
+        p.zoomed = bool(cmd.alt_fire and d_now and d_now.alt_get("kind") == "zoom" and p.reload_until <= self.time)
         busy = p.plant_progress > 0 or p.defuse_progress > 0
         # movement
         speed = self._max_speed(p)
@@ -484,6 +493,8 @@ class Match:
     def _max_speed(self, p: PlayerState) -> float:
         d = self._weapon_def(p)
         s = float(self._mv["run_speed"]) * (d.speed_mod if d else 1.0)
+        if p.zoomed and d:
+            s *= float(d.alt_get("speed_mult", 1.0))
         if p.crouching:
             s *= float(self._mv["crouch_mod"])
         elif p.walking:
@@ -558,7 +569,10 @@ class Match:
             return
         if self.time < p.equip_until or self.time < p.reload_until or self.time < p.next_shot:
             return
-        wants = cmd.fire and (d.auto or not p.prev_fire)
+        alt_kind = d.alt_get("kind")
+        alt_trigger = (alt_kind == "spin" and cmd.alt_fire) or \
+            (alt_kind in ("burst", "spread_shot") and cmd.alt_fire and not p.prev_alt)
+        wants = (cmd.fire and (d.auto or not p.prev_fire)) or alt_trigger
         if p.burst_left > 0:
             wants = True
         if not wants:
@@ -574,16 +588,27 @@ class Match:
         rate *= self._ult_ability(p, "rate_mult") if self.time < p.overdrive_until else 1.0
         if abilities.has(self, p, "stim"):
             rate *= abilities.rule(self, "stim_rate")
-        if d.burst:
+        if alt_trigger and alt_kind == "spin" and d.rate_ramp:
+            rate = d.rate_ramp[0] * (rate / max(d.rate, 1e-6))
+        if p.burst_left > 0 or d.burst or (alt_trigger and alt_kind == "burst"):
             if p.burst_left == 0:
-                p.burst_left = d.pellets
-                p.next_shot = self.time
+                if d.burst:
+                    p.burst_left, p.burst_gap, p.burst_cool, p.burst_spread = d.pellets, 0.075, 1.0 / rate, 1.0
+                else:
+                    p.burst_left = int(d.alt_get("count", 3))
+                    p.burst_gap = float(d.alt_get("interval", 0.06))
+                    p.burst_cool = float(d.alt_get("cooldown", 0.4))
+                    p.burst_spread = float(d.alt_get("spread_mult", 1.0))
             p.burst_left -= 1
-            p.next_shot = self.time + (0.075 if p.burst_left > 0 else 1.0 / rate)
-            self._fire_bullet(p, d, 1)
+            p.next_shot = self.time + (p.burst_gap if p.burst_left > 0 else p.burst_cool)
+            self._fire_bullet(p, d, 1, spread_mult=p.burst_spread)
+        elif alt_trigger and alt_kind == "spread_shot":
+            p.next_shot = self.time + float(d.alt_get("cooldown", 0.5))
+            self._fire_bullet(p, d, int(d.alt_get("pellets", 3)), extra_spread=float(d.alt_get("spread", 3.0)))
         else:
             p.next_shot = self.time + 1.0 / rate
-            self._fire_bullet(p, d, d.pellets)
+            extra = float(d.alt_get("spread_add", 0.0)) if alt_trigger and alt_kind == "spin" else 0.0
+            self._fire_bullet(p, d, d.pellets, extra_spread=extra)
         if d.is_gun:
             ws.mag -= 1
 
@@ -603,18 +628,21 @@ class Match:
             base += d.spread_first + p.spray
         if p.crouching:
             base *= 0.8
+        if p.zoomed:
+            base *= float(d.alt_get("spread_mult", 1.0))
         if abilities.has(self, p, "concuss"):
             base += abilities.rule(self, "concuss_spread")
         return base
 
-    def _fire_bullet(self, p: PlayerState, d: WeaponDef, pellets: int) -> None:
+    def _fire_bullet(self, p: PlayerState, d: WeaponDef, pellets: int, spread_mult: float = 1.0,
+                     extra_spread: float = 0.0) -> None:
         aim = heading(p.facing)
-        spread = self.current_spread(p, d)
+        spread = self.current_spread(p, d) * spread_mult + extra_spread
         loud = self._sound["silenced_radius"] if d.silenced else self._sound["shot_radius"]
         if d.is_gun:
             self.events.append(GameEvent("sound", self.time, {"pid": p.pid, "pos": (p.pos.x, p.pos.y), "radius": loud, "kind": "shot"}))
         for _ in range(pellets):
-            dev = spread if pellets == 1 else max(spread, d.spread_first)
+            dev = spread if pellets == 1 else max(spread, d.spread_first if not extra_spread else extra_spread)
             angle = self.rng.uniform(-dev, dev) if dev > 0 else 0.0
             self._trace(p, d, heading(p.facing + angle), aim)
         p.spray = min(d.spray_max, p.spray + d.spray_step)
