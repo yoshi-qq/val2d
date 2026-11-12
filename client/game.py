@@ -115,7 +115,8 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
         self.scoped = False      # sniper scope view
         self._prev_alt = False
         self._zoom_weapon = ""
-        self._ult_was_ready = True  # no ready sound for points carried into the match
+        self._ult_was_ready = True
+        self.recorded = False  # the finished match went into the match history  # no ready sound for points carried into the match
 
     def grab(self, on: bool) -> None:
         self.grabbed = on
@@ -253,6 +254,10 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
             self.handle_events(events)
             if self.match.players.get(self.me) is not None:
                 self.audio_tick(self.match.players[self.me])
+            if self.match.phase == "over" and not self.recorded and self.me in self.match.players:
+                from client import history
+                history.record(self.match, self.me, self.score_of)  # for the Career page
+                self.recorded = True
             self.draw()
             self.draw_overlay()
             pygame.display.flip()

@@ -262,7 +262,7 @@ class Editor:
 
 
 def main() -> None:
-    key = sys.argv[1] if len(sys.argv) > 1 else "gasse"
+    key = sys.argv[1] if len(sys.argv) > 1 else "alley"
     if not key.replace("_", "").isalnum():
         print("Map key: letters, digits and _ only")
         return

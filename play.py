@@ -1,6 +1,6 @@
 """Play Val2d: practice match against bots on the own game core (gameplay).
 
-Usage:  python play.py [--agent kestrel|marrow] [--team-size 1..5] [--rounds 13] [--map werkhof|gasse]
+Usage:  python play.py [--agent kestrel|marrow] [--team-size 1..5] [--rounds 13] [--map workyard|alley]
                         [--all-around] [--sound-rings]
 Network:  python play.py --host            open a match (host = player 1), Enter starts
           python play.py --find            find a match on the local network and join
@@ -35,7 +35,7 @@ def main() -> None:
     ap.add_argument("--agent", default="kestrel", help="agent key (file name in config/content/agents/)")
     ap.add_argument("--team-size", type=int, default=5, choices=range(1, 6))
     ap.add_argument("--rounds", type=int, default=13)
-    ap.add_argument("--map", default="werkhof")
+    ap.add_argument("--map", default="workyard")
     ap.add_argument("--all-around", action="store_true", help="Lobby rule: all-around sight")
     ap.add_argument("--sound-rings", action="store_true", help="Lobby rule: sound rings")
     ap.add_argument("--name", default="Player", help="Name in the match (up to 16 characters)")

@@ -526,4 +526,22 @@ class WorldViewMixin:
                        key=lambda p: p.pid)
         if not mates:
             return me
-        return mates[self.spectate_index % len(mates)]
+        return self.spectator_camera(mates[self.spectate_index % len(mates)])
+
+    def spectator_camera(self, target: PlayerState) -> PlayerState:
+        """A smoothed copy of the watched teammate for the camera: bots and remote players turn in jumps from tick to
+        tick, and rotating the whole screen with every jump looks like lag. The copy turns and moves smoothly toward
+        the real player (the real one is still drawn where it is)."""
+        from dataclasses import replace
+        now = self.match.time
+        state = getattr(self, "_spec", None)
+        if state is None or state[0] != target.pid or now < state[3] or now - state[3] > 1.0:
+            self._spec = (target.pid, target.facing, target.pos, now)  # new target: start where it is
+            return replace(target)
+        _, facing, pos, last = state
+        dt = now - last
+        turn = (target.facing - facing + 540.0) % 360.0 - 180.0
+        facing = (facing + turn * min(1.0, dt * 9.0)) % 360.0
+        pos = pos + (target.pos - pos) * min(1.0, dt * 14.0)
+        self._spec = (target.pid, facing, pos, now)
+        return replace(target, facing=facing, pos=pos)

@@ -7,7 +7,7 @@ from gameplay.world import load_map
 
 
 def duel() -> tuple[Match, int, int]:
-    m = Match(load_map("werkhof"), seed=3)
+    m = Match(load_map("workyard"), seed=3)
     a = m.add_player("A", 0, "kestrel").pid
     b = m.add_player("B", 1, "kestrel").pid
     m.start()

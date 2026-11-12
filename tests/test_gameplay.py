@@ -45,7 +45,7 @@ def test_hitzone_miss_outside_body_and_other_level() -> None:
 
 
 def duel(seed: int = 1) -> tuple[Match, int, int]:
-    m = Match(load_map("werkhof"), seed=seed)
+    m = Match(load_map("workyard"), seed=seed)
     a = m.add_player("A", 0, "kestrel").pid
     b = m.add_player("B", 1, "marrow").pid
     m.start()
@@ -194,7 +194,7 @@ def test_weapons_complete() -> None:
 
 
 def test_bot_match_runs_to_end() -> None:
-    m = Match(load_map("werkhof"), seed=3)
+    m = Match(load_map("workyard"), seed=3)
     for i in range(5):
         m.add_player(f"Bot A{i}", 0, "kestrel" if i % 2 else "marrow", is_bot=True)
         m.add_player(f"Bot B{i}", 1, "marrow" if i % 2 else "kestrel", is_bot=True)
@@ -237,14 +237,14 @@ def test_rate_ramp_speeds_up_held_fire() -> None:
 
 
 def test_map_materials_set_wall_properties() -> None:
-    m = load_map("gasse")
+    m = load_map("alley")
     glass = [w for w in m.walls if w.material == "glass"]
     assert glass and not glass[0].blocks_sight and glass[0].height == 2 and glass[0].penetration == 0
     assert m.floor == "concrete" and any(mat == "tiles" for mat, _ in m.floors)
 
 
 def test_map_objects_block_and_spawn_barrier_only_in_buy_phase() -> None:
-    m = load_map("gasse")
+    m = load_map("alley")
     keys = {o.key for o in m.objects}
     assert {"door", "barrel", "spawn_barrier", "bench"} <= keys and m.decals
     barrier_walls = [w for w in m.walls if w.buy_phase_only]
@@ -313,7 +313,7 @@ def test_alt_spin_fires_at_top_rate_immediately() -> None:
 
 
 def test_door_opens_with_f_and_lets_players_through() -> None:
-    m = Match(load_map("gasse"), seed=1)
+    m = Match(load_map("alley"), seed=1)
     a = m.add_player("A", 0, "kestrel").pid
     m.add_player("B", 1, "kestrel")
     m.start()
@@ -360,7 +360,7 @@ def test_drop_bomb_and_weapon_with_g() -> None:
 
 def test_nav_path_goes_around_walls() -> None:
     from gameplay.nav import grid_for
-    world = load_map("werkhof")
+    world = load_map("workyard")
     grid = grid_for(world)
     goal = grid.center(grid.nearest_free(grid.cell(Vec(8, 33.5))))  # site A, next to the platform
     path = grid.path(Vec(24, 3), goal)
@@ -416,7 +416,7 @@ def test_damage_report_history_and_combat_score() -> None:
 
 
 def test_team_buy_request_and_gift() -> None:
-    m = Match(load_map("werkhof"), seed=1)
+    m = Match(load_map("workyard"), seed=1)
     a = m.add_player("A", 0, "kestrel").pid
     b = m.add_player("B", 0, "marrow").pid
     m.add_player("E", 1, "kestrel")
@@ -432,13 +432,13 @@ def test_team_buy_request_and_gift() -> None:
 
 
 def test_quick_mode_short_match() -> None:
-    m = Match(load_map("gasse"), seed=1)
+    m = Match(load_map("alley"), seed=1)
     m.set_mode("quick")
     assert m.win_rounds == 4 and not m.overtime and int(m._r["half_after"]) == 3
 
 
 def test_deathmatch_respawns_and_kill_limit() -> None:
-    m = Match(load_map("werkhof"), seed=1)
+    m = Match(load_map("workyard"), seed=1)
     a = m.add_player("A", 0, "kestrel").pid
     b = m.add_player("B", 1, "kestrel").pid
     m.set_mode("deathmatch")

@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def setup(spec: dict) -> tuple[Match, int, int]:
-    m = Match(load_map("werkhof"), seed=2)
+    m = Match(load_map("workyard"), seed=2)
     m.agents = {**m.agents, "test": spec}
     a = m.add_player("A", 0, "test").pid
     b = m.add_player("B", 1, "kestrel").pid

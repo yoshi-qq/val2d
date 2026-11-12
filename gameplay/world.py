@@ -59,6 +59,7 @@ class WorldMap:
     spawn_zones: dict[int, Rect] = field(default_factory=dict)
     callouts: list[tuple[str, Rect]] = field(default_factory=list)
     floor: str = ""  # key in config/content/materials.py FLOORS for the whole map
+    art: str = ""    # folder under assets/maps with the map's own tiles (defaults to the key)
     floors: list[tuple[str, Rect]] = field(default_factory=list)  # floor material patches
     objects: list[MapThing] = field(default_factory=list)
     practice_targets: list[tuple[Vec, float]] = field(default_factory=list)  # (position, sideways travel in m)
@@ -252,6 +253,7 @@ def parse_map(key: str, raw: dict) -> WorldMap:
                 m.walls.append(Wall(thing.rect, 0, True, 2, "obj:" + thing.key, False, False, False))
     m.practice_targets = [(Vec(*t["pos"]), float(t.get("move", 0.0))) for t in raw.get("practice_targets", [])]
     m.floor = str(raw.get("floor", ""))
+    m.art = str(raw.get("art", key))
     m.floors = [(str(f["mat"]), _rect(f["rect"])) for f in raw.get("floors", [])]
     for b in raw.get("crates", []):
         m.walls.append(Wall(_rect(b), 1, False, 1))

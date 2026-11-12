@@ -1,5 +1,6 @@
 {
   "name": "Workyard",
+  "art": "werkhof",
   "source": "Claude Code, 11.11.2026; dimensions in metres",
   "width": 48,
   "height": 40,
@@ -92,6 +93,24 @@
         22
       ],
       "pen": 3,
+      "mat": "concrete"
+    },
+    {
+      "rect": [
+        12,
+        8,
+        36,
+        9
+      ],
+      "mat": "concrete"
+    },
+    {
+      "rect": [
+        12,
+        30,
+        36,
+        31
+      ],
       "mat": "concrete"
     }
   ],

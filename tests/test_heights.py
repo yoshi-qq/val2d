@@ -29,7 +29,7 @@ def walk(m: Match, pid: int, facing: float, seconds: float) -> list[float]:
 
 
 def setup() -> tuple[Match, int]:
-    m = Match(load_map("werkhof"), seed=1)
+    m = Match(load_map("workyard"), seed=1)
     pid = m.add_player("A", 0, "kestrel").pid
     m.start()
     for _ in range(31 * 64):

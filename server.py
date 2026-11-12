@@ -1,6 +1,6 @@
 """Val2d as a dedicated server process (no window).
 
-Usage:  python server.py [--map werkhof] [--team-size 5] [--rounds 13] [--players 2] [--port 9009]
+Usage:  python server.py [--map workyard] [--team-size 5] [--rounds 13] [--players 2] [--port 9009]
 The match starts once --players humans have joined or --start-after seconds have passed;
 bots fill free slots. Players join with  python play.py --join <address>.
 """
@@ -31,7 +31,7 @@ def build_match(map_key: str, rounds: int, team_size: int, all_around: bool, sou
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Val2d server without a window")
-    ap.add_argument("--map", default="werkhof")
+    ap.add_argument("--map", default="workyard")
     ap.add_argument("--team-size", type=int, default=5, choices=range(1, 6))
     ap.add_argument("--rounds", type=int, default=13)
     ap.add_argument("--players", type=int, default=2, help="Start once this many humans have joined")

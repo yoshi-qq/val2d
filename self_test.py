@@ -66,7 +66,7 @@ def run(report: Path | None = None) -> bool:
         chars = CharacterSprites(bank)
         for agent in load_agents():
             assert chars.frame(agent, "idle", False, 32, 0.0) is not None, f"idle sprite of {agent}"
-        assert build_map_surface(load_map("werkhof"), bank, 16) is not None
+        assert build_map_surface(load_map("workyard"), bank, 16) is not None
         return f"{len(load_agents())} agent sprite sets"
 
     def sounds() -> str:
@@ -79,7 +79,7 @@ def run(report: Path | None = None) -> bool:
         from gameplay.bots import BotDirector
         from gameplay.match import Match
         from gameplay.world import load_map
-        m = Match(load_map("gasse"), seed=1)
+        m = Match(load_map("alley"), seed=1)
         m.add_player("A", 0, "kestrel", is_bot=True)
         m.add_player("B", 1, "marrow", is_bot=True)
         bots = BotDirector(m, seed=1)

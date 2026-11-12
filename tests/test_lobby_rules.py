@@ -8,7 +8,7 @@ from gameplay.world import load_map
 
 
 def lobby() -> tuple[Match, int, int]:
-    m = Match(load_map("werkhof"), seed=5)
+    m = Match(load_map("workyard"), seed=5)
     a = m.add_player("A", 0, "kestrel").pid
     b = m.add_player("B", 1, "kestrel", is_bot=True).pid
     return m, a, b
@@ -70,7 +70,7 @@ def test_rules_reach_the_client() -> None:
     host, _, _ = lobby()
     host.set_rules(allow_cheats=True, bullet_tracers=True, all_around_sight=True)
     host.start()
-    client = Match(load_map("werkhof"))
+    client = Match(load_map("workyard"))
     apply_snapshot(client, host.snapshot(), own_pid=1)
     assert client.cheat("bullet_tracers") and client.cfg.lobby.all_around_sight
 

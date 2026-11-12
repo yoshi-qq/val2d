@@ -15,5 +15,5 @@ PATCH = {
     "armor": {"schwer": {"price": 1050}},
     "statuses": {"slow": {"speed": 0.6}},
     "rules": {"economy": {"start": 800}},
-    "maps": {"werkhof": {"add": {"crates": [[23, 19, 25, 21]]}}},
+    "maps": {"workyard": {"add": {"crates": [[23, 19, 25, 21]]}}},
 }

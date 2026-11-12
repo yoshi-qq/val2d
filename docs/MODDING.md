@@ -35,7 +35,7 @@ PATCH = {
     "statuses": {"slow": {"speed": 0.6}, "frozen": {"speed": 0.1}},   # new statuses too
     "rules":    {"economy": {"start": 900}},
     "settings": {"hit_zones": {"head_half_width": 0.27}},
-    "maps":     {"werkhof": {"set": {"name": "Workyard"}, "add": {"crates": [[20, 20, 22, 22]]},
+    "maps":     {"workyard": {"set": {"name": "Workyard"}, "add": {"crates": [[20, 20, 22, 22]]},
                              "remove": {"crates": [[30, 10, 32, 12]]}}},
 }
 ```

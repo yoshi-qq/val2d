@@ -8,7 +8,7 @@
 pip install -r requirements.txt
 python play.py                 # main menu: practice vs bots, host LAN or online, join, settings
 python server.py --online      # dedicated server with a join code (LAN without --online)
-python map_editor.py gasse     # map editor for gameplay/data/maps/*.json
+python map_editor.py alley     # map editor for gameplay/data/maps/*.json
 ```
 
 Controls: WASD run · Shift walk · Ctrl crouch · Space jump · mouse turn and aim depth · left click fire · right click

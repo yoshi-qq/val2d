@@ -13,7 +13,7 @@ from client.game import Game  # noqa: E402
 
 
 def args(**over: object) -> argparse.Namespace:
-    base = dict(agent="kestrel", team_size=2, rounds=13, map="werkhof", all_around=False, sound_rings=False, name="Tester",
+    base = dict(agent="kestrel", team_size=2, rounds=13, map="workyard", all_around=False, sound_rings=False, name="Tester",
                 host=False, host_online=False, join=None, find=False, port=9009, no_menu=True, practice=False,
                 mode="standard", online=False)
     base.update(over)
@@ -34,7 +34,7 @@ def test_menu_opens_and_lists_maps() -> None:
     screen = pygame.display.set_mode((1280, 720))
     font = pygame.font.Font(None, 22)
     menu = MainMenu(screen, font, font, args())
-    assert "werkhof" in menu.maps
+    assert "workyard" in menu.maps
     menu.draw()
 
 
@@ -186,3 +186,18 @@ def test_match_over_has_a_back_to_menu_button() -> None:
     game.match.phase = "over"
     game.draw()
     assert any(h.action == "to_menu" for h in game.kit.hits)
+
+
+def test_spectator_camera_turns_smoothly() -> None:
+    game = Game(args(team_size=3))
+    game.match.start()
+    game.match.phase, game.match.phase_until = "live", game.match.time + 100
+    me = game.match.players[game.me]
+    game.match._kill(None, me, "test", "body")
+    first = game.view_player(me)
+    mate = game.match.players[first.pid]
+    mate.facing = (first.facing + 170.0) % 360.0  # the teammate snaps round
+    game.match.time += 1 / 60
+    cam = game.view_player(me)
+    turned = abs((cam.facing - first.facing + 540) % 360 - 180)
+    assert 0 < turned < 60, "the camera follows, but not in one jump"

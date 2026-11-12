@@ -16,7 +16,7 @@ KINDS = {"smoke", "wall", "flash", "zone", "blast", "wave", "sensor", "alarm", "
 
 
 def setup(agent_a: str = "kestrel", agent_b: str = "kestrel") -> tuple[Match, int, int]:
-    m = Match(load_map("werkhof"), seed=2)
+    m = Match(load_map("workyard"), seed=2)
     a = m.add_player("A", 0, agent_a).pid
     b = m.add_player("B", 1, agent_b).pid
     m.start()
@@ -129,7 +129,7 @@ def test_tripwire_detains_crossing_enemy() -> None:
 
 
 def test_revive_brings_back_fallen_ally() -> None:
-    m = Match(load_map("werkhof"), seed=1)
+    m = Match(load_map("workyard"), seed=1)
     a = m.add_player("A", 0, "harrow").pid
     c = m.add_player("C", 0, "kestrel").pid
     m.add_player("B", 1, "kestrel")

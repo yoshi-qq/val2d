@@ -32,7 +32,16 @@ ROLE_ORDER = ("Duelist", "Initiator", "Controller", "Sentinel")
 
 
 def map_keys() -> list[str]:
-    return world_map_keys() or ["werkhof"]
+    return world_map_keys() or ["workyard"]
+
+
+def map_name(key: str) -> str:
+    """Display name of a map (its "name"), the key if the file cannot be read."""
+    from gameplay.world import load_map_raw
+    try:
+        return str(load_map_raw(key).get("name", key))
+    except (OSError, ValueError):
+        return key
 
 
 class MainMenu:
@@ -45,6 +54,7 @@ class MainMenu:
         if not hasattr(self.args, "mode"):
             self.args.mode = "standard"
         self.maps = map_keys()
+        self.map_names = {k: map_name(k) for k in self.maps}
         if self.args.map not in self.maps:
             self.args.map = self.maps[0]
         self.address = ""
@@ -57,6 +67,7 @@ class MainMenu:
         self.dialog = ""              # "" or "quit"
         self.panel = SettingsPanel(self.ui)
         self.settings = self.panel.settings
+        self.career_match: int | None = None  # match shown in detail on the Career page
         self.agent_view = getattr(self.args, "agent", "kestrel")
         self.apply_settings()
 
@@ -138,6 +149,8 @@ class MainMenu:
             self.panel.close()
             self.apply_settings()
             self.view = "main"
+        elif self.career_match is not None:
+            self.career_match = None
         elif self.tab != "play":
             self.tab = "play"
         elif self.play_mode == "custom":
@@ -205,6 +218,10 @@ class MainMenu:
             a.team_size = int(action[5:])
         elif action.startswith("rounds:"):
             a.rounds = int(action[7:])
+        elif action.startswith("career:"):
+            self.career_match = int(action[7:])
+        elif action == "career_back":
+            self.career_match = None
         elif action.startswith("agent:"):
             self.agent_view = action[6:]
         elif action == "pick_agent":
@@ -288,7 +305,7 @@ class MainMenu:
             ui.text("Map", (w // 2, h - 168), "xs", "muted", "center", upper=True)
             ui.button(pygame.Rect(w // 2 - 170, h - 148, 40, 36), "<", "map_prev", size="s")
             ui.fill(pygame.Rect(w // 2 - 126, h - 148, 252, 36), "panel")
-            ui.text(a.map, (w // 2, h - 140), "m", "text", "center", upper=True, bold=True)
+            ui.text(self.map_names.get(a.map, a.map), (w // 2, h - 140), "m", "text", "center", upper=True, bold=True)
             ui.button(pygame.Rect(w // 2 + 130, h - 148, 40, 36), ">", "map_next", size="s")
         ui.button(pygame.Rect(w // 2 - 170, h - 96, 340, 64), "Start", "start", primary=True, size="xl")
         ui.text("Rounds, overtime and cheats are set in the lobby", (w // 2, h - 26), "xs", "muted", "center", upper=True)
@@ -337,11 +354,11 @@ class MainMenu:
         host = pygame.Rect(w // 2 - 470, 160, 440, 280)
         ui.panel(host, "panel", edge="top")
         ui.text("Host", (host.x + 24, host.y + 20), "l", "text", upper=True, bold=True, kind="title")
-        ui.text(f"Map {self.args.map} · lobby rules are set in the lobby", (host.x + 24, host.y + 66), "xs", "muted", upper=True)
+        ui.text(f"Map {self.map_names.get(self.args.map, self.args.map)} · lobby rules are set in the lobby", (host.x + 24, host.y + 66), "xs", "muted", upper=True)
         ui.button(pygame.Rect(host.x + 24, host.y + 110, 392, 48), "Host LAN match", "host", primary=True)
         ui.button(pygame.Rect(host.x + 24, host.y + 170, 392, 48), "Host online (join code)", "host_online")
         ui.button(pygame.Rect(host.x + 24, host.y + 228, 40, 36), "<", "map_prev", size="s")
-        ui.text(self.args.map, (host.x + 220, host.y + 236), "s", "text", "center", upper=True, bold=True)
+        ui.text(self.map_names.get(self.args.map, self.args.map), (host.x + 220, host.y + 236), "s", "text", "center", upper=True, bold=True)
         ui.button(pygame.Rect(host.right - 64, host.y + 228, 40, 36), ">", "map_next", size="s")
         join = pygame.Rect(w // 2 + 30, 160, 440, 280)
         ui.panel(join, "panel", edge="top")
@@ -358,23 +375,98 @@ class MainMenu:
             ui.button(pygame.Rect(join.x + 24, join.y + 180 + i * 32, 392, 28), f"{host_name}  {address}", f"lan:{i}", size="xs")
 
     def draw_career(self, w: int, h: int) -> None:
-        """Career page: patch notes of the active balance patches (config/patches); match history is not recorded yet."""
+        """Career page like the real one: totals on top, the match history as rows (click one for its scoreboard),
+        patch notes of the active balance patches on the right."""
+        from client import history
         from gameplay.patches import notes
-        ui = self.ui
+        ui, s = self.ui, self.screen
+        data = list(reversed(history.load()))
+        if self.career_match is not None and 0 <= self.career_match < len(data):
+            self.draw_match_scoreboard(data[self.career_match], w, h)
+            return
         ui.text("Career", (40, 84), "xl", "text", upper=True, bold=True, kind="title")
-        ui.text("Patch notes", (42, 150), "m", "text", upper=True, bold=True)
+        tot = history.summary(data)
+        stats = (("Matches", str(tot["played"])), ("Wins", str(tot["wins"])), ("Win rate", f"{tot['win_rate']:.0f} %"),
+                 ("K / D", f"{tot['kd']:.2f}"), ("Kills", str(tot["kills"])),
+                 ("Most played", self.agents().get(tot["favourite"], {}).get("name", "-") if tot["favourite"] else "-"))
+        for i, (label, value) in enumerate(stats):
+            r = pygame.Rect(40 + i * 140, 150, 130, 64)
+            ui.fill(r, "panel")
+            ui.text(value, (r.x + 12, r.y + 8), "m", "text", bold=True)
+            ui.text(label, (r.x + 12, r.y + 38), "xs", "muted", upper=True)
+        ui.text("Match history", (40, 238), "s", "muted", upper=True)
+        if not data:
+            ui.text("No matches yet. Finished matches against bots or online appear here.", (40, 266), "s", "muted")
+        y = 264
+        for i, d in enumerate(data[:9]):
+            r = pygame.Rect(40, y, 820, 42)
+            hover = r.collidepoint(pygame.mouse.get_pos())
+            won = d.get("won")
+            ui.fill(r, "panel_light" if hover else "panel")
+            pygame.draw.rect(s, color("ally" if won else "enemy" if won is False else "muted"), (r.x, r.y, 4, r.h))
+            pic = self.bank.scaled(f"agents/{d.get('agent')}/{d.get('agent')}_killfeed.png", (30, 30))
+            if pic is not None:
+                s.blit(pic, (r.x + 12, r.y + 6))
+            me = next((p for p in d.get("players", []) if p.get("me")), {})
+            ui.text("Victory" if won else "Defeat" if won is False else "Draw", (r.x + 54, r.y + 12), "s",
+                    "ally" if won else "enemy" if won is False else "muted", upper=True, bold=True)
+            ui.text(f"{d['score'][0]} : {d['score'][1]}", (r.x + 190, r.y + 12), "s", "text", bold=True)
+            ui.text(f"{d.get('map_name', d.get('map', ''))} · {d.get('mode', '')}", (r.x + 280, r.y + 12), "xs", "muted", upper=True)
+            ui.text(f"{me.get('kills', 0)} / {me.get('deaths', 0)} · {me.get('score', 0)}", (r.x + 560, r.y + 12), "s", "text")
+            ui.text(str(d.get("when", ""))[:16].replace("T", " ") + " UTC", (r.right - 12, r.y + 13), "xs", "muted", "right")
+            ui.area(r, f"career:{i}")
+            y += 48
+        px = 900
+        ui.text("Patch notes", (px, 238), "s", "muted", upper=True)
         active = notes()
+        y = 266
         if not active:
-            ui.text("No balance patches active (config/patches).", (42, 184), "s", "muted")
-        y = 184
+            ui.text("No balance patches (config/patches).", (px, y), "xs", "muted")
         for version, text in reversed(active):
-            ui.text(f"Patch {version}", (42, y), "s", "accent", upper=True, bold=True)
-            y += 24
-            for ln in ui.wrap(text or "(no notes)", "s", w - 120):
-                ui.text(ln, (42, y), "s", "text")
-                y += 20
-            y += 14
-        ui.text("Match history is not recorded yet.", (42, h - 40), "xs", "muted", upper=True)
+            ui.text(f"Patch {version}", (px, y), "s", "accent", upper=True, bold=True)
+            y += 22
+            for ln in ui.wrap(text or "(no notes)", "xs", w - px - 30):
+                ui.text(ln, (px, y), "xs", "text")
+                y += 18
+            y += 12
+
+    def draw_match_scoreboard(self, d: dict, w: int, h: int) -> None:
+        """The stored final scoreboard of one match (Tab scoreboard of that match)."""
+        ui, s = self.ui, self.screen
+        won = d.get("won")
+        ui.text("Victory" if won else "Defeat" if won is False else "Draw", (w // 2, 80), "xxl",
+                "ally" if won else "enemy" if won is False else "muted", "center", upper=True, bold=True, kind="title")
+        ui.text(f"{d['score'][0]} : {d['score'][1]} · {d.get('map_name', '')} · {d.get('mode', '')} · "
+                f"{str(d.get('when', ''))[:16].replace('T', ' ')} UTC", (w // 2, 156), "s", "muted", "center", upper=True)
+        x, y = w // 2 - 380, 196
+        for label, cx in (("Player", 44), ("Agent", 250), ("K", 420), ("D", 480), ("Score", 540)):
+            ui.text(label, (x + cx, y), "xs", "muted", upper=True)
+        y += 22
+        for own in (True, False):
+            for p in (p for p in d.get("players", []) if p.get("own_team") == own):
+                r = pygame.Rect(x, y, 760, 32)
+                ui.fill(r, "panel_light" if p.get("me") else "panel")
+                tint = color("ally" if own else "enemy")
+                band = pygame.Surface(r.size, pygame.SRCALPHA)
+                band.fill((tint.r, tint.g, tint.b, 46))
+                s.blit(band, r.topleft)
+                pygame.draw.rect(s, tint, (r.x, r.y, 4, r.h))
+                pic = self.bank.scaled(f"agents/{p.get('agent')}/{p.get('agent')}_killfeed.png", (24, 24))
+                if pic is not None:
+                    s.blit(pic, (r.x + 12, r.y + 4))
+                ui.text(p.get("name", ""), (r.x + 44, r.y + 8), "s", "gold" if p.get("me") else "text", bold=bool(p.get("me")))
+                ui.text(self.agents().get(p.get("agent"), {}).get("name", p.get("agent", "")), (r.x + 250, r.y + 9), "xs", "muted",
+                        upper=True)
+                ui.text(str(p.get("kills", 0)), (r.x + 420, r.y + 8), "s", "text", bold=True)
+                ui.text(str(p.get("deaths", 0)), (r.x + 480, r.y + 8), "s", "text")
+                ui.text(str(p.get("score", 0)), (r.x + 540, r.y + 8), "s", "text")
+                y += 36
+            y += 12
+        hx = w // 2 - len(d.get("history", [])) * 14
+        for won_round, _ in d.get("history", []):
+            pygame.draw.rect(s, color("ally" if won_round else "enemy"), (hx, h - 110, 22, 6))
+            hx += 28
+        ui.button(pygame.Rect(w // 2 - 120, h - 80, 240, 44), "Back", "career_back", size="s")
 
 
 

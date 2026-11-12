@@ -36,7 +36,7 @@ def _wait(condition: Callable[[], bool], session: HostSession | None = None, tim
 
 @pytest.fixture
 def session() -> HostSession:
-    s = HostSession(Match(load_map("werkhof"), seed=1), "Test host", _free_port())
+    s = HostSession(Match(load_map("workyard"), seed=1), "Test host", _free_port())
     yield s
     s.close()
 
@@ -54,7 +54,7 @@ def test_command_from_json_clamps_and_drops_junk() -> None:
 def test_client_joins_receives_snapshot_and_moves(session: HostSession) -> None:
     client = NetClient(f"127.0.0.1:{session.net.port}", "Guest", "marrow")
     try:
-        assert client.map_key == "werkhof"
+        assert client.map_key == "workyard"
         _wait(lambda: client.pid in session.match.players, session)
         session.start(team_size=1)
         shadow = Match(load_map(client.map_key))

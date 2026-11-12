@@ -16,7 +16,7 @@ PATCH = {
     "armor": {"schwer": {"price": 999}},
     "statuses": {"slow": {"speed": 0.9}, "frozen": {"speed": 0.1}},
     "rules": {"economy": {"start": 4321}},
-    "maps": {"werkhof": {"set": {"name": "Patched Yard"}, "add": {"crates": [[1, 1, 2, 2]]}}},
+    "maps": {"workyard": {"set": {"name": "Patched Yard"}, "add": {"crates": [[1, 1, 2, 2]]}}},
 }
 '''
 
@@ -44,7 +44,7 @@ def test_patch_changes_every_kind_of_content(patched: None) -> None:
     st = load_statuses()
     assert st["slow"]["speed"] == 0.9 and st["frozen"]["speed"] == 0.1
     assert load_rules()["economy"]["start"] == 4321
-    raw = load_map_raw("werkhof")
+    raw = load_map_raw("workyard")
     assert raw["name"] == "Patched Yard" and [1, 1, 2, 2] in raw["crates"]
     assert patches.notes() == [("9.99", "test patch")]
 

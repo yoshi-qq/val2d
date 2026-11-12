@@ -130,7 +130,7 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
     from gameplay.world import WorldMap  # for types only; gameplay stays free of pygame
 
     assert isinstance(world, WorldMap)
-    folder = f"maps/{world.key}"
+    folder = f"maps/{world.art or world.key}"
     tile_px = max(1, round(2 * scale))  # tile 32 px = 2 m
 
     def tile(name: str) -> pygame.Surface | None:
