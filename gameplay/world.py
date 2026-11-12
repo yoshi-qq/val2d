@@ -19,6 +19,7 @@ class Wall:
     height: int = 2  # levels; crates have 1 and can be climbed
     material: str = ""  # key in config/materials.py WALLS (decides the tile)
     buy_phase_only: bool = False  # blocks only during the buy phase (spawn barrier)
+    door: bool = False  # can be opened; then it blocks nothing
 
 
 @dataclass(frozen=True)
@@ -166,7 +167,8 @@ def parse_map(key: str, raw: dict) -> WorldMap:
             spec = table[thing.key]
             if kind == "objects" and spec.get("blocks"):
                 m.walls.append(Wall(thing.rect, int(spec.get("pen", 1)), bool(spec.get("sight", True)),
-                                    int(spec.get("height", 2)), "", bool(spec.get("buy_phase_only", False))))
+                                    int(spec.get("height", 2)), "", bool(spec.get("buy_phase_only", False)),
+                                    bool(spec.get("door", False))))
     m.floor = str(raw.get("floor", ""))
     m.floors = [(str(f["mat"]), _rect(f["rect"])) for f in raw.get("floors", [])]
     for b in raw.get("crates", []):

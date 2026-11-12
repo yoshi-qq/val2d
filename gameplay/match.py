@@ -21,6 +21,7 @@ from gameplay.world import Wall, WorldMap
 SLOTS = ("primary", "sidearm", "melee")
 PEN_DAMAGE = {0: 0.8, 1: 0.6, 2: 0.45}  # damage factor after passing through a material (own value)
 INTERACT_RANGE = 1.5
+DOOR_RANGE = 1.6
 PICKUP_RANGE = 1.2
 
 
@@ -181,6 +182,7 @@ class Match:
         self.effects: list[Effect] = []
         self.drops: list[Drop] = []
         self.events: list[GameEvent] = []
+        self.open_doors: set[Rect] = set()
         self.time = 0.0
         self.phase = "lobby"  # lobby, buy, live, planted, end, over
         self.phase_until = 0.0
@@ -243,6 +245,7 @@ class Match:
         pistol = self._is_pistol_round()
         self.effects.clear()
         self.drops.clear()
+        self.open_doors.clear()
         self.round_winner = None
         self.round_reason = ""
         self.spike_pos = None
@@ -468,10 +471,48 @@ class Match:
         else:
             p.fire_held += dt
 
+    def drops_near(self, p: PlayerState) -> bool:
+        return any((d.pos - p.pos).length() <= PICKUP_RANGE for d in self.drops)
+
+    def wall_active(self, w: Wall) -> bool:
+        """False for open doors and for spawn barriers outside the buy phase."""
+        if w.buy_phase_only and self.phase != "buy":
+            return False
+        return not (w.door and w.rect in self.open_doors)
+
+    def active_sight_walls(self, level: int) -> list[Wall]:
+        return [w for w in self.world.sight_walls(level) if self.wall_active(w)]
+
+    def _toggle_door(self, p: PlayerState) -> bool:
+        """F press: open or close the nearest door within reach. True if a door moved."""
+        best, best_d = None, DOOR_RANGE
+        for w in self.world.walls:
+            if not w.door:
+                continue
+            c = w.rect.center
+            dx = max(w.rect.x0 - p.pos.x, 0.0, p.pos.x - w.rect.x1)
+            dy = max(w.rect.y0 - p.pos.y, 0.0, p.pos.y - w.rect.y1)
+            d = (dx * dx + dy * dy) ** 0.5
+            if d < best_d:
+                best, best_d = w, d
+        if best is None:
+            return False
+        if best.rect in self.open_doors:
+            self.open_doors.discard(best.rect)
+        else:
+            self.open_doors.add(best.rect)
+        c = best.rect.center
+        self.events.append(GameEvent("door", self.time, {"pos": (c.x, c.y), "open": best.rect in self.open_doors}))
+        self.events.append(GameEvent("sound", self.time, {"pid": p.pid, "pos": (c.x, c.y), "radius": 15.0, "kind": "step"}))
+        return True
+
     def _pickup(self, p: PlayerState, cmd: Command) -> None:
         """Empty slot: pick up automatically. F (when not planting or defusing): swap."""
         pressed = cmd.interact and not p.prev_interact
         p.prev_interact = cmd.interact
+        busy_with_bomb = self.spike_carrier == p.pid and self.world.site_at(p.pos) is not None
+        if pressed and not busy_with_bomb and not self.drops_near(p) and self._toggle_door(p):
+            return
         for drop in list(self.drops):
             if (drop.pos - p.pos).length() > PICKUP_RANGE:
                 continue
@@ -517,7 +558,7 @@ class Match:
         new = p.pos + p.vel * dt
         for _ in range(3):
             for w in self.world.walls:
-                if w.height <= height_level or (w.buy_phase_only and self.phase != "buy"):
+                if w.height <= height_level or not self.wall_active(w):
                     continue
                 push = w.rect.circle_push(new, radius)
                 if push:
@@ -651,7 +692,7 @@ class Match:
         origin = p.pos
         hits: list[tuple[float, str, Any]] = []
         for w in self.world.walls:
-            if w.height <= p.level or (w.buy_phase_only and self.phase != "buy"):
+            if w.height <= p.level or not self.wall_active(w):
                 continue
             iv = w.rect.ray_interval(origin, direction)
             if iv and iv[0] <= d.range:
@@ -749,7 +790,7 @@ class Match:
         direction = (b - a).normalized()
         dist = (b - a).length()
         best = dist
-        for w in self.world.sight_walls(level):
+        for w in self.active_sight_walls(level):
             iv = w.rect.ray_interval(a, direction)
             if iv and iv[0] < best:
                 best = iv[0]
@@ -765,7 +806,7 @@ class Match:
         if dist < 1e-6:
             return True
         u = direction * (1.0 / dist)
-        for w in self.world.sight_walls(level):
+        for w in self.active_sight_walls(level):
             iv = w.rect.ray_interval(a, u)
             if iv and iv[0] < dist:
                 return False
@@ -906,4 +947,5 @@ class Match:
             "roster": [{"pid": p.pid, "name": p.name, "team": p.team, "agent": p.agent, "kills": p.kills,
                         "deaths": p.deaths, "alive": p.alive} for p in self.players.values()],
             "drops": [{"key": d.key, "x": d.pos.x, "y": d.pos.y} for d in self.drops],
+            "doors_open": [[r.x0, r.y0, r.x1, r.y1] for r in self.open_doors],
         }

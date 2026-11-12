@@ -310,3 +310,23 @@ def test_alt_spin_fires_at_top_rate_immediately() -> None:
     for _ in range(64):
         shots += sum(1 for e in m.tick(1 / 64, {a: Command(facing=180.0, alt_fire=True)}) if e.kind == "shot")
     assert shots >= 15
+
+
+def test_door_opens_with_f_and_lets_players_through() -> None:
+    m = Match(load_map("gasse"), seed=1)
+    a = m.add_player("A", 0, "kestrel").pid
+    m.add_player("B", 1, "kestrel")
+    m.start()
+    m.phase, m.phase_until = "live", m.time + 90
+    door = next(w for w in m.world.walls if w.door)
+    p = m.players[a]
+    c = door.rect.center
+    p.pos = Vec(c.x, door.rect.y0 - 0.6)
+    assert m.wall_active(door)
+    m.tick(1 / 64, {a: Command(facing=0.0, interact=True)})
+    assert door.rect in m.open_doors and not m.wall_active(door)
+    m.tick(1 / 64, {a: Command(facing=0.0)})
+    m.tick(1 / 64, {a: Command(facing=0.0, interact=True)})
+    assert door.rect not in m.open_doors
+    m._start_round()
+    assert not m.open_doors

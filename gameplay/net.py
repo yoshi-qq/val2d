@@ -15,7 +15,7 @@ import warnings
 from dataclasses import asdict
 from typing import Any
 
-from gameplay.geometry import Vec
+from gameplay.geometry import Rect, Vec
 from gameplay.match import Command, Drop, Effect, GameEvent, Match, PlayerState, WeaponState
 
 DEFAULT_PORT = 9009
@@ -347,6 +347,7 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int) -> None:
                         Vec(*e["a"]) if e["a"] else None, Vec(*e["b"]) if e["b"] else None,
                         start=float(e.get("start", 0.0)), props={"status": e.get("status")}) for e in snap["effects"]]
     m.drops = [Drop(d["key"], 0, 0, Vec(d["x"], d["y"])) for d in snap.get("drops", [])]
+    m.open_doors = {Rect(*r) for r in snap.get("doors_open", []) if isinstance(r, list) and len(r) == 4}
     for row in snap.get("roster", []):
         pid = int(row["pid"])
         p = m.players.get(pid)

@@ -212,7 +212,7 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
         place(decals.get(d.key, {}), d)
     for o in world.objects:
         spec = objects.get(o.key, {})
-        if int(spec.get("frames", 1)) == 1 and not spec.get("buy_phase_only"):
+        if int(spec.get("frames", 1)) == 1 and not spec.get("buy_phase_only") and not spec.get("door"):
             place(spec, o)
     # shadow under the south edge of full-height walls, edge strip on platforms
     shadow = bank.scaled("maps/common/wall_shadow.png", (tile_px, max(1, round(tile_px / 4))))

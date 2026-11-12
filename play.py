@@ -362,6 +362,8 @@ class Game:
                 self.ui.banner_art = "sieg" if won else "niederlage"
                 if d.get("reason") == "Bomb defused":
                     self.ui.banner_art = "entschaerft" if won else "niederlage"
+            elif e.kind == "door":
+                self.sound.play("step", me, Vec(*d["pos"]), 15)
             elif e.kind == "defuse":
                 self.sound.play("plant", None, None)
 
@@ -697,6 +699,9 @@ class Game:
         objects = load_things()[0]
         for o in self.match.world.objects:
             spec = objects.get(o.key, {})
+            if spec.get("door"):
+                self.draw_door(o, spec, me)
+                continue
             if not (int(spec.get("frames", 1)) > 1 or spec.get("buy_phase_only")):
                 continue
             if spec.get("buy_phase_only") and self.match.phase != "buy":
@@ -720,6 +725,27 @@ class Game:
             rotated = pygame.transform.rotate(strip, north - 90)
             ox, oy = self.to_screen(o.rect.center, me)
             self.screen.blit(rotated, (ox - rotated.get_width() / 2, oy - rotated.get_height() / 2))
+
+    def draw_door(self, o: object, spec: dict, me: PlayerState) -> None:
+        """Door sprite (open or closed) rotated with the camera."""
+        rect = o.rect  # type: ignore[attr-defined]
+        is_open = rect in self.match.open_doors
+        rel = str(spec.get("open_tile" if is_open else "tile", ""))
+        img = self.bank.raw(rel)
+        w_px = max(1, round((rect.x1 - rect.x0) * self.scale))
+        h_px = max(1, round((rect.y1 - rect.y0) * self.scale))
+        if img is None:
+            surf = pygame.Surface((w_px, h_px), pygame.SRCALPHA)
+            surf.fill((90, 110, 120, 120 if is_open else 255))
+        else:
+            rot = int(o.rot)  # type: ignore[attr-defined]
+            src = pygame.transform.rotate(img, -rot) if rot else img
+            surf = pygame.transform.scale(src, (w_px, h_px))
+        cx, cy = self.to_screen(me.pos, me)
+        nx, ny = self.to_screen(me.pos + Vec(0, 1), me)
+        rotated = pygame.transform.rotate(surf, math.degrees(math.atan2(-(ny - cy), nx - cx)) - 90)
+        ox, oy = self.to_screen(rect.center, me)
+        self.screen.blit(rotated, (ox - rotated.get_width() / 2, oy - rotated.get_height() / 2))
 
     def draw_map_placeholder(self, me: PlayerState) -> None:
         from gameplay.geometry import Rect

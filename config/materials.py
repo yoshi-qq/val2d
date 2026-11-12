@@ -14,6 +14,7 @@ OBJECTS (map file: "objects": [{"key": "barrel", "pos": [x, y], "rot": 0}] or wi
   blocks   blocks movement and bullets; pen, sight, height as for walls
   frames, fps   animation strip (optional); tiled  repeat over the rect instead of stretching
   buy_phase_only  blocks only during the buy phase (spawn barrier)
+  door, open_tile  F within reach opens/closes it; open doors block nothing (all doors close at round start)
 DECALS (map file: "decals": [{"key": "crack", "rect": [...]}] or {"key": "arrow", "pos": [x, y], "rot": 90}):
   tile, size (w, h) metres, tiled; never block, drawn under objects and figures.
 Source: own design by Claude Code, 12.11.2026; tiles by the design session (docs/SPRITES.md).
@@ -40,7 +41,8 @@ FLOORS: dict[str, str] = {
 }
 
 OBJECTS: dict[str, dict] = {
-    "door": dict(tile="maps/common/door_closed.png", size=(2.0, 2.0), blocks=True, pen=1, sight=True, height=2),
+    "door": dict(tile="maps/common/door_closed.png", open_tile="maps/common/door_open.png", size=(2.0, 2.0),
+                 blocks=True, pen=1, sight=True, height=2, door=True),
     "spawn_barrier": dict(tile="maps/common/spawn_barrier.png", size=(2.0, 2.0), blocks=True, pen=3, sight=False, height=2,
                           frames=2, fps=4, tiled=True, buy_phase_only=True),
     "barrel": dict(tile="maps/common/props/barrel.png", size=(0.75, 0.75), blocks=True, pen=1, sight=True, height=1),
