@@ -884,7 +884,8 @@ class Game:
         mine = self.match.players.get(self.me)
         self.agent_cards = []
         keys = list(self.match.agents)
-        card_w, card_h, gap = 104, 196, 12
+        compact = len(keys) > 12  # many agents: smaller cards, role as icon
+        card_w, card_h, gap = (72, 124, 8) if compact else (104, 196, 12)
         per_row = max(1, min(len(keys), (self.w - 80) // (card_w + gap)))
         left = (self.w - per_row * (card_w + gap) + gap) / 2
         mouse = pygame.mouse.get_pos()
@@ -897,12 +898,20 @@ class Game:
                 pygame.draw.rect(s, C_SITE if chosen else C_MUTED, rect, 1)
             if rect.collidepoint(mouse) and not chosen:
                 pygame.draw.rect(s, C_TEXT, rect, 1)
-            pic = self.bank.scaled(f"agents/{key}/{key}_select.png", (64, 128)) or self.bank.scaled(f"agents/{key}/{key}_portrait.png", (64, 64))
+            size = (32, 64) if compact else (64, 128)
+            pic = self.bank.scaled(f"agents/{key}/{key}_select.png", size) or                 self.bank.scaled(f"agents/{key}/{key}_portrait.png", (size[0], size[0]))
             if pic is not None:
-                s.blit(pic, (rect.centerx - pic.get_width() / 2, rect.y + 10))
+                s.blit(pic, (rect.centerx - pic.get_width() / 2, rect.y + 8))
             agent = self.match.agents[key]
-            self.text(agent["name"], (rect.centerx, rect.bottom - 48), C_SITE if chosen else C_TEXT, center=True)
-            self.text(agent.get("role", ""), (rect.centerx, rect.bottom - 26), C_MUTED, center=True)
+            role = str(agent.get("role", ""))
+            if compact:
+                self.text(agent["name"], (rect.centerx, rect.bottom - 46), C_SITE if chosen else C_TEXT, center=True)
+                icon = self.bank.scaled(f"ui/icons/role_{role.lower()}.png", (16, 16))
+                if icon is not None:
+                    s.blit(icon, (rect.centerx - 8, rect.bottom - 24))
+            else:
+                self.text(agent["name"], (rect.centerx, rect.bottom - 48), C_SITE if chosen else C_TEXT, center=True)
+                self.text(role, (rect.centerx, rect.bottom - 26), C_MUTED, center=True)
         y = 104 + ((len(keys) - 1) // per_row + 1) * (card_h + gap) + 6
         if mine is not None:
             abil = self.match.agents.get(mine.agent, {}).get("abilities", {})
