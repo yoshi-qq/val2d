@@ -88,6 +88,7 @@ class Command:
     reload: bool = False
     slot: str | None = None
     ability: str | None = None   # "C", "Q", "E", "X"
+    ability_alt: bool = False    # cast with the alternate (right click) variant
     interact: bool = False       # plant or defuse the bomb (hold)
     drop: bool = False           # G: drop the bomb if carried, else the weapon in hand
     buy: list[str] = field(default_factory=list)  # item keys, or "gift:<pid>:<weapon>" to buy for a teammate
@@ -648,7 +649,7 @@ class Match:
             self.events.append(GameEvent("jump", self.time, {"pid": p.pid, "pos": (p.pos.x, p.pos.y)}))
         # ability (only on a new key press)
         if cmd.ability and cmd.ability != p.prev_ability and self.phase in ("buy", "live", "planted"):
-            self._use_ability(p, cmd.ability)
+            self._use_ability(p, cmd.ability, cmd.ability_alt)
         # shooting
         if self.time >= p.reload_until > 0:
             self._finish_reload(p)
@@ -1077,8 +1078,10 @@ class Match:
         self.events.append(GameEvent("kill", self.time, {"by": attacker.pid if attacker else None, "pid": target.pid, "weapon": source, "head": zone == "head"}))
 
     # ------------------------------------------------------------------ Abilities
-    def _use_ability(self, p: PlayerState, key: str) -> None:
+    def _use_ability(self, p: PlayerState, key: str, alt: bool = False) -> None:
         ab = self.agents[p.agent]["abilities"].get(key)
+        if ab and alt and isinstance(ab.get("alt"), dict):
+            ab = {**ab, **ab["alt"]}  # right-click variant: its values replace the normal ones
         if not ab or abilities.flag(self, p, "no_abilities"):
             return
         if key == "X":

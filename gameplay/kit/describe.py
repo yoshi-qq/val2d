@@ -78,6 +78,11 @@ def _steps(steps: list[dict[str, Any]]) -> str:
 
 
 def describe(ab: dict[str, Any]) -> str:
+    alt = f" Right click: {alt_text(ab)}." if alt_text(ab) else ""
+    return _describe(ab) + alt
+
+
+def _describe(ab: dict[str, Any]) -> str:
     if ab.get("desc"):
         return str(ab["desc"])
     kind = str(ab.get("kind", ""))
@@ -98,6 +103,22 @@ def describe(ab: dict[str, Any]) -> str:
                 bits.append(f"{WHEN_TEXT.get(tr.get('when', ''), tr.get('when', ''))} it {text}")
         out.append("; ".join(bits))
     return (". ".join(o for o in out if o) + ".") if out else str(ab.get("name", ""))
+
+
+def alt_text(ab: dict[str, Any]) -> str:
+    """What the right-click cast does differently."""
+    alt = ab.get("alt")
+    if not isinstance(alt, dict) or not alt:
+        return ""
+    if alt.get("desc"):
+        return str(alt["desc"])
+    if alt.get("throw") == "underhand":
+        return "underhand throw, shorter and quicker"
+    if alt.get("throw") == "lob":
+        return "lobbed, half the range"
+    if alt.get("along"):
+        return "wall along your aim instead of across"
+    return "alternative cast"
 
 
 def cost_text(slot: str, ab: dict[str, Any]) -> str:

@@ -27,7 +27,7 @@ def wall(ab: dict[str, Any]) -> dict[str, Any]:
         triggers.append({"when": "cross", "who": "enemies",
                          "do": _steps_status(ab, "cross_status", "cross_time")})
     return {"target": "aim", "place": {"look": "wall", "shape": "line", "length": ab["length"], "lasts": ab["duration"],
-                                       "triggers": triggers}}
+                                       "along": bool(ab.get("along", False)), "triggers": triggers}}
 
 
 preset("vapor_wall")(wall)

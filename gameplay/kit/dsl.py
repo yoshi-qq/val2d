@@ -36,9 +36,27 @@ def agent(name: str, role: str = "", order: int = 999, sprites: dict[str, Any] |
             "sprites": dict(sprites or {}), "passives": list(passives or [])}
 
 
+# right-click variants the presets get unless an ability sets its own `alt` (or alt=None for none)
+PRESET_ALT = {
+    "flash": lambda v: {"range": round(float(v["range"]) * 0.4, 2), "fuse": round(float(v["fuse"]) * 0.6, 2), "throw": "underhand"},
+    "blast": lambda v: {"range": round(float(v["range"]) * 0.5, 2), "throw": "lob"},
+    "wall": lambda v: {"along": True},
+    "vapor_wall": lambda v: {"along": True},
+}
+
+
 def preset(kind: str, name: str, **values: Any) -> dict[str, Any]:
-    """A classic building block (smoke, wall, flash, zone, blast, wave, ...) with its values."""
-    return {"name": name, "kind": kind, **_slot_defaults(values), **values}
+    """A classic building block (smoke, wall, flash, zone, blast, wave, ...) with its values.
+    alt={...}: values for the right-click cast (defaults: underhand flash, lobbed charge, wall along the aim)."""
+    out = {"name": name, "kind": kind, **_slot_defaults(values), **values}
+    if "alt" not in values and kind in PRESET_ALT:
+        try:
+            out["alt"] = PRESET_ALT[kind](values)
+        except (KeyError, TypeError, ValueError):
+            pass
+    if out.get("alt") is None:
+        out.pop("alt", None)
+    return out
 
 
 def ability(name: str, target: str = "aim", do: list[dict[str, Any]] | None = None, place: dict[str, Any] | None = None,

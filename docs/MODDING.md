@@ -64,6 +64,8 @@ C=preset("smoke", "Haze", price=200, max=2, range=30, radius=2.8, duration=15)
 | immunity | duration, regen |
 | decoy | duration, speed |
 
+**Right-click variant:** `alt=dict(...)` holds values that replace the normal ones when the ability is cast with the right mouse button (`alt=None`: no variant). Flashes get an underhand throw, charges a lob and walls an `along` variant by default. Abilities that need aiming or have a variant are taken in hand with their key, cast with left or right click and put away with the same key, 1/2/3 or Esc.
+
 The presets are written with the kit themselves (`gameplay/kit/presets.py`); read one to see how a composition looks.
 
 **Composition** – target, steps on use, and an object with triggers:

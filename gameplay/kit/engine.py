@@ -75,7 +75,8 @@ def place(ctx: Ctx, spec: dict[str, Any], point: Vec) -> Effect:
     delay, lasts = float(spec.get("delay", 0.0)), float(spec.get("lasts", 10.0))
     a = b = None
     if spec.get("shape") == "line":
-        side = ctx.aim.rotated(90) * (float(spec.get("length", 6.0)) / 2)
+        across = ctx.aim if spec.get("along") else ctx.aim.rotated(90)  # along=True: the line points where you aim
+        side = across * (float(spec.get("length", 6.0)) / 2)
         a, b = point - side, point + side
         if spec.get("clip_ends"):
             level = ctx.owner.level if ctx.owner else 0

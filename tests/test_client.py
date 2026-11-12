@@ -105,3 +105,55 @@ def test_menu_escape_never_quits_and_alt_f4_asks_first() -> None:
     assert menu.handle(esc) is None
     assert menu.handle(pygame.event.Event(pygame.QUIT)) is None and menu.dialog == "quit"
     assert menu.handle(pygame.event.Event(pygame.QUIT)) is False
+
+
+def test_crosshair_is_symmetric_for_any_size_and_gap() -> None:
+    from client.crosshair import shape
+    for size in (0.5, 0.73, 1.0, 1.37, 2.5):
+        for gap in (0.0, 2.4, 4.0, 7.6, 12.0):
+            for center in ((100, 100), (100.5, 99.5), (101.3, 100.7)):
+                right, left, down, up, dot = shape(center, size, gap, True)
+                cx2 = dot.x * 2 + dot.w  # twice the centre, exact in whole pixels
+                cy2 = dot.y * 2 + dot.h
+                assert right.x + left.right == cx2 and down.y + up.bottom == cy2
+                assert right.size == left.size and down.size == up.size and right.w == down.h
+
+
+def _post_key(key: int) -> None:
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=key, mod=0, unicode="", scancode=0))
+
+
+def test_ability_is_taken_in_hand_cast_with_left_click_and_put_away_with_its_key() -> None:
+    game = Game(args(agent="marrow"))
+    game.match.start()
+    key_e = game.keys["ability_e"]
+    before = len(game.match.effects)
+    pygame.event.clear()
+    _post_key(key_e)          # in hand
+    _post_key(key_e)          # same key: put away again
+    pygame.event.post(pygame.event.Event(pygame.QUIT))
+    pygame.event.post(pygame.event.Event(pygame.QUIT))
+    game.run()
+    assert game.aiming is None and len(game.match.effects) == before
+    game2 = Game(args(agent="marrow"))
+    game2.match.start()
+    before = len(game2.match.effects)
+    pygame.event.clear()
+    _post_key(key_e)
+    pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(640, 360)))
+    pygame.event.post(pygame.event.Event(pygame.QUIT))
+    pygame.event.post(pygame.event.Event(pygame.QUIT))
+    game2.run()
+    assert len(game2.match.effects) == before + 1 and game2.aiming is None
+
+
+def test_right_click_casts_the_alternative_wall_along_the_aim() -> None:
+    from gameplay.geometry import Vec
+    from gameplay.match import Command
+    game = Game(args(agent="marrow"))
+    game.match.start()
+    me = game.match.players[game.me]
+    me.charges["Q"], me.facing = 1, 0.0
+    game.match.tick(1 / 64, {game.me: Command(facing=0.0, cursor_depth=6.0, ability="Q", ability_alt=True)})
+    wall = next(e for e in game.match.effects if e.kind == "wall")
+    assert abs(wall.a.x - wall.b.x) < 1e-6 and abs(wall.a.y - wall.b.y) > 1.0  # along the aim (aim = +y)

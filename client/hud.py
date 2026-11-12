@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from client.common import *  # noqa: F403  (pygame, colours, types)
 from client.ui import color
+from gameplay.kit.describe import alt_text
 
 
 class HudMixin:
@@ -272,7 +273,7 @@ class HudMixin:
 
     def needs_aim(self, me: PlayerState, slot: str) -> bool:
         ab = self.match.agents.get(me.agent, {}).get("abilities", {}).get(slot, {})
-        return self.preview_kind(ab) in self.AIM_KINDS
+        return self.preview_kind(ab) in self.AIM_KINDS or bool(ab.get("alt"))  # a right-click choice needs the ability in hand
 
     @staticmethod
     def preview_kind(ab: dict) -> str:
@@ -316,8 +317,9 @@ class HudMixin:
                 else:
                     pygame.draw.circle(s, color, (x, y), 1)
         pygame.draw.circle(s, color, (tx, ty), 3)
-        label = f"{slot} {ab.get('name', '')} – release to use, right click cancels"
-        self.text(label, (self.w / 2, self.h - 130), color, center=True)
+        alt = " · right click: " + alt_text(ab) if ab.get("alt") else ""
+        label = f"{ab.get('name', '')}: left click{alt} · {slot} again, 1/2/3 or Esc: put away"
+        self.text(label, (self.w / 2, self.h - 150), color, center=True)
 
     def draw_crosshair(self, me: PlayerState) -> None:
         cx, cy = self.to_screen(me.pos + heading(me.facing) * self.cursor_depth, me)
@@ -327,32 +329,13 @@ class HudMixin:
         col = C_ENEMY if self.match.time < self.ui.hit_marker else (120, 255, 200)
         d = self.match.weapons.get(me.weapon.key) if me.weapon else None
         gap = 4 + (self.match.current_spread(me, d) * self.cursor_depth * math.pi / 180 * self.scale if d else 0)
-        hit = "_hit" if self.match.time < self.ui.hit_marker else ""
+        from client import crosshair
         ch = self.crosshair
-        gap += float(ch.get("crosshair_gap", 4.0)) - 4.0
-        size = float(ch.get("crosshair_size", 1.0))
-        custom = str(ch.get("crosshair_color", "#78ffc8")).lower() != "#78ffc8" or abs(size - 1.0) > 1e-6
-        if custom or not ch.get("crosshair_dot", True):
-            color = C_ENEMY if hit else pygame.Color(str(ch.get("crosshair_color", "#78ffc8")))
-            length = 7 * size
-            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                pygame.draw.line(self.screen, color, (cx + dx * gap, cy + dy * gap), (cx + dx * (gap + length), cy + dy * (gap + length)), 2)
-            if ch.get("crosshair_dot", True):
-                pygame.draw.circle(self.screen, color, (cx, cy), 2)
-            return
-        dot = self.bank.scaled(f"ui/crosshair/dot{hit}.png", (8, 8))
-        arm = self.bank.scaled(f"ui/crosshair/arm{hit}.png", (4, 16))
-        if dot is None or arm is None:
-            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                pygame.draw.line(self.screen, col, (cx + dx * gap, cy + dy * gap), (cx + dx * (gap + 7), cy + dy * (gap + 7)), 2)
-            pygame.draw.circle(self.screen, col, (cx, cy), 2)
-            return
-        for angle, (dx, dy) in ((0, (0, -1)), (90, (-1, 0)), (180, (0, 1)), (270, (1, 0))):
-            img = pygame.transform.rotate(arm, angle)
-            ax = cx + dx * (gap + 8) - img.get_width() / 2
-            ay = cy + dy * (gap + 8) - img.get_height() / 2
-            self.screen.blit(img, (ax, ay))
-        self.screen.blit(dot, (cx - 4, cy - 4))
+        hit = self.match.time < self.ui.hit_marker
+        color = C_ENEMY if hit else pygame.Color(str(ch.get("crosshair_color", "#78ffc8")))
+        spread_px = gap - 4  # the arms open up with the weapon's current spread
+        crosshair.draw(self.screen, (cx, cy), color, float(ch.get("crosshair_size", 1.0)),
+                       float(ch.get("crosshair_gap", 4.0)) + spread_px, bool(ch.get("crosshair_dot", True)))
 
     def text(self, msg: str, pos: tuple[float, float], col=C_TEXT, big: bool = False, center: bool = False) -> None:
         img = self.pixel_text(msg, col, 2 if big else 1)

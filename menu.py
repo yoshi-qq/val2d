@@ -463,11 +463,11 @@ class MainMenu:
             ui.text("Click an action, then press the new key (Esc keeps the old one).", (box.x + 40, box.bottom - 40), "s", "muted")
 
     def draw_crosshair_preview(self, at: tuple[int, int]) -> None:
+        """Same drawing as in the game (client/crosshair.py), shown twice as large to judge the pixels."""
+        from client import crosshair
         st = self.settings
-        col = pygame.Color(st["crosshair_color"])
-        size, gap = 7 * st["crosshair_size"], st["crosshair_gap"]
-        x, y = at
-        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            pygame.draw.line(self.screen, col, (x + dx * gap, y + dy * gap), (x + dx * (gap + size), y + dy * (gap + size)), 2)
-        if st["crosshair_dot"]:
-            pygame.draw.circle(self.screen, col, (x, y), 2)
+        small = pygame.Surface((100, 100), pygame.SRCALPHA)
+        crosshair.draw(small, (50, 50), pygame.Color(st["crosshair_color"]), st["crosshair_size"], st["crosshair_gap"],
+                       bool(st["crosshair_dot"]))
+        big = pygame.transform.scale(small, (200, 200))
+        self.screen.blit(big, (at[0] - 100, at[1] - 100))

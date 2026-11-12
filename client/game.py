@@ -87,8 +87,8 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
                                                           ("crosshair_color", "crosshair_size", "crosshair_gap", "crosshair_dot")}))
         self.ability_keys = {self.keys["ability_c"]: "C", self.keys["ability_q"]: "Q", self.keys["ability_e"]: "E",
                              self.keys["ability_x"]: "X"}
-        self.aiming: str | None = None
-        self.released_slot: str | None = None
+        self.aiming: str | None = None      # ability in hand (preview shown), cast with a click
+        self.swallow_buttons: set[int] = set()  # mouse buttons that cast an ability: no shot until released
         self._next_beep = 0.0
         self._last_phase = ""
         self.server_pos: dict[int, Vec] = {}  # client: host positions, smoothed towards each frame
@@ -147,7 +147,7 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
                     if self.ui.buy_open:
                         self.ui.buy_open = False
                     elif self.aiming:
-                        self.aiming, self.released_slot = None, self.aiming
+                        self.aiming = None  # put the ability away
                     else:
                         self.open_overlay("pause")
                 elif ev.type == pygame.KEYDOWN and ev.key == pygame.K_RETURN and self.match.phase == "over":
@@ -168,13 +168,29 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
                     elif ev.key == self.keys["buy"]:
                         self.ui.buy_open = not self.ui.buy_open
                         self.grab(not self.ui.buy_open)
+                    elif ev.key in self.ability_keys and me.alive and not self.ui.buy_open:
+                        slot = self.ability_keys[ev.key]
+                        if self.aiming == slot:
+                            self.aiming = None              # same key again: put it away
+                        elif self.needs_aim(me, slot):
+                            self.aiming = slot              # in hand: preview, left click casts, right click alt
+                        else:
+                            self.aiming, cmd.ability = None, slot  # no aiming needed: cast at once
                     elif ev.key in (self.keys["primary"], self.keys["sidearm"], self.keys["melee"]):
+                        self.aiming = None
                         cmd.slot = {self.keys["primary"]: "primary", self.keys["sidearm"]: "sidearm",
                                     self.keys["melee"]: "melee"}[ev.key]
                     elif ev.key == self.keys["reload"]:
                         cmd.reload = True
                     elif ev.key == self.keys["drop"]:
                         cmd.drop = True
+                elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button in (1, 3) and self.aiming and me.alive \
+                        and not self.ui.buy_open and self.match.phase != "lobby":
+                    ab = self.match.agents.get(me.agent, {}).get("abilities", {}).get(self.aiming, {})
+                    if ev.button == 1 or ab.get("alt"):
+                        cmd.ability, cmd.ability_alt = self.aiming, ev.button == 3
+                        self.aiming = None
+                        self.swallow_buttons.add(ev.button)
                 elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1 and self.match.phase == "lobby":
                     self.pick_agent_at(ev.pos)
                 elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1 and not me.alive:
@@ -201,8 +217,9 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
                 self.local_facing = (self.local_facing + dx * self.sens) % 360
                 me.facing = self.local_facing
                 self.cursor_depth = max(0.5, min(VIEW_METERS, self.cursor_depth - dy * 0.03))
-                cmd.fire = buttons[0] and self.aiming is None
-                cmd.alt_fire = buttons[2] and self.aiming is None
+                self.swallow_buttons = {b for b in self.swallow_buttons if buttons[b - 1]}
+                cmd.fire = buttons[0] and self.aiming is None and 1 not in self.swallow_buttons
+                cmd.alt_fire = buttons[2] and self.aiming is None and 3 not in self.swallow_buttons
             cmd.facing = me.facing
             cmd.cursor_depth = self.cursor_depth
             kb = self.keys
@@ -214,21 +231,8 @@ class Game(OverlaysMixin, EventsMixin, CharactersMixin, WorldViewMixin, LobbyMix
             cmd.crouch = keys[kb["crouch"]]
             cmd.jump = keys[kb["jump"]]
             cmd.interact = keys[kb["interact"]]
-            for key, slot in self.ability_keys.items():
-                if keys[key] and self.aiming is None and slot != self.released_slot:
-                    if self.needs_aim(me, slot):
-                        self.aiming = slot  # show the preview while held
-                    else:
-                        cmd.ability = slot
-                elif not keys[key] and self.aiming == slot:
-                    cmd.ability = slot  # released: use it where the preview showed
-                    self.aiming = None
-                if not keys[key] and self.released_slot == slot:
-                    self.released_slot = None
-                if keys[key] and cmd.ability == slot:
-                    self.released_slot = slot  # no repeat while the key stays down
-            if self.aiming and pygame.mouse.get_pressed()[2]:
-                self.aiming, self.released_slot = None, self.aiming  # right click cancels
+            if not me.alive:
+                self.aiming = None
             events = self.step(dt, cmd)
             me_now = self.match.players.get(self.me)
             if me_now is not None:
