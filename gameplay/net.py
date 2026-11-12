@@ -137,6 +137,7 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
     sp = snap["spike"]
     m.spike_carrier = sp["carrier"]
     m.spike_pos = Vec(*sp["pos"]) if sp["pos"] else None
+    m.spike_ground = float(sp.get("ground", 0.0))
     m.spike_site = sp["site"]
     m.effects = [Effect(e["kind"], 0, e["team"], Vec(e["x"], e["y"]), float(e.get("until", m.time + 1.0)), e["r"],
                         Vec(*e["a"]) if e["a"] else None, Vec(*e["b"]) if e["b"] else None,
@@ -145,6 +146,7 @@ def apply_snapshot(m: Match, snap: dict[str, Any], own_pid: int, predict_own: bo
     m.history = [(int(w), str(r)) for w, r in snap.get("history", []) if isinstance(r, str)]
     m.orbs = [Vec(float(x), float(y)) for x, y in snap.get("orbs", [])]
     m.remote_report = [r for r in snap.get("report", []) if isinstance(r, dict)]
+    m.broken_cover = {Rect(*r) for r in snap.get("cover_broken", []) if isinstance(r, list) and len(r) == 4}
     m.open_doors = {Rect(*r) for r in snap.get("doors_open", []) if isinstance(r, list) and len(r) == 4}
     for row in snap.get("roster", []):
         pid = int(row["pid"])

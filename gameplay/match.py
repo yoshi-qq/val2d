@@ -16,7 +16,7 @@ from gameplay import abilities
 from gameplay.data import ROOT, GameConfig, WeaponDef, _load_py, load_armor, load_config, load_weapons, rule
 from gameplay.geometry import Rect, Vec, angle_diff, angle_of, heading, segment_circle_hit
 from gameplay.hitzones import resolve_zone
-from gameplay.world import PLATFORM, Wall, WorldMap
+from gameplay.world import PLATFORM, Wall, WorldMap, head_height
 
 SLOTS = ("primary", "sidearm", "melee")
 FULL_WALL = 2  # walls this many levels high are never climbed or jumped over
@@ -244,6 +244,8 @@ class Match:
         self.drops: list[Drop] = []
         self.events: list[GameEvent] = []
         self.open_doors: set[Rect] = set()
+        self.broken_cover: set[Rect] = set()
+        self.cover_health: dict[Rect, int] = {}
         self.round_damage: dict[tuple[int, int], list[int]] = {}  # (attacker, target) -> [damage, hits] this round
         self.history: list[tuple[int, str]] = []  # (winning team, reason) per finished round
         self.remote_report: list[dict[str, int]] = []  # client copy of the viewer's damage report
@@ -263,6 +265,7 @@ class Match:
         self.last_alive_vs: dict[int, int] = {}  # team -> enemies alive when it was down to its last player (clutch)
         self.spike_carrier: int | None = None
         self.spike_pos: Vec | None = None
+        self.spike_ground = 0.0
         self.spike_planted_at = 0.0
         self.spike_site = ""
         self.round_winner: int | None = None
@@ -447,7 +450,9 @@ class Match:
         pistol = self._is_pistol_round()
         self.effects.clear()
         self.drops.clear()
-        self.open_doors.clear()
+        self.open_doors = {w.rect for w in self.world.walls if w.door and w.switch is not None}
+        self.broken_cover.clear()
+        self.cover_health = {w.rect: w.hp for w in self.world.walls if w.hp > 0}
         self.round_damage = {}
         self.last_alive_vs = {}
         self.orbs = self._orb_spots()
@@ -837,7 +842,7 @@ class Match:
             return False
         if w.buy_phase_only and self.phase != "buy":
             return False
-        return not (w.door and w.rect in self.open_doors)
+        return w.rect not in self.broken_cover and not (w.door and w.rect in self.open_doors)
 
     def active_sight_walls(self, level: int) -> list[Wall]:
         return [w for w in self.world.sight_walls(level) if self.wall_active(w, for_sight=True)]
@@ -846,17 +851,24 @@ class Match:
         """F press: open or close the nearest door within reach. True if a door moved."""
         best, best_d = None, DOOR_RANGE
         for w in self.world.walls:
-            if not w.door:
+            if not w.door or w.rect in self.broken_cover:
                 continue
-            c = w.rect.center
-            dx = max(w.rect.x0 - p.pos.x, 0.0, p.pos.x - w.rect.x1)
-            dy = max(w.rect.y0 - p.pos.y, 0.0, p.pos.y - w.rect.y1)
-            d = (dx * dx + dy * dy) ** 0.5
+            if w.switch is None:
+                dx = max(w.rect.x0 - p.pos.x, 0.0, p.pos.x - w.rect.x1)
+                dy = max(w.rect.y0 - p.pos.y, 0.0, p.pos.y - w.rect.y1)
+                d = (dx * dx + dy * dy) ** 0.5
+            else:
+                d = (w.switch - p.pos).length()
+                if d < best_d and not self._line_clear(p.pos, w.switch, p.level, ignore_effects=True):
+                    continue
             if d < best_d:
                 best, best_d = w, d
         if best is None:
             return False
         if best.rect in self.open_doors:
+            if best.switch is not None and any(t.alive and best.rect.circle_push(t.pos, float(self._mv["radius"])) is not None
+                                               for t in self.players.values()):
+                return False
             self.open_doors.discard(best.rect)
         else:
             self.open_doors.add(best.rect)
@@ -869,6 +881,7 @@ class Match:
         if self.spike_carrier == p.pid and self.phase in ("buy", "live"):
             self.spike_carrier = None
             self.spike_pos = p.pos + heading(p.facing) * 1.0
+            self.spike_ground = self.world.ground_height(self.spike_pos, p.level)
             p.dropped_at = self.time
             self.events.append(GameEvent("drop", self.time, {"pid": p.pid, "item": "bomb"}))
             return
@@ -887,7 +900,8 @@ class Match:
         """Empty slot: pick up automatically. F (when not planting or defusing): swap."""
         pressed = cmd.interact and not p.prev_interact
         p.prev_interact = cmd.interact
-        busy_with_bomb = self.spike_carrier == p.pid and self.world.site_at(p.pos) is not None
+        busy_with_bomb = self.spike_carrier == p.pid and self.world.site_at(p.pos, p.level) is not None
+        defusing = self.phase == "planted" and self.side(p.team) == "defense" and self.near_spike(p, INTERACT_RANGE)
         if pressed and not busy_with_bomb and not self.drops_near(p) and self._toggle_door(p):
             return
         for drop in list(self.drops):
@@ -898,7 +912,7 @@ class Match:
             d = self.weapons.get(drop.key)
             if not d:
                 continue
-            spike_job = self.spike_carrier == p.pid or (self.phase == "planted" and self.side(p.team) == "defense" and self.spike_pos is not None and (p.pos - self.spike_pos).length() <= INTERACT_RANGE)
+            spike_job = self.spike_carrier == p.pid or defusing
             if d.slot not in p.weapons or (pressed and not spike_job):
                 old = p.weapons.get(d.slot)
                 p.weapons[d.slot] = WeaponState(drop.key, drop.mag, drop.reserve)
@@ -960,6 +974,11 @@ class Match:
         p.vz -= float(self._mv["gravity"]) * dt
         airborne = p.z > 0.0
         p.z = max(0.0, p.z + p.vz * dt)
+        deck = self.world.deck_at(p.pos) if self.world.decks else None
+        if deck is not None and p.ground < deck.level * lh:
+            clearance = max(0.0, deck.underside * lh - p.ground - head_height())
+            if p.z > clearance:
+                p.z, p.vz = clearance, min(0.0, p.vz)
         if p.z <= 0.0:
             if airborne:
                 self._landing(p, -p.vz)
@@ -971,9 +990,10 @@ class Match:
         feet = p.ground + p.z
         new = p.pos + p.vel * dt
         # ground too high to step onto blocks like a wall (slide along it on the free axis)
-        if self.world.ground_height(new) * lh > feet + tolerance:
+        reach = (feet + tolerance) / lh
+        if self.world.ground_height(new, reach) * lh > feet + tolerance:
             for candidate in (Vec(new.x, p.pos.y), Vec(p.pos.x, new.y), p.pos):
-                if self.world.ground_height(candidate) * lh <= feet + tolerance:
+                if self.world.ground_height(candidate, reach) * lh <= feet + tolerance:
                     new = candidate
                     break
             else:
@@ -987,7 +1007,8 @@ class Match:
                 new = new + gap.normalized() * (2 * radius - dist) * 0.5
         for _ in range(3):
             for w in self.world.walls:
-                if not self.wall_active(w) or (not w.full and w.top * lh <= feet + tolerance):
+                if (not self.wall_active(w) or (w.on_deck and w.base > reach)
+                        or (not w.full and w.top * lh <= feet + tolerance)):
                     continue
                 push = w.rect.circle_push(new, radius)
                 if push:
@@ -1002,7 +1023,7 @@ class Match:
                 p.vel = (new - p.pos) * (1.0 / dt)
         p.pos = new
         # follow the ground: walk up and down ramps, fall from ledges from the current height, land on cover
-        ground_new = self.world.ground_height(p.pos) * lh
+        ground_new = self.world.ground_height(p.pos, reach) * lh
         if p.z <= 0.001:
             if ground_new < p.ground - step_down:
                 p.z = p.ground - ground_new  # stepped off a ledge: keep the height, gravity takes over
@@ -1013,6 +1034,11 @@ class Match:
                 p.vz = 0.0
         p.ground = ground_new
         p.level = int(ground_new / lh + 0.5)
+        deck = self.world.deck_at(p.pos) if self.world.decks else None
+        if deck is not None and ground_new < deck.level * lh:
+            clearance = max(0.0, deck.underside * lh - ground_new - head_height())
+            if p.z > clearance:
+                p.z, p.vz = clearance, min(0.0, p.vz)
 
     # ------------------------------------------------------------------ Weapons
     def _weapon_def(self, p: PlayerState) -> WeaponDef | None:
@@ -1126,6 +1152,16 @@ class Match:
             dmg = int(round(damage * (d.backstab if behind else 1.0)))
             self._damage(p, best, dmg, "body", d.key)
             end = best.pos
+        else:
+            walls = [(iv[0], w) for w in self.world.walls
+                     if w.top > p.level and not w.low and w.material != PLATFORM and self.wall_active(w)
+                     and (not w.on_deck or w.base <= p.level)
+                     and (iv := w.rect.ray_interval(p.pos, aim)) and iv[0] <= reach]
+            if walls:
+                distance, wall = min(walls, key=lambda hit: hit[0])
+                end = p.pos + aim * distance
+                if wall.hp:
+                    self._damage_cover(wall, round(damage * 2))
         self.events.append(GameEvent("shot", self.time, {"pid": p.pid, "from": (p.pos.x, p.pos.y), "to": (end.x, end.y),
                                                           "weapon": d.key, "stop": "player" if best else "", "melee": True,
                                                           "heavy": heavy}))
@@ -1172,19 +1208,38 @@ class Match:
         p.spray = min(d.spray_max, p.spray + d.spray_step)
         p.shot_index += 1
 
+    def _damage_cover(self, wall: Wall, damage: int) -> None:
+        remaining = max(0, self.cover_health.get(wall.rect, wall.hp) - damage)
+        self.cover_health[wall.rect] = remaining
+        if remaining == 0:
+            self.broken_cover.add(wall.rect)
+
+    def break_glass(self, start: Vec, end: Vec, level: int) -> None:
+        for wall in self.world.walls:
+            if wall.material != "obj:ascent_glass" or not self.wall_active(wall):
+                continue
+            interval = wall.rect.ray_interval(start, end - start)
+            if interval is not None and interval[0] <= 1:
+                point = start + (end - start) * interval[0]
+                if self._line_clear(start, point, level, ignore_effects=True, ignore_wall=wall):
+                    self._damage_cover(wall, wall.hp)
+
     def _trace(self, p: PlayerState, d: WeaponDef, direction: Vec, aim: Vec) -> None:
         origin = p.pos
         hits: list[tuple[float, str, Any]] = []
         for w in self.world.walls:
-            if w.top <= p.level or w.low or w.material == PLATFORM or not self.wall_active(w):  # bullets fly over low props
+            if (w.top <= p.level or w.low or w.material == PLATFORM or not self.wall_active(w)
+                    or (w.on_deck and w.base > p.level)):
                 continue
             iv = w.rect.ray_interval(origin, direction)
             if iv and iv[0] <= d.range:
                 hits.append((iv[0], "wall", (w, iv[1] - iv[0])))
         cursor_point = origin + aim * p.cursor_depth
-        cursor_level = self.world.floor_level(cursor_point)
+        cursor_level = self.world.floor_level(cursor_point, p.level)
         for t in self.players.values():
             if t.pid == p.pid or not t.alive:
+                continue
+            if self._deck_between(p, t):
                 continue
             res = resolve_zone(origin, direction, aim, p.cursor_depth, t.pos, t.level == p.level,
                                cursor_level == t.level, self.cfg.hit_zones)
@@ -1198,6 +1253,10 @@ class Match:
         for i, (dist, kind, payload) in enumerate(hits):
             if kind == "wall":
                 wall, thickness = payload
+                if wall.hp:
+                    self._damage_cover(wall, round(d.damage_at(dist, "body") * mult))
+                    if not wall.blocks_sight and wall.rect in self.broken_cover:
+                        continue
                 cover = wall.top == p.level + 1  # head-high: a standing target's head shows above it
                 nxt = next((h for h in hits[i + 1:] if h[1] == "player"), None)
                 if cover and nxt is not None and id(nxt[2][0]) in head_over and nxt[0] - dist < 3.0:
@@ -1257,6 +1316,7 @@ class Match:
         if self.spike_carrier == target.pid:
             self.spike_carrier = None
             self.spike_pos = target.pos
+            self.spike_ground = self.world.ground_height(target.pos, target.level)
         for slot in ("primary", "sidearm"):
             ws = target.weapons.get(slot)
             if ws and (slot == "primary" or ws.key != "pistol"):
@@ -1351,13 +1411,16 @@ class Match:
         abilities.tick(self, dt)
 
     # ------------------------------------------------------------------ Sight
-    def _line_clear(self, a: Vec, b: Vec, level: int, ignore_effects: bool = False) -> bool:
+    def _line_clear(self, a: Vec, b: Vec, level: int, ignore_effects: bool = False,
+                    ignore_wall: Wall | None = None) -> bool:
         direction = b - a
         dist = direction.length()
         if dist < 1e-6:
             return True
         u = direction * (1.0 / dist)
         for w in self.active_sight_walls(level):
+            if w is ignore_wall:
+                continue
             iv = w.rect.ray_interval(a, u)
             if iv and iv[0] < dist:
                 return False
@@ -1377,6 +1440,8 @@ class Match:
 
     def line_of_fire(self, shooter: PlayerState, target: PlayerState) -> bool:
         """True if a bullet from the shooter's current weapon can get through to the target."""
+        if self._deck_between(shooter, target):
+            return False
         d = self._weapon_def(shooter)
         pen = d.penetration if d else 0
         a, b = shooter.pos, target.pos
@@ -1385,12 +1450,22 @@ class Match:
             return True
         u = (b - a) * (1.0 / dist)
         for w in self.world.walls:
-            if w.top <= shooter.level or w.material == PLATFORM or not self.wall_active(w):
+            if (w.top <= shooter.level or w.material == PLATFORM or not self.wall_active(w)
+                    or (w.on_deck and w.base > shooter.level)):
                 continue
             iv = w.rect.ray_interval(a, u)
             if iv and iv[0] < dist and (w.penetration >= 3 or w.penetration > pen or iv[1] - iv[0] > 1.0 + pen):
                 return False
         return True
+
+    def _deck_between(self, a: PlayerState, b: PlayerState) -> bool:
+        if not self.world.decks:
+            return False
+        lh = float(self._mv["level_height"])
+        eye_a = head_height() * (0.65 if a.crouching else 1.0)
+        eye_b = head_height() * (0.65 if b.crouching else 1.0)
+        return self.world.deck_blocks(a.pos, (a.ground + a.z + eye_a) / lh,
+                                      b.pos, (b.ground + b.z + eye_b) / lh)
 
     def _behind_cover(self, viewer: PlayerState, target: PlayerState) -> bool:
         """A head-high wall (one level above the target, not a low prop) lies between them, close to the target."""
@@ -1414,6 +1489,8 @@ class Match:
             return True
         if target.revealed_until > self.time:
             return True
+        if self._deck_between(viewer, target):
+            return False
         if viewer.blind_until > self.time or not viewer.alive:
             return False
         sight = abilities.lowest(self, viewer, "sight_range")
@@ -1431,17 +1508,23 @@ class Match:
         return self._line_clear(viewer.pos, target.pos, min(viewer.level, target.level))
 
     # ------------------------------------------------------------------ Bomb
+    def near_spike(self, p: PlayerState, reach: float) -> bool:
+        if self.spike_pos is None or (p.pos - self.spike_pos).length() > reach:
+            return False
+        return not self.world.deck_blocks(p.pos, p.level + 1, self.spike_pos, self.spike_ground + 1)
+
     def _tick_spike(self, dt: float, commands: dict[int, Command]) -> None:
         if self.phase in ("buy", "live") and self.spike_carrier is None and self.spike_pos is not None:
             for p in self.players.values():
-                if p.alive and self.side(p.team) == "attack" and (p.pos - self.spike_pos).length() <= PICKUP_RANGE                         and self.time - p.dropped_at >= 1.0:
+                if (p.alive and self.side(p.team) == "attack" and self.near_spike(p, PICKUP_RANGE)
+                        and self.time - p.dropped_at >= 1.0):
                     self.spike_carrier = p.pid
                     self.spike_pos = None
                     break
         if self.phase == "live" and self.spike_carrier is not None:
             p = self.players[self.spike_carrier]
             cmd = commands.get(p.pid, Command())
-            site = self.world.site_at(p.pos)
+            site = self.world.site_at(p.pos, p.level)
             if p.alive and cmd.interact and site and p.z <= 0.001:
                 if p.plant_progress == 0.0:
                     self.events.append(GameEvent("plant_start", self.time, {"pid": p.pid, "pos": (p.pos.x, p.pos.y)}))
@@ -1457,7 +1540,7 @@ class Match:
                 if not p.alive or self.side(p.team) != "defense":
                     continue
                 cmd = commands.get(p.pid, Command())
-                if cmd.interact and (p.pos - self.spike_pos).length() <= INTERACT_RANGE and p.z <= 0.001:
+                if cmd.interact and self.near_spike(p, INTERACT_RANGE) and p.z <= 0.001:
                     if p.defuse_progress in (0.0, float(self._spike["defuse_checkpoint"])) and not p.defusing:
                         self.events.append(GameEvent("defuse_start", self.time, {"pid": p.pid, "pos": (p.pos.x, p.pos.y)}))
                     p.defusing = True
@@ -1487,6 +1570,7 @@ class Match:
     def _plant(self, p: PlayerState, site: str) -> None:
         self.phase = "planted"
         self.spike_pos = p.pos
+        self.spike_ground = self.world.ground_height(p.pos, p.level)
         self.spike_site = site
         self.spike_carrier = None
         self.spike_planted_at = self.time
@@ -1571,7 +1655,8 @@ class Match:
             "rules": {k: getattr(self.cfg.lobby, k) for k in self.RULE_NAMES},
             "score": list(self.score), "attacking_team": self.attacking_team, "winner": self.match_winner,
             "round_winner": self.round_winner, "round_reason": self.round_reason,
-            "spike": {"carrier": self.spike_carrier, "pos": (self.spike_pos.x, self.spike_pos.y) if self.spike_pos else None, "site": self.spike_site},
+            "spike": {"carrier": self.spike_carrier, "pos": (self.spike_pos.x, self.spike_pos.y) if self.spike_pos else None,
+                      "site": self.spike_site, "ground": self.spike_ground},
             "effects": [{"kind": e.kind, "team": e.team, "x": e.pos.x, "y": e.pos.y, "r": e.radius,
                          "a": (e.a.x, e.a.y) if e.a else None, "b": (e.b.x, e.b.y) if e.b else None,
                          "start": e.start, "until": e.until, "status": e.props.get("status")}
@@ -1585,5 +1670,6 @@ class Match:
             "history": [[w, r] for w, r in self.history],
             "report": self.damage_report(viewer.pid) if viewer is not None else [],
             "drops": [{"key": d.key, "x": d.pos.x, "y": d.pos.y} for d in self.drops],
+            "cover_broken": [[r.x0, r.y0, r.x1, r.y1] for r in self.broken_cover],
             "doors_open": [[r.x0, r.y0, r.x1, r.y1] for r in self.open_doors],
         }

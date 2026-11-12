@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 
 from gameplay.geometry import Vec, heading
 from gameplay.kit import statuses
-from gameplay.kit.builtins import select
+from gameplay.kit.builtins import damage_map_cover, select
 from gameplay.kit.registry import EFFECTS, PASSIVE_TRIGGERS, PRESETS, TARGETS, TRIGGERS, Ctx
 
 if TYPE_CHECKING:
@@ -35,7 +35,8 @@ def expand(ab: dict[str, Any]) -> dict[str, Any]:
     return {**ab, **spec}
 
 
-def run_steps(ctx: Ctx, steps: list[dict[str, Any]], players: list[PlayerState] | None = None) -> bool:
+def run_steps(ctx: Ctx, steps: list[dict[str, Any]], players: list[PlayerState] | None = None,
+              trigger_spec: dict[str, Any] | None = None) -> bool:
     """Runs steps in order. `players` (from a trigger) are used by every step that names no `who`.
     Returns False if a step cancelled (only matters on use)."""
     for step in steps:
@@ -50,6 +51,8 @@ def run_steps(ctx: Ctx, steps: list[dict[str, Any]], players: list[PlayerState] 
         targets = players if players is not None and "who" not in step else select(ctx, step, default=d.who)
         if not targets and step.get("required"):
             return False
+        if step.get("cover_mult") and step["do"] in ("damage", "dps"):
+            damage_map_cover(ctx, {**(trigger_spec or {}), **step})
         for t in targets:
             d.fn(ctx, t, step)
     return True
@@ -89,6 +92,8 @@ def place(ctx: Ctx, spec: dict[str, Any], point: Vec) -> Effect:
         "aim": (ctx.aim.x, ctx.aim.y), "blocks_sight": spec.get("blocks_sight", look in ("smoke", "wall")),
         "hidden": spec.get("hidden", {"decoy": "all", "alarm": "enemies", "tripwire": "enemies"}.get(look)),
         "status": spec.get("status_hint") or _status_hint(triggers), "move": float(spec.get("move", 0.0)),
+        "thrown": bool(spec.get("thrown")),
+        "source_level": ctx.obj.props.get("source_level", 0) if ctx.obj else (ctx.owner.level if ctx.owner else 0),
     }
     e = Effect(look, ctx.owner.pid if ctx.owner else -1, ctx.team, point, now + delay + lasts,
                radius=float(spec.get("radius", 0.0)), a=a, b=b, start=now + delay, props=props)
@@ -133,7 +138,7 @@ def _ctx_for(m: Match, e: Effect, dt: float) -> Ctx:
 
 
 def _fire(ctx: Ctx, tr: dict[str, Any], players: list[PlayerState] | None) -> None:
-    run_steps(ctx, list(tr.get("do", [])), players)
+    run_steps(ctx, list(tr.get("do", [])), players, tr)
     if tr.get("consume"):
         ctx.obj.props["ended"] = True  # type: ignore[union-attr]
 
@@ -145,6 +150,13 @@ def tick(m: Match, dt: float) -> None:
     for e in existing:
         triggers: list[dict[str, Any]] = e.props.get("triggers", [])
         ctx = _ctx_for(m, e, dt)
+        if m.cover_health and e.props.get("thrown") and e.a is not None and now >= e.start and e.until > e.start:
+            progress = min(1.0, (now - e.start) / (e.until - e.start))
+            previous = e.data.get("glass_progress", 0.0)
+            path = e.pos - e.a
+            if progress > previous:
+                m.break_glass(e.a + path * previous, e.a + path * progress, e.props["source_level"])
+                e.data["glass_progress"] = progress
         if now >= e.until:
             for tr in triggers:
                 if tr.get("when") == "expire":

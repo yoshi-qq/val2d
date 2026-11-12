@@ -177,7 +177,7 @@ class BotBrain:
                     return cmd
             elif m.spike_carrier == p.pid:
                 self.goal = site
-                if m.world.site_at(p.pos) and m.phase == "live":
+                if m.world.site_at(p.pos, p.level) and m.phase == "live":
                     cmd.interact = True
                     return cmd
             elif m.spike_pos is not None and m.phase == "live":
@@ -189,7 +189,7 @@ class BotBrain:
         elif m.mode != "deathmatch":
             if m.phase == "planted" and m.spike_pos is not None:
                 self.goal = m.spike_pos
-                if (p.pos - m.spike_pos).length() <= 1.2:
+                if m.near_spike(p, 1.2):
                     cmd.interact = True
                     return cmd
             elif self.goal is None:
@@ -197,7 +197,10 @@ class BotBrain:
         if self.goal is None:
             return cmd
         if self.path_goal is None or (self.path_goal - self.goal).length() > 0.5 or m.time - self.path_time > 3.0:
-            self.path = grid_for(m.world).path(p.pos, self.goal)
+            grid = grid_for(m.world, frozenset(m.open_doors | m.broken_cover))
+            goal_ground = m.spike_ground if self.goal == m.spike_pos else float("inf")
+            self.path = grid.path(p.pos, self.goal, start_ground=p.ground / float(m._mv["level_height"]),
+                                  goal_ground=goal_ground)
             self.path_goal, self.path_time = self.goal, m.time
         while self.path and (self.path[0] - p.pos).length() < 0.6:
             self.path.pop(0)
@@ -235,7 +238,7 @@ class BotBrain:
                     return s.rect.center
         idx = (m.round_no * 7 + 3) % len(m.world.sites) if attacking else (m.round_no + self.pid) % len(m.world.sites)
         site = m.world.sites[idx].rect.center
-        grid = grid_for(m.world)
+        grid = grid_for(m.world, frozenset(m.open_doors | m.broken_cover))
         return grid.center(grid.nearest_free(grid.cell(site)))
 
     def _staging(self, m: Match, site: Vec) -> Vec:
@@ -244,7 +247,7 @@ class BotBrain:
         origin = zone.center if zone else site
         away = (origin - site)
         point = site + (away.normalized() * min(10.0, away.length() * 0.6) if away.length() > 0.1 else Vec(0, 0))
-        grid = grid_for(m.world)
+        grid = grid_for(m.world, frozenset(m.open_doors | m.broken_cover))
         return grid.center(grid.nearest_free(grid.cell(point)))
 
     def _may_push(self, m: Match, p: PlayerState, site: Vec) -> bool:
@@ -260,7 +263,7 @@ class BotBrain:
     def _guard_spot(self, m: Match, p: PlayerState) -> Vec:
         """After the plant: hold a spot 5-7 m from the bomb, spread by player id, with sight on it."""
         assert m.spike_pos is not None
-        grid = grid_for(m.world)
+        grid = grid_for(m.world, frozenset(m.open_doors | m.broken_cover))
         angle = (self.pid * 77) % 360
         for step in range(8):
             spot = m.spike_pos + Vec(1, 0).rotated(angle + step * 45) * 6.0

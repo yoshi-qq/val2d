@@ -107,14 +107,14 @@ class MapBuilder:
         return self
 
     def platform(self, x0: float, y0: float, x1: float, y1: float, ramp: str = "", ramp_length: float = 2.0,
-                 ramp_width: float = 0.0, level: int = 1, mat: str = "") -> MapBuilder:
+                 ramp_width: float = 0.0, level: float = 1, mat: str = "") -> MapBuilder:
         """A raised area; ramp n/s/e/w adds a ramp on that side, centred (width = ramp_width or the full side).
-        mat: floor material drawn on it (also its footstep floor)."""
+        mat: floor material drawn on it (also its footstep floor); "floor" keeps the material below."""
         if level == 1 and not mat:
             self.data["platforms"].append([x0, y0, x1, y1])
         else:
             self.data["platforms"].append({"rect": [x0, y0, x1, y1], "level": level, **({"mat": mat} if mat else {})})
-        if mat:
+        if mat and mat != "floor":
             self.floor(x0, y0, x1, y1, mat)
         if ramp:
             cx, cy = (x0 + x1) / 2, (y0 + y1) / 2

@@ -42,6 +42,8 @@ WALLS: dict[str, dict] = {
     "ascent_plaster": dict(tile="maps/ascent/tiles/plaster.png", pen=2, sight=True, height=2),
     "ascent_metal": dict(tile="maps/ascent/tiles/metal.png", pen=1, sight=True, height=2),
     "ascent_roof": dict(tile="maps/ascent/tiles/roof.png", pen=3, sight=True, height=2),
+    # open window (B Main): blocks walking, not sight or shots. Placeholder tile until the design session draws a frame.
+    "ascent_window": dict(tile="maps/ascent/tiles/window_sill.png", pen=0, sight=False, height=2, low=True),
 }
 
 FLOORS: dict[str, str] = {
@@ -113,7 +115,16 @@ OBJECTS: dict[str, dict] = {
                                blocks=True, pen=0, sight=False, height=1),
     "ascent_site_door": dict(tile="maps/ascent/props/site_door_closed.png",
                             open_tile="maps/ascent/props/site_door_open.png", size=(2.5, 0.5),
-                            blocks=True, pen=1, sight=True, height=2, door=True),
+                            broken_tile="maps/ascent/props/site_door_broken.png",
+                            blocks=True, pen=3, sight=True, height=2, door=True, hp=500),
+    "ascent_glass": dict(tile="maps/common/window_glass.png", size=(3, 0.4),
+                         blocks=True, pen=0, sight=False, height=2, hp=1),
+    "ascent_mid_panel": dict(tile="maps/ascent/props/mid_panel.png", size=(2, 0.35),
+                             blocks=True, pen=3, sight=True, height=2, hp=400),
+    "ascent_brick_pallet": dict(tile="maps/ascent/props/brick_pallet.png", size=(1.8, 3.7),
+                                blocks=True, pen=2, sight=True, height=1),
+    "ascent_bench": dict(tile="maps/ascent/props/bench.png", size=(2.3, 0.8),
+                         blocks=True, pen=0, sight=False, height=1),
     "ascent_site_door_broken": dict(tile="maps/ascent/props/site_door_broken.png", size=(2.5, 0.5)),
     "ascent_door_switch": dict(tile="maps/ascent/props/door_switch.png", size=(0.75, 0.625)),
     "ascent_stone_arch": dict(tile="maps/ascent/props/stone_arch.png", size=(2.5, 0.75)),

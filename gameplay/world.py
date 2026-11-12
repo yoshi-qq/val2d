@@ -25,6 +25,10 @@ class Wall:
     low: bool = False   # lower than head height: players see and shoot over it (barrels, benches)
     base: float = 0.0   # level of the floor it stands on (crates on a raised site, platform sides)
 
+    hp: int = 0
+    switch: Vec | None = None
+    on_deck: bool = False
+
     @property
     def full(self) -> bool:
         """Full-height walls are taller than every floor level: never climbed, seen or shot over."""
@@ -52,8 +56,20 @@ class MapThing:
 class Platform:
     """Raised area (level 1 or higher). Ramps connect it to lower floors."""
     rect: Rect
-    level: int = 1
+    level: float = 1
     mat: str = ""  # floor material drawn on top (FLOORS key); empty: the shared platform tile
+
+
+@dataclass(frozen=True)
+class Deck:
+    """Walkable overhead floor with open space beneath it."""
+    rect: Rect
+    level: float
+    lower: float
+
+    @property
+    def underside(self) -> float:
+        return self.level - 0.2
 
 
 @dataclass(frozen=True)
@@ -83,11 +99,18 @@ class WorldMap:
     decals: list[MapThing] = field(default_factory=list)
     # explicit ramps by index into ramps: (axis it rises along, high end at the smaller coordinate, low, high level)
     ramp_spans: dict[int, tuple[str, bool, float, float]] = field(default_factory=dict)
+    decks: list[Deck] = field(default_factory=list)
 
-    def ground_height(self, p: Vec) -> float:
+    def deck_at(self, p: Vec) -> Deck | None:
+        return next((deck for deck in self.decks if deck.rect.contains(p)), None)
+
+    def ground_height(self, p: Vec, reach: float = float("inf")) -> float:
         """Height of the surface under a point in levels: platforms at their level, low cover one level above the
         floor it stands on, ramps rising evenly from their low end to the level they lead onto."""
-        h = 0.0
+        deck = self.deck_at(p) if self.decks else None
+        if deck is not None and reach < deck.level:
+            return deck.lower
+        h = deck.level if deck is not None else 0.0
         for pl in self.platforms:
             if pl.rect.contains(p):
                 h = max(h, float(pl.level))
@@ -138,9 +161,19 @@ class WorldMap:
         self._ramp_cache = out
         return out
 
-    def floor_level(self, p: Vec) -> int:
+    def floor_level(self, p: Vec, reach: float = float("inf")) -> int:
         """Level of the surface under a point (rounded ground height)."""
-        return int(self.ground_height(p) + 0.5)
+        return int(self.ground_height(p, reach) + 0.5)
+
+    def deck_blocks(self, a: Vec, a_height: float, b: Vec, b_height: float) -> bool:
+        """A segment crossing a deck within its footprint cannot see or shoot through it."""
+        for deck in self.decks:
+            slab = (deck.underside + deck.level) / 2
+            if min(a_height, b_height) < slab < max(a_height, b_height):
+                t = (slab - a_height) / (b_height - a_height)
+                if deck.rect.contains(a + (b - a) * t):
+                    return True
+        return False
 
     def floor_material(self, p: Vec) -> str:
         """Floor material key under a point (last matching patch wins), else the map's floor."""
@@ -153,13 +186,19 @@ class WorldMap:
     def on_ramp(self, p: Vec) -> bool:
         return any(r.contains(p) for r in self.ramps)
 
-    def site_at(self, p: Vec) -> Site | None:
+    def site_at(self, p: Vec, level: float | None = None) -> Site | None:
+        deck = self.deck_at(p) if self.decks and level is not None else None
+        if deck is not None and level >= deck.level:
+            return None
         for s in self.sites:
             if s.rect.contains(p):
                 return s
         return None
 
-    def callout_at(self, p: Vec) -> str:
+    def callout_at(self, p: Vec, level: float = float("inf")) -> str:
+        deck = self.deck_at(p) if self.decks else None
+        if deck is not None and self.key == "ascent":
+            return "A Rafters" if level >= deck.level else "A Hell"
         for name, r in self.callouts:
             if r.contains(p):
                 return name
@@ -167,10 +206,11 @@ class WorldMap:
 
     def blocking_walls(self, level: int) -> list[Wall]:
         """Walls that block movement on this level."""
-        return [w for w in self.walls if w.top > level and w.solid]
+        return [w for w in self.walls if w.top > level and w.solid and (not w.on_deck or w.base <= level)]
 
     def sight_walls(self, level: int) -> list[Wall]:
-        return [w for w in self.walls if w.blocks_sight and w.top > level and not w.low]
+        return [w for w in self.walls if w.blocks_sight and w.top > level and not w.low
+                and (not w.on_deck or w.base <= level)]
 
 
 @lru_cache(maxsize=1)
@@ -279,7 +319,8 @@ def parse_map(key: str, raw: dict) -> WorldMap:
         if mat and not base:
             warnings.warn(f"Map {key}: unknown wall material {mat!r}")
         m.walls.append(Wall(_rect(wl["rect"]), int(wl.get("pen", base.get("pen", 2))), bool(wl.get("sight", base.get("sight", True))),
-                            int(wl.get("height", base.get("height", 2))), mat))
+                            int(wl.get("height", base.get("height", 2))), mat,
+                            low=bool(wl.get("low", base.get("low", False)))))  # low: seen and shot through (open window)
     objects, decals = load_things()
     for kind, table, target in (("objects", objects, m.objects), ("decals", decals, m.decals)):
         for item in raw.get(kind, []):
@@ -299,7 +340,8 @@ def parse_map(key: str, raw: dict) -> WorldMap:
                 low = height_m is not None and height_m < head_height()
                 m.walls.append(Wall(rect, int(spec.get("pen", 1)), bool(spec.get("sight", True)) and not low,
                                     int(spec.get("height", 2)), "obj:" + thing.key, bool(spec.get("buy_phase_only", False)),
-                                    bool(spec.get("door", False)), low=low))
+                                    bool(spec.get("door", False)), low=low, hp=int(spec.get("hp", 0)),
+                                    switch=Vec(*item["switch"]) if "switch" in item else None))
             elif kind == "objects" and spec.get("sight_only"):
                 m.walls.append(Wall(thing.rect, 0, True, 2, "obj:" + thing.key, False, False, False))
     m.practice_targets = [(Vec(*t["pos"]), float(t.get("move", 0.0))) for t in raw.get("practice_targets", [])]
@@ -308,10 +350,15 @@ def parse_map(key: str, raw: dict) -> WorldMap:
     m.floors = [(str(f["mat"]), _rect(f["rect"])) for f in raw.get("floors", [])]
     for b in raw.get("crates", []):
         m.walls.append(Wall(_rect(b), 1, False, 1))
-    m.platforms = [Platform(_rect(p["rect"]), int(p.get("level", 1)), str(p.get("mat", ""))) if isinstance(p, dict)
+    m.platforms = [Platform(_rect(p["rect"]), float(p.get("level", 1)), str(p.get("mat", ""))) if isinstance(p, dict)
                    else Platform(_rect(p)) for p in raw.get("platforms", [])]
+    m.decks = [Deck(_rect(d["rect"]), float(d["level"]), float(d["lower"])) for d in raw.get("decks", [])]
     # cover stands on the floor under it: a crate on a raised site is one level above that site
     m.walls = [replace(wl, base=_floor_under(m.platforms, wl.rect)) if not wl.full else wl for wl in m.walls]
+    for i, wall in enumerate(m.walls):
+        deck = m.deck_at(wall.rect.center) if m.decks and wall.material.startswith("obj:") else None
+        if deck is not None:
+            m.walls[i] = replace(wall, base=deck.level, on_deck=True)
     m.walls += [Wall(pl.rect, 1, False, 1, PLATFORM, base=float(pl.level - 1)) for pl in m.platforms]
     m.ramps = []
     for i, r in enumerate(raw.get("ramps", [])):

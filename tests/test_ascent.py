@@ -1,4 +1,4 @@
-"""Ascent's floor levels: stairs climb, Heaven is too high to jump onto, cover counts from its own floor, bots path over levels."""
+"""Ascent's floor levels: stairs, Heaven too high to jump onto, B Main windows, cover on raised floors, bot paths."""
 from __future__ import annotations
 
 from gameplay.geometry import Vec
@@ -11,15 +11,17 @@ def setup() -> tuple[Match, int]:
     m = Match(load_map("ascent"), seed=1)
     pid = m.add_player("A", 0, "kestrel").pid
     m.start()
-    for _ in range(31 * 64):
-        m.tick(1 / 64, {})
+    m.phase_until = m.time
+    m.tick(1 / 64, {})
     return m, pid
 
 
-def place(m: Match, pid: int, x: float, top: float) -> None:
+def place(m: Match, pid: int, x: float, top: float, reach: float = float("inf")) -> None:
     p = m.players[pid]
     p.pos, p.z, p.vz = Vec(x, m.world.height - top), 0.0, 0.0
-    p.ground = m.world.ground_height(p.pos)
+    p.ground = m.world.ground_height(p.pos, reach)
+    p.level = m.world.floor_level(p.pos, reach)
+    p.vel = Vec(0, 0)
 
 
 def walk(m: Match, pid: int, facing: float, seconds: float, jump: bool = False) -> None:
@@ -30,23 +32,131 @@ def walk(m: Match, pid: int, facing: float, seconds: float, jump: bool = False) 
 def test_levels_of_the_main_areas() -> None:
     w = load_map("ascent")
     at = lambda x, top: w.ground_height(Vec(x, w.height - top))  # noqa: E731
-    assert at(110, 52) == 0.0 and at(110, 40) == 1.0 and at(110, 31) == 3.0  # A front, site, Heaven
-    assert at(64, 65) == 0.0 and at(64, 55) == 1.0 and at(76, 75) == 1.0     # courtyard, Mid Bottom, Catwalk
-    assert at(25, 30) == 0.0 and at(55, 38) == 1.0                           # B site, Market
+    assert at(110, 52) == 2.0 and at(110, 40) == 1.0 and at(110, 31) == 4.0  # A front above the site, Heaven
+    assert at(92, 52) == 2.0 and at(95, 37) == 3.0                           # A Tree below the Garden landing
+    assert at(64, 65) == 1.0 and at(64, 55) == 2.0 and at(76, 75) == 2.0     # courtyard, Mid Bottom, Catwalk
+    assert at(20, 35) == 0.0 and at(30, 47) == 1.0 and at(55, 38) == 2.0     # B site below B Lane, Market
 
 
 def test_stairs_climb_and_heaven_needs_its_stairs() -> None:
     m, pid = setup()
     p = m.players[pid]
     place(m, pid, 110, 52)
-    walk(m, pid, 0.0, 1.5)  # north up the A site stairs
+    walk(m, pid, 0.0, 1.5)  # north down the A site stairs
     assert p.ground == 1.0 and m.world.callout_at(p.pos) == "A Site"
+    walk(m, pid, 180.0, 1.5)  # and back up
+    assert p.ground == 2.0
     place(m, pid, 115, 36)
-    walk(m, pid, 0.0, 1.5, jump=True)  # jumping at the Heaven edge from the site
-    assert p.ground == 1.0 and m.world.height - p.pos.y > 34.0
+    walk(m, pid, 0.0, 1.5, jump=True)  # runs under the Heaven deck without jumping onto it
+    assert p.ground == 1.0 and m.world.deck_at(p.pos) is not None
     place(m, pid, 101.5, 19)
     walk(m, pid, 180.0, 2.0)  # south up the Heaven stairs
-    assert p.ground == 3.0
+    assert p.ground == 4.0
+
+
+def test_b_main_windows_stop_walking_but_not_sight() -> None:
+    m, pid = setup()
+    p = m.players[pid]
+    place(m, pid, 26.5, 52)
+    walk(m, pid, 0.0, 1.5, jump=True)  # north into the west window
+    assert m.world.height - p.pos.y > 50.0 and m.world.callout_at(p.pos) == "B Main"
+    windows = [w for w in m.world.walls if w.material == "ascent_window" and w.rect.center.x < 40]
+    assert len(windows) == 2 and all(w.low and not w.blocks_sight for w in windows)
+
+
+def test_deck_separates_players_and_allows_drop_to_site() -> None:
+    m, pid = setup()
+    upper = m.players[pid]
+    lower = m.add_player("B", 1, "marrow")
+    place(m, pid, 114, 32)
+    place(m, lower.pid, 114, 32, reach=1)
+    assert (upper.ground, lower.ground) == (4, 1)
+    assert m.world.callout_at(upper.pos, upper.level) == "A Rafters"
+    assert m.world.callout_at(lower.pos, lower.level) == "A Hell"
+    assert not m.can_see(upper, lower) and not m.line_of_fire(lower, upper)
+    m.spike_pos, m.spike_ground = lower.pos, lower.ground
+    assert m.near_spike(lower, 1) and not m.near_spike(upper, 1)
+    m.spike_pos = None
+    lower.z, lower.vz = 1, 14
+    for _ in range(12):
+        m.tick(1 / 64, {})
+    assert lower.ground == 1 and lower.z <= 1.4
+    walk(m, pid, 180, 1.2)
+    assert upper.ground == 1 and m.world.height - upper.pos.y > 34
+
+
+def test_bot_paths_reach_both_deck_surfaces() -> None:
+    world = load_map("ascent")
+    grid = grid_for(world)
+    target = Vec(114, world.height - 32)
+    assert grid.cell(target, 1) != grid.cell(target, 4)
+    assert grid.path(world.spawns[0][2], target, goal_ground=1)
+    assert grid.path(world.spawns[1][2], target, goal_ground=4)
+    assert not grid.line_free(target, target, 1, 4)
+
+
+def test_lobby_approaches_are_walkable_in_both_directions() -> None:
+    m, pid = setup()
+    p = m.players[pid]
+    for x, top, start, end in ((97, 74, 1, 2), (27, 67, 0.5, 1)):
+        place(m, pid, x, top)
+        assert p.ground == start
+        walk(m, pid, 0, 1.15)
+        assert p.ground == end
+        walk(m, pid, 180, 1.15)
+        assert p.ground == start
+
+
+def test_ability_damage_hits_closed_door_and_mid_panel_without_player_targets() -> None:
+    from gameplay.kit.engine import use
+
+    m, pid = setup()
+    p = m.players[pid]
+    door = next(w for w in m.world.walls if w.switch and w.rect.center.x > 90)
+    panel = next(w for w in m.world.walls if w.material == "obj:ascent_mid_panel")
+    place(m, pid, 99, 52.5)
+    p.facing = 90
+    fury = {"target": "self", "do": [{"do": "spawn", "place": {
+        "look": "zone", "delay": 0.7, "lasts": 0.22, "triggers": [
+            {"when": "start", "area": "beam", "length": 45, "width": 1.6, "do": [
+                {"do": "damage", "amount": 80, "cover_mult": 1, "cover_through_walls": True}]}]}}]}
+    use(m, p, "X", fury)
+    for _ in range(60):
+        m.tick(1 / 64, {})
+    assert m.cover_health[door.rect] == door.hp  # open doors cannot take damage
+    m.effects.clear()
+    m.open_doors.remove(door.rect)
+    use(m, p, "X", fury)
+    for _ in range(60):
+        m.tick(1 / 64, {})
+    assert m.cover_health[door.rect] == door.hp - 80
+    m.effects.clear()
+    offset = panel.rect.center - p.pos
+    from gameplay.geometry import angle_of
+    p.facing, p.cursor_depth = angle_of(offset), offset.length()
+    strike = {"target": "aim_free", "range": 65, "place": {
+        "look": "zone", "delay": 1.5, "lasts": 3, "radius": 6, "triggers": [
+            {"when": "tick", "do": [{"do": "dps", "per_second": 120, "cover_mult": 1}]}]}}
+    use(m, p, "X", strike)
+    for _ in range(2 * 64):
+        m.tick(1 / 64, {})
+    assert 0 < m.cover_health[panel.rect] < panel.hp
+
+
+def test_thrown_projectile_breaks_a_window_in_flight() -> None:
+    from gameplay.kit.engine import use
+
+    m, pid = setup()
+    p = m.players[pid]
+    glass = next(w for w in m.world.walls if w.material == "obj:ascent_glass")
+    place(m, pid, 94.5, 35.5)
+    p.facing, p.cursor_depth = 0, 3
+    bolt = {"target": "aim_free", "place": {"look": "blast", "lasts": 0.6, "thrown": True}}
+    use(m, p, "E", bolt)
+    assert m.wall_active(glass)
+    for _ in range(24):
+        m.tick(1 / 64, {})
+    assert not m.wall_active(glass)
 
 
 def test_crate_on_a_raised_floor_is_still_cover() -> None:
@@ -54,12 +164,77 @@ def test_crate_on_a_raised_floor_is_still_cover() -> None:
     site = w.site_at
     dice = [wl for wl in w.walls if wl.material == "obj:ascent_radianite_crate" and site(wl.rect.center)
             and site(wl.rect.center).name == "A"]
-    assert dice and all(wl.top == 2.0 for wl in dice)  # one level above the A site plateau
+    assert dice and all(wl.top == 2.0 for wl in dice)  # one level above the A site floor
     assert w.ground_height(dice[0].rect.center) == 2.0
 
 
 def test_bots_reach_every_area() -> None:
     w = load_map("ascent")
     grid = grid_for(w)
-    for x, top in ((115, 40), (112, 31), (25, 30), (64, 55), (76, 75), (125, 63)):
+    for x, top in ((110, 40), (112, 31), (20, 35), (64, 55), (76, 75), (125, 63), (95, 37)):
         assert grid.path(w.spawns[0][2], Vec(x, w.height - top)), (x, top)
+
+
+def test_every_stair_rises_without_steps() -> None:
+    w = load_map("ascent")
+    for rect, axis, high_at_min, top, low in w.ramp_profiles():
+        c = rect.center
+        span = (rect.x1 - rect.x0) if axis == "x" else (rect.y1 - rect.y0)
+        start = (rect.x0 if axis == "x" else rect.y0) - 0.3
+        heights = []
+        for i in range(int((span + 0.6) / 0.25) + 1):
+            v = start + i * 0.25
+            point = Vec(v, c.y) if axis == "x" else Vec(c.x, v)
+            if not any(wl.full and wl.rect.contains(point) for wl in w.walls):  # floor only, not inside walls
+                heights.append(w.ground_height(point))
+        steps = [abs(b - a) for a, b in zip(heights, heights[1:])]
+        assert max(steps) < 0.3, (rect, heights)
+
+def test_ascent_switch_door_and_breakables_reset_each_round() -> None:
+    from gameplay.match import heading
+    from gameplay.geometry import angle_of
+
+    m, pid = setup()
+    player = m.players[pid]
+    door = next(w for w in m.world.walls if w.switch and w.rect.center.x > 90)
+    assert not m.wall_active(door)
+    player.pos = door.rect.center
+    assert not m._toggle_door(player)
+    player.pos = door.switch
+    assert m._toggle_door(player) and m.wall_active(door)
+
+    # Fire directly into the closed door from A Tree.
+    place(m, pid, 99, 52.5)
+    weapon = m.weapons[player.weapon.key]
+    direction = heading(angle_of(door.rect.center - player.pos))
+    for _ in range(50):
+        m._trace(player, weapon, direction, direction)
+        if not m.wall_active(door):
+            break
+    assert door.rect in m.broken_cover
+    player.pos = door.switch
+    assert not m._toggle_door(player)
+
+    glass = next(w for w in m.world.walls if w.material == "obj:ascent_glass")
+    place(m, pid, 94.5, 35.5)
+    direction = heading(0)
+    assert m.wall_active(glass) and not glass.blocks_sight
+    m._trace(player, weapon, direction, direction)
+    assert not m.wall_active(glass)
+    assert list((glass.rect.x0, glass.rect.y0, glass.rect.x1, glass.rect.y1)) in m.snapshot()["cover_broken"]
+
+    m._start_round()
+    assert not m.wall_active(door) and m.wall_active(glass)
+    assert m.cover_health[door.rect] == 500
+
+
+def test_mid_panels_stop_bullets_until_destroyed_and_keep_sills() -> None:
+    m, pid = setup()
+    for panel in (w for w in m.world.walls if w.material == "obj:ascent_mid_panel"):
+        assert panel.hp == 400 and panel.penetration == 3 and panel.blocks_sight
+        m._damage_cover(panel, 399)
+        assert m.wall_active(panel, for_sight=True)
+        m._damage_cover(panel, 1)
+        assert not m.wall_active(panel)
+        sill = next(w for w in m.world.walls if w.low and w.rect.contains(panel.rect.center))
+        assert m.wall_active(sill) and not sill.blocks_sight

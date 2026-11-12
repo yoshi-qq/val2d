@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from gameplay.geometry import Vec, angle_diff, angle_of, heading, segments_intersect
+from gameplay.geometry import Rect, Vec, angle_diff, angle_of, heading, segments_intersect
 from gameplay.kit import statuses
 from gameplay.kit.registry import Ctx, effect, passive_trigger, target, trigger, who
 
@@ -192,6 +192,57 @@ def select(ctx: Ctx, spec: dict[str, Any], default: str = "enemies") -> list[Pla
 
 
 # ------------------------------------------------------------------ effects on players
+def damage_map_cover(ctx: Ctx, spec: dict[str, Any]) -> None:
+    """Apply opted-in ability damage once per map object, independently of player hits."""
+    m, obj = ctx.m, ctx.obj
+    if not m.cover_health:
+        return
+    level = obj.props.get("source_level", 0) if obj is not None else (ctx.owner.level if ctx.owner else 0)
+    radius = float(spec.get("radius", obj.radius if obj is not None else 0.0))
+    area = spec.get("area") or "circle"
+    continuous = spec["do"] == "dps"
+    amount = float(spec["per_second"]) * ctx.dt if continuous else float(spec["amount"])
+    for wall in m.world.walls:
+        if wall.hp <= 0 or not m.wall_active(wall):
+            continue
+        r = wall.rect
+        if area == "beam" or (area == "line" and obj is not None and obj.a is not None and obj.b is not None):
+            start, end = (obj.a, obj.b) if area == "line" else (
+                ctx.source, ctx.source + ctx.aim * float(spec.get("length", ctx.ability.get("length", 10.0)))
+            )
+            half = float(spec.get("width", ctx.ability.get("width", 0.0))) / 2
+            if area == "line":
+                half += BODY
+            delta = end - start
+            interval = Rect(r.x0 - half, r.y0 - half, r.x1 + half, r.y1 + half).ray_interval(start, delta)
+            if interval is None or interval[0] > 1:
+                continue
+            origin = start + delta * interval[0] if area == "line" else start
+        elif area == "circle" and radius > 0:
+            origin = ctx.point
+        else:
+            continue
+        point = Vec(max(r.x0, min(r.x1, origin.x)), max(r.y0, min(r.y1, origin.y)))
+        distance = (point - origin).length()
+        if area == "circle" and distance > radius:
+            continue
+        cover_level = m.world.floor_level(r.center)
+        if m.world.deck_blocks(origin, level + 1.0, point, cover_level + 1.0):
+            continue
+        if not spec.get("cover_through_walls") and not m._line_clear(
+            origin, point, min(level, cover_level), ignore_effects=True, ignore_wall=wall
+        ):
+            continue
+        scale = 1.0 - float(spec.get("falloff", 0.0)) * distance / radius if area == "circle" else 1.0
+        damage = amount * float(spec["cover_mult"]) * scale
+        if continuous and obj is not None:
+            pending = obj.data.setdefault("cover_dps", {})
+            damage += pending.get(r, 0.0)
+            pending[r] = damage - int(damage)
+        if damage >= 1:
+            m._damage_cover(wall, int(damage))
+
+
 @effect("damage")
 def e_damage(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> None:
     """amount, falloff (share lost at the edge of the radius), zone."""
@@ -342,7 +393,7 @@ def e_teleport(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> bool:
     if p is None:
         return False
     lh = float(ctx.m._mv["level_height"])
-    ground = ctx.m.world.ground_height(ctx.point) * lh
+    ground = ctx.m.world.ground_height(ctx.point, p.level) * lh
     flat = (ctx.point - p.pos).length()
     rise = ground - (p.ground + p.z)
     reach = float(step.get("range", ctx.ability.get("range", 8.0)))

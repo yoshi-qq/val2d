@@ -41,6 +41,12 @@ class WorldViewMixin:
             self.draw_map_texture(me)
         else:
             self.draw_map_placeholder(me)
+        for deck in wm.decks:
+            if me.level < deck.level:
+                # Cut away the rafters so players approaching from A Site see the space below.
+                outline = self.poly(deck.rect, me)
+                pygame.draw.polygon(s, (71, 65, 63), outline)
+                pygame.draw.polygon(s, (97, 83, 76), outline, 1)
         self.draw_live_objects(me)
         for site in wm.sites:
             sx, sy = self.to_screen(site.rect.center, me)
@@ -371,8 +377,8 @@ class WorldViewMixin:
         objects = load_things()[0]
         for o in self.match.world.objects:
             spec = objects.get(o.key, {})
-            if spec.get("door"):
-                self.draw_door(o, spec, me)
+            if spec.get("door") or spec.get("hp"):
+                self.draw_dynamic_cover(o, spec, me)
                 continue
             if not (int(spec.get("frames", 1)) > 1 or spec.get("buy_phase_only")):
                 continue
@@ -398,11 +404,16 @@ class WorldViewMixin:
             ox, oy = self.to_screen(o.rect.center, me)
             self.screen.blit(rotated, (ox - rotated.get_width() / 2, oy - rotated.get_height() / 2))
 
-    def draw_door(self, o: object, spec: dict, me: PlayerState) -> None:
-        """Door sprite (open or closed) rotated with the camera."""
+    def draw_dynamic_cover(self, o: object, spec: dict, me: PlayerState) -> None:
+        """Door or destructible sprite rotated with the camera."""
         rect = o.rect  # type: ignore[attr-defined]
         is_open = rect in self.match.open_doors
-        rel = str(spec.get("open_tile" if is_open else "tile", ""))
+        if rect in self.match.broken_cover:
+            rel = str(spec.get("broken_tile", ""))
+            if not rel:
+                return
+        else:
+            rel = str(spec.get("open_tile" if is_open else "tile", ""))
         img = self.bank.raw(rel)
         w_px = max(1, round((rect.x1 - rect.x0) * self.scale))
         h_px = max(1, round((rect.y1 - rect.y0) * self.scale))
