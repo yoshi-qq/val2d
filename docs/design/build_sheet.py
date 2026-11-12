@@ -70,7 +70,8 @@ def build() -> str:
     agents = config_dict("agents", "kestrel")
     weapons = config_dict("weapons", "spatz")
     parts: list[str] = []
-    for key in agents or ("kestrel", "marrow"):
+    on_disk = sorted(p.name for p in (ROOT / "assets" / "agents").iterdir() if (p / f"{p.name}_idle.png").exists() and p.name != "omen")
+    for key in list(agents) + [k for k in on_disk if k not in agents]:
         info = agents.get(key, {})
         name, role = info.get("name", key.title()), info.get("role", "")
         a = f"assets/agents/{key}/{key}"

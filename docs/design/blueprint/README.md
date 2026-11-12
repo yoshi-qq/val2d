@@ -187,18 +187,33 @@ white cross = centre/anchor, white line = ground row, white ring = maximum radiu
 |---|---|---|---|---|---|---|
 | `maps_common/door_closed.png` | [example](examples/door_closed.example.png) | `assets/maps/common/door_closed.png` | 32×32 | 1 | still | door closed |
 | `maps_common/door_open.png` | [example](examples/door_open.example.png) | `assets/maps/common/door_open.png` | 32×32 | 1 | still | door open |
+| `maps_common/fence_chainlink.png` | [example](examples/fence_chainlink.example.png) | `assets/maps/common/fence_chainlink.png` | 32×32 | 1 | still | fence chainlink |
 | `maps_common/fence_wood.png` | [example](examples/fence_wood.example.png) | `assets/maps/common/fence_wood.png` | 32×32 | 1 | still | fence wood |
+| `maps_common/floor_asphalt.png` | [example](examples/floor_asphalt.example.png) | `assets/maps/common/floor_asphalt.png` | 32×32 | 1 | still | floor asphalt |
+| `maps_common/floor_carpet.png` | [example](examples/floor_carpet.example.png) | `assets/maps/common/floor_carpet.png` | 32×32 | 1 | still | floor carpet |
+| `maps_common/floor_cobble.png` | [example](examples/floor_cobble.example.png) | `assets/maps/common/floor_cobble.png` | 32×32 | 1 | still | floor cobble |
 | `maps_common/floor_concrete.png` | [example](examples/floor_concrete.example.png) | `assets/maps/common/floor_concrete.png` | 32×32 | 1 | still | floor concrete |
 | `maps_common/floor_dirt.png` | [example](examples/floor_dirt.example.png) | `assets/maps/common/floor_dirt.png` | 32×32 | 1 | still | floor dirt |
+| `maps_common/floor_grass.png` | [example](examples/floor_grass.example.png) | `assets/maps/common/floor_grass.png` | 32×32 | 1 | still | floor grass |
 | `maps_common/floor_grate.png` | [example](examples/floor_grate.example.png) | `assets/maps/common/floor_grate.png` | 32×32 | 1 | still | floor grate |
+| `maps_common/floor_gravel.png` | [example](examples/floor_gravel.example.png) | `assets/maps/common/floor_gravel.png` | 32×32 | 1 | still | floor gravel |
+| `maps_common/floor_metal_plate.png` | [example](examples/floor_metal_plate.example.png) | `assets/maps/common/floor_metal_plate.png` | 32×32 | 1 | still | floor metal plate |
+| `maps_common/floor_planks.png` | [example](examples/floor_planks.example.png) | `assets/maps/common/floor_planks.png` | 32×32 | 1 | still | floor planks |
 | `maps_common/floor_sand.png` | [example](examples/floor_sand.example.png) | `assets/maps/common/floor_sand.png` | 32×32 | 1 | still | floor sand |
 | `maps_common/floor_stone_cracked.png` | [example](examples/floor_stone_cracked.example.png) | `assets/maps/common/floor_stone_cracked.png` | 32×32 | 1 | still | floor stone cracked |
 | `maps_common/floor_tiles.png` | [example](examples/floor_tiles.example.png) | `assets/maps/common/floor_tiles.png` | 32×32 | 1 | still | floor tiles |
+| `maps_common/floor_tiles_dark.png` | [example](examples/floor_tiles_dark.example.png) | `assets/maps/common/floor_tiles_dark.png` | 32×32 | 1 | still | floor tiles dark |
 | `maps_common/platform_edge.png` | [example](examples/platform_edge.example.png) | `assets/maps/common/platform_edge.png` | 32×4 | 1 | still | platform edge |
 | `maps_common/spawn_barrier.png` | [example](examples/spawn_barrier.example.png) | `assets/maps/common/spawn_barrier.png` | 32×32 | 2 | 4 fps | spawn barrier |
 | `maps_common/wall_brick.png` | [example](examples/wall_brick.example.png) | `assets/maps/common/wall_brick.png` | 32×32 | 1 | still | wall brick |
 | `maps_common/wall_concrete.png` | [example](examples/wall_concrete.example.png) | `assets/maps/common/wall_concrete.png` | 32×32 | 1 | still | wall concrete |
+| `maps_common/wall_container.png` | [example](examples/wall_container.example.png) | `assets/maps/common/wall_container.png` | 32×32 | 1 | still | wall container |
+| `maps_common/wall_hedge.png` | [example](examples/wall_hedge.example.png) | `assets/maps/common/wall_hedge.png` | 32×32 | 1 | still | wall hedge |
+| `maps_common/wall_jersey_barrier.png` | [example](examples/wall_jersey_barrier.example.png) | `assets/maps/common/wall_jersey_barrier.png` | 32×32 | 1 | still | wall jersey barrier |
+| `maps_common/wall_metal_sheet.png` | [example](examples/wall_metal_sheet.example.png) | `assets/maps/common/wall_metal_sheet.png` | 32×32 | 1 | still | wall metal sheet |
+| `maps_common/wall_sandbags.png` | [example](examples/wall_sandbags.example.png) | `assets/maps/common/wall_sandbags.png` | 32×32 | 1 | still | wall sandbags |
 | `maps_common/wall_shadow.png` | [example](examples/wall_shadow.example.png) | `assets/maps/common/wall_shadow.png` | 32×8 | 1 | still | wall shadow |
+| `maps_common/wall_stone.png` | [example](examples/wall_stone.example.png) | `assets/maps/common/wall_stone.png` | 32×32 | 1 | still | wall stone |
 | `maps_common/window_glass.png` | [example](examples/window_glass.example.png) | `assets/maps/common/window_glass.png` | 32×32 | 1 | still | window glass |
 
 ## Map props
@@ -207,12 +222,29 @@ white cross = centre/anchor, white line = ground row, white ring = maximum radiu
 |---|---|---|---|---|---|---|
 | `maps_common_props/barrel.png` | [example](examples/barrel.example.png) | `assets/maps/common/props/barrel.png` | 12×12 | 1 | still | barrel |
 | `maps_common_props/bench.png` | [example](examples/bench.example.png) | `assets/maps/common/props/bench.png` | 32×8 | 1 | still | bench |
+| `maps_common_props/boxes_cardboard.png` | [example](examples/boxes_cardboard.example.png) | `assets/maps/common/props/boxes_cardboard.png` | 16×12 | 1 | still | boxes cardboard |
+| `maps_common_props/bush.png` | [example](examples/bush.example.png) | `assets/maps/common/props/bush.png` | 16×16 | 1 | still | bush |
+| `maps_common_props/car.png` | [example](examples/car.example.png) | `assets/maps/common/props/car.png` | 64×32 | 1 | still | car |
+| `maps_common_props/chair.png` | [example](examples/chair.example.png) | `assets/maps/common/props/chair.png` | 8×8 | 1 | still | chair |
 | `maps_common_props/cone.png` | [example](examples/cone.example.png) | `assets/maps/common/props/cone.png` | 10×6 | 1 | still | cone |
+| `maps_common_props/container_large.png` | [example](examples/container_large.example.png) | `assets/maps/common/props/container_large.png` | 96×32 | 1 | still | container large |
 | `maps_common_props/crate_small.png` | [example](examples/crate_small.example.png) | `assets/maps/common/props/crate_small.png` | 12×12 | 1 | still | crate small |
+| `maps_common_props/crate_stack.png` | [example](examples/crate_stack.example.png) | `assets/maps/common/props/crate_stack.png` | 24×24 | 1 | still | crate stack |
 | `maps_common_props/debris.png` | [example](examples/debris.example.png) | `assets/maps/common/props/debris.png` | 10×7 | 1 | still | debris |
+| `maps_common_props/dumpster.png` | [example](examples/dumpster.example.png) | `assets/maps/common/props/dumpster.png` | 32×20 | 1 | still | dumpster |
+| `maps_common_props/generator.png` | [example](examples/generator.example.png) | `assets/maps/common/props/generator.png` | 24×16 | 1 | still | generator |
+| `maps_common_props/ladder.png` | [example](examples/ladder.example.png) | `assets/maps/common/props/ladder.png` | 16×32 | 1 | still | ladder |
 | `maps_common_props/lamp.png` | [example](examples/lamp.example.png) | `assets/maps/common/props/lamp.png` | 16×16 | 1 | still | lamp |
 | `maps_common_props/pallet.png` | [example](examples/pallet.example.png) | `assets/maps/common/props/pallet.png` | 16×9 | 1 | still | pallet |
+| `maps_common_props/pillar.png` | [example](examples/pillar.example.png) | `assets/maps/common/props/pillar.png` | 16×16 | 1 | still | pillar |
+| `maps_common_props/pipe.png` | [example](examples/pipe.example.png) | `assets/maps/common/props/pipe.png` | 32×8 | 1 | still | pipe |
 | `maps_common_props/plant.png` | [example](examples/plant.example.png) | `assets/maps/common/props/plant.png` | 10×8 | 1 | still | plant |
+| `maps_common_props/rock.png` | [example](examples/rock.example.png) | `assets/maps/common/props/rock.png` | 16×12 | 1 | still | rock |
+| `maps_common_props/table.png` | [example](examples/table.example.png) | `assets/maps/common/props/table.png` | 24×16 | 1 | still | table |
+| `maps_common_props/trash_bin.png` | [example](examples/trash_bin.example.png) | `assets/maps/common/props/trash_bin.png` | 8×8 | 1 | still | trash bin |
+| `maps_common_props/tree.png` | [example](examples/tree.example.png) | `assets/maps/common/props/tree.png` | 32×32 | 1 | still | tree |
+| `maps_common_props/vending_machine.png` | [example](examples/vending_machine.example.png) | `assets/maps/common/props/vending_machine.png` | 16×12 | 1 | still | vending machine |
+| `maps_common_props/warning_sign.png` | [example](examples/warning_sign.example.png) | `assets/maps/common/props/warning_sign.png` | 12×12 | 1 | still | warning sign |
 
 ## Map decals
 
@@ -221,12 +253,20 @@ white cross = centre/anchor, white line = ground row, white ring = maximum radiu
 | `maps_common_decals/arrow.png` | [example](examples/arrow.example.png) | `assets/maps/common/decals/arrow.png` | 16×16 | 1 | still | arrow |
 | `maps_common_decals/crack.png` | [example](examples/crack.example.png) | `assets/maps/common/decals/crack.png` | 32×32 | 1 | still | crack |
 | `maps_common_decals/drain.png` | [example](examples/drain.example.png) | `assets/maps/common/decals/drain.png` | 16×9 | 1 | still | drain |
+| `maps_common_decals/footprints.png` | [example](examples/footprints.example.png) | `assets/maps/common/decals/footprints.png` | 16×16 | 1 | still | footprints |
+| `maps_common_decals/grass_tuft.png` | [example](examples/grass_tuft.example.png) | `assets/maps/common/decals/grass_tuft.png` | 8×4 | 1 | still | grass tuft |
 | `maps_common_decals/hazard_stripe.png` | [example](examples/hazard_stripe.example.png) | `assets/maps/common/decals/hazard_stripe.png` | 32×8 | 1 | still | hazard stripe |
+| `maps_common_decals/leaves.png` | [example](examples/leaves.example.png) | `assets/maps/common/decals/leaves.png` | 32×32 | 1 | still | leaves |
+| `maps_common_decals/manhole.png` | [example](examples/manhole.example.png) | `assets/maps/common/decals/manhole.png` | 16×16 | 1 | still | manhole |
 | `maps_common_decals/oil_stain.png` | [example](examples/oil_stain.example.png) | `assets/maps/common/decals/oil_stain.png` | 32×32 | 1 | still | oil stain |
+| `maps_common_decals/paint_line.png` | [example](examples/paint_line.example.png) | `assets/maps/common/decals/paint_line.png` | 32×4 | 1 | still | paint line |
+| `maps_common_decals/paint_x.png` | [example](examples/paint_x.example.png) | `assets/maps/common/decals/paint_x.png` | 16×16 | 1 | still | paint x |
+| `maps_common_decals/puddle.png` | [example](examples/puddle.example.png) | `assets/maps/common/decals/puddle.png` | 32×32 | 1 | still | puddle |
 | `maps_common_decals/scorch.png` | [example](examples/scorch.example.png) | `assets/maps/common/decals/scorch.png` | 32×32 | 1 | still | scorch |
 | `maps_common_decals/site_a.png` | [example](examples/site_a.example.png) | `assets/maps/common/decals/site_a.png` | 16×16 | 1 | still | site a |
 | `maps_common_decals/site_b.png` | [example](examples/site_b.example.png) | `assets/maps/common/decals/site_b.png` | 16×16 | 1 | still | site b |
 | `maps_common_decals/site_c.png` | [example](examples/site_c.example.png) | `assets/maps/common/decals/site_c.png` | 16×16 | 1 | still | site c |
+| `maps_common_decals/tire_marks.png` | [example](examples/tire_marks.example.png) | `assets/maps/common/decals/tire_marks.png` | 32×32 | 1 | still | tire marks |
 
 ## Ability sprites (generic)
 
