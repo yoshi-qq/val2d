@@ -330,3 +330,14 @@ def test_door_opens_with_f_and_lets_players_through() -> None:
     assert door.rect not in m.open_doors
     m._start_round()
     assert not m.open_doors
+
+
+def test_spray_pattern_first_bullets_on_target_then_drift_to_one_side() -> None:
+    from gameplay.match import spray_offset
+    d = load_weapons()["speer"]
+    offsets = [spray_offset(d, i) for i in range(20)]
+    assert offsets[0] == offsets[1] == 0.0
+    later = offsets[6:16]
+    assert all(abs(o) <= d.spray_max for o in offsets)
+    assert sum(1 for o in later if o > 0) in (0, 1, 9, 10) or abs(sum(later)) > 0.5 * sum(abs(o) for o in later)
+    assert spray_offset(load_weapons()["lanze"], 8) == 0.0  # semi-automatic: no pattern

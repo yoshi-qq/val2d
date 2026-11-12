@@ -48,6 +48,23 @@ def load_status_rules() -> dict[str, float]:
     return dict(_load_py(AGENTS_PATH, "STATUS_RULES") or {})
 
 
+def spray_offset(d: WeaponDef, index: int) -> float:
+    """Deterministic part of the spray in degrees for bullet `index` of a spray (0 = first bullet).
+
+    Own design: the first bullets stay on target, then the aim drifts to one side (side and sway
+    taste per weapon from its key), with a slow sway back and forth; capped at the weapon's spray_max.
+    Counter it by moving the mouse against the drift. Semi-automatic weapons and shotguns have none.
+    """
+    if not d.auto or d.pellets > 1 or index < 2:
+        return 0.0
+    seed = sum(ord(c) for c in d.key)
+    side = 1.0 if seed % 2 else -1.0
+    sway_speed = 0.45 + (seed % 5) * 0.08
+    climb = min(d.spray_max * 0.8, (index - 1) * d.spray_step * 0.9)
+    sway = math.sin((index - 2) * sway_speed) * min(d.spray_max * 0.45, (index - 1) * d.spray_step * 0.5)
+    return max(-d.spray_max, min(d.spray_max, side * climb + sway))
+
+
 @dataclass
 class Command:
     move_x: float = 0.0          # sideways, -1 left … 1 right (relative to facing)
@@ -100,6 +117,7 @@ class PlayerState:
     equip_until: float = 0.0
     spray: float = 0.0
     fire_held: float = 0.0  # seconds of continuous fire (for rate_ramp)
+    shot_index: int = 0     # bullets in the current spray (0 = first shot after a pause)
     burst_left: int = 0
     prev_fire: bool = False
     prev_alt: bool = False
@@ -682,11 +700,16 @@ class Match:
         loud = self._sound["silenced_radius"] if d.silenced else self._sound["shot_radius"]
         if d.is_gun:
             self.events.append(GameEvent("sound", self.time, {"pid": p.pid, "pos": (p.pos.x, p.pos.y), "radius": loud, "kind": "shot"}))
+        if p.spray <= 0.0:
+            p.shot_index = 0
+        pattern = spray_offset(d, p.shot_index) * spread_mult if pellets == 1 else 0.0
         for _ in range(pellets):
             dev = spread if pellets == 1 else max(spread, d.spread_first if not extra_spread else extra_spread)
-            angle = self.rng.uniform(-dev, dev) if dev > 0 else 0.0
+            jitter = 0.35 if pattern else 1.0  # with a pattern, randomness only blurs it
+            angle = pattern + (self.rng.uniform(-dev, dev) * jitter if dev > 0 else 0.0)
             self._trace(p, d, heading(p.facing + angle), aim)
         p.spray = min(d.spray_max, p.spray + d.spray_step)
+        p.shot_index += 1
 
     def _trace(self, p: PlayerState, d: WeaponDef, direction: Vec, aim: Vec) -> None:
         origin = p.pos
