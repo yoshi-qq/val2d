@@ -341,3 +341,18 @@ def test_spray_pattern_first_bullets_on_target_then_drift_to_one_side() -> None:
     assert all(abs(o) <= d.spray_max for o in offsets)
     assert sum(1 for o in later if o > 0) in (0, 1, 9, 10) or abs(sum(later)) > 0.5 * sum(abs(o) for o in later)
     assert spray_offset(load_weapons()["lanze"], 8) == 0.0  # semi-automatic: no pattern
+
+
+def test_drop_bomb_and_weapon_with_g() -> None:
+    m, a, _ = duel()
+    run(m, 31)
+    p = m.players[a]
+    m.spike_carrier = a
+    m.tick(1 / 64, {a: Command(facing=0.0, drop=True)})
+    assert m.spike_carrier is None and m.spike_pos is not None
+    p.weapons["primary"] = m._new_weapon("hammer")
+    p.slot = "primary"
+    m.tick(1 / 64, {a: Command(facing=0.0, drop=True)})
+    assert "primary" not in p.weapons and any(d.key == "hammer" for d in m.drops) and p.slot == "sidearm"
+    m.tick(1 / 64, {a: Command(facing=0.0)})
+    assert "primary" not in p.weapons  # not picked up again right away

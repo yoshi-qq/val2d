@@ -17,7 +17,7 @@ SNAPSHOT_RATE = 30.0  # snapshots per second sent to clients
 
 def _held_part(cmd: Command) -> Command:
     """Only the held inputs of a command, without one-shot inputs."""
-    return replace(cmd, buy=[], reload=False, slot=None, ability=None)
+    return replace(cmd, buy=[], reload=False, slot=None, ability=None, drop=False)
 
 
 class HostSession:

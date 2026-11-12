@@ -186,6 +186,7 @@ class Game:
         self._crop: pygame.Surface | None = None
         self.local_facing = 0.0
         self.seen_round = -1
+        self.spectate_index = 0
         self.ui = UiState()
         self.sound = Sound()
         self.cursor_depth = 8.0
@@ -227,8 +228,12 @@ class Game:
                         cmd.slot = {pygame.K_1: "primary", pygame.K_2: "sidearm", pygame.K_3: "melee"}[ev.key]
                     elif ev.key == pygame.K_r:
                         cmd.reload = True
+                    elif ev.key == pygame.K_g:
+                        cmd.drop = True
                 elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1 and self.match.phase == "lobby":
                     self.pick_agent_at(ev.pos)
+                elif ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1 and not me.alive:
+                    self.spectate_index += 1
                 elif ev.type == pygame.MOUSEBUTTONDOWN and self.ui.buy_open and ev.button == 1:
                     item = self.buy_item_at(ev.pos)
                     if item:
@@ -388,6 +393,7 @@ class Game:
             self.draw_lobby()
             pygame.display.flip()
             return
+        me = self.view_player(me)
         s.fill(C_BG)
         wm = m.world
         if self.map_surface is not None:
@@ -856,6 +862,16 @@ class Game:
                     self.match.players[self.me].agent = key
                 return
 
+    def view_player(self, me: PlayerState) -> PlayerState:
+        """While dead in a live round, the camera and HUD follow a living teammate (click = next)."""
+        if me.alive or self.match.phase not in ("live", "planted"):
+            return me
+        mates = sorted((p for p in self.match.players.values() if p.team == me.team and p.alive and p.pid != me.pid),
+                       key=lambda p: p.pid)
+        if not mates:
+            return me
+        return mates[self.spectate_index % len(mates)]
+
     def draw_lobby(self) -> None:
         s = self.screen
         s.fill(C_BG)
@@ -1142,8 +1158,10 @@ class Game:
                     self.screen.blit(img, (self.w / 2 - img.get_width() / 2, y))
                     y += img.get_height() + 8
             self.text(self.ui.banner[1], (self.w / 2, y), C_SITE, big=art is None, center=True)
-        if not me.alive and m.phase in ("live", "planted"):
-            self.text("Eliminated – waiting for the next round", (self.w / 2, self.h / 2 - 80), C_ENEMY, center=True)
+        own = m.players.get(self.me)
+        if own is not None and not own.alive and m.phase in ("live", "planted"):
+            watching = f"Watching {me.name} – click for the next teammate" if me.pid != own.pid else "Eliminated – waiting for the next round"
+            self.text(watching, (self.w / 2, self.h / 2 - 80), C_ENEMY, center=True)
         if m.phase == "buy":
             self.text("B: buy menu", (20, 272), C_MUTED)
 

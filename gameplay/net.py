@@ -55,7 +55,7 @@ def recv_msg(sock: socket.socket) -> dict[str, Any] | None:
 
 
 # ------------------------------------------------------------------ Command validation
-_BOOL = ("fire", "alt_fire", "walk", "crouch", "jump", "reload", "interact")
+_BOOL = ("fire", "alt_fire", "walk", "crouch", "jump", "reload", "interact", "drop")
 
 
 def command_from_json(raw: dict[str, Any]) -> Command:
@@ -88,6 +88,7 @@ def merge_commands(old: Command | None, new: Command) -> Command:
         return new
     new.buy = old.buy + new.buy
     new.reload = new.reload or old.reload
+    new.drop = new.drop or old.drop
     new.slot = new.slot or old.slot
     new.ability = new.ability or old.ability
     return new

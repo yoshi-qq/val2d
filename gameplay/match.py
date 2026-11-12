@@ -80,6 +80,7 @@ class Command:
     slot: str | None = None
     ability: str | None = None   # "C", "Q", "E", "X"
     interact: bool = False       # plant or defuse the bomb (hold)
+    drop: bool = False           # G: drop the bomb if carried, else the weapon in hand
     buy: list[str] = field(default_factory=list)
 
 
@@ -118,6 +119,7 @@ class PlayerState:
     spray: float = 0.0
     fire_held: float = 0.0  # seconds of continuous fire (for rate_ramp)
     shot_index: int = 0     # bullets in the current spray (0 = first shot after a pause)
+    dropped_at: float = -99.0
     burst_left: int = 0
     prev_fire: bool = False
     prev_alt: bool = False
@@ -453,6 +455,8 @@ class Match:
             p.burst_left = 0
         if cmd.reload:
             self._start_reload(p)
+        if cmd.drop:
+            self._drop(p)
         d_now = self._weapon_def(p)
         p.zoomed = bool(cmd.alt_fire and d_now and d_now.alt_get("kind") == "zoom" and p.reload_until <= self.time)
         busy = p.plant_progress > 0 or p.defuse_progress > 0
@@ -524,6 +528,24 @@ class Match:
         self.events.append(GameEvent("sound", self.time, {"pid": p.pid, "pos": (c.x, c.y), "radius": 15.0, "kind": "step"}))
         return True
 
+    def _drop(self, p: PlayerState) -> None:
+        if self.spike_carrier == p.pid and self.phase in ("buy", "live"):
+            self.spike_carrier = None
+            self.spike_pos = p.pos + heading(p.facing) * 1.0
+            p.dropped_at = self.time
+            self.events.append(GameEvent("drop", self.time, {"pid": p.pid, "item": "bomb"}))
+            return
+        ws = p.weapon
+        if ws is None or p.slot == "melee":
+            return
+        self.drops.append(Drop(ws.key, ws.mag, ws.reserve, p.pos + heading(p.facing) * 1.0))
+        del p.weapons[p.slot]
+        p.slot = "sidearm" if "sidearm" in p.weapons else "melee"
+        p.reload_until = 0.0
+        p.burst_left = 0
+        p.dropped_at = self.time
+        self.events.append(GameEvent("drop", self.time, {"pid": p.pid, "item": ws.key}))
+
     def _pickup(self, p: PlayerState, cmd: Command) -> None:
         """Empty slot: pick up automatically. F (when not planting or defusing): swap."""
         pressed = cmd.interact and not p.prev_interact
@@ -533,6 +555,8 @@ class Match:
             return
         for drop in list(self.drops):
             if (drop.pos - p.pos).length() > PICKUP_RANGE:
+                continue
+            if not pressed and self.time - p.dropped_at < 1.0:
                 continue
             d = self.weapons.get(drop.key)
             if not d:
@@ -865,9 +889,9 @@ class Match:
 
     # ------------------------------------------------------------------ Bomb
     def _tick_spike(self, dt: float, commands: dict[int, Command]) -> None:
-        if self.phase in ("live",) and self.spike_carrier is None and self.spike_pos is not None:
+        if self.phase in ("buy", "live") and self.spike_carrier is None and self.spike_pos is not None:
             for p in self.players.values():
-                if p.alive and self.side(p.team) == "attack" and (p.pos - self.spike_pos).length() <= PICKUP_RANGE:
+                if p.alive and self.side(p.team) == "attack" and (p.pos - self.spike_pos).length() <= PICKUP_RANGE                         and self.time - p.dropped_at >= 1.0:
                     self.spike_carrier = p.pid
                     self.spike_pos = None
                     break
