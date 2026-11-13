@@ -167,6 +167,7 @@ class LobbySettings:
     play_all_rounds: bool = False     # play every regulation round even after a team has won
     allow_cheats: bool = False        # the cheats below only count while this is on
     infinite_ammo: bool = False
+    infinite_magazines: bool = False
     infinite_abilities: bool = False
     invincibility: bool = False       # players (not bots) take no damage
     bullet_tracers: bool = False      # every shot leaves a long, visible tracer

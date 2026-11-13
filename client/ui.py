@@ -312,7 +312,21 @@ class Ui:
             self.button(pygame.Rect(rect.x + 32 + i * (bw + 16), rect.bottom - 64, bw, 40), label, action, primary)
         return rect
 
-    def wrap(self, text: str, size: str, width: int) -> list[str]:
+    def connection_dialog(self, title: str, target: str, cancel_action: str) -> None:
+        width = min(640, self.screen.get_width() - 48)
+        lines = ["Waiting for the host"]
+        line = ""
+        for char in target:
+            if line and self.size(line + char, "s")[0] > width - 64:
+                lines.append(line)
+                line = ""
+            line += char
+        if line:
+            lines.append(line)
+        self.dialog(title, "\n".join(lines), [("Cancel [Enter / Esc]", cancel_action, False)], width=width)
+        self.outline(self.hits[-1].rect.inflate(4, 4), "text", 2)
+
+    def wrap(self, text: str, size: str, width: int, *, break_words: bool = False) -> list[str]:
         out: list[str] = []
         for para in text.split("\n"):
             line = ""
@@ -323,6 +337,14 @@ class Ui:
                     line = word
                 else:
                     line = trial
+                if break_words and self.size(line, size)[0] > width:
+                    chunk = ""
+                    for char in line:
+                        if chunk and self.size(chunk + char, size)[0] > width:
+                            out.append(chunk)
+                            chunk = ""
+                        chunk += char
+                    line = chunk
             out.append(line)
         return out
 

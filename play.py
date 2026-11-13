@@ -21,10 +21,12 @@ from pathlib import Path
 
 import pygame
 
+import user_settings
 from client.common import FONT_PATH, display_mode
+from client.connection import discard_connection, run_network_task
 from client.game import Game
 from gameplay.match import DEFAULT_AGENT, playable_agents
-from gameplay.netgame import DEFAULT_PORT, discover
+from gameplay.netgame import DEFAULT_PORT, NetClient, discover
 from gameplay.world import DEFAULT_MAP, PLAYABLE_MAP_KEYS
 
 
@@ -90,21 +92,66 @@ def run_menu(args: argparse.Namespace) -> None:
     except (OSError, FileNotFoundError):
         font, big = pygame.font.Font(None, 22), pygame.font.Font(None, 44)
     menu = MainMenu(screen, font, big, args)
+    cleanup = None
     while True:
         chosen = menu.run()
         if chosen is None:
             break
         try:
-            game = Game(chosen)
+            if chosen.join:
+                if cleanup is not None and not cleanup.done():
+                    menu.restore_join_focus(chosen.join)
+                    continue
+                client, cleanup, quit_menu = join_from_menu(menu, chosen)
+                if quit_menu:
+                    break
+                if client is None:
+                    menu.join_cleanup_notice = cleanup
+                    continue
+                game = Game(chosen, joined_client=client)
+                menu.address = chosen.join
+            else:
+                game = Game(chosen)
             game.run()
             if game.quit_program:
                 break
         except (OSError, ValueError) as exc:
-            menu.status = f"No connection: {exc}"
-            warnings.warn(menu.status)
+            message = f"No connection: {exc}"
+            if chosen.join or chosen.host:
+                menu.custom_status = message
+                if chosen.join:
+                    menu.restore_join_focus(chosen.join)
+            else:
+                menu.status = message
+            warnings.warn(message)
         screen = display_mode(bool(getattr(menu.args, "fullscreen", False)))
         menu.screen = screen
     pygame.quit()
+
+
+def join_from_menu(menu, args: argparse.Namespace):
+    """Keep the menu responsive while connecting to a party."""
+    target, name, agent = args.join, args.name, args.agent
+    skins = user_settings.load()["weapon_skins"]
+    attempt = run_network_task(lambda: NetClient(target, name, agent, weapon_skins=skins))
+    clock = pygame.time.Clock()
+    while True:
+        menu.draw()
+        menu.ui.connection_dialog("Connecting…", target, "cancel_join")
+        pygame.display.flip()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return None, discard_connection(attempt), True
+            if (event.type == pygame.KEYDOWN
+                    and event.key in (pygame.K_ESCAPE, pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE)
+                    or event.type == pygame.MOUSEBUTTONUP and event.button == 1
+                    and (hit := menu.ui.hit_at(event.pos)) and hit.action == "cancel_join"):
+                menu.custom_status = ""
+                menu.restore_join_focus(target)
+                return None, discard_connection(attempt), False
+        if attempt.done():
+            return attempt.result(), None, False
+        clock.tick(60)
 
 
 if __name__ == "__main__":

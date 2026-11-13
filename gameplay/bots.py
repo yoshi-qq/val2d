@@ -5,6 +5,8 @@ import random
 from dataclasses import dataclass, field
 
 from gameplay.geometry import Vec, angle_diff, angle_of
+from gameplay.kit.engine import resolve_target
+from gameplay.kit.registry import BOT_CONTROL
 from gameplay.match import Command, Match, PlayerState
 from gameplay.nav import grid_for
 
@@ -33,7 +35,18 @@ class BotBrain:
             self.goal = None
             return cmd
         if m.phase == "buy":
-            cmd.buy = self._shopping(m, p)
+            if m.mode != "deathmatch":
+                cmd.buy = self._shopping(m, p)
+                if m.spike_pos is not None and m.side(p.team) == "attack" and all(
+                    teammate.is_bot for teammate in m.players.values() if teammate.team == p.team
+                ):
+                    return self._navigate(m, p, dt, cmd)
+            return cmd
+        if m.in_deathmatch_spawn(p):
+            self.seen_since.clear()
+            return self._navigate(m, p, dt, cmd)
+        if (control := BOT_CONTROL.get(p.agent)) and control(m, p, cmd, self.goal):
+            self.seen_since.clear()
             return cmd
         enemy = self._visible_enemy(m, p)
         if enemy:
@@ -65,8 +78,11 @@ class BotBrain:
         if not ab:
             return None
         if key == "X":
-            return ab if p.ult_points >= int(ab.get("cost", 99)) else None
-        return ab if p.charges.get(key, 0) > 0 else None
+            return ab if p.ult_points >= m.ultimate_cost(p) else None
+        if ab.get("requires_target") and resolve_target(m, p, ab) is None:
+            return None
+        free = p.status.get(ab.get("free_with_status"), 0) > m.time
+        return ab if free or p.charges.get(m.charge_key(p, key), 0) > 0 else None
 
     def _abilities(self, m: Match, p: PlayerState, enemy: PlayerState | None, cmd: Command) -> Command:
         """Simple rules: offensive blocks at a seen enemy, buffs in a fight, smokes/traps near the goal, heal when hurt."""
@@ -132,7 +148,7 @@ class BotBrain:
         for key in ("C", "Q", "E"):
             ab = abil.get(key, {})
             price = int(ab.get("price", 0))
-            if price and p.charges.get(key, 0) < int(ab.get("max", 1)) and credits >= price:
+            if price and not ab.get("shared_charge") and p.charges.get(key, 0) < int(ab.get("max", 1)) and credits >= price:
                 wants.append(key)
                 credits -= price
         return wants
@@ -142,7 +158,8 @@ class BotBrain:
         best: PlayerState | None = None
         best_d = 1e9
         for t in m.players.values():
-            if t.team == p.team or not t.alive or t.level != p.level:
+            if (t.team == p.team or not t.alive or t.level != p.level or t.dm_ghost
+                    or m.deathmatch_spawn_protected(t)):
                 continue
             if not m.can_see(p, t) or not m.line_of_fire(p, t):
                 continue  # seen but not hittable (e.g. behind low cover): keep moving instead of a standoff
@@ -159,7 +176,8 @@ class BotBrain:
         cmd.facing = (p.facing + max(-step, min(step, diff))) % 360
         cmd.cursor_depth = (enemy.pos - p.pos).length() + self.rng.uniform(-0.6, 0.6)
         wd = m.weapons.get(p.weapon.key) if p.weapon else None
-        if p.weapon and wd and wd.is_gun and p.weapon.mag == 0 and p.weapon.reserve == 0 and "sidearm" in p.weapons and p.slot != "sidearm":
+        if (p.weapon and wd and wd.is_gun and p.weapon.mag == 0 and p.weapon.reserve == 0
+                and not m.has_infinite_reserve(p.weapon) and "sidearm" in p.weapons and p.slot != "sidearm"):
             cmd.slot = "sidearm"
         ready = m.time - first >= self.reaction and abs(diff) <= self.aim_error + 2.0
         if ready:
@@ -171,9 +189,9 @@ class BotBrain:
     # ---------------------------------------------------------------- Laufen
     def _navigate(self, m: Match, p: PlayerState, dt: float, cmd: Command) -> Command:
         if m.mode == "deathmatch":  # hunt: walk towards the nearest enemy
-            enemies = [t for t in m.players.values() if t.alive and t.team != p.team]
-            if enemies:
-                self.goal = min(enemies, key=lambda t: (t.pos - p.pos).length()).pos
+            enemies = [t for t in m.players.values()
+                       if t.alive and t.team != p.team and t.duel_id == p.duel_id and not t.dm_ghost]
+            self.goal = min((t.pos for t in enemies), key=lambda pos: (pos - p.pos).length(), default=None)
             attack = False
         else:
             attack = m.side(p.team) == "attack"
@@ -189,11 +207,12 @@ class BotBrain:
                 if m.world.site_at(p.pos, p.level) and m.phase == "live":
                     cmd.interact = True
                     return cmd
-            elif m.spike_pos is not None and m.phase == "live":
+            elif m.spike_pos is not None and m.phase in ("buy", "live"):
                 self.goal = m.spike_pos
             else:
                 self.goal = site
-            if m.phase == "live" and site is not None and self.goal is not None and not self._may_push(m, p, site):
+            if m.phase == "live" and site is not None and self.goal is not None and self.goal != m.spike_pos \
+                    and not self._may_push(m, p, site):
                 self.goal = self._staging(m, site)
         elif m.mode != "deathmatch":
             if m.phase == "planted" and m.spike_pos is not None:

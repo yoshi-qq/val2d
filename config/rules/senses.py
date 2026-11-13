@@ -3,5 +3,6 @@
 RULES = {
     'sight': {'fov': 103.0, 'view_distance': 60.0,
               'head_height': 1.4},   # props lower than this (config/content/prop_heights.py) do not block sight or shots
-    'sound': {'run_radius': 18.0, 'shot_radius': 45.0, 'silenced_radius': 12.0},
+    'sound': {'run_radius': 18.0, 'shot_radius': 45.0, 'silenced_radius': 40.0,
+              'silenced_forward_radius': 80.0, 'silenced_half_angle': 30.0},
 }

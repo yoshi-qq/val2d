@@ -227,7 +227,18 @@ def build() -> None:
     save("round_loss", mix(*(at(sine(np.full(int(RATE * 0.6), f), 0.6) * env(0.6, 0.005, 4) * 0.5, d) for f, d in ((392, 0), (330, 0.2), (262, 0.4)))))
     save("ui_click", lowpass(noise(0.04), 1500) * env(0.04, 0.002, 90) + sine(np.full(int(RATE * 0.04), 600.0), 0.04) * env(0.04, 0.002, 70), gain=0.4)
     save("ui_buy", mix(sine(np.full(int(RATE * 0.12), 523.0), 0.12) * env(0.12, 0.004, 20), at(sine(np.full(int(RATE * 0.12), 784.0), 0.12) * env(0.12, 0.004, 20), 0.06)), gain=0.45)
+    save("assist", mix(sine(587.0, 0.13) * env(0.13, 0.008, 21),
+                       at(sine(698.0, 0.17) * env(0.17, 0.008, 17), 0.065)), gain=0.34)
     save("door", lowpass(noise(0.5), 700) * env(0.5, 0.05, 6) + sine(np.linspace(140, 100, int(RATE * 0.5)), 0.5) * env(0.5, 0.05, 7) * 0.5)
+    fire = lowpass(noise(2.0), 1300) + 0.3 * highpass(noise(2.0), 1900)
+    flicker = 0.65 + 0.18 * sine(7.0, 2.0) + 0.12 * sine(11.5, 2.0)
+    save("incendiary_fire", fire * flicker, gain=0.38)
+    flight = lowpass(highpass(noise(0.4), 450), 2300)
+    save("recon_flight", flight * 0.8 + sine(510.0, 0.4) * 0.18, gain=0.48)
+    rotor = sine(92.0, 1.0) * 0.42 + sine(184.0, 1.0) * 0.18 + lowpass(noise(1.0), 900) * 0.35
+    save("owl_rotor", rotor * (0.7 + 0.3 * sine(46.0, 1.0)), gain=0.42)
+    warning = sine(520.0, 0.22) * env(0.22, 0.012, 13)
+    save("lockdown_warning", pad(mix(warning, at(warning * 0.65, 0.26)), 1.0), gain=0.42)
 
 
 if __name__ == "__main__":

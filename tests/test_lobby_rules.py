@@ -54,6 +54,28 @@ def test_infinite_ammo_abilities_and_invincibility() -> None:
     assert pb.hp < 100  # bots are not invincible
 
 
+def test_tdm_invincibility_lets_shots_reach_targets_behind_players() -> None:
+    from gameplay.geometry import heading
+    from gameplay.world import WorldMap
+
+    for enabled in (False, True):
+        m = Match(WorldMap("test", "Test", 40, 40))
+        m.set_mode("deathmatch")
+        assert m.set_rules(allow_cheats=enabled, invincibility=True)
+        shooter = m.add_player("Shooter", 0, "omen")
+        front = m.add_player("Front", 1, "omen")
+        back = m.add_player("Back", 1, "omen", is_bot=True)
+        m.start()
+        m.time = m.phase_until
+        m.tick(0, {})
+        shooter.pos, front.pos, back.pos = Vec(10, 10), Vec(10, 14), Vec(10, 18)
+        shooter.cursor_depth = 8
+        direction = heading(0)
+        m._trace(shooter, m.weapons["classic"], direction, direction)
+        assert (front.hp == 100 and front.armor == 25) == enabled
+        assert (back.hp < 100 or back.armor < 25) == enabled
+
+
 def test_play_out_all_rounds() -> None:
     m, _, _ = lobby()
     m.set_rules(play_all_rounds=True, win_rounds=5, overtime=True)

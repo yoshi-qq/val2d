@@ -10,6 +10,7 @@ CONFIG = {
         'play_all_rounds': False,
         'allow_cheats': False,
         'infinite_ammo': False,        # cheat
+        'infinite_magazines': False,   # cheat
         'infinite_abilities': False,   # cheat
         'invincibility': False,        # cheat
         'bullet_tracers': False,       # cheat

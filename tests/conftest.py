@@ -1,5 +1,8 @@
+import os
 from pathlib import Path
 from runpy import run_path
+
+os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 import pytest
 

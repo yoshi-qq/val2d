@@ -35,6 +35,8 @@ class CharactersMixin:
     def character_state(self, p: PlayerState, me: PlayerState) -> tuple[str, float, float]:
         """(state, clock, speed factor) after the priority list of CHARACTER_SHEETS.md."""
         m, t, enemy = self.match, self.match.time, p.team != me.team
+        if p.status.get("kayo_downed", 0) > t:
+            return "crouch", 0, 1.0
         if not p.alive:
             since = t - self.ui.died_at.get(p.pid, -99.0)
             dying = self.chars.duration(p.agent, "dying", enemy)
@@ -43,7 +45,7 @@ class CharactersMixin:
             return "victory", t, 1.0
         if p.plant_progress > 0:
             return "plant", t, 1.0
-        if p.defuse_progress > 0:
+        if p.defusing:
             return "defuse", t, 1.0
         cfg = self.sprite_cfg(p)
         for slot, name in dict(cfg.get("mechanics", {})).items():
@@ -68,10 +70,6 @@ class CharactersMixin:
         hit = t - self.ui.last_hit.get(p.pid, -99.0)
         if hit < self.chars.duration(p.agent, "flinch", enemy):
             return "flinch", hit, 1.0
-        prev_z = self.ui.prev_z.get(p.pid, 0.0)
-        self.ui.prev_z[p.pid] = p.z
-        if prev_z > 0.05 and p.z <= 0.001:
-            self.ui.landed_at[p.pid] = t
         if p.z > 0.001:
             return ("jump" if p.vz > 0 else "fall"), t, 1.0
         landed = t - self.ui.landed_at.get(p.pid, -99.0)
@@ -118,6 +116,18 @@ class CharactersMixin:
             active.append(("heal", (t * 6 % 3) / 3))
         if p.immune_until > t:
             active.append(("immunity_aura", (t * 4 % 2) / 2))
+        if p.status.get("deadlock_netted", 0) > t:
+            net = self.bank.scaled("fx/deadlock_net.png", (size[0], size[0]))
+            if net is not None:
+                self.screen.blit(net, (at[0] - size[0] / 2, at[1]))
+        if p.status.get("iso_shield", 0) > t:
+            shield = self.bank.scaled("fx/iso_shield.png", (size[1], size[1]))
+            if shield is not None:
+                self.screen.blit(shield, shield.get_rect(center=(round(at[0]), round(at[1]))))
+        if p.status.get("veto_evolved", 0) > t:
+            aura = self.bank.scaled("fx/veto_evolved.png", (size[1], size[1]))
+            if aura is not None:
+                self.screen.blit(aura, aura.get_rect(center=(round(at[0]), round(at[1]))))
         for name, progress in active:
             img = self.bank.strip_frame(f"fx/ability/{name}.png", size, progress, 16)
             if img is not None:
@@ -126,14 +136,17 @@ class CharactersMixin:
     def held_item(self, p: PlayerState) -> tuple[str, str]:
         """What the figure holds: ("ability", slot), ("spike", ""), ("weapon", key) or ("", "")."""
         m = self.match
+        if p.status.get("kayo_downed", 0) > m.time:
+            return "", ""
         cast = self.ui.last_cast.get(p.pid)
         if cast and m.time - cast[0] < 0.45:
             return "ability", cast[1]
         if p.pid == self.me and self.aiming:
             return "ability", self.aiming
-        if p.blades_equipped:
+        if (p.blades_equipped or p.status.get("raze_showstopper", 0) > m.time
+                or p.status.get("deadlock_accelerator_equipped", 0) > m.time):
             return "ability", "X"
-        if p.plant_progress > 0 or p.defuse_progress > 0:
+        if p.spike_equipped or p.plant_progress > 0 or p.defusing:
             return "spike", ""
         if p.weapon:
             return "weapon", p.weapon.key

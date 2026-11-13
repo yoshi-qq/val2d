@@ -41,7 +41,7 @@ class MinimapMixin:
         self.draw_minimap_barriers(self.screen, project)
         if not ab.get("global_target"):
             origin = project(me.pos)
-            radius = float(ab["range"]) * scale
+            radius = float(ab.get("dead_range", ab["range"]) if not me.alive else ab["range"]) * scale
             mask = pygame.Surface(rect.size, pygame.SRCALPHA)
             mask.fill((9, 17, 24, 150))
             pygame.draw.circle(mask, (0, 0, 0, 0), (origin[0] - rect.left, origin[1] - rect.top), radius)
@@ -56,6 +56,8 @@ class MinimapMixin:
                 else:
                     self._mini_icon(self.screen, project(p.pos), "ally", "ally", 12, p.facing)
         for effect in self.match.effects:
+            if ab.get("astral_form") and effect.owner == me.pid and effect.props.get("sprite") == "astra_star":
+                pygame.draw.circle(self.screen, color("gold"), project(effect.pos), 4, 1)
             if effect.kind == "smoke":
                 pygame.draw.circle(self.screen, color("muted"), project(effect.pos), effect.radius * scale, 1)
         radius = float(ab["radius"]) * scale
@@ -66,13 +68,25 @@ class MinimapMixin:
             self.kit.text(str(i), project(pos), "xs", "text", "center")
         limit = self.placement_limit(me, ab, slot)
         target = self.tactical_point(pygame.mouse.get_pos())
-        if target is not None and len(self.multi_points) < limit and self.match.valid_tactical_point(me, ab, target):
+        if target is not None and self.multi_points and ab.get("tactical_line"):
+            origin = Vec(*self.multi_points[0])
+            axis = (target - origin).normalized()
+            side = axis.rotated(90) * (float(ab["width"]) / 2)
+            end = origin + axis * float(ab["length"])
+            if axis.length():
+                pygame.draw.polygon(self.screen, color("gold"),
+                                    [project(p) for p in (origin - side, origin + side, end + side, end - side)], 2)
+        elif target is not None and len(self.multi_points) < limit and self.match.valid_tactical_point(me, ab, target):
             pygame.draw.circle(self.screen, color("ally"), project(target), radius, 2)
         self.screen.set_clip(clip)
         pygame.draw.rect(self.screen, color("line"), rect, 1)
         self.text(ab["name"], (rect.centerx, rect.top - 34), center=True)
         hint = (f"Left click marks or removes ({len(self.multi_points)}/{limit}) · right click confirms"
                 if int(ab.get("multi", 1)) > 1 else "Left click casts")
+        if ab.get("astral_form") and not self.aim_alt:
+            hint = "Left click places or recalls a star · right click aims Cosmic Divide"
+        elif ab.get("tactical_line"):
+            hint = "Left click sets origin and direction · right click clears origin"
         self.text(hint + " · Esc cancels", (rect.centerx, rect.bottom + 14), center=True)
 
     def minimap_scale(self) -> float:
@@ -87,9 +101,9 @@ class MinimapMixin:
         panel.fill((0, 0, 0, 0))
         floor = pygame.Rect(pad, pad, round(wm.width * k), round(wm.height * k))
         pygame.draw.rect(panel, (39, 54, 63, 255), floor)
-        for site in wm.sites:
-            x0, y0 = pad + site.rect.x0 * k, pad + (wm.height - site.rect.y1) * k
-            bounds = (x0, y0, (site.rect.x1 - site.rect.x0) * k, (site.rect.y1 - site.rect.y0) * k)
+        for rect in (rect for site in wm.sites for rect in site.plant_rects):
+            x0, y0 = pad + rect.x0 * k, pad + (wm.height - rect.y1) * k
+            bounds = (x0, y0, (rect.x1 - rect.x0) * k, (rect.y1 - rect.y0) * k)
             pygame.draw.rect(panel, (81, 77, 60, 255), bounds)
             pygame.draw.rect(panel, (147, 129, 86, 255), bounds, 1)
         for w in wm.walls:
@@ -120,6 +134,11 @@ class MinimapMixin:
         k = self.minimap_scale()
         rotate = bool(HUD["minimap_rotate"])
         cx, cy = 20 + r, 20 + r
+        if m.minimap_obscured(me):
+            pygame.draw.circle(s, (15, 12, 23), (cx, cy), r)
+            pygame.draw.circle(s, color("line"), (cx, cy), r, 1)
+            self.kit.text("MINIMAP OBSCURED", (cx, cy), "xs", "muted", "center", bold=True)
+            return
         if self._minimap_static is None:
             self._minimap_static = self.build_minimap_static(k)
         static = self._minimap_static
@@ -198,7 +217,7 @@ class MinimapMixin:
             lbl = self.kit.font("s", bold=True).render(site.name, True, color("gold"))
             view.blit(lbl, (x - lbl.get_width() / 2, y - lbl.get_height() / 2))
         for p in m.players.values():
-            if p.pid == me.pid:
+            if p.pid == me.pid or me.status.get("waylay_refract_transit", 0) > m.time:
                 continue
             heading = p.facing - (me.facing if rotate else 0)
             if p.team == me.team:
@@ -225,8 +244,7 @@ class MinimapMixin:
     def minimap_sees_enemy(self, me: PlayerState, enemy: PlayerState) -> bool:
         if not me.alive or me.blind_until > self.match.time or not self.sees_enemy(me, enemy):
             return False
-        x, y = self.to_screen(enemy.pos, me)
-        return self.in_view((x, y - (enemy.ground + enemy.z) * self.scale * HEIGHT_DRAW), me)
+        return self.in_view(self.player_screen(enemy, me), me)
 
     def _mini_icon(self, surf: pygame.Surface, at: tuple[float, float], key: str, fallback: str,
                    size: int, angle: float | None = None) -> None:

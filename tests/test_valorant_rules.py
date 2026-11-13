@@ -2,6 +2,8 @@
 orbs, survivor credits, round titles, surrender, body blocking."""
 from __future__ import annotations
 
+import pytest
+
 from gameplay.geometry import Vec
 from gameplay.match import Command, Match
 from gameplay.world import parse_map
@@ -18,6 +20,8 @@ def setup(buy_phase: bool = False) -> tuple[Match, int, int]:
     b = m.add_player("B", 1, "omen", is_bot=True).pid
     m.start()
     if not buy_phase:
+        m.players[a].pos = m.spike_pos
+        m.tick(0, {})
         m.phase, m.phase_until = "live", m.time + 100
     return m, a, b
 
@@ -91,14 +95,179 @@ def test_a_new_gun_drops_the_old_one_and_selling_brings_it_back() -> None:
     assert p.weapons["primary"] is first and not any(d.key == "bulldog" for d in m.drops)
 
 
+def test_refunding_replacement_leaves_identical_drop_after_original_was_taken() -> None:
+    from gameplay.match import Drop
+
+    m, a, _ = setup(buy_phase=True)
+    p = m.players[a]
+    p.credits = 9000
+    assert m.buy(p, "bulldog") and m.buy(p, "vandal")
+    original = m.drops.pop()
+    twin = Drop(original.key, original.mag, original.reserve, original.pos, original.skin, original.ground)
+    m.drops.append(twin)
+    assert m.sell(p, "vandal")
+    assert m.drops == [twin] and "primary" not in p.weapons
+
+
+def test_refunding_a_sidearm_does_not_remove_an_unrelated_classic() -> None:
+    from gameplay.match import Drop
+
+    m, a, _ = setup(buy_phase=True)
+    p = m.players[a]
+    unrelated = Drop("classic", 3, 4, p.pos)
+    m.drops.append(unrelated)
+    assert m.buy(p, "ghost")
+    assert m.sell(p, "ghost")
+    assert m.drops == [unrelated]
+
+
 def test_dropped_guns_cannot_be_sold() -> None:
     m, a, _ = setup(buy_phase=True)
     p = m.players[a]
     p.credits = 3000
     m.buy(p, "vandal")
-    m.spike_carrier = None  # G would drop the bomb first
     m._drop(p)
     assert not m.sellable(p, "vandal")
+
+
+def test_spike_equip_drop_plant_and_defuse() -> None:
+    m, a, b = setup()
+    attacker, defender = m.players[a], m.players[b]
+    m.tick(0.05, {a: Command(slot="spike", fire=True)})
+    assert attacker.spike_equipped and attacker.weapon.mag == m.weapons["classic"].mag
+    m.tick(0.05, {a: Command(slot="sidearm", fire=True)})
+    assert not attacker.spike_equipped
+    assert attacker.equip_until > m.time and attacker.weapon.mag == m.weapons["classic"].mag
+    m.tick(0.05, {a: Command(slot="spike")})
+    m.time = max(m.time, attacker.equip_until)
+    m.tick(0.05, {a: Command(drop=True, fire=True)})
+    assert m.spike_carrier is None and attacker.weapon is not None
+    assert attacker.equip_until > m.time and attacker.weapon.mag == m.weapons["classic"].mag
+    m.time += 1.0
+    attacker.pos = m.spike_pos
+    m.tick(0.05, {})
+    assert m.spike_carrier == a
+
+    attacker.pos = Vec(24.05, 4)
+    m.tick(0.05, {a: Command(slot="spike", use_spike=True)})
+    assert attacker.plant_progress > 0
+    attacker.pos = Vec(23.95, 4)
+    events = m.tick(0.05, {a: Command(use_spike=True, fire=True)})
+    assert attacker.plant_progress == 0 and not attacker.spike_equipped
+    assert attacker.equip_until > m.time and attacker.weapon.mag == m.weapons["classic"].mag
+    assert any(event.kind == "plant_stop" for event in events)
+    attacker.pos = Vec(24.05, 4)
+    for _ in range(45):
+        m.tick(0.1, {a: Command(use_spike=True)})
+    assert m.phase == "planted"
+    assert attacker.equip_until > m.time
+    m.tick(0.05, {a: Command(fire=True)})
+    assert attacker.weapon.mag == m.weapons["classic"].mag
+    defender.pos = m.spike_pos
+    for _ in range(75):
+        m.tick(0.1, {b: Command(use_spike=True)})
+    assert defender.defuses == 1
+
+
+def test_last_defender_death_cancels_wingman_before_defuse_completion() -> None:
+    m, a, b = setup()
+    attacker, defender = m.players[a], m.players[b]
+    defender.agent = "gekko"
+    attacker.pos = defender.pos = Vec(25, 4)
+    m._plant(attacker, "A")
+    defender.charges["Q"] = 1
+    m.tick(1 / 64, {b: Command(ability="Q", ability_alt=True, cursor_depth=0)})
+    for _ in range(4):
+        m.tick(1 / 64, {})
+    wingman = next(effect for effect in m.effects if effect.data.get("defusing"))
+    wingman.data["progress"] = 7 - 1 / 128
+    m._kill(attacker, defender, "vandal", "body")
+    m.tick(1 / 64, {})
+    assert wingman.props.get("ended") and defender.defuses == 0
+    assert m.round_winner == attacker.team
+
+
+def test_defuse_deadline_resolves_events_in_chronological_order() -> None:
+    for offset in (-1, 0, 1):
+        m, a, b = setup()
+        attacker, defender = m.players[a], m.players[b]
+        attacker.pos = defender.pos = Vec(25, 4)
+        m._plant(attacker, "A")
+        m.time = m.spike_planted_at + 45 - 2 / 256
+        defender.defusing = True
+        defender.defuse_progress = 7 - (2 + offset) / 256
+        events = m.tick(1 / 64, {b: Command(use_spike=True)})
+        assert m.round_winner == (defender.team if offset <= 0 else attacker.team)
+        assert {e.kind for e in events} & {"defuse", "explode"} == ({"defuse"} if offset <= 0 else {"explode"})
+
+
+@pytest.mark.parametrize("wingman_first", [False, True])
+@pytest.mark.parametrize("offset", [-1, 0, 1])
+def test_defuse_checkpoint_transfers_between_player_and_wingman(wingman_first: bool, offset: int) -> None:
+    from gameplay.kit.engine import remove_device
+
+    m, a, b = setup()
+    attacker, defender = m.players[a], m.players[b]
+    defender.agent = "gekko"
+    attacker.pos = defender.pos = Vec(25, 4)
+    m._plant(attacker, "A")
+    defender.charges["Q"] = 1
+    dt = 1 / 60
+    cast = Command(ability="Q", ability_alt=True, cursor_depth=0)
+    hold = Command(use_spike=True)
+    if wingman_first:
+        m.tick(dt, {b: cast})
+        wingman = next(e for e in m.effects if e.props.get("gekko_objective"))
+        while wingman.data["path"]:
+            m.tick(dt, {})
+        for _ in range(210 + offset):
+            m.tick(dt, {})
+        remove_device(m, wingman, "destroyed")
+        m.tick(dt, {b: hold})
+        progress = defender.defuse_progress
+    else:
+        for _ in range(210 + offset):
+            m.tick(dt, {b: hold})
+        m.tick(dt, {b: cast})
+        wingman = next(e for e in m.effects if e.props.get("gekko_objective"))
+        while not wingman.data.get("defusing"):
+            m.tick(dt, {})
+        progress = wingman.data["progress"]
+    assert abs(progress - ((3.5 if offset >= 0 else 0.0) + dt)) < 1e-9
+
+
+def test_fire_and_interact_respect_defuse_reach() -> None:
+    m, a, b = setup()
+    attacker, defender = m.players[a], m.players[b]
+    attacker.pos, defender.pos = Vec(25, 4), Vec(27, 4)
+    m._plant(attacker, "A")
+    magazine = defender.weapon.mag
+    m.tick(1 / 64, {b: Command(interact=True, fire=True)})
+    assert not defender.defusing and defender.weapon.mag == magazine - 1
+    defender.pos = Vec(26, 4)
+    m.time += 1.0
+    m.tick(1 / 64, {})
+    m.tick(1 / 64, {b: Command(interact=True, fire=True)})
+    assert defender.defusing and defender.weapon.mag == magazine - 1
+
+
+def test_defuse_checkpoint_transfers_to_another_defender() -> None:
+    m, a, b = setup()
+    second = m.add_player("Second defender", 1, "omen")
+    attacker, first = m.players[a], m.players[b]
+    attacker.pos = Vec(25, 4)
+    m._plant(attacker, "A")
+    first.pos = second.pos = attacker.pos
+    hold = Command(use_spike=True)
+    for _ in range(36):
+        m.tick(0.1, {b: hold, second.pid: hold})
+    assert first.defusing and not second.defusing
+    m.tick(0.1, {b: Command(move_y=1), second.pid: hold})
+    assert first.vel.length() > 0 and not first.defusing
+    assert second.defusing and second.defuse_progress > 3.5
+    for _ in range(35):
+        m.tick(0.1, {second.pid: hold})
+    assert second.defuses == 1
 
 
 def test_low_props_do_not_block_sight_but_crouching_behind_a_crate_hides() -> None:

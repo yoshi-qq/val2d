@@ -5,6 +5,7 @@ from __future__ import annotations
 from client.common import *  # noqa: F403  (pygame, colours, types)
 from client.ui import color
 from gameplay.kit.describe import alt_text
+from gameplay.kit.engine import resolve_target
 from gameplay.match import SLOTS
 
 
@@ -13,15 +14,20 @@ class HudMixin:
     def hud_cfg(self) -> dict:
         return HUD
 
+    def hud_score_center(self) -> int:
+        """Leave the minimap its own space when the team bar is compact."""
+        if self.w < 1000 and not self.match.practice:
+            return (self.w + 20 + 2 * int(HUD["minimap_radius"])) // 2
+        return self.w // 2
+
     def draw_hud(self, me: PlayerState, ground_sight: list[Vec], sight_range: float | None) -> None:
-        """Valorant layout, with the top bar moved: minimap top left, kill feed top right, own team down the left side,
-        enemies down the right side, timer and score bottom centre above health and abilities, weapon bottom right."""
+        """Draw the team and round information above the playfield and the loadout below it."""
         ui = self.kit
         ui.begin()
         self.draw_bottom_shade()
         self.draw_minimap(me, ground_sight, sight_range)
-        self.draw_team_column(me, own=True)
-        self.draw_team_column(me, own=False)
+        self.draw_team_row(me, own=True)
+        self.draw_team_row(me, own=False)
         self.draw_score_box(me)
         self.draw_vitals(me)
         self.draw_ability_bar(me)
@@ -44,22 +50,19 @@ class HudMixin:
             self._bottom_shade = shade
         self.screen.blit(self._bottom_shade, (0, self.h - self._bottom_shade.get_height()))
 
-    def draw_team_column(self, me: PlayerState, own: bool) -> None:
-        """Portraits of one team down a screen side: allies left (with health), enemies right. Dead players greyed
-        and crossed out; a gold mark when the ultimate is ready (allies only, like the real top bar)."""
+    def draw_team_row(self, me: PlayerState, own: bool) -> None:
+        """Draw portraits outward from the round score."""
         m, ui, s = self.match, self.kit, self.screen
         team = me.team if own else 1 - me.team
         players = sorted((p for p in m.players.values() if p.team == team and not p.dummy), key=lambda p: p.pid)
         if not players or m.practice:
             return
-        size, gap = 34, 6
-        if own:
-            x, y = 16, 24 + 2 * int(HUD["minimap_radius"]) + 18
-        else:
-            x, y = self.w - 16 - size, 24 + 6 * 32 + 18
+        size, gap = (24, 5) if self.w < 1000 else (34, 8)
+        inner = self.hud_score_center() + (-112 - size if own else 112)
+        direction = -1 if own else 1
         team_col = color("ally" if own else "enemy")
-        for p in players:
-            r = pygame.Rect(x, y, size, size)
+        for i, p in enumerate(players):
+            r = pygame.Rect(inner + direction * i * (size + gap), 18, size, size)
             ui.skin("hud/frame_active" if p.pid == self.me else "hud/frame", r)
             pic = self.bank.scaled(f"agents/{p.agent}/{p.agent}_killfeed.png", (size - 4, size - 4))
             if pic is not None:
@@ -72,18 +75,16 @@ class HudMixin:
                 pygame.draw.rect(s, color("text"), (r.x, r.bottom - 3, round(r.w * max(0, p.hp) / 100), 3))
             if not p.alive:
                 pygame.draw.line(s, color("enemy"), (r.x + 6, r.y + 6), (r.right - 6, r.bottom - 8), 3)
-            ab = m.agents.get(p.agent, {}).get("abilities", {}).get("X", {})
-            if own and p.alive and p.ult_points >= int(ab.get("cost", 99)):
-                cx = r.right + 6 if own else r.x - 6
-                pygame.draw.polygon(s, color("ult"), [(cx, r.y + 4), (cx + 4, r.y + 8), (cx, r.y + 12), (cx - 4, r.y + 8)])
+            if own and p.alive and p.ult_points >= m.ultimate_cost(p):
+                cx, cy = r.centerx, r.bottom + 6
+                pygame.draw.polygon(s, color("ult"), [(cx, cy - 4), (cx + 4, cy), (cx, cy + 4), (cx - 4, cy)])
             if p.pid == self.me:
                 ui.outline(r.inflate(4, 4), "gold")
-            y += size + gap
 
     def draw_score_box(self, me: PlayerState) -> None:
-        """Bottom centre above the abilities: own score, timer (or the planted bomb), enemy score, round and side."""
+        """Top centre: own score, timer or planted Spike, enemy score and phase."""
         m, ui, s = self.match, self.kit, self.screen
-        cx, top = self.w // 2, self.h - 152
+        cx, top = self.hud_score_center(), 18
         if m.practice:
             st = self.stats
             acc = 100 * st["hits"] / st["shots"] if st["shots"] else 0
@@ -92,7 +93,7 @@ class HudMixin:
                     "text", "center", upper=True)
             return
         mine, theirs = m.score[me.team], m.score[1 - me.team]
-        left = max(0.0, m.dm_ends_at - m.time) if m.mode == "deathmatch" else m.phase_time_left()
+        left = m.phase_time_left()
         clock = f"{int(left) // 60}:{int(left) % 60:02d}"
         mid = pygame.Rect(cx - 56, top, 112, 34)
         ui.skin("hud/score_panel", mid.inflate(92, 0))
@@ -102,20 +103,32 @@ class HudMixin:
             ui.text(str(value), (rect.centerx, rect.y + 1), "l", col, "center", bold=True, kind="numbers")
         if m.phase == "planted":
             spike = self.bank.scaled("ui/hud/carrier_hint.png", (26, 26))
-            if spike is not None and int(m.time * 2) % 2 == 0:
+            if spike is not None:
+                if int(m.time * 2) % 2:
+                    spike = spike.copy()
+                    spike.set_alpha(160)
                 s.blit(spike, (mid.centerx - 13, mid.y + 4))
+            else:
+                ui.text("Spike", (mid.centerx, mid.y + 10), "s", "enemy", "center", upper=True, bold=True)
         else:
             hurry = left <= 10 and m.phase == "live"
             ui.text(clock, (mid.centerx, mid.y + 2), "l", "enemy" if hurry else "text", "center", bold=True, kind="numbers")
         phase = {"buy": "buy phase", "end": "round over", "over": "match over", "planted": "spike planted"}.get(m.phase, "")
         side = "attack" if m.side(me.team) == "attack" else "defense"
-        sub = f"first to {int(rule_value('modes', 'deathmatch', {}).get('kill_limit', 40))}" if m.mode == "deathmatch" \
-            else f"round {m.round_no} · {phase or side}"
-        ui.text(sub, (cx, mid.bottom + 4), "xs", "muted", "center", upper=True)
+        if m.mode == "deathmatch":
+            stage = "get ready" if m.phase == "buy" else f"stage {m.dm_stage}/{len(m.deathmatch_rules['stage_times'])}"
+            sub = f"{stage} · first to {m.deathmatch_rules['kill_limit']}"
+        else:
+            sub = f"round {m.round_no} · {phase or side}"
+        sub_y = mid.bottom + 4
+        if self.w < 1000:
+            sub_w, sub_h = ui.size(sub, "xs", upper=True)
+            ui.fill(pygame.Rect(cx - sub_w // 2 - 6, sub_y, sub_w + 12, sub_h), "#0f1923dc")
+        ui.text(sub, (cx, sub_y), "xs", "text" if self.w < 1000 else "muted", "center", upper=True)
         if m.cfg.lobby.allow_cheats:
-            on = [n.replace("_", " ") for n in ("infinite_ammo", "infinite_abilities", "invincibility", "bullet_tracers")
+            on = [n.replace("_", " ") for n in ("infinite_ammo", "infinite_magazines", "infinite_abilities", "invincibility", "bullet_tracers")
                   if m.cheat(n)]
-            ui.text("cheats: " + (", ".join(on) if on else "allowed"), (cx, top - 18), "xs", "gold", "center", upper=True)
+            ui.text("cheats: " + (", ".join(on) if on else "allowed"), (cx, mid.bottom + 23), "xs", "gold", "center", upper=True)
 
     def draw_vitals(self, me: PlayerState) -> None:
         """Left of the abilities: armor (shield and number) and health in large numbers over a thin bar, no box."""
@@ -135,6 +148,8 @@ class HudMixin:
             ui.text(str(me.armor), (ax + 18, y + 12), "m", "muted", bold=True, kind="numbers")
             if armor and armor.regen_pool:
                 ui.text(f"+{me.armor_reserve}", (ax + 18, y + 30), "xs", "ally", kind="numbers")
+        if me.overheal:
+            ui.text(f"+{me.overheal}", (right - 112, y + 12), "m", "ult", bold=True, kind="numbers")
         bar = pygame.Rect(right - 140, y + 52, 140, 8)
         self.draw_meter(bar, me.hp / 100, "health", "enemy" if low else "text")
         if me.armor:
@@ -150,18 +165,44 @@ class HudMixin:
             ui.fill(fill.inflate(0, -fill.h // 2), fallback)
 
     def ability_ready(self, me: PlayerState, slot: str) -> bool:
+        if self.match.in_deathmatch_spawn(me):
+            return False
         ab = self.match.agents[me.agent]["abilities"][slot]
+        if ab.get("always_available"):
+            return True
+        if any(me.status.get(key, 0) > self.match.time for key in ab.get("cancel_statuses", ())):
+            return True
+        if ab.get("requires_target") and resolve_target(self.match, me, ab) is None:
+            return False
         if self.match.cheat("infinite_abilities") or (slot == "X" and (me.blade_count or
            (me.repeat_shots and self.match.time < me.repeat_until))):
             return True
         if ab.get("arm_duration") and self.match.time < me.dash_armed_until:
             return self.match.time >= me.dash_armed_at
-        return me.ult_points >= int(ab["cost"]) if slot == "X" else me.charges.get(slot, 0) > 0
+        if slot == "X":
+            return (me.ult_points >= self.match.ultimate_cost(me)
+                    or me.status.get(ab.get("weapon_ammo_status"), 0) > self.match.time
+                    or me.status.get(ab.get("free_with_status"), 0) > self.match.time)
+        free = me.status.get(ab.get("free_with_status"), 0) > self.match.time
+        return free or me.charges.get(self.match.charge_key(me, slot), 0) > 0
 
     def draw_ability_bar(self, me: PlayerState) -> None:
         """C Q E X in the bottom centre like the real HUD: icon, key below, charges as bars above, the ultimate with
         point dots and a gold frame when ready. The ability in hand is underlined."""
         m, ui, s = self.match, self.kit, self.screen
+        if me.agent in ("viper", "neon"):
+            battery = me.agent == "neon"
+            fuel = round(me.passive_state.get("neon_battery" if battery else "viper_fuel", 100))
+            width = 112
+            x, y = (self.w - width) // 2, self.h - 170
+            pygame.draw.rect(s, (19, 34, 30), (x, y, width, 6))
+            pygame.draw.rect(s, (95, 229, 135), (x, y, round(width * fuel / 100), 6))
+            pygame.draw.line(s, (224, 237, 225), (x + 34, y), (x + 34, y + 5))
+            text = f"{'Battery' if battery else 'Fuel'} {fuel}%"
+            if me.status.get("neon_overdrive", 0) > m.time:
+                text += f" · Beam {int(me.passive_state.get('neon_ammo', 40))}/40"
+            label = self.pixel_text(text, (194, 245, 207))
+            s.blit(label, label.get_rect(midbottom=(self.w // 2, y - 2)))
         abil = m.agents[me.agent]["abilities"]
         keys = {"C": "ability_c", "Q": "ability_q", "E": "ability_e", "X": "ability_x"}
         cx, y = self.w // 2, self.h - 86
@@ -180,17 +221,20 @@ class HudMixin:
             else:
                 ui.text(ab["name"][:2], (r.centerx, r.y + 16), "m", "text" if ready else "muted", "center", upper=True)
             if slot == "X":
-                cost = int(ab["cost"])
+                cost = m.ultimate_cost(me)
                 pts = min(me.ult_points, cost)
-                for j in range(cost):
-                    px = r.centerx - (cost - 1) * 4 + j * 8
-                    py = r.y - 2
-                    pygame.draw.polygon(s, color("ult" if j < pts else "muted"),
-                                        [(px, py - 3), (px + 3, py), (px, py + 3), (px - 3, py)], 0 if j < pts else 1)
+                if m.mode == "deathmatch":
+                    ui.text(f"{pts}/{cost}", (r.centerx, r.y - 9), "xs", "ult" if ready else "muted", "center")
+                else:
+                    for j in range(cost):
+                        px = r.centerx - (cost - 1) * 4 + j * 8
+                        py = r.y - 2
+                        pygame.draw.polygon(s, color("ult" if j < pts else "muted"),
+                                            [(px, py - 3), (px + 3, py), (px, py + 3), (px - 3, py)], 0 if j < pts else 1)
                 if ready:
                     ui.line((r.x + 10, r.bottom - 4), (r.right - 10, r.bottom - 4), "ult", 2)
             else:
-                count, top = me.charges.get(slot, 0), int(ab.get("max", 1))
+                count, top = me.charges.get(m.charge_key(me, slot), 0), int(ab.get("max", 1))
                 for j in range(top):
                     px = r.centerx - (top - 1) * 6 + j * 12 - 4
                     pygame.draw.rect(s, color("ally" if j < count else "line"), (px, r.y - 3, 8, 3))
@@ -205,21 +249,26 @@ class HudMixin:
         switching; credits during the buy phase."""
         m, ui, s = self.match, self.kit, self.screen
         right, y = self.w - 24, self.h - 86
+        compact = self.w < 1000
+        panel_w = 216 if compact else 268
+        panel = pygame.Rect(right + 6 - panel_w, y - 2, panel_w, 60)
         if me.blades_equipped:
-            ui.skin("hud/weapon_panel", pygame.Rect(right - 262, y - 2, 268, 60))
+            ui.skin("hud/weapon_panel", panel)
             ui.text("Blade Storm", (right - 70, y + 16), "m", "text", "right", bold=True)
             ui.text(str(me.blade_count), (right, y), "xl", "ult", "right", bold=True, kind="numbers")
         elif me.weapon:
             d = m.weapons.get(me.weapon.key)
-            ui.skin("hud/weapon_panel", pygame.Rect(right - 262, y - 2, 268, 60))
+            ui.skin("hud/weapon_panel", panel)
             art, skin = self.weapon_art(me.weapon.key), me.weapon.skin
-            gun = (self.bank.weapon(art, (100, 32), skin, view="hud") if skin
-                   else ui.silhouette(f"weapons/val2d/{art}.png", (100, 32)))
+            art_bounds = (72 if compact else 100, 32)
+            gun = (self.bank.weapon(art, art_bounds, skin, view="hud") if skin
+                   else ui.silhouette(f"weapons/val2d/{art}.png", art_bounds))
             if gun is not None:
-                s.blit(gun, (right - 250, y + 25 - gun.get_height() // 2))
+                s.blit(gun, (panel.x + 12, y + 25 - gun.get_height() // 2))
             if d and d.is_gun:
-                ui.text(f"/ {me.weapon.reserve}", (right, y + 18), "m", "muted", "right", kind="numbers")
-                mag_w = ui.size(f"/ {me.weapon.reserve}", "m")[0] + 10
+                reserve = "∞" if m.has_infinite_reserve(me.weapon) else str(me.weapon.reserve)
+                ui.text(f"/ {reserve}", (right, y + 18), "m", "muted", "right", kind="numbers")
+                mag_w = ui.size(f"/ {reserve}", "m", kind="numbers")[0] + 10
                 ui.text(str(me.weapon.mag), (right - mag_w, y), "xl", "enemy" if me.weapon.mag == 0 else "text", "right",
                         bold=True, kind="numbers")
                 if me.reload_until > m.time:
@@ -239,17 +288,19 @@ class HudMixin:
                 ui.text(pygame.key.name(self.keys[sl]).upper(), (row.x + 8, row.y + 3), "xs", "muted")
                 ui.text(dd.name if dd else ws.key, (row.right - 8, row.y + 3), "xs", "text" if active else "muted", "right",
                         upper=True, bold=active)
-        if m.phase == "buy" or self.ui.buy_open or m.mode == "deathmatch":
-            ui.text(f"{me.credits}", (right, y - 26), "l", "text", "right", bold=True, kind="numbers")
+        if m.mode != "deathmatch" and (m.phase == "buy" or self.ui.buy_open):
+            credits_y = y - (30 if compact else 26)
+            ui.text(f"{me.credits}", (right, credits_y), "l", "text", "right", bold=True, kind="numbers")
             coin = self.bank.scaled("ui/hud/credits.png", (16, 16))
             if coin is not None:
-                s.blit(coin, (right - ui.size(str(me.credits), "l", bold=True, kind="numbers")[0] - 22, y - 20))
+                s.blit(coin, (right - ui.size(str(me.credits), "l", bold=True, kind="numbers")[0] - 22, credits_y + 6))
 
     def draw_feed(self, me: PlayerState) -> None:
         """Top right: kill rows tinted by who got the kill (teal for your team, red for the enemy), killer, weapon,
         victim, headshot mark; your own kills get a gold edge."""
         m, ui, s = self.match, self.kit, self.screen
-        y = 20
+        compact = self.w < 1000
+        y = 96 if compact and m.cfg.lobby.allow_cheats else 80 if compact else 68
         self.ui.feed = [f for f in self.ui.feed if m.time <= f[0]]
         for until, msg, killer, victim, head, *rest in self.ui.feed[-6:]:
             weapon = rest[0] if rest else ""
@@ -289,22 +340,68 @@ class HudMixin:
                 mark = self.bank.scaled("ui/hud/headshot.png", (14, 14))
                 if mark is not None:
                     s.blit(mark, (r.right - 22, r.y + 7))
-            y += 32
+            y += 29 if compact else 32
 
     def draw_statuses(self, me: PlayerState) -> None:
-        """Active statuses in a row above health and abilities."""
+        """Pack active effects into rows that grow upward from the ability panel."""
         m, ui = self.match, self.kit
-        x, y = self.w // 2 - 310, self.h - 112
-        for k in sorted(k for k, until in me.status.items() if until > m.time and k != "blind"):
-            icon_key = m.statuses.get(k, {}).get("icon", k)
-            icon = self.bank.scaled(f"ui/status/{icon_key}.png", (18, 18))
-            left = me.status[k] - m.time
-            positive = bool(m.statuses.get(k, {}).get("positive")) if hasattr(m, "statuses") else False
+        start = 24 if self.w < 1000 else self.w // 2 - 310
+        right = self.w - 246
+        top = 28 + 2 * int(HUD["minimap_radius"])
+        x, y = start, self.h - (154 if m.spike_carrier == self.me else 125)
+        badges: list[tuple[str, str, str, pygame.Rect]] = []
+        overflow = 0
+        for key, until in sorted(me.status.items()):
+            if until <= m.time or key == "blind":
+                continue
+            status = m.statuses.get(key, {})
+            icon_key = status.get("icon", key)
+            if not icon_key:
+                continue
+            name = key.replace("_", " ")
+            if key == "deadlock_netted":
+                name = f"GravNet · Hold {pygame.key.name(self.keys['interact']).upper()}"
+                remaining = ""
+            else:
+                remaining = "" if key == "empress" or not math.isfinite(until) else f" {math.ceil(until - m.time)}"
+            label = name + remaining
+            text_width = right - start - 34
+            if ui.size(label, "xs", upper=True, bold=True)[0] > text_width:
+                while name and ui.size(name + "…" + remaining, "xs", upper=True, bold=True)[0] > text_width:
+                    name = name[:-1]
+                label = name.rstrip() + "…" + remaining
+            width = 34 + ui.size(label, "xs", upper=True, bold=True)[0]
+            if x + width > right:
+                x, y = start, y - 23
+            if y < top:
+                overflow += 1
+                continue
+            badges.append((label, icon_key, "ally" if status.get("positive") else "enemy",
+                           pygame.Rect(x, y, width, 20)))
+            x += width + 4
+
+        if overflow:
+            while True:
+                label = f"+{overflow} more"
+                width = ui.size(label, "xs", upper=True, bold=True)[0] + 16
+                if not badges:
+                    x, y = start, max(top, self.h - 154)
+                    break
+                last = badges[-1][3]
+                x, y = last.right + 4, last.y
+                if x + width <= right:
+                    break
+                badges.pop()
+                overflow += 1
+            badges.append((label, "", "text", pygame.Rect(x, y, width, 20)))
+
+        for label, icon_key, ink, rect in badges:
+            ui.fill(rect, "#0f1923dc")
+            asset = f"ui/status/{icon_key}.png"
+            icon = self.bank.scaled(asset, (16, 16)) if icon_key and (ROOT / "assets" / asset).is_file() else None
             if icon is not None:
-                self.screen.blit(icon, (x, y))
-            label = f"{k} {left:.0f}"
-            ui.text(label, (x + 22, y + 2), "xs", "ally" if positive else "enemy", upper=True, bold=True)
-            x += 32 + ui.size(label, "xs", upper=True, bold=True)[0]
+                self.screen.blit(icon, (rect.x + 4, rect.y + 2))
+            ui.text(label, (rect.x + (23 if icon_key else 8), rect.y + 3), "xs", ink, upper=True, bold=True)
 
     def draw_messages(self, me: PlayerState) -> None:
         """Round banners, bomb hints, plant progress, spectating and connection messages."""
@@ -316,13 +413,15 @@ class HudMixin:
             ui.text("Smoke fading", (cx, base + 4), "xs", "text", "center", upper=True, bold=True)
             self.draw_meter(pygame.Rect(cx - 46, base + 22, 92, 6), min(smoke), "progress", "gold")
         if m.spike_carrier == self.me:
-            ui.text("Spike · hold F on a site", (self.w // 2 - 310, self.h - 132), "xs", "gold", upper=True, bold=True)
+            key = pygame.key.name(self.keys["spike"])
+            ui.text(f"Spike · hold {key} on a site", (self.w // 2 - 310, self.h - 132), "xs", "gold", upper=True, bold=True)
         orb_time = float(rule_value("orbs", "pickup_time", 1.0))
         if me.orb_progress > 0:
             bar = pygame.Rect(cx - 90, base - 10, 180, 6)
             self.draw_meter(bar, me.orb_progress / orb_time, "progress", "ult")
             ui.text("ultimate orb", (cx, base - 30), "xs", "ult", "center", upper=True, bold=True)
-        elif any((o - me.pos).length() <= float(rule_value("orbs", "reach", 1.2)) for o in m.orbs) and me.alive:
+        elif (m.mode != "deathmatch" and me.alive
+              and any((o - me.pos).length() <= float(rule_value("orbs", "reach", 1.2)) for o in m.orbs)):
             ui.text("hold F: ultimate orb", (cx, base - 30), "xs", "ult", "center", upper=True, bold=True)
         until, kills = self.ui.kill_flash
         if m.time < until and kills:
@@ -335,7 +434,7 @@ class HudMixin:
             y = int(self.h * 0.20)
             ui.fill(pygame.Rect(cx - tw // 2 - 40, y - 8, tw + 80, 62), "#0f1923cc")
             ui.text(title, (cx, y), "xl", "ult" if ours else "enemy", "center", upper=True, bold=True, kind="title")
-        prog = me.plant_progress / 4.0 if me.plant_progress else me.defuse_progress / 7.0
+        prog = me.plant_progress / 4.0 if me.plant_progress else me.defuse_progress / 7.0 if me.defusing else 0.0
         if prog > 0:
             bar = pygame.Rect(cx - 120, base - 10, 240, 8)
             self.draw_meter(bar, prog, "progress", "gold")
@@ -361,15 +460,49 @@ class HudMixin:
                 ui.skin("hud/score_panel", pygame.Rect(cx - w // 2, y, w, 56))
                 ui.text(text, (cx, y + 10), "l", "ally" if won else "text", "center", upper=True, bold=True, kind="title")
         own = m.players.get(self.me)
+        if own is not None and own.alive and own.dm_next_spawn_damage and m.phase == "live":
+            protected = m.deathmatch_spawn_protected(own)
+            label = f"Leave spawn · {math.ceil(own.dm_spawn_protected_until - m.time)} s" if protected else "Leave spawn · Taking damage"
+            ui.text(label, (cx, base - 34), "s", "gold" if protected else "enemy", "center", upper=True, bold=True)
         if own is not None and not own.alive and m.phase in ("live", "planted"):
             watching = f"Spectating {me.name} · click: next teammate" if me.pid != own.pid else "Eliminated · next round soon"
             ui.text(watching, (cx, base + 10), "s", "muted", "center", upper=True)
+        if self.client is None or self.client.connected:
+            self.draw_match_status()
+        if (m.mode == "deathmatch" and own is not None and not self.ui.buy_open
+                and m.can_select_deathmatch_loadout(own)):
+            key = pygame.key.name(self.keys["buy"])
+            ui.text(f"{key}: loadouts", (self.w - 24, self.h - 140 - 26 * 3), "xs", "muted", "right", upper=True)
+        elif own is not None and not self.ui.buy_open and (left := m.deathmatch_stage_equip_left(own)):
+            key = pygame.key.name(self.keys["buy"])
+            weapon = m.weapons[own.dm_loadout[m.dm_stage - 1]].name
+            ui.text(f"{key}: equip {weapon} · {math.ceil(left)} s", (self.w - 24, self.h - 140 - 26 * 3),
+                    "xs", "gold", "right", upper=True)
+        elif m.mode != "deathmatch" and m.phase == "buy" and not self.ui.buy_open:
+            key = pygame.key.name(self.keys["buy"])
+            ui.text(f"{key}: buy", (self.w - 24, self.h - 140 - 26 * 3), "xs", "muted", "right", upper=True)
+
+    def draw_match_status(self) -> None:
+        ui = self.kit
+        cx, base = self.w // 2, self.h - 190
         if self.status:
-            ui.text(self.status, (cx, base - 60), "s", "enemy", "center")
+            width = self.w - 48
+            lines = ui.wrap(self.status, "s", width)
+            self.draw_rejoin_details_button(pygame.Rect(cx + 132, base - 30, 132, 44), lines, width)
+            shown = lines[:2]
+            line_height = ui.size("Ag", "s")[1] + 2
+            for i, line in enumerate(shown):
+                if ui.size(line, "s")[0] > width or (i == 1 and len(lines) > 2):
+                    while line and ui.size(line + "…", "s")[0] > width:
+                        line = line[:-1]
+                    line = line.rstrip() + "…"
+                ui.text(line, (cx, base - 60 - (len(shown) - i - 1) * line_height), "s", "enemy", "center")
         if self.client is not None and not self.client.connected:
-            ui.button(pygame.Rect(cx - 120, base - 30, 240, 44), "Rejoin", "rejoin", primary=True)
-        if m.phase == "buy" and not self.ui.buy_open:
-            ui.text("B: buy", (self.w - 24, self.h - 140 - 26 * 3), "xs", "muted", "right", upper=True)
+            closed = getattr(self.client, "party_closed", False)
+            if not closed or self.match.phase != "over":
+                label = "Back to menu [Enter]" if closed else "Reconnect [Enter]"
+                ui.button(pygame.Rect(cx - 120, base - 30, 240, 44), label, "to_menu" if closed else "rejoin",
+                          primary=True, enabled=closed or not self.rejoin_cleanup_pending(), size="s")
 
 
     def pixel_text(self, msg: str, col: tuple | pygame.Color, k: int = 1) -> pygame.Surface:
@@ -439,7 +572,9 @@ class HudMixin:
 
     def needs_aim(self, me: PlayerState, slot: str) -> bool:
         ab = self.match.agents.get(me.agent, {}).get("abilities", {}).get(slot, {})
-        return (self.preview_kind(ab) in self.AIM_KINDS or self.is_throwable(ab) or bool(ab.get("alt"))
+        if me.status.get(ab.get("instant_with_status"), 0) > self.match.time:
+            return False
+        return (bool(ab.get("aim_equip")) or self.preview_kind(ab) in self.AIM_KINDS or self.is_throwable(ab) or bool(ab.get("alt"))
                 or bool(ab.get("tactical")) or int(ab.get("multi", 1)) > 1)
 
     @staticmethod
@@ -451,10 +586,25 @@ class HudMixin:
         """Show the primary cast with the same targeting and geometry as the simulation."""
         from dataclasses import replace
         from gameplay.kit import expand
-        from gameplay.kit.engine import line_endpoints, resolve_target
+        from gameplay.kit.engine import line_endpoints
 
         m, s = self.match, self.screen
         ab = m.agents.get(me.agent, {}).get("abilities", {}).get(slot, {})
+        if (ab.get("repeat_shots") and me.repeat_until and (not me.repeat_shots or m.time >= me.repeat_until)
+                and not self.ability_ready(me, slot)):
+            return
+        if ab.get("target") == "owl_drone_launch":
+            if pygame.time.get_ticks() < self.aim_ready_at:
+                self.ability_hint("Owl Drone · Equipping", C_MUTED)
+            elif not self.ability_ready(me, slot):
+                self.ability_hint("Owl Drone · Unavailable", C_MUTED)
+            elif (launch := resolve_target(m, me, ab)) is None:
+                self.ability_hint("Owl Drone · Launch blocked", C_MUTED)
+            else:
+                color = (120, 255, 200)
+                pygame.draw.circle(s, color, self.to_screen(launch, me), 4, 1)
+                self.ability_hint(f"Owl Drone · Left click deploys · {slot} or Esc cancels", color)
+            return
         if int(ab.get("multi", 1)) > 1:
             self.draw_multi_preview(me, ab, slot)
             return
@@ -465,17 +615,34 @@ class HudMixin:
         place = spec.get("place", {})
         kind = self.preview_kind(ab)
         aim = heading(me.facing)
-        target = resolve_target(m, replace(me, cursor_depth=self.cursor_depth), spec)
+        depth = self.charged_depth(ab) if ab.get("charge_time") else self.cursor_depth
+        shooter = replace(me, cursor_depth=depth)
+        path = None
+        if ab.get("max_bounces"):
+            from gameplay.kit.builtins import bolt_path
+            path = bolt_path(m, shooter, {**spec, "bounces": self.bounces})
+        target = path[-1] if path else resolve_target(m, shooter, spec)
         if target is None:
             alt = " · right click: " + alt_text(ab) if ab.get("alt") else ""
             self.ability_hint(f"{ab['name']} · No valid target{alt}", C_MUTED)
             return
         color = (120, 255, 200)
         tx, ty = self.to_screen(target, me)
-        if kind == "wave":
-            length, width = float(spec.get("length", 10)), float(spec.get("width", 1))
+        if kind == "wave" and place.get("move_through_walls") and place.get("spawn_ahead"):
+            start = target + aim * float(place["spawn_ahead"])
+            end = start + aim * float(place["move"]) * float(place["lasts"])
+            radius = float(place["radius"])
+            outline = [center + aim.rotated(angle) * radius
+                       for center, first in ((end, -90), (start, 90))
+                       for angle in range(first, first + 181, 15)]
+            pygame.draw.polygon(s, color, [self.to_screen(p, me) for p in outline], 1)
+        elif kind == "wave":
+            start = me.pos + aim * float(spec.get("wave_start", 0))
+            length = depth if ab.get("charge_time") else float(spec.get("length", 10))
+            width = float(spec.get("width", 1))
             side = aim.rotated(90) * (width / 2)
-            corners = [me.pos + side, me.pos - side, me.pos - side + aim * length, me.pos + side + aim * length]
+            end = me.pos + aim * length
+            corners = [start + side, start - side, end - side, end + side]
             pygame.draw.polygon(s, color, [self.to_screen(c, me) for c in corners], 1)
         elif (barrier := next((step for step in spec.get("do", []) if step.get("do") == "barrier"), None)):
             from gameplay.kit.builtins import barrier_rects
@@ -492,7 +659,9 @@ class HudMixin:
         else:
             radius = float(ab.get("radius") or place.get("radius") or 0.6)
             self.radius_ring(target, radius, color, me)
-        if place.get("thrown"):
+        if path:
+            pygame.draw.lines(s, color, False, [self.to_screen(p, me) for p in path], 1)
+        elif place.get("thrown"):
             dot = self.bank.scaled("fx/ability/arc_dot.png", (3, 3))
             for i in range(1, 10):
                 x, y = self.projectile_point(me.pos, target, i / 10, me)
@@ -509,6 +678,13 @@ class HudMixin:
         if ab.get("landing_preview"):
             distance = (target - me.pos).length()
             label = f"{ab['name']} · {distance:.1f} m · Left click throws · Esc cancels"
+            if ab.get("toggle_alt"):
+                mode = ab["alt"]["name"] if self.aim_alt else ab["mode_name"]
+                label = f"{ab['name']} · {mode} · Left click throws · Right click switches"
+        if ab.get("charge_time"):
+            label = f"{ab['name']} · {depth:.1f} m · Hold left mouse to charge, release to cast"
+            if ab.get("max_bounces"):
+                label += f" · Right click changes bounces ({self.bounces})"
         if ab.get("repeat_shots") and me.repeat_shots and m.time < me.repeat_until:
             label = f"{ab['name']} · {me.repeat_shots} left · " + ("Recharging" if m.time < me.repeat_next else "Left click fires")
         self.ability_hint(label, color)
@@ -526,11 +702,11 @@ class HudMixin:
         self.ability_hint(label, (236, 232, 225))
 
     def placement_limit(self, me: PlayerState, ab: dict, slot: str) -> int:
-        maximum = int(ab.get("multi", 1))
+        maximum = int(ab.get("multi", 1)) if me.alive else 1
         if self.match.cheat("infinite_abilities"):
             return maximum
         if slot == "X":
-            return maximum if me.ult_points >= int(ab["cost"]) else 0
+            return maximum if me.ult_points >= self.match.ultimate_cost(me) else 0
         return min(maximum, me.charges.get(slot, 0))
 
     def draw_throw_cursor(self, me: PlayerState, ab: dict, slot: str) -> None:
@@ -552,7 +728,26 @@ class HudMixin:
         self.screen.blit(img, img.get_rect(center=panel.center))
 
     def draw_crosshair(self, me: PlayerState) -> None:
+        if (drone := self.piloted_owl_drone(me)) is not None:
+            distance = drone.radius / 2
+            level = drone.props.get("flight_height")
+            if level is None:
+                level = drone.props.get("source_level", 0)
+            height = level * float(self.match._mv["level_height"]) + distance * math.tan(math.radians(self.drone_pitch))
+            x, y = self.to_screen(drone.pos + heading(me.facing) * distance, me)
+            from client import crosshair
+            color = C_ENEMY if self.match.time < self.ui.hit_marker else (120, 255, 200)
+            crosshair.draw(self.screen, (x, y - height * self.scale * HEIGHT_DRAW), color, 1.0, 4.0, True)
+            return
         cx, cy = self.to_screen(me.pos + heading(me.facing) * self.cursor_depth, me)
+        deadline = me.status.get("deadlock_accelerator_equipped", 0)
+        if deadline > self.match.time:
+            from config.content.mechanics.deadlock import pulse_preview
+
+            points = [self.to_screen(point, me) for point in pulse_preview(self.match, me)]
+            pygame.draw.lines(self.screen, (99, 177, 216), False, points, 2)
+            pygame.draw.circle(self.screen, (159, 233, 248), (cx, cy), 7, 2)
+            return
         if getattr(self, "scoped", False):
             pygame.draw.circle(self.screen, (255, 70, 85), (cx, cy), 2)  # scoped: just a dot, the reticle is the scope
             return

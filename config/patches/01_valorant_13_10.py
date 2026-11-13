@@ -9,8 +9,7 @@ PATCH = {
         "brimstone": {"E": {"range": 55, "radius": 4.15, "cast_team_only": True, "cast_radius": 12.5,
                             "place": {"radius": 4.15, "delay": 1}}},
         # 11.08 for Dark Cover recharge. 4.04 for the 64 m/s smoke projectile.
-        "omen": {"E": {"recharge": 40, "cast_team_only": True, "cast_radius": 12.5,
-                       "place": {"travel_speed": 64}}},
+        "omen": {"E": {"recharge": 40, "place": {"travel_speed": 64}}},
         # 7.04 for the one Updraft charge.
         "jett": {"Q": {"max": 1}},
         # 13.00 for the signature cooldown.

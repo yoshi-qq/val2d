@@ -1,0 +1,26 @@
+from gameplay.kit.dsl import ability, agent, on, status, step, thing
+
+AGENT = agent(
+    "Reyna", role="Duelist", order=2, sprites={"ability_poses": True},
+    passives=[on("reyna_vitality", [step("create_soul_orb")]),
+              on("reyna_reappeared", [step("sound", key="cast_sonic", radius=20.0, at_owner=True)])],
+    C=ability("Leer", target="leer_eye", preview="zone", bot="offense", price=250, max=2, range=10, radius=0.45,
+              desc="Send a destructible eye through walls. Enemies looking toward it are nearsighted.",
+              place=thing("zone", delay=0.4, travel_speed=18.2, lasts=1.6, radius=0.45,
+                          sprite="ability/reyna_eye", warning_sprite="ability/reyna_eye",
+                          hp=60, hit_radius=0.5, hit_sound="hit_body",
+                          triggers=[on("tick", [status("leer", 0.12)], who="enemies",
+                                                             area="everywhere", facing="view", sight="all")])),
+    Q=ability("Devour", target="soul_orb", devour=True, price=200, max=2, shared_charge="E", requires_target=True, bot="heal",
+              desc="Consume a visible Soul Orb to heal. Keep sight of its location to finish healing.",
+              do=[step("devour_soul")]),
+    E=ability("Dismiss", target="soul_orb", price=200, max=2, start=1, requires_target=True,
+              shop_name="Devour / Dismiss", free_with_status="empress", cancel_equip=0.6,
+              cancel_statuses=("dismiss", "dismiss_invisible"),
+              desc="Consume a Soul Orb to become intangible. During Empress, Dismiss also makes you invisible.",
+              do=[step("dismiss_soul")]),
+    X=ability("Empress", target="self", bot="buff", cost=7,
+              cast_radius=0, cast_announcement={"ally": "ab_power", "enemy": "cast_dark"},
+              desc="Gain faster weapon handling for the round. Soul Orbs heal you automatically and Dismiss is free.",
+              do=[step("empress")]),
+)

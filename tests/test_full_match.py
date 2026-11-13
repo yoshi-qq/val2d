@@ -39,6 +39,53 @@ def test_new_map_blockouts_connect_spawns_to_every_site(key: str, sites: str) ->
             assert path and site.rect.contains(path[-1]), (key, spawns[2], site.name)
 
 
+@pytest.mark.parametrize(("key", "approach", "tower", "site", "facing"), [
+    ("bind", Vec(98, 130), Vec(117, 126), Vec(117, 120), 0),
+    ("haven", Vec(26, 102), Vec(41.5, 106), Vec(44, 106), 270),
+])
+def test_a_tower_has_a_walkable_ascent_and_cannot_be_jumped_from_site(
+    key: str, approach: Vec, tower: Vec, site: Vec, facing: int,
+) -> None:
+    from gameplay.nav import NavGrid
+
+    world = load_map(key)
+    nav = NavGrid(world)
+    assert world.ground_height(tower) == 3
+    assert nav.path(approach, tower, start_ground=0, goal_ground=3)
+    assert nav.line_free(tower, site, start_ground=3, goal_ground=0)
+    assert not nav.line_free(site, tower, start_ground=0, goal_ground=3)
+    match = Match(world)
+    player = match.add_player("Test", 0, "omen")
+    match.start()
+    match.phase, match.phase_until = "live", match.time + 10
+    player.pos, player.ground, player.level = site, 0, 0
+    for _ in range(64):
+        match.tick(1 / 64, {player.pid: Command(move_y=1, facing=facing, jump=True)})
+    assert player.level == 0
+    if key == "haven":
+        assert world.ground_height(tower, reach=1) == 0
+        assert world.deck_blocks(tower, 1.7, tower, 4.7)
+
+
+def test_haven_garage_panels_leave_penetrable_wood_and_clear_centre() -> None:
+    match = Match(load_map("haven"))
+    shooter = match.add_player("Shooter", 0, "omen")
+    target = match.add_player("Target", 1, "omen")
+    match.start()
+    match.phase = "live"
+    shooter.pos, target.pos = Vec(69, 39), Vec(72, 39)
+    panels = [wall for wall in match.world.walls if wall.material == "obj:haven_garage_panel"]
+    assert [wall.hp for wall in panels] == [400, 400]
+    assert not match.line_of_fire(shooter, target)
+    match._damage_cover(panels[0], 399)
+    assert not match.line_of_fire(shooter, target)
+    match._damage_cover(panels[0], 1)
+    assert match.line_of_fire(shooter, target)
+    assert not match._line_clear(shooter.pos, target.pos, 0)
+    assert panels[1].rect not in match.broken_cover
+    assert match._line_clear(Vec(69, 40.65), Vec(72, 40.65), 0)
+
+
 def test_bind_teleporters_move_players_one_way_and_emit_sound() -> None:
     match = Match(load_map("bind"))
     player = match.add_player("A", 0, "omen")
@@ -51,6 +98,20 @@ def test_bind_teleporters_move_players_one_way_and_emit_sound() -> None:
         assert player.pos == destination
         assert sum(event.kind == "sound_fx" and event.data["key"] == "ab_teleport" for event in events) == 2
         assert not any(event.kind == "sound_fx" for event in match.tick(1 / 64, {}))
+
+
+@pytest.mark.parametrize(("key", "neutral"), [("bind", (54, 76)), ("haven", (66, 57))])
+def test_buy_barriers_leave_sites_to_defenders_and_keep_mid_routes_closed(key, neutral) -> None:
+    match = Match(load_map(key))
+    match.add_player("A", 0, "omen")
+    match.add_player("B", 1, "jett")
+    match.start()
+    grid, areas = match._buy_areas
+    assert areas[0].isdisjoint(areas[1])
+    for site in match.world.sites:
+        cell = grid.nearest_free(grid.cell(site.rect.center))
+        assert cell in areas[1] and cell not in areas[0]
+    assert grid.cell(Vec(*neutral)) not in areas[0] | areas[1]
 
 
 def test_whole_match_to_the_end_is_recorded_for_the_career_page(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -20,7 +20,7 @@ DEFAULT_KEYS: dict[str, str] = {
     "forward": "w", "back": "s", "left": "a", "right": "d", "walk": "left shift", "crouch": "left ctrl", "jump": "space",
     "reload": "r", "interact": "f", "drop": "g", "buy": "b", "scoreboard": "tab",
     "ability_c": "c", "ability_q": "q", "ability_e": "e", "ability_x": "x",
-    "primary": "1", "sidearm": "2", "melee": "3",
+    "primary": "1", "sidearm": "2", "melee": "3", "spike": "4",
 }
 CROSSHAIR_COLORS = ["#78ffc8", "#ffffff", "#ffe14d", "#ff5ad2", "#5ad2ff", "#ff6b4d"]
 
@@ -28,7 +28,7 @@ CROSSHAIR_COLORS = ["#78ffc8", "#ffffff", "#ffe14d", "#ff5ad2", "#5ad2ff", "#ff6
 def defaults() -> dict[str, Any]:
     cfg = load_config()
     return {"sensitivity": cfg.player.sensitivity, "camera_push": cfg.player.camera_push, "volume": 0.55,
-            "name": "Player",
+            "name": "Player", "last_join": "",
             "fullscreen": False, "keys": dict(DEFAULT_KEYS), "weapon_skins": {}, "crosshair_color": CROSSHAIR_COLORS[0],
             "crosshair_size": 1.0, "crosshair_gap": 4.0, "crosshair_dot": True}
 
@@ -48,6 +48,8 @@ def load() -> dict[str, Any]:
                     values[key] = clamp(key, value)
                 elif key == "name" and isinstance(value, str):
                     values[key] = value[:16] or "Player"
+                elif key == "last_join" and isinstance(value, str):
+                    values[key] = value.strip()[:128]
                 elif key in ("fullscreen", "crosshair_dot") and isinstance(value, bool):
                     values[key] = value
                 elif key == "crosshair_color" and isinstance(value, str) and len(value) == 7 and value.startswith("#"):

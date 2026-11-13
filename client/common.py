@@ -81,7 +81,6 @@ class UiState:
     last_hit: dict[int, float] = field(default_factory=dict)
     died_at: dict[int, float] = field(default_factory=dict)
     landed_at: dict[int, float] = field(default_factory=dict)
-    prev_z: dict[int, float] = field(default_factory=dict)
     blasts: list[tuple[Vec, float, float]] = field(default_factory=list)  # pos, radius, start
     oneshots: list[tuple[str, Vec, float, float, int, tuple[float, float]]] = field(default_factory=list)
     # (file, world pos, start, duration, frame width in px, size in metres)
@@ -91,7 +90,28 @@ class UiState:
     noise: list[tuple[float, float]] = field(default_factory=list)         # own sounds: radius, start (minimap circle)
     pending_sounds: list[tuple[float, str, int, float, float]] = field(default_factory=list)  # due, key, pid, radius, gain
     damage_from: list[tuple[Vec, float]] = field(default_factory=list)    # attacker position, time (hit direction)
-    spike_sounds: dict[int, Any] = field(default_factory=dict)            # pid -> channel of a running plant/defuse sound
+    spike_sounds: dict[int, tuple[Vec, list[tuple[pygame.mixer.Channel, pygame.mixer.Sound, bool]]]] = field(
+        default_factory=dict
+    )
+    spike_sound_sources: dict[int, tuple[int, pygame.mixer.Sound, pygame.mixer.Sound | None]] = field(default_factory=dict)
+    fire_sounds: dict[tuple[int, Vec, float, int], pygame.mixer.Channel] = field(default_factory=dict)
+    recon_sounds: dict[tuple[int, Vec, float, int], pygame.mixer.Channel] = field(default_factory=dict)
+    rotor_sounds: dict[tuple[int, Vec, float, int], pygame.mixer.Channel] = field(default_factory=dict)
+    lockdown_sounds: dict[tuple[int, Vec, float, int], pygame.mixer.Channel] = field(default_factory=dict)
+    kayo_stabilize_sounds: dict[tuple[int, Vec, float, int], pygame.mixer.Channel] = field(default_factory=dict)
+    effect_sound_alternates: dict[
+        tuple[str, tuple[int, Vec, float, int]], tuple[pygame.mixer.Channel, pygame.mixer.Sound]
+    ] = field(
+        default_factory=dict
+    )
+    effect_sound_primary: dict[
+        tuple[str, tuple[int, Vec, float, int]], tuple[int, pygame.mixer.Sound, bool]
+    ] = field(default_factory=dict)
+    effect_sound_waiting: dict[tuple[str, tuple[int, Vec, float, int]], int] = field(default_factory=dict)
+    drone_warning: pygame.mixer.Channel | None = None
+    drone_warning_sample: pygame.mixer.Sound | None = None
+    drone_warning_mark: tuple[int, float | None] | None = None
+    drone_warning_waiting: tuple[tuple[int, float | None], int] | None = None
     kill_flash: tuple[float, int] = (0.0, 0)                             # until, kills this round (kill counter)
     title_banner: tuple[float, str, bool] = (0.0, "", True)            # until, ace/clutch/flawless/thrifty, own team
     last_seen: dict[int, tuple[Vec, float]] = field(default_factory=dict)  # enemy pid -> last seen position, time
@@ -146,7 +166,10 @@ class Sound:
         self.muffled: dict[str, pygame.mixer.Sound] = {}
         self.step_variants: dict[str, list[str]] = {}
         self.next_step: dict[str, int] = {}
-        self.volume = float(SOUND_MIX["master"])
+        self._volume = float(SOUND_MIX["master"])
+        self.perspective_gain = 1.0
+        self._one_shots: dict[int, tuple[pygame.mixer.Channel, pygame.mixer.Sound, float, float, bool]] = {}
+        self.silent_alternates: dict[int, tuple[pygame.mixer.Channel, pygame.mixer.Sound]] = {}
         self._warned: set[str] = set()
         try:
             pygame.mixer.init(frequency=44100, size=-16, channels=2)
@@ -185,7 +208,9 @@ class Sound:
             self.muffled[key] = pygame.sndarray.make_sound(np.clip(out, -32768, 32767).astype(np.int16))
 
     def play(self, key: str, listener: PlayerState | None = None, pos: Vec | None = None, radius: float = 40.0,
-             occluded: bool = False, gain: float = 1.0) -> pygame.mixer.Channel | None:
+             occluded: bool = False, gain: float = 1.0, *, loops: int = 0,
+             keep_silent: bool = False, sample_override: pygame.mixer.Sound | None = None,
+             apply_perspective: bool = True) -> pygame.mixer.Channel | None:
         """Plays a sound placed around the listener; returns its channel (to stop long sounds), or None."""
         if not self.ok:
             return None
@@ -201,6 +226,81 @@ class Sound:
                 self._warned.add(key)
                 warnings.warn(f"Sound missing: assets/sounds/{key}.wav")
             return None
+        apply_perspective = apply_perspective and not key.startswith("ui_")
+        track = not loops and not keep_silent
+        if track:
+            base_left, base_right, muffle = self.spatial_mix(listener, pos, radius, occluded, gain, unscaled=True)
+            level = self.volume * (self.perspective_gain if apply_perspective else 1.0)
+            left, right = min(1.0, base_left * level), min(1.0, base_right * level)
+        elif not apply_perspective:
+            left, right, muffle = self.spatial_mix(listener, pos, radius, occluded, gain, apply_perspective=False)
+        else:
+            left, right, muffle = self.spatial_mix(listener, pos, radius, occluded, gain)
+        if left + right < 0.01:
+            if not keep_silent:
+                return None
+            left = right = 0.0
+        sample = self.muffled.get(key, snd) if muffle else snd
+        if sample_override is not None:
+            sample = sample_override
+        ch = sample.play(loops) if loops else sample.play()
+        if ch is None and left + right >= 0.01:
+            while self.silent_alternates:
+                _, (spare, previous) = self.silent_alternates.popitem()
+                if spare.get_sound() == previous:
+                    spare.play(sample, loops=loops)
+                    ch = spare
+                    break
+        if ch:
+            ch.set_volume(left, right)
+            self.silent_alternates.pop(ch.id, None)
+            self._one_shots.pop(ch.id, None)
+            if track:
+                self._one_shots[ch.id] = (ch, sample, base_left, base_right, apply_perspective)
+        return ch
+
+    @property
+    def volume(self) -> float:
+        return self._volume
+
+    @volume.setter
+    def volume(self, value: float) -> None:
+        if value != self._volume:
+            self._volume = value
+            self._update_one_shots(volume_changed=True)
+
+    def set_perspective_gain(self, gain: float) -> None:
+        changed = gain != self.perspective_gain
+        self.perspective_gain = gain
+        self._update_one_shots(perspective_changed=changed)
+
+    def _update_one_shots(self, *, volume_changed: bool = False, perspective_changed: bool = False) -> None:
+        for channel_id, (channel, sample, left, right, damped) in list(self._one_shots.items()):
+            if channel.get_sound() != sample:
+                del self._one_shots[channel_id]
+            elif volume_changed or (damped and perspective_changed):
+                level = self.volume * (self.perspective_gain if damped else 1.0)
+                channel.set_volume(min(1.0, left * level), min(1.0, right * level))
+
+    def sound_tail(self, sample: pygame.mixer.Sound, offset: float) -> pygame.mixer.Sound | None:
+        frames = round(offset * pygame.mixer.get_init()[0])
+        if offset >= sample.get_length():
+            return None
+        tail = pygame.sndarray.array(sample)[frames:]
+        return pygame.sndarray.make_sound(tail) if len(tail) else None
+
+    def shifted_loop(self, sample: pygame.mixer.Sound, elapsed_ms: int) -> pygame.mixer.Sound:
+        if not elapsed_ms:
+            return sample
+        import numpy as np
+
+        audio = pygame.sndarray.array(sample)
+        offset = round(elapsed_ms * pygame.mixer.get_init()[0] / 1000) % len(audio)
+        return pygame.sndarray.make_sound(np.roll(audio, -offset, axis=0))
+
+    def spatial_mix(self, listener: PlayerState | None, pos: Vec | None, radius: float,
+                    occluded: bool, gain: float, *, apply_perspective: bool = True,
+                    unscaled: bool = False) -> tuple[float, float, bool]:
         left = right = 0.5
         muffle = occluded
         if listener is not None and pos is not None:
@@ -220,13 +320,11 @@ class Sound:
                 right = vol * max(floor * vol, math.sin(angle)) * 1.3
             else:
                 left = right = vol * 0.9
-        left, right = left * gain * self.volume, right * gain * self.volume
-        if left + right < 0.01:
-            return None
-        ch = (self.muffled.get(key, snd) if muffle else snd).play()
-        if ch:
-            ch.set_volume(min(1.0, left), min(1.0, right))
-        return ch
+        if unscaled:
+            return left * gain, right * gain, muffle
+        level = gain * self.volume * (self.perspective_gain if apply_perspective else 1.0)
+        left, right = left * level, right * level
+        return min(1.0, left), min(1.0, right), muffle
 
 
 

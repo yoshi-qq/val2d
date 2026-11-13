@@ -4,6 +4,8 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+MAX_DRONE_PITCH = 60.0
+
 
 @dataclass(frozen=True)
 class Vec:
@@ -43,6 +45,13 @@ def heading(degrees: float) -> Vec:
     """Unit vector for a compass angle (0° = +y, 90° = +x)."""
     r = math.radians(degrees)
     return Vec(math.sin(r), math.cos(r))
+
+
+def projectile_progress(now: float, start: float, until: float, *, lands_at_expiry: bool = False) -> float:
+    """Progress along the visible flight, which lands shortly before the effect expires."""
+    duration = until - start
+    flight = duration if lands_at_expiry else min(0.6, duration * 0.8)
+    return (now - start) / max(flight, 1e-6)
 
 
 def angle_of(v: Vec) -> float:

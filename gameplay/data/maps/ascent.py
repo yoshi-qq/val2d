@@ -2,16 +2,16 @@
 
 Source: VALORANT Ascent tactical map in the official minimap projection (1656 px = 142.86 m, so 0.0863 m per px;
 Riot map data, xMultiplier 0.00007), callouts from the community callout map, floor levels from gameplay
-screenshots (stairs down from A Main onto the A site, Heaven above Hell, Garden above Tree, Mid Catwalk and the arch
+screenshots (stairs up from A Main onto the A site, Heaven above Hell, Garden above Tree, Mid Catwalk and the arch
 stairs to Mid Bottom, B Lane above the B site, the Market platform level with Pizza). Claude Code, 12.11.2026.
 
 GRID holds one character per square metre, top row = north (defender side): # wall or outside, a digit the floor
 level in metres (rule movement.level_height):
   0  B site and Boathouse (below B Lane)
-  1  attacker side, lobbies, B Main and Lane, Mid Courtyard and Link, A site (below the A front)
+  1  attacker side, lobbies, B Main and Lane, Mid Courtyard and Link
   2  defender side, Market and Pizza, Mid Bottom, Mid Top/Catwalk/Cubby, A Tree, A front and A Main
-  3  A Garden and the landing at A Window
-  4  A Heaven/Rafters (three metres above the A site: not reachable by jumping, Hell is the site floor below it)
+  3  A Garden, A Window landing and the raised A plant floor
+  4  A Heaven/Rafters marker, built at 6 m above the 3 m Hell floor
 Floors one level apart can be jumped onto; stairs are listed below. Edit the grid to move walls.
 Feature positions are given in pixels of the reference map (ref) so they can be checked against it.
 """
@@ -203,23 +203,25 @@ for x0, top, x1, bottom in merged("#"):
     b.wall(*m(x0, top, x1, bottom), mat="ascent_roof" if x1 - x0 >= 3 and bottom - top >= 3 else "ascent_stucco")
 # B Lobby sits slightly below the corridor after the shallow steps by the shutter.
 ground = tuple(
+    row[:103] + row[103:].replace("1", "3") if 34 <= top < 47 else
+    row[:103] + row[103:].replace("1", "2") if 47 <= top < 50 else
     row[:23] + row[23:44].replace("1", "l") + row[44:] if 66 <= top < 86 else
     row[:25] + row[25:29].replace("1", "l") + row[29:] if 63 <= top < 66 else row
     for top, row in enumerate(GRID)
 )
-for char, level in (("l", 0.5), ("1", 1), ("2", 2), ("3", 3), ("4", 4)):
+for char, level in (("l", 0.5), ("1", 1), ("2", 2), ("3", 3), ("4", 6)):
     for cell in merged(char, ground):
         if cell == (103, 29, 124, 34):
             b.platform(*m(103, 29, 110, 34), level=level, mat="floor")
             continue
         b.platform(*m(*cell), level=level, mat="floor")  # "floor": keep the floor art, raised only in height
 
-b.data["decks"] = [{"rect": m(110, 29, 124, 34), "level": 4, "lower": 1}]
+b.data["decks"] = [{"rect": m(110, 29, 124, 34), "level": 6, "lower": 3}]
 
 # stairs between levels (x0, top, x1, bottom in metres; rise = direction it goes up, n = north)
 STAIRS = (
-    ((99, 22, 104, 28), "s", 2, 4),         # Heaven stairs from the A connector up to A Rafters
-    ((107, 47, 113, 50), "s", 1, 2),        # A site stairs, down from the front onto the site
+    ((99, 20, 104, 28), "s", 2, 6),         # Heaven stairs from the A connector up to A Rafters
+    ((107, 47, 113, 50), "n", 2, 3),        # A site stairs, up from the front onto the plant floor
     ((81, 22, 89, 28), "s", 2, 3),          # A Garden, up from the A connector
     ((89.7, 39, 99.2, 48.5), "n", 2, 3),    # A Garden stairs, up from A Tree to the window landing
     ((25, 63, 29, 66), "n", 0.5, 1),       # shallow steps into B Main
@@ -255,9 +257,9 @@ b.data["objects"].append({"key": "ascent_glass", "rect": m(93, 34, 96, 34.4)})
 for top, bottom in ((65, 67), (74, 76)):
     b.wall(*m(59.6, top, 59.75, bottom), mat="ascent_window")  # sill remains after the panel breaks
     b.data["objects"].append({"key": "ascent_mid_panel", "rect": m(59.5, top, 59.85, bottom), "rot": 90})
-# B Main: of the three openings towards B Lane only the east one is a passage, the other two are open windows
+# B Main's high windows sit above opaque wall panels. The east opening is the walking exit.
 for x0, x1 in ((24, 29), (30, 35)):
-    b.wall(*m(x0, 49, x1, 50), mat="ascent_window")
+    b.wall(*m(x0, 49, x1, 50), mat="ascent_b_main_panel")
 
 # Tracker's Ascent buy-phase overlay, aligned to the openings in the metre grid.
 # Each strip extends into the jambs so the collision joins the permanent walls.
@@ -278,6 +280,8 @@ b.site("A", *ref(1268, 403, 1505, 552))
 b.site("B", *ref(218, 303, 418, 522))
 b.spawn_area(0, *ref(560, 1180, 880, 1300))
 b.spawn_area(1, *ref(815, 40, 995, 160))
+# Official tactical-map orb markers, fitted to the walkable A and B Main corridors.
+b.data["orbs"] = [[96.25, 71.75], [25.75, 86.25]]
 
 CALLOUTS = (  # first match wins: small landmarks before the rooms around them (name, ref rect, floor)
     ("A Hell", (1268, 404, 1345, 445), None),
@@ -350,6 +354,8 @@ b.platform(*ref(340, 860, 380, 905), level=2, mat="floor")
 b.data["decals"].append({"key": "ascent_steps", "rect": list(ref(340, 860, 380, 905))})
 # Workshop back wall (the shed is open towards B Lane)
 b.wall(*ref(416, 355, 422, 520), mat="ascent_plaster")
+# Close the short end at the B Main approach. The long side toward Lane stays open.
+b.wall(*ref(416, 514, 450, 520), mat="ascent_plaster")
 
 for key, x, y, rot in (
     ("ascent_fountain", 808, 828, 0), ("ascent_fountain", 900, 172, 0),

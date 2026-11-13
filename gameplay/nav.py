@@ -32,11 +32,13 @@ class NavGrid:
             for r in range(self.rows):
                 for c in range(self.cols):
                     deck = world.deck_at(self.center((c, r)))
-                    if deck is not None:
+                    if deck is not None and deck.walkable:
                         self.lower[c, r] = deck.lower
                         self.deck_height[c, r] = deck.level
-        for w in (*world.walls, *extra):
-            if (w.rect in inactive or w.height <= 0 or (w.buy_phase_only and not buy_phase)
+        self.ground = self._ground_grid(world)
+        drop_edges = [Wall(rect, 3) for rect, _ in world.drop_zones]
+        for w in (*world.walls, *extra, *drop_edges):
+            if (w.rect in inactive or w.rect in world.automatic_doors or w.height <= 0 or (w.buy_phase_only and not buy_phase)
                     or not w.solid or w.material == PLATFORM):
                 continue
             x0 = max(0, int((w.rect.x0 - RADIUS) / CELL))
@@ -48,11 +50,11 @@ class NavGrid:
                 for c in range(x0, x1 + 1):
                     cx, cy = (c + 0.5) * CELL, (r + 0.5) * CELL
                     if w.rect.x0 - RADIUS < cx < w.rect.x1 + RADIUS and w.rect.y0 - RADIUS < cy < w.rect.y1 + RADIUS:
-                        row[c] = True
+                        ground = self.ground[r][c]
+                        if (not w.on_deck or ground >= w.base) and (w.ceiling is None or w.ceiling > ground + STEP_UP):
+                            row[c] = True
                         if not w.on_deck and (c, r) in self.lower:
                             self.lower_blocked.add((c, r))
-
-        self.ground = self._ground_grid(world)
 
     def connected_cells(self, start: Vec) -> set[tuple[int, int]]:
         """The enclosed horizontal area around start, including elevations reachable by teleport."""
@@ -70,7 +72,7 @@ class NavGrid:
     def _ground_grid(self, world: WorldMap) -> list[list[float]]:
         """Ground height per cell, sampled at cell centres from the parts that raise the floor."""
         grid = [[0.0] * self.cols for _ in range(self.rows)]
-        raised = [pl.rect for pl in world.platforms] + [w.rect for w in world.walls if not w.full and w.solid]
+        raised = [pl.rect for pl in world.platforms] + [w.rect for w in world.low_walls()]
         raised += [r for r in world.ramps]
         raised += [deck.rect for deck in world.decks]
         for rect in raised:

@@ -17,9 +17,10 @@ AGENT = agent("Cypher", role="Sentinel", order=-3, sprites={"ability_poses": Tru
     E=ability("Spycam", start=1, range=14, preview="sensor", radius=11, bot="place",
               place=thing("sensor", lasts=180, radius=11, hp=1, hit_radius=0.26, destroy_recharge=45,
                           recall_recharge=20, owner_range=float("inf"), hidden="enemies", detect_range=8,
-                          sprite="cypher_spycam",
+                          sprite="cypher_spycam", device_vision=True,
                           triggers=[on("every", [reveal(1.2)], seconds=3, sight="walls", first=True)])),
     X=ability("Neural Theft", target="enemy_corpse", range=6, cost=7, preview="zone", radius=1, bot="offense",
+              cast_radius=0, cast_announcement={"ally": "ab_reveal", "enemy": "cast_place_trap"},
               place=thing("zone", lasts=6.2, sprite="cypher_neural_theft",
                           # 5.10: two reveals, four seconds apart.
                           triggers=[on("every", [step("snapshot", seconds=1.2)], area="everywhere",

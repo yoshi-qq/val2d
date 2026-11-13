@@ -1,22 +1,40 @@
 from gameplay.kit.dsl import ability, agent, on, status, step, thing
 
-# 11.08: 25 m at 20 m/s. The transverse size is the existing Val2d adaptation.
-PARANOIA_DISTANCE, PARANOIA_SPEED, PARANOIA_RADIUS = 25, 20, 1.35
+# 11.08: 25 m at 20 m/s. Radius from the PC game data.
+PARANOIA_DISTANCE, PARANOIA_SPEED, PARANOIA_RADIUS = 25, 20, 4.3
+DARK_COVER_RADIUS = 4.1
 AGENT = agent("Omen", role="Controller", order=-7, sprites={"ability_poses": True},
     C=ability("Shrouded Step", target="teleport_aim", price=100, max=2, range=15, preview="teleport", bot="place",
-              do=[step("channel_teleport", seconds=0.7, sprite="omen_shrouded_step_arrival")]),
+              cast_radius=0, aim_equip=0.5,
+              do=[step("channel_teleport", seconds=0.7, weapon_recovery=0.7, interruptible=True,
+                       arrival=thing("zone", lasts=0.5, radius=0.8, sprite="omen_shrouded_step_arrival"),
+                       departure_sound={"key": "cast_arcane", "radius": 30.0},
+                       arrival_sound={"key": "ab_teleport", "radius": 12.5, "gain": 0.65})]),
     Q=ability("Paranoia", target="self", price=250, preview="wave", range=PARANOIA_DISTANCE,
-              length=PARANOIA_DISTANCE, width=2 * PARANOIA_RADIUS, bot="offense",
+              length=PARANOIA_DISTANCE, width=2 * PARANOIA_RADIUS, bot="offense", aim_equip=1.1,
+              do=[status("weapon_recovery", 0.7, who="self")],
               place=thing("zone", lasts=PARANOIA_DISTANCE / PARANOIA_SPEED, radius=PARANOIA_RADIUS,
                           move=PARANOIA_SPEED, move_through_walls=True, sprite="omen_paranoia_travel",
                           spawn_ahead=PARANOIA_RADIUS + 0.5,  # 4.04: nearby players beside Omen are outside the spawn.
-                          triggers=[on("tick", [status("nearsight", 2.2), status("deaf", 2.2)],
-                                       who="others", area="sweep", once_per_player=True)])),
-    E=ability("Dark Cover", target="aim_free", price=150, max=2, start=1, recharge=30, range=65, tactical=True,
-              preview="smoke", radius=4, bot="place",
-              place=thing("smoke", lasts=15, radius=4, sprite="omen_dark_cover_loop",
-                          warning_sprite="omen_dark_cover_forming")),
+                          triggers=[on("tick", [status("paranoia", 2.0), status("deaf", 2.0)],
+                                       who="others", area="sweep", once_per_player=True),
+                                    on("tick", [step("nearsight_devices", seconds=2, range=7.5)])])),
+    E=ability("Dark Cover", target="aim_free", price=150, max=2, start=1, recharge=30, range=80, tactical=True,
+              shadow_targeting=True, aim_equip=0.6, alt={"under_deck": True},
+              desc="Hold primary or secondary fire to adjust distance. Scroll to select a deck floor, or Ctrl+scroll to raise or lower the target. Reload switches views and the ability key casts.",
+              preview="smoke", radius=DARK_COVER_RADIUS, bot="place",
+              cast_radius=0,
+              do=[status("weapon_recovery", 0.7, who="self"),
+                  step("sound", key="cast_deploy", radius=12.5, at_owner=True, team_only=True)],
+              place=thing("smoke", lasts=15, radius=DARK_COVER_RADIUS, settle_on_floor=True,
+                          raised_target_lift=3.0, fall_speed=5.0, sprite="omen_dark_cover_loop",
+                          warning_sprite="omen_dark_cover_forming",
+                          fade_sound={"key": "cast_whoosh", "lead": 1.5, "radius": 12.5})),
     X=ability("From the Shadows", target="aim_free", cost=7, range=115, global_target=True, tactical=True, radius=0.8,
               preview="teleport", bot="place",
-              do=[step("channel_teleport", seconds=2.5, cancel_channel=True, sprite="omen_from_the_shadows")]),
+              cast_radius=0, cast_announcement={"ally": "cast_arcane", "enemy": "cast_dark"},
+              aim_equip=0.5,
+              do=[step("channel_teleport", windup=1.5, seconds=2.5, cancel_channel=True, interruptible=True,
+                       reequip_weapon=True, sprite="omen_from_the_shadows",
+                       arrival_sound={"key": "ab_teleport", "radius": 22.5})]),
 )

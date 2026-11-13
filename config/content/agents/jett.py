@@ -16,6 +16,7 @@ AGENT = agent("Jett", role="Duelist", order=-6, sprites={"ability_poses": True},
     E=preset("dash", "Tailwind", start=1, distance=9, duration=0.22, kills_to_recharge=2,
              arm_delay=1, arm_duration=7.5, desc="Press once to prepare. Press again to dash."),
     X=ability("Blade Storm", target="self", cost=8, blade_weapon=BLADES, fan_degrees=8, bot="buff",
+              cast_radius=0, cast_announcement={"ally": "cast_wind", "enemy": "cast_ice"},
               desc="Left click throws one knife. Right click throws all remaining knives. Single-knife kills refill the set."),
 )
 

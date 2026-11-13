@@ -59,6 +59,10 @@ TARGETS: dict[str, TargetFn] = {}
 WHO: dict[str, WhoFn] = {}
 PRESETS: dict[str, PresetFn] = {}
 PASSIVE_TRIGGERS: dict[str, Callable[..., Any]] = {}
+COMMAND_FILTERS: dict[str, Callable[..., Any]] = {}
+BOT_CONTROL: dict[str, Callable[..., Any]] = {}
+LETHAL_FILTERS: dict[str, Callable[..., Any]] = {}
+MATCH_TICKS: dict[str, Callable[..., Any]] = {}
 
 
 def _register(table: dict[str, Any], name: str, value: Any) -> None:

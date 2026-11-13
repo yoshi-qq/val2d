@@ -2,10 +2,18 @@
 from __future__ import annotations
 
 from client.common import *  # noqa: F403  (pygame, colours, types)
-from gameplay.world import Wall
+from gameplay.kit.engine import aimed_device
+from gameplay.world import Deck, Wall
 
 
 class WorldViewMixin:
+    def piloted_owl_drone(self, me: PlayerState) -> Effect | None:
+        if me.pid != self.me or me.channel_until <= self.match.time:
+            return None
+        return next((e for e in self.match.effects if e.owner == me.pid
+                     and e.props.get("sprite") == "sova_owl_drone" and not e.props.get("ended")
+                     and e.start <= self.match.time < e.until), None)
+
     def to_screen(self, p: Vec, me: PlayerState) -> tuple[float, float]:
         center, (cx, cy) = self.camera(me)
         rel = (p - center).rotated(-me.facing)
@@ -19,7 +27,15 @@ class WorldViewMixin:
     def camera(self, me: PlayerState) -> tuple[Vec, tuple[float, float]]:
         """World point the camera looks at and where it sits on screen. Aiming down sights moves the view toward the
         crosshair (a scope all the way: the crosshair is the screen centre and the view follows it)."""
+        if self.shadow_view and (ab := self.shadow_ability(me)):
+            return self.shadow_target(me, ab), (self.w / 2, self.h / 2)
         normal = (self.w / 2, self.h * (0.5 + self.camera_push * 0.5))
+        if me.pid == self.me and me.channel_until > self.match.time:
+            for effect in self.match.effects:
+                if (effect.owner == me.pid and effect.props.get("sprite") in ("gekko_thrash", "skye_tiger", "sova_owl_drone", "tejo_drone")
+                        and not effect.props.get("ended")
+                        and (effect.props.get("sprite") != "sova_owl_drone" or effect.start <= self.match.time)):
+                    return effect.pos, normal
         pull = self.camera_aim_pull(me)
         if not pull:
             return me.pos, normal
@@ -44,6 +60,24 @@ class WorldViewMixin:
     def sees_enemy(self, me: PlayerState, enemy: PlayerState) -> bool:
         return (self.mode != "client" or enemy.visible) and self.match.can_see(me, enemy)
 
+    def player_screen(self, player: PlayerState, me: PlayerState) -> tuple[float, float]:
+        x, y = self.to_screen(player.pos, me)
+        return x, y - (player.ground + player.z) * self.scale * HEIGHT_DRAW
+
+    def deck_view_upper(self, deck: Deck, me: PlayerState) -> bool:
+        """Prefer the floor of a visible enemy nearest the centre of this view."""
+        own_upper = me.ground >= deck.level
+        enemies = []
+        if me.alive and me.blind_until <= self.match.time:
+            for p in self.match.players.values():
+                if p.team == me.team or not deck.rect.contains(p.pos) or not self.sees_enemy(me, p):
+                    continue
+                x, y = self.player_screen(p, me)
+                if self.in_view((x, y), me):
+                    upper = p.ground >= deck.level
+                    enemies.append((math.hypot(x - self.w / 2, y - self.h / 2), upper != own_upper, p.pid, upper))
+        return min(enemies)[-1] if enemies else own_upper
+
     def poly(self, rect, me: PlayerState) -> list[tuple[float, float]]:
         return [self.to_screen(Vec(x, y), me) for x, y in ((rect.x0, rect.y0), (rect.x1, rect.y0), (rect.x1, rect.y1), (rect.x0, rect.y1))]
 
@@ -54,31 +88,36 @@ class WorldViewMixin:
             self.draw_lobby()
             return
         me = self.view_player(me)
+        shadow_aim = self.shadow_ability(me)
+        if shadow_aim and self.shadow_view:
+            self.draw_shadow_view(me, shadow_aim)
+            if self.client is not None and not self.client.connected:
+                self.draw_match_status()
+            return
         s.fill(C_BG)
         wm = m.world
-        if self.map_surface is not None:
+        deck_views = {deck: self.deck_view_upper(deck, me) for deck in wm.decks}
+        if me.duel_bounds is not None:
+            points = self.poly(me.duel_bounds, me)
+            pygame.draw.polygon(s, (39, 27, 61), points)
+            pygame.draw.polygon(s, (169, 106, 218), points, 3)
+        elif self.map_surface is not None:
             self.draw_map_texture(me)
         else:
             self.draw_map_placeholder(me)
-        for deck in wm.decks:
-            if me.level < deck.level:
-                # Cut away the rafters so players approaching from A Site see the space below.
-                outline = self.poly(deck.rect, me)
-                pygame.draw.polygon(s, (71, 65, 63), outline)
-                pygame.draw.polygon(s, (97, 83, 76), outline, 1)
+        self.draw_deck_cutaways(me, deck_views)
         self.draw_live_objects(me)
         for site in wm.sites:
             sx, sy = self.to_screen(site.rect.center, me)
             lbl = self.pixel_text(site.name, C_SITE, 3)
             s.blit(lbl, (sx - lbl.get_width() / 2, sy - lbl.get_height() / 2))
-        for drop in m.drops:  # weapons lying on the ground, hand sprite at 2x the world scale
-            size = (round(2 * self.scale), round(self.scale))
-            gun = self.bank.weapon(self.weapon_art(drop.key), size, drop.skin)
-            dx, dy = self.to_screen(drop.pos, me)
-            if gun is not None:
-                s.blit(gun, (dx - size[0] / 2, dy - size[1] / 2))
-            else:
-                pygame.draw.rect(s, C_MUTED, (dx - 8, dy - 3, 16, 6))
+        can_show_interaction = (me.pid == self.me and me.alive and not self.aiming
+                                and not self.ui.buy_open and not self.overlay
+                                and not abilities.flag(m, me, "no_interact"))
+        action = self.priority_interaction(me) if can_show_interaction else ""
+        nearby_weapon = self.draw_ground_weapons(me, deck_views, highlight=can_show_interaction and not action)
+        if can_show_interaction and not action and not nearby_weapon and not self.spike_blocks_interaction(me):
+            action = self.door_interaction(me)
         self.ui.scorches = [(pos, until) for pos, until in self.ui.scorches if until > m.time]
         for pos, until in self.ui.scorches:
             d = round(3 * self.scale)
@@ -94,15 +133,27 @@ class WorldViewMixin:
             pts = [(ox, oy - size), (ox + size * 0.7, oy), (ox, oy + size), (ox - size * 0.7, oy)]
             pygame.draw.polygon(s, (247, 240, 168), pts)
             pygame.draw.polygon(s, (120, 110, 60), pts, 2)
+        for orb in m.recovery_orbs:
+            ox, oy = self.to_screen(orb, me)
+            size = max(5, round(self.scale * 0.32))
+            pygame.draw.circle(s, (27, 84, 69), (ox, oy), size)
+            half = size // 2
+            pygame.draw.line(s, C_ALLY, (ox - half, oy), (ox + half, oy), 2)
+            pygame.draw.line(s, C_ALLY, (ox, oy - half), (ox, oy + half), 2)
         for e in m.effects:
             if self.mode != "client" and not m._effect_visible(e, me):
                 continue
+            ground = e.props.get("settled_ground")
+            if ground is not None and (deck := wm.deck_at(e.pos)) in deck_views:
+                if (ground >= deck.level) != deck_views[deck]:
+                    continue
             self.draw_effect(e, me)
             remaining = self.smoke_warning(e)
             if remaining:
                 diameter = max(1, round(2 * e.radius * self.scale))
                 ring = pygame.Rect(0, 0, diameter, diameter)
-                ring.center = self.to_screen(e.pos, me)
+                x, y = self.to_screen(e.pos, me)
+                ring.center = x, y - (ground or 0) * self.scale * HEIGHT_DRAW
                 pygame.draw.arc(s, C_TEXT, ring, math.pi / 2, math.pi / 2 + math.tau * remaining, 2)
         if m.spike_pos is not None:
             px, py = self.to_screen(m.spike_pos, me)
@@ -145,7 +196,12 @@ class WorldViewMixin:
                 mx, my = self.to_screen(tr.a + (tr.b - tr.a).normalized() * 0.6, me)
                 s.blit(muzzle, (mx - size / 2, my - size / 2))
         opaque_walls = [w for w in m.combat_walls() if w.full and w.blocks_sight and m.wall_active(w)]
-        for p in m.players.values():
+        players = sorted(m.players.values(), key=lambda p: self.on_deck_view(p, deck_views)) if deck_views else m.players.values()
+        for p in players:
+            if p.pid != me.pid and me.status.get("waylay_refract_transit", 0) > m.time:
+                continue
+            if p.pid != me.pid and p.team == me.team and not self.on_deck_view(p, deck_views):
+                continue
             if not p.alive:
                 if p.visible or self.mode != "client":
                     bx, by = self.to_screen(p.pos, me)
@@ -156,9 +212,17 @@ class WorldViewMixin:
             if p.team != me.team and not self.sees_enemy(me, p):
                 continue
             px, py = self.to_screen(p.pos, me)
+            if p.status.get("waylay_refract_transit", 0) > m.time:
+                diameter = max(1, round(self.scale * 0.9))
+                mote = self.bank.scaled("fx/waylay_mote.png", (diameter, diameter))
+                if mote is not None:
+                    s.blit(mote, mote.get_rect(center=(px, py - p.ground * self.scale * HEIGHT_DRAW)))
+                continue
             r = 0.4 * self.scale
             col = C_ALLY if p.team == me.team else C_ENEMY
-            self.draw_facing_marker(p, me, col)
+            intangible = p.status.get("dismiss", 0) > m.time
+            if not intangible:
+                self.draw_facing_marker(p, me, col)
             img = self.character_frame(p, me)
             # height on screen: ground (ramps, platforms) plus jump, one continuous scale, so nothing pops
             lift_ground, lift = p.ground * self.scale * HEIGHT_DRAW, (p.ground + p.z) * self.scale * HEIGHT_DRAW
@@ -170,9 +234,13 @@ class WorldViewMixin:
                 s.blit(shadow, (px - shadow_w / 2, feet_y - lift_ground))
                 py -= lift
             if img is not None:
+                if intangible:
+                    img = img.copy()
+                    img.fill((225, 104, 255, 145), special_flags=pygame.BLEND_RGBA_MULT)
                 bounds = img.get_rect(center=(round(px), round(py)))
                 s.blit(self.clip_figure(img, bounds, me, p, opaque_walls), bounds)
-                self.draw_held(p, me, (px, py), img.get_height())
+                if not intangible:
+                    self.draw_held(p, me, (px, py), img.get_height())
                 walk_index = int(m.time * 8)
                 for layer in self.chars.overlays(p.agent, list(self.sprite_cfg(p).get("overlays", [])), p.team != me.team,
                                                  self.scale, walk_index):
@@ -195,32 +263,34 @@ class WorldViewMixin:
         self.draw_bursts(me)
         if getattr(self, "scoped", False) and me.pid == self.me:
             self.draw_scope()
-        tactical = self.tactical_ability(me) if me.pid == self.me and me.alive else None
-        if self.aiming and me.pid == self.me and me.alive and not tactical:
+        own_player = m.players.get(self.me)
+        tactical = (self.tactical_ability(own_player) if own_player is not None and self.aiming
+                    and (own_player.alive or m.can_cast_dead(own_player, self.aiming)) else None)
+        if shadow_aim:
+            self.draw_shadow_marker(me, shadow_aim)
+        elif self.aiming and me.pid == self.me and me.alive and not tactical:
             self.draw_aim_preview(me, self.aiming)
-        self.draw_crosshair(me)
-        sight_range = abilities.lowest(m, me, "sight_range")
+        if not shadow_aim:
+            self.draw_crosshair(me)
+        sight_range = m.sight_range(me)
         if sight_range is not None:
             fog = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
             fog.fill((10, 8, 14, 225))
             cx, cy = self.to_screen(me.pos, me)
             pygame.draw.circle(fog, (0, 0, 0, 0), (cx, cy), sight_range * self.scale)
             s.blit(fog, (0, 0))
-        if me.blind_until > m.time:
-            flash = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
-            flash.fill((255, 255, 255, int(min(1.0, (me.blind_until - m.time) / 0.6) * 245)))
-            s.blit(flash, (0, 0))
+        self.draw_flash(me)
         self.draw_hud(me, ground_sight, sight_range)
         if tactical and self.aiming:
-            self.draw_tactical_map(me, tactical, self.aiming)
-        elif me.pid == self.me and me.alive and not self.aiming and not self.ui.buy_open \
-                and m.phase in ("live", "planted"):
-            from gameplay.kit.engine import aimed_device
-            device = aimed_device(m, me, self.cursor_depth)
-            if device is not None:
-                key = pygame.key.name(self.keys["interact"]).upper()
-                action = f"Activate {device.props['manual']}" if device.props.get("manual") else "Recall utility"
-                self.ability_hint(f"{key} · {action}", C_TEXT)
+            self.draw_tactical_map(own_player, tactical, self.aiming)
+        elif own_player and m.can_cast_dead(own_player, "X"):
+            key = next((pygame.key.name(k).upper() for k, slot in self.ability_keys.items() if slot == "X"), "X")
+            self.ability_hint(f"{key} · Not Dead Yet", C_ALLY)
+        elif action:
+            key = pygame.key.name(self.keys["interact"]).upper()
+            self.ability_hint(f"{key} · {action}", C_TEXT)
+        elif nearby_weapon:
+            self.ability_hint(nearby_weapon, C_ALLY)
         if self.ui.buy_open:
             self.draw_buy(me)
         own = m.players.get(self.me)
@@ -229,6 +299,159 @@ class WorldViewMixin:
             self.draw_damage_report(own)
         if self.ui.show_scores or m.phase == "over":
             self.draw_scores()
+        if self.client is not None and not self.client.connected:
+            self.draw_match_status()
+
+    def spike_blocks_interaction(self, me: PlayerState) -> bool:
+        m = self.match
+        return ((m.spike_carrier == me.pid and m.world.site_at(me.pos, me.level) is not None)
+                or (m.phase == "planted" and m.side(me.team) == "defense" and m._can_reach_planted_spike(me)))
+
+    def door_interaction(self, me: PlayerState, aim: Vec | None = None) -> str:
+        door = self.match.interactable_door(me, aim)
+        if door is None:
+            return ""
+        if self.client and door.rect in self.match.world.timed_doors and door.rect in self.match.open_doors:
+            return ""
+        return "Close door" if door.rect in self.match.open_doors else "Open door"
+
+    def priority_interaction(self, me: PlayerState) -> str:
+        m = self.match
+        if m.phase not in ("live", "planted"):
+            return ""
+        if me.zipline is not None:
+            return "Leave zipline"
+        if self.spike_blocks_interaction(me):
+            return ""
+        if m.zipline_endpoint_in_reach(me) is not None:
+            return "Use zipline"
+        if not abilities.flag(m, me, "no_abilities") and (device := aimed_device(m, me, self.cursor_depth)):
+            return f"Activate {device.props['manual']}" if device.props.get("manual") else "Recall utility"
+        if m.mode != "deathmatch":
+            return self.door_interaction(me, me.pos + heading(me.facing) * self.cursor_depth)
+        return ""
+
+    def draw_ground_weapons(self, me: PlayerState, deck_views: dict[Deck, bool], *, highlight: bool = True) -> str:
+        m, s = self.match, self.screen
+        target = None
+        automatic = None
+        alternatives = []
+        if me.alive and m.mode == "deathmatch":
+            target = m._deathmatch_station_in_reach(me) if m.phase == "live" else None
+        elif me.alive:
+            candidates = [drop for drop in m.drops if drop.key in m.weapons and m.drop_in_reach(me, drop)]
+            aim = me.pos + heading(me.facing) * self.cursor_depth
+            if m.time - me.dropped_at >= 1.0:
+                automatic = min((drop for drop in candidates if m.weapons[drop.key].slot not in me.weapons),
+                                key=lambda drop: (drop.pos - me.pos).length(), default=None)
+            target = automatic
+            if target is None and not self.spike_blocks_interaction(me):
+                candidates.sort(key=lambda drop: ((drop.pos - aim).length(), (drop.pos - me.pos).length()))
+                if candidates:
+                    target, *alternatives = candidates
+        size = (round(2 * self.scale), round(self.scale))
+        for drop in sorted(m.drops, key=lambda drop: drop is target):
+            ground = m.drop_ground(drop)
+            deck = m.world.deck_at(drop.pos) if deck_views else None
+            if deck in deck_views and drop is not target and (ground >= deck.level) != deck_views[deck]:
+                continue
+            gun = self.bank.weapon(self.weapon_art(drop.key), size, drop.skin)
+            x, y = self.to_screen(drop.pos, me)
+            y -= ground * float(m._mv["level_height"]) * self.scale * HEIGHT_DRAW
+            rect = gun.get_rect(center=(x, y)) if gun is not None else pygame.Rect(round(x) - 8, round(y) - 3, 16, 6)
+            if highlight and drop is target:
+                pygame.draw.rect(s, C_BG, rect.inflate(8, 8), border_radius=3)
+                pygame.draw.rect(s, C_ALLY, rect.inflate(8, 8), 2, border_radius=3)
+            if gun is not None:
+                s.blit(gun, rect)
+            else:
+                pygame.draw.rect(s, C_MUTED, rect)
+        if not highlight or target is None or target.key not in m.weapons:
+            return ""
+        weapon = m.weapons[target.key]
+        if target is automatic:
+            return f"Auto-pickup · {weapon.name}"
+        key = pygame.key.name(self.keys["interact"]).upper()
+        verb = "Swap for" if m.mode != "deathmatch" and weapon.slot in me.weapons else "Pick up"
+        label = f"{key} · {verb} {weapon.name}"
+        if alternatives:
+            label += f" · Also: {m.weapons[alternatives[0].key].name}"
+            if len(alternatives) > 1:
+                label += f" +{len(alternatives) - 1}"
+        return label
+
+    def draw_shadow_view(self, me: PlayerState, ab: dict) -> None:
+        self.screen.fill((16, 12, 28))
+        if self.map_surface is None:
+            self.draw_map_placeholder(me)
+        else:
+            self.draw_map_texture(me)
+        decks = {deck: self.deck_view_upper(deck, me) for deck in self.match.world.decks}
+        if (deck := self.match.world.deck_at(self.shadow_target(me, ab))) is not None:
+            decks[deck] = not self.aim_alt
+        self.draw_deck_cutaways(me, decks)
+        self.draw_live_objects(me)
+        self.screen.fill((92, 75, 141), special_flags=pygame.BLEND_RGB_MULT)
+        for enemy in self.match.players.values():
+            if enemy.team != me.team and self.sees_enemy(me, enemy) and me.blind_until <= self.match.time:
+                pygame.draw.circle(self.screen, C_ENEMY, self.player_screen(enemy, me), max(3, round(0.4 * self.scale)), 2)
+        self.draw_flash(me)
+        self.draw_hud(me, [], None)
+        self.draw_shadow_marker(me, ab)
+
+    def draw_flash(self, me: PlayerState) -> None:
+        remaining = me.blind_until - self.match.time
+        if self.match.paranoia_warning(me):
+            warning = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
+            pygame.draw.rect(warning, (106, 72, 163, 135), warning.get_rect(), max(4, self.h // 35))
+            self.screen.blit(warning, (0, 0))
+        plasma = me.status.get("gekko_plasma_blind", 0) - self.match.time
+        if plasma > 0:
+            stain = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
+            pygame.draw.ellipse(stain, (28, 126, 215, int(min(1, plasma) * 235)),
+                                (self.w * 0.14, self.h * 0.12, self.w * 0.72, self.h * 0.76))
+            self.screen.blit(stain, (0, 0))
+        if remaining > 0:
+            flash = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
+            flash.fill((255, 255, 255, int(min(1.0, remaining / 0.6) * 245)))
+            self.screen.blit(flash, (0, 0))
+
+    def draw_shadow_marker(self, me: PlayerState, ab: dict) -> None:
+        target = self.shadow_target(me, ab)
+        world = self.match.world
+        ground, height = world.smoke_target_heights(target, self.aim_alt, self.shadow_lift)
+        distance = self.match.smoke_target_distance(me, target, height)
+        out_of_range = distance > float(ab["range"]) + 1e-9
+        x, y = self.to_screen(target, me)
+        y -= height * self.scale * HEIGHT_DRAW
+        if y < 16:
+            pygame.draw.polygon(self.screen, C_ALLY, [(x, 12), (x - 7, 24), (x + 7, 24)])
+        else:
+            self.radius_ring(target, float(ab["radius"]), C_ENEMY if out_of_range else (118, 178, 255), me, height)
+            if height > ground:
+                self.radius_ring(target, float(ab["radius"]), C_MUTED, me, ground)
+        cast = pygame.key.name(self.keys[f"ability_{self.aiming.lower()}"]).upper()
+        toggle = pygame.key.name(self.keys["reload"]).upper()
+        floor = "No landing surface" if world.drop_recovery(target) is not None else f"Floor {ground:g}"
+        if out_of_range:
+            floor += " · Out of range"
+        if height > ground:
+            floor += f" · Drop {height - ground:g} m"
+        deck = " · Scroll to select floor" if world.deck_at(target) is not None else ""
+        self.ability_hint(f"Dark Cover · {distance:.1f} m · {floor}{deck} · Hold LMB/RMB for distance · Ctrl+scroll height · "
+                          f"{cast} cast · {toggle} switch view",
+                          C_TEXT)
+
+    def on_deck_view(self, player: PlayerState, deck_views: dict[Deck, bool]) -> bool:
+        deck = self.match.world.deck_at(player.pos) if deck_views else None
+        return deck is None or (player.ground >= deck.level) == deck_views[deck]
+
+    def draw_deck_cutaways(self, me: PlayerState, deck_views: dict[Deck, bool]) -> None:
+        for deck, upper in deck_views.items():
+            if not upper and not deck.closed_below:
+                outline = self.poly(deck.rect, me)
+                pygame.draw.polygon(self.screen, (71, 65, 63), outline)
+                pygame.draw.polygon(self.screen, (97, 83, 76), outline, 1)
 
     def clip_figure(self, image: pygame.Surface, bounds: pygame.Rect, me: PlayerState,
                     player: PlayerState, walls: list[Wall]) -> pygame.Surface:
@@ -314,11 +537,26 @@ class WorldViewMixin:
     def draw_projectile(self, e: Effect, me: PlayerState) -> bool:
         """Thrown ability in flight: moves from the thrower to the target on a small arc. True while flying."""
         assert e.a is not None
-        flight = min(0.6, (e.until - e.start) * 0.8)  # lands shortly before it goes off
-        progress = (self.match.time - e.start) / max(flight, 1e-6)
+        from gameplay.geometry import projectile_progress
+
+        progress = projectile_progress(self.match.time, e.start, e.until,
+                                       lands_at_expiry=bool(e.props.get("bolt_path")) or e.props.get("sprite") == "sova_recon_bolt")
         if progress >= 1.0:
             return False
-        x, y = self.projectile_point(e.a, e.pos, progress, me)
+        if path := e.props.get("bolt_path"):
+            points = [Vec(*point) for point in path]
+            segments = [(a, (b - a)) for a, b in zip(points, points[1:])]
+            distance = progress * sum(delta.length() for _, delta in segments)
+            point = e.pos
+            for start, delta in segments:
+                length = delta.length()
+                if length and distance <= length:
+                    point = start + delta * (distance / length)
+                    break
+                distance -= length
+            x, y = self.to_screen(point, me)
+        else:
+            x, y = self.projectile_point(e.a, e.pos, progress, me)
         rel, size_m = ("fx/ability/grenade.png", (6 / 16, 5 / 16)) if e.kind == "blast" else ("fx/ability/projectile_orb.png", (12 / 16, 6 / 16))
         size = (max(1, round(size_m[0] * self.scale)), max(1, round(size_m[1] * self.scale)))
         img = self.effect_sprite(e, size[0]) or self.bank.scaled(rel, size)
@@ -327,15 +565,16 @@ class WorldViewMixin:
         else:
             pygame.draw.circle(self.screen, C_SITE, (x, y), 4)
         dot = self.bank.scaled("fx/ability/arc_dot.png", (3, 3))
-        if dot is not None:
+        if dot is not None and not path:
             for i in range(1, 6):  # remaining path as dots
                 q = progress + (1 - progress) * i / 6
                 dx, dy = self.projectile_point(e.a, e.pos, q, me)
                 self.screen.blit(dot, (dx - 1, dy - 1))
         return True
 
-    def radius_ring(self, pos: Vec, radius: float, color: tuple[int, int, int], me: PlayerState) -> None:
+    def radius_ring(self, pos: Vec, radius: float, color: tuple[int, int, int], me: PlayerState, ground: float = 0.0) -> None:
         x, y = self.to_screen(pos, me)
+        y -= ground * self.scale * HEIGHT_DRAW
         d = max(2, round(2 * radius * self.scale))
         img = self.bank.tinted("fx/radius_ring.png", (d, d), 0, 0, color)
         if img is not None:
@@ -440,7 +679,14 @@ class WorldViewMixin:
         self.screen.blit(rotated, (cx - rotated.get_width() / 2, cy - rotated.get_height() / 2))
 
     def draw_live_objects(self, me: PlayerState) -> None:
-        """Animated or phase-dependent map objects (spawn barrier), rotated with the camera."""
+        """Animated or phase-dependent map objects, rotated with the camera."""
+        for cable in self.match.world.ziplines:
+            start, end = self.to_screen(cable.start, me), self.to_screen(cable.end, me)
+            pygame.draw.line(self.screen, (219, 173, 86), start, end, 2)
+            for point in (start, end):
+                pygame.draw.circle(self.screen, (238, 199, 118), point, 3)
+            if cable.lower is not None:
+                pygame.draw.circle(self.screen, (238, 199, 118), end, 6, 1)
         from gameplay.world import load_things
         objects = load_things()[0]
         for o in self.match.world.objects:
@@ -478,10 +724,10 @@ class WorldViewMixin:
         is_open = rect in self.match.open_doors
         if rect in self.match.broken_cover:
             rel = str(spec.get("broken_tile", ""))
-            if not rel:
-                return
         else:
             rel = str(spec.get("open_tile" if is_open else "tile", ""))
+        if not rel:
+            return
         img = self.bank.raw(rel)
         w_px = max(1, round((rect.x1 - rect.x0) * self.scale))
         h_px = max(1, round((rect.y1 - rect.y0) * self.scale))
@@ -543,6 +789,41 @@ class WorldViewMixin:
     def draw_effect(self, e: Effect, me: PlayerState) -> None:
         s = self.screen
         ex, ey = self.to_screen(e.pos, me)
+        if e.props.get("sprite") == "fade_trail" and e.a is not None and e.b is not None:
+            if me.team == e.team:
+                pygame.draw.line(s, (118, 72, 164), self.to_screen(e.a, me), self.to_screen(e.b, me), 2)
+            return
+        if e.props.get("clone_facing") is not None:
+            enemy = e.team != me.team
+            img = self.chars.frame("yoru", "walk", enemy, self.scale, self.match.time)
+            if img is not None:
+                s.blit(img, img.get_rect(center=(ex, ey)))
+            return
+        ground = e.props.get("flight_height")
+        if ground is None:
+            ground = e.props.get("settled_ground") or 0
+        ey -= (ground + e.fall_offset(self.match.time)) * self.scale * HEIGHT_DRAW
+        if e.kind in ("tdm_recovery", "tdm_ultimate"):
+            tint = C_ENEMY if e.team != me.team else (247, 240, 168) if e.kind == "tdm_ultimate" else C_ALLY
+            pygame.draw.circle(s, tint, (ex, ey), max(1, round(e.radius * self.scale)), 2)
+            return
+        if cone := e.props.get("cone"):
+            aim = Vec(*e.props["aim"])
+            points = [(ex, ey)] + [
+                self.to_screen(e.pos + aim.rotated(cone * (i / 16 - 0.5)) * e.radius, me)
+                for i in range(17)
+            ]
+            layer = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
+            warmup = self.match.time < e.start
+            pygame.draw.polygon(layer, (239, 163, 87, 45 if warmup else 135), points)
+            pygame.draw.polygon(layer, (255, 211, 124, 180), points, 2)
+            s.blit(layer, (0, 0))
+            return
+        if e.props.get("devour_tether"):
+            owner = self.match.players.get(e.owner)
+            if owner is not None and owner.alive:
+                pygame.draw.line(s, (168, 78, 218), (ex, ey), self.to_screen(owner.pos, me), 3)
+            return
         diameter = max(1, round(2 * e.radius * self.scale))
         if (wall := e.props.get("barrier")) is not None:
             points = self.poly(wall.rect, me)
@@ -557,7 +838,32 @@ class WorldViewMixin:
             width = max(2, round(e.radius * self.scale * 2))
             layer = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
             start, end = self.to_screen(e.a, me), self.to_screen(e.b, me)
-            pygame.draw.line(layer, (84, 179, 255, 68 if warmup else 190), start, end, width)
+            if e.props.get("status") == "waylay_hinder":
+                direction = (e.b - e.a).normalized().rotated(90)
+                fraction = 1 if warmup else min(4, 1 + int((self.match.time - e.start) / 0.125)) / 4
+                side = direction * e.radius * fraction
+                corners = (e.a + side, e.b + side, e.b - side, e.a - side)
+                points = [self.to_screen(point, me) for point in corners]
+                pygame.draw.polygon(layer, (248, 148, 215, 45 if warmup else 130), points)
+                pygame.draw.polygon(layer, (255, 214, 135, 175), points, 2)
+                pygame.draw.line(layer, (155, 255, 229, 220), start, end, 1 if warmup else 4)
+                s.blit(layer, (0, 0))
+                return
+            if e.props.get("sprite") == "veto_beam":
+                pygame.draw.line(s, (118, 240, 171), start, end, 3)
+                pygame.draw.line(s, (222, 255, 230), start, end, 1)
+                return
+            if e.props.get("sprite") == "tejo_strike":
+                side = (e.b - e.a).normalized().rotated(90) * e.radius
+                points = [self.to_screen(point, me) for point in (e.a - side, e.a + side, e.b + side, e.b - side)]
+                pygame.draw.polygon(layer, (255, 94, 38, 32 if warmup else 130), points)
+                pygame.draw.polygon(layer, (255, 171, 83, 125 if warmup else 245), points, 2)
+                s.blit(layer, (0, 0))
+                return
+            tint = (119, 212, 125) if e.props.get("sprite") == "viper_emitter" else (84, 179, 255)
+            if e.props.get("status") == "fade_nightfall":
+                tint = (140, 71, 183)
+            pygame.draw.line(layer, (*tint, 68 if warmup else 190), start, end, width)
             pygame.draw.line(layer, (209, 240, 255, 175), start, end, 1 if warmup else max(2, width // 5))
             s.blit(layer, (0, 0))
             return
@@ -590,6 +896,9 @@ class WorldViewMixin:
                 s.blit(sprite, (ex - size / 2, ey + size / 2 - sprite.get_height()))
                 if e.kind in ("sensor", "alarm") and e.radius > 0:
                     self.radius_ring(e.pos, e.radius, (60, 140, 140), me)
+                if e.props.get("carrying_spike") or e.data.get("carrying"):
+                    pygame.draw.polygon(s, (240, 198, 250), [(ex, ey - 13), (ex + 5, ey - 8),
+                                                            (ex, ey - 3), (ex - 5, ey - 8)])
                 return
         if e.kind == "alarm":
             size = max(1, round(self.scale))
@@ -653,7 +962,8 @@ class WorldViewMixin:
             tile_px = max(1, round(self.scale))
             building = 0 < self.match.time - e.start < 0.4
             tile = (self.bank.strip_frame("fx/vapor_wall_forming.png", (tile_px, tile_px), (self.match.time - e.start) / 0.4, 16)
-                    if building else None) or self.bank.scaled("fx/vapor_wall.png", (tile_px, tile_px))
+                    if building and not e.props.get("sprite") else None) or self.bank.scaled(
+                        f"fx/{e.props.get('sprite') or 'vapor_wall'}.png", (tile_px, tile_px))
             if tile is None or length < 1:
                 pygame.draw.line(s, (180, 190, 210), a, b, 8)
                 return

@@ -46,7 +46,44 @@ def t_throw(m: Match, p: PlayerState, spec: dict[str, Any]) -> Vec:
     stopped by walls unless it flies over them (through_walls)."""
     reach = min(p.cursor_depth * throw_factor(m, spec), float(spec.get("range", p.cursor_depth)))
     point = p.pos + heading(p.facing + float(spec.get("curve_angle", 0))) * reach
-    return point if spec.get("through_walls") else m._clip_to_walls(p.pos, point, p.level)
+    return point if spec.get("through_walls") else m._clip_to_walls(p.pos, point, p.level, thrown=True)
+
+
+def bolt_path(m: Match, p: PlayerState, spec: dict[str, Any]) -> list[Vec]:
+    return trace_bolt(m, p.pos, heading(p.facing), p.level,
+                      min(p.cursor_depth, float(spec["range"])), int(spec.get("bounces", 0)))
+
+
+def trace_bolt(m: Match, pos: Vec, direction: Vec, level: int, remaining: float, bounces: int) -> list[Vec]:
+    path = [pos]
+    for bounce in range(bounces + 1):
+        hits = []
+        for wall in m.active_sight_walls(level):
+            if not wall.solid:
+                continue
+            rect = wall.rect
+            if (door := m.world.automatic_doors.get(rect)) is not None:
+                trigger = door.ray_interval(pos, direction)
+                if trigger is not None and trigger[0] <= remaining:
+                    continue
+            interval = rect.ray_interval(pos, direction)
+            if interval is not None and interval[0] <= remaining:
+                hits.append((interval[0], rect))
+        if not hits:
+            path.append(pos + direction * remaining)
+            break
+        distance, rect = min(hits, key=lambda hit: hit[0])
+        contact = pos + direction * distance
+        if bounce == bounces:
+            path.append(pos + direction * max(0.0, distance - 0.3))
+            break
+        path.append(contact)
+        x_face = min(abs(contact.x - rect.x0), abs(contact.x - rect.x1)) < 1e-6
+        y_face = min(abs(contact.y - rect.y0), abs(contact.y - rect.y1)) < 1e-6
+        direction = Vec(-direction.x if x_face else direction.x, -direction.y if y_face else direction.y)
+        remaining = max(0.0, remaining - distance - 1e-5)
+        pos = contact + direction * 1e-5
+    return path
 
 
 @target("aim_free")
@@ -139,6 +176,11 @@ def _under_cursor(ctx: Ctx, spec: dict[str, Any], dead: bool) -> PlayerState | N
             continue
         if dead and any(e.props.get("revive_pid") == t.pid and not e.props.get("ended") for e in ctx.m.effects):
             continue
+        if (dead and ctx.m.mode == "deathmatch" and t.passive_state.get("clove_revived_round")
+                and t.channel_until > ctx.m.time):
+            continue
+        if dead and ctx.m.world.drop_recovery(t.pos) is not None:
+            continue
         if ctx.m._deck_between(p, t):
             continue
         if spec.get("require_sight") and not ctx.m._line_clear(p.pos, t.pos, p.level):
@@ -186,6 +228,8 @@ def in_area(ctx: Ctx, t: PlayerState, spec: dict[str, Any]) -> bool:
     """Area of a step or trigger: circle (default when a radius is known), line, beam or everywhere."""
     obj = ctx.obj
     radius = float(spec.get("radius", obj.radius if obj is not None else 0.0))
+    if obj is not None and obj.data.get("nearsighted_until", 0) > ctx.m.time:
+        radius = min(radius, obj.data["nearsighted_range"])
     area = spec.get("area") or ("circle" if radius > 0 else "everywhere")
     if area == "everywhere":
         return True
@@ -195,6 +239,11 @@ def in_area(ctx: Ctx, t: PlayerState, spec: dict[str, Any]) -> bool:
         return _seg_distance(t.pos, obj.data.get("previous_pos", ctx.point), ctx.point) <= radius
     if area == "line" and obj is not None and obj.a is not None and obj.b is not None:
         return _seg_distance(t.pos, obj.a, obj.b) <= float(spec.get("width", 0.0)) / 2 + BODY
+    if area == "strip" and obj is not None and obj.a is not None and obj.b is not None:
+        axis = obj.b - obj.a
+        direction = axis.normalized()
+        offset = t.pos - obj.a
+        return 0 <= offset.dot(direction) <= axis.length() and abs(direction.cross(offset)) <= float(spec["width"]) / 2 + BODY
     if area == "beam":
         rel = t.pos - ctx.source
         along = rel.dot(ctx.aim)
@@ -205,6 +254,10 @@ def in_area(ctx: Ctx, t: PlayerState, spec: dict[str, Any]) -> bool:
 
 
 def passes_filters(ctx: Ctx, t: PlayerState, spec: dict[str, Any]) -> bool:
+    if t.duel_id != (ctx.obj.props.get("duel_id", 0) if ctx.obj else (ctx.owner.duel_id if ctx.owner else 0)):
+        return False
+    if t.dm_ghost or (t.team != ctx.team and ctx.m.deathmatch_spawn_protected(t)):
+        return False
     if spec.get("injured") and t.hp + t.decay_pool >= ctx.m._hp:
         return False
     sight = spec.get("sight")  # None, "walls" (walls block) or "all" (smokes block too)
@@ -215,6 +268,8 @@ def passes_filters(ctx: Ctx, t: PlayerState, spec: dict[str, Any]) -> bool:
     if sight and not ctx.m._line_clear(origin, t.pos, t.level, ignore_effects=sight == "walls"):
         return False
     cone = spec.get("facing")  # the player must look toward the point (flashes)
+    if cone == "view":
+        cone = 360 if ctx.m.cfg.lobby.all_around_sight else ctx.m.fov
     if cone is not None and abs(angle_diff(t.facing, angle_of(ctx.point - t.pos))) > float(cone) / 2:
         return False
     return True
@@ -315,11 +370,40 @@ def e_dps(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> None:
         ctx.m._damage(ctx.owner, t, whole, "body", f"ability:{ctx.ability.get('name', 'ability')}")
 
 
+@effect("nearsight_devices", per_player=False)
+def e_nearsight_devices(ctx: Ctx, t: PlayerState | None, spec: dict[str, Any]) -> None:
+    orb = ctx.obj
+    if orb is None:
+        return
+    previous = orb.data.get("previous_pos", orb.pos)
+    for device in ctx.m.effects:
+        if (device.props.get("device_vision") and not device.props.get("ended")
+                and device.start <= ctx.m.time < device.until
+                and f"nearsight:{id(device)}" not in orb.data
+                and _seg_distance(device.pos, previous, orb.pos) <= orb.radius):
+            orb.data[f"nearsight:{id(device)}"] = 1
+            device.data["nearsighted_until"] = ctx.m.time + float(spec["seconds"])
+            device.data["nearsighted_range"] = float(spec["range"])
+
+
 @effect("status")
 def e_status(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> None:
     """name, seconds (any status in config/content/statuses.py)."""
     if t is not None:
         statuses.apply_status(ctx.m, t, str(step["name"]), float(step.get("seconds", 1.0)))
+
+
+@effect("lockdown_pulse", per_player=False)
+def lockdown_pulse(ctx: Ctx, _target: PlayerState | None, step: dict[str, Any]) -> None:
+    count = 0
+    for player in select(ctx, step):
+        if player.dm_ghost:
+            continue
+        previous = player.status.get("detain", 0.0)
+        statuses.apply_status(ctx.m, player, "detain", float(step["seconds"]))
+        if player.status.get("detain", 0.0) > previous:
+            count += 1
+    game_event(ctx.m, "lockdown_result", {"team": ctx.team, "count": count})
 
 
 @effect("heal", who="team")
@@ -331,15 +415,18 @@ def e_heal(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> None:
     if over > 0:
         t.heal_left += amount
         t.heal_rate = amount / over
+        t.dm_heal_source = ctx.owner.pid if ctx.owner is not None and ctx.owner.team == t.team else None
     else:
-        statuses._heal_whole(ctx.m, t, amount)
+        healer = ctx.owner.pid if ctx.owner is not None and ctx.owner.team == t.team else None
+        statuses._heal_whole(ctx.m, t, amount, healer=healer)
 
 
 @effect("heal_rate", who="team")
 def e_heal_rate(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> None:
     """per_second while the trigger keeps firing (healing zones)."""
     if t is not None:
-        statuses._heal_whole(ctx.m, t, float(step["per_second"]) * ctx.dt)
+        healer = ctx.owner.pid if ctx.owner is not None and ctx.owner.team == t.team else None
+        statuses._heal_whole(ctx.m, t, float(step["per_second"]) * ctx.dt, healer=healer)
 
 
 @effect("shield", who="team")
@@ -390,9 +477,20 @@ def e_revive(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> None:
                              "warning_sprite": step.get("sprite"), "radius": BODY}, t.pos)
         marker.props["revive_pid"] = t.pid
         marker.data["revive_health"] = int(step.get("health", ctx.m._hp))
+        marker.data["revive_recovery"] = float(step.get("recovery", 0))
         return
+    ctx.m._restore_death_drop(t)
     t.alive, t.hp = True, int(step.get("health", ctx.m._hp))
+    t.armor, t.armor_key, t.armor_reserve, t.armor_regen_at = 0, "", 0, None
     statuses.clear_statuses(t, ctx.m)
+    if recovery := step.get("recovery"):
+        t.channel_until = ctx.m.time + recovery
+        statuses.apply_status(ctx.m, t, "sage_revive_recovery", recovery)
+        t.reload_until, t.burst_left = 0.0, 0
+        t.zoom_level, t.zoomed = 0, False
+        t.crouching = False
+        t.vel = Vec(0, 0)
+        t.dash_until = 0.0
     game_event(ctx.m, "revive", {"pid": t.pid, "by": ctx.owner.pid if ctx.owner else None})
 
 
@@ -407,7 +505,8 @@ def e_push(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> None:
     """strength in metres away from the point (stops at walls)."""
     if t is not None:
         away = (t.pos - ctx.point)
-        _move_player(ctx, t, (away.normalized() if away.length() > 0.01 else ctx.aim) * float(step.get("strength", 2.0)))
+        direction = ctx.aim if step.get("along_aim") or away.length() <= 0.01 else away.normalized()
+        _move_player(ctx, t, direction * float(step.get("strength", 2.0)))
 
 
 @effect("pull")
@@ -462,7 +561,45 @@ def e_teleport(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> bool:
     p.pos, p.vel = ctx.point, Vec(0, 0)
     p.ground, p.z, p.vz = ground, 0.0, 0.0
     p.level = int(ground / lh + 0.5)
+    if cue := step.get("arrival_sound"):
+        game_event(ctx.m, "sound_fx", {**cue, "pos": (p.pos.x, p.pos.y), "pid": p.pid, "range_filtered": True})
+    if arrival := step.get("arrival"):
+        from gameplay.kit.engine import place
+        place(ctx, arrival, p.pos)
+    if recovery := step.get("weapon_recovery"):
+        statuses.apply_status(ctx.m, p, "weapon_recovery", float(recovery))
+    if step.get("reequip_weapon"):
+        reequip_weapon(ctx.m, p)
     return True
+
+
+def reequip_weapon(match: Match, p: PlayerState) -> None:
+    if (weapon := match._weapon_def(p)) is not None:
+        p.equip_until = match.time + weapon.equip * statuses.mult(match, p, "equip")
+        p.reload_until, p.burst_left = 0.0, 0
+
+
+@effect("omen_shade_arrive", per_player=False)
+def omen_shade_arrive(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> None:
+    from gameplay.kit.engine import remove_device
+
+    p, shade = ctx.owner, ctx.obj
+    if p is None or shade is None:
+        return
+    origin = p.pos, p.ground, p.z, p.level
+    if not e_teleport(ctx, None, step):
+        remove_device(ctx.m, shade, "cancel")
+        return
+    shade.props["return_position"] = origin
+    shade.props["source_level"] = p.level
+    statuses.apply_status(ctx.m, p, "omen_shade", shade.until - ctx.m.time)
+
+
+@effect("omen_shade_finish", per_player=False)
+def omen_shade_finish(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> None:
+    if ctx.owner is not None and ctx.owner.alive:
+        ctx.owner.status.pop("omen_shade", None)
+        reequip_weapon(ctx.m, ctx.owner)
 
 
 def can_land(m: Match, p: PlayerState, point: Vec) -> bool:
@@ -484,12 +621,31 @@ def e_channel_teleport(ctx: Ctx, t: PlayerState | None, spec: dict[str, Any]) ->
     from gameplay.kit.engine import place
     if ctx.owner is None or not can_land(ctx.m, ctx.owner, ctx.point):
         return False
-    delay = float(spec["seconds"])
+    duration = float(spec["seconds"])
+    windup = float(spec.get("windup", 0))
+    delay = windup + duration
     ctx.owner.channel_until = ctx.m.time + delay
     ctx.owner.vel = Vec(0, 0)
+    if recovery := spec.get("weapon_recovery"):
+        # Commands run before expiring effects, including on the tick that moves the player.
+        statuses.apply_status(ctx.m, ctx.owner, "weapon_recovery", delay + float(recovery))
     shade = {"hp": 1, "hit_radius": float(ctx.m._mv["radius"]), "cancel_channel": True} if spec.get("cancel_channel") else {}
-    place(ctx, {"look": "zone", "lasts": delay, "radius": 0.8, **shade,
-                "sprite": spec["sprite"], "triggers": [{"when": "expire", "do": [{"do": "teleport"}]}]}, ctx.point)
+    if cue := spec.get("departure_sound"):
+        origin = ctx.owner.pos
+        game_event(ctx.m, "sound_fx", {**cue, "pos": (origin.x, origin.y), "pid": ctx.owner.pid, "range_filtered": True})
+    teleport = {"do": "teleport", "arrival_sound": spec.get("arrival_sound"),
+                "arrival": spec.get("arrival"), "weapon_recovery": recovery,
+                "reequip_weapon": spec.get("reequip_weapon")}
+    triggers = [{"when": "expire", "do": [teleport]}]
+    if shade:
+        triggers = [{"when": "start", "do": [{"do": "omen_shade_arrive", "arrival_sound": spec.get("arrival_sound")}]},
+                    {"when": "expire", "do": [{"do": "omen_shade_finish"}]}]
+    marker = place(ctx, {"look": "zone", "delay": windup, "lasts": duration, "radius": 0.8, **shade,
+                "sprite": spec.get("sprite"), "triggers": triggers}, ctx.point)
+    if spec.get("interruptible"):
+        marker.props["interruptible_teleport"] = True
+    if recovery:
+        marker.props["teleport_recovery_until"] = ctx.m.time + delay + float(recovery)
     return True
 
 
@@ -598,8 +754,18 @@ def e_noise(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> None:
 @effect("sound", per_player=False)
 def e_sound(ctx: Ctx, t: PlayerState | None, step: dict[str, Any]) -> None:
     """key, radius: plays assets/sounds/<key>.wav at the point (heard like any other sound, not a footstep)."""
-    game_event(ctx.m, "sound_fx", {"key": str(step["key"]), "pos": (ctx.point.x, ctx.point.y),
-                                   "radius": float(step.get("radius", 30.0))})
+    pos = ctx.point
+    cue = {"key": str(step["key"]), "radius": float(step.get("radius", 30.0))}
+    if step.get("range_filtered"):
+        cue["range_filtered"] = True
+    if step.get("at_owner") and ctx.owner is not None:
+        pos = ctx.owner.pos
+        cue.update(pid=ctx.owner.pid, range_filtered=True)
+    if step.get("team_only"):
+        cue.update(team=ctx.team, range_filtered=True)
+    elif "team" in step:
+        cue.update(team=step["team"], range_filtered=True)
+    game_event(ctx.m, "sound_fx", {**cue, "pos": (pos.x, pos.y)})
 
 
 @effect("event", per_player=False)
@@ -675,6 +841,8 @@ def tr_cross(ctx: Ctx, spec: dict[str, Any]) -> list[PlayerState] | None:
     from gameplay.kit.registry import WHO
     found = []
     for t in WHO[str(spec.get("who", "enemies"))](ctx, spec):
+        if t.dm_ghost or (t.team != ctx.team and ctx.m.deathmatch_spawn_protected(t)):
+            continue
         last = t.last_pos if t.last_pos is not None else t.pos
         if segments_intersect(last, t.pos, obj.a, obj.b):
             found.append(t)
@@ -712,7 +880,10 @@ def tr_chase(ctx: Ctx, spec: dict[str, Any]) -> list[PlayerState] | None:
     obj = ctx.obj
     assert obj is not None
     victim = ctx.m.players.get(obj.data.get("chase_pid"))
-    if victim is None or not victim.alive:
+    if (victim is None or not victim.alive or victim.dm_ghost
+            or victim.duel_id != obj.props.get("duel_id", 0)
+            or ctx.m.deathmatch_spawn_protected(victim)):
+        obj.data.pop("chase_pid", None)
         targets = select(ctx, spec)
         if not targets:
             return None

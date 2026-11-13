@@ -19,6 +19,7 @@ AGENT = agent("Sage", role="Sentinel", order=-4, sprites={"ability_poses": True}
                    # 13.00: self heal 100 HP. 9.10: same duration as ally heal.
                    "do": [step("heal", who="self", amount=100, over=5, injured=True, required=True)]}),
     X=ability("Resurrection", target="aim_fallen", range=6, require_sight=True, cost=8, preview="revive",
+              cast_radius=0, cast_announcement={"ally": "ab_revive", "enemy": "cast_shield_up"},
               do=[step("revive", who="cursor_fallen", required=True, require_sight=True,
-                       delay=2.0, sprite="sage_resurrection")]),
+                       delay=2.0, recovery=1.3, sprite="sage_resurrection")]),
 )

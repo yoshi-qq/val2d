@@ -43,7 +43,10 @@ def run(m: Match, seconds: float) -> None:
 
 def test_all_agents_use_known_blocks() -> None:
     agents = load_agents()
-    assert set(agents) == {"brimstone", "omen", "jett", "sova", "sage", "cypher", "phoenix", "killjoy"}
+    assert set(agents) == {
+        "brimstone", "omen", "jett", "sova", "sage", "cypher", "phoenix", "killjoy", "breach", "reyna", "miks", "waylay",
+        "gekko", "chamber", "raze", "skye", "kayo", "viper", "neon", "yoru", "fade", "harbor", "deadlock", "vyse", "iso", "clove", "tejo", "veto", "astra", "hush",
+    }
     for key, agent in agents.items():
         for slot, ab in agent["abilities"].items():
             assert ab["kind"] in KINDS or ab["kind"] == "custom", (key, slot, ab["kind"])  # custom: composed with the kit

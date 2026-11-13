@@ -30,7 +30,7 @@ class OverlaysMixin:
 
     def open_overlay(self, name: str) -> None:
         self.overlay = name
-        self.aiming = None
+        self.set_aim(None)
         self.ui.buy_open = False
         self.grab(False)
 
@@ -97,13 +97,27 @@ class OverlaysMixin:
                 self.overlay = "settings"
             elif action == "reload":
                 self.reload_content()
+            elif action == "end_dm_phase" and self.mode in ("local", "host"):
+                if self.session is not None:
+                    self.session.end_deathmatch_phase()
+                else:
+                    self.match.end_deathmatch_phase()
+                self.close_overlay()
+            elif action == "toggle_dm_timer" and self.mode in ("local", "host"):
+                controller = self.session if self.session is not None else self.match
+                controller.toggle_deathmatch_timer()
+                self.close_overlay()
+            elif action == "toggle_dm_ghost":
+                self._toggle_dm_ghost = True
+                self.close_overlay()
             elif action == "surrender":
                 self._from_pause = True
                 self.overlay = "surrender"
             elif action == "surrender_yes":
                 me = self.match.players.get(self.me)
                 if me is not None:
-                    self.match.surrender(me.team)
+                    controller = self.session if self.session is not None else self.match
+                    controller.surrender(me.team)
                 self.close_overlay()
             elif action in ("leave", "quit"):
                 self._from_pause = self.overlay == "pause"
@@ -137,6 +151,16 @@ class OverlaysMixin:
                 entries.insert(2, ("Reload content", "reload"))
             if self.mode in ("local", "host") and self.match.phase in ("buy", "live", "planted", "end") and not self.match.practice:
                 entries.insert(-1, ("Surrender", "surrender"))
+            if self.mode in ("local", "host") and self.match.can_end_deathmatch_phase():
+                label = "End preparation" if self.match.phase == "buy" else "End current stage"
+                entries.insert(-1, (label, "end_dm_phase"))
+                label = "Resume match timer" if self.match.dm_timer_paused else "Pause match timer"
+                entries.insert(-1, (label, "toggle_dm_timer"))
+                y -= 62
+            me = self.match.players.get(self.me)
+            if me is not None and self.match.can_toggle_deathmatch_ghost(me):
+                entries.insert(-1, ("Disable Ghost" if me.dm_ghost else "Enable Ghost", "toggle_dm_ghost"))
+                y -= 31
             for label, action in entries:
                 r = pygame.Rect(cx - 170, y, 340, 54)
                 hover = r.collidepoint(pygame.mouse.get_pos())

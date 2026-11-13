@@ -18,9 +18,25 @@ python server.py --online
 python map_editor.py ascent
 ```
 
-Use the main menu to play Unrated, Swiftplay or Team Deathmatch against bots, or choose Custom to host or join a private match. Join over LAN by address or discovery, or over the internet with a join code. Run `python play.py --help` or `python server.py --help` for command-line options.
+Use the main menu to play Unrated, Swiftplay or Team Deathmatch against bots, or choose Custom to host or join a private party. The host can copy the IP address or join code from the lobby. Guests can paste it into the join field, which remembers the last successful connection. After the match, **Return to party lobby** brings everyone back on the same connection. The host can change the mode, map and rules before starting the next match. Run `python play.py --help` or `python server.py --help` for command-line options.
 
-Open the Bind or Haven blockout with `python map_editor.py bind` or `python map_editor.py haven`. Both have plant sites, team spawns and walkable routes from each spawn to each site. Bind has two one-way player teleporters. Elevations, buy barriers and a side-by-side cover pass are still pending. [Map references](https://playvalorant.com/en-us/maps/)
+In Team Deathmatch, press **B** in your team's spawn to choose a loadout for each of the four timed stages. The first team to 100 kills wins. At the end of stage four, the higher score wins and a tie is a draw.
+
+With **Allow cheats** enabled, the host can pause or resume the countdown and end preparation or the current stage from the pause menu. Gameplay continues while the countdown is paused. Ending the final stage resolves the match using its current score. During live play, each player can toggle **Ghost** from the pause menu to fly through walls. Hold jump to rise and crouch to descend.
+
+At each stage change, press **B** outside spawn to equip your next loadout immediately. Val2D gives you five seconds before the automatic switch. If you carry a station weapon, you can keep it by letting the timer expire. Respawning equips the current stage's loadout immediately.
+
+Press **F** near a weapon on the map to take it from its station. Station weapons have limited ammo. Press **G** while using one to switch back to your loadout. You can also carry it into the next stage and use up its remaining ammo.
+
+Walk over a recovery orb when you are missing health or shield. It restores both over six seconds. Teammates who enter the zone share the remaining recovery time. Each orb returns after 30 seconds.
+
+Walk over an ultimate orb to gain up to 10 ultimate points. Each teammate who enters its zone during the next six seconds also gains the points once, up to their ultimate cost. In Val2D, both orbs appear together 60 seconds into live play and refill together every 60 seconds.
+
+After respawning, leave your team's spawn within 15 seconds. You are protected from damage and enemy abilities until you leave or the timer expires. In Val2D, staying past the timer costs 10 HP per second.
+
+Aim at one of your recallable devices and press **F**. In Team Deathmatch, a successful recall returns its charge after five seconds.
+
+Open Bind or Haven with `python map_editor.py bind` or `python map_editor.py haven`. Both have buy barriers, elevated A Towers and walkable routes from each spawn to every plant site. Bind has two one-way player teleporters. Haven has a lower floor under A Tower and destructible metal plates on the Garage doors. Elevations and cover in the other areas still need a detailed pass. [Map references](https://playvalorant.com/en-us/maps/)
 
 Recorded footsteps, rifle fire, magazine handling, Spike pulses and menu clicks use the [CC0 sound sources](assets/sounds/cc0/SOURCES.md).
 
@@ -32,7 +48,8 @@ Open **Inventory**, choose a weapon and preview a skin, then select **Equip** to
 | Mouse, left click, right click | Turn and aim depth, fire, alternate fire or cancel an aimed ability |
 | R, 1 / 2 / 3 | Reload, switch weapons |
 | C / Q / E / X, hold F1 | Abilities, ability info |
-| F, G | Interact, plant or defuse, swap weapons with F. Drop the bomb or weapon with G. |
+| 4, hold 4 | Equip the Spike, plant or defuse |
+| F, G | Interact or swap weapons with F. Drop the held Spike or weapon with G. |
 | B, Tab, Esc | Buy menu, scoreboard, pause or close the current menu |
 | Alt+F4 | Open quit confirmation. Press again to quit immediately. |
 
@@ -45,12 +62,12 @@ Open **Inventory**, choose a weapon and preview a skin, then select **Equip** to
 | Icon | Map | Availability |
 | --- | --- | --- |
 | ![Ascent map icon](assets/maps/ascent/icon.png) | Ascent | Default |
-| Missing | Bind | Map editor |
-| Missing | Haven | Map editor |
+| Missing | Bind | Playable |
+| Missing | Haven | Playable |
 
 ### Agents
 
-8 selectable in the current build.
+30 selectable in the current build.
 
 | Portrait | In game | Agent | Role | C / Q / E / X |
 | --- | --- | --- | --- | --- |
@@ -62,6 +79,28 @@ Open **Inventory**, choose a weapon and preview a skin, then select **Equip** to
 | ![Cypher portrait](assets/agents/cypher/cypher_portrait.png) | ![Cypher idle sprite](assets/agents/cypher/cypher_idle.png) | Cypher | Sentinel | <img src="assets/ui/ability_cypher_C.png" alt="Cypher C" width="20"> <img src="assets/ui/ability_cypher_Q.png" alt="Cypher Q" width="20"> <img src="assets/ui/ability_cypher_E.png" alt="Cypher E" width="20"> <img src="assets/ui/ability_cypher_X.png" alt="Cypher X" width="20"> |
 | ![Phoenix portrait](assets/agents/phoenix/phoenix_portrait.png) | ![Phoenix idle sprite](assets/agents/phoenix/phoenix_idle.png) | Phoenix | Duelist | <img src="assets/ui/ability_phoenix_C.png" alt="Phoenix C" width="20"> <img src="assets/ui/ability_phoenix_Q.png" alt="Phoenix Q" width="20"> <img src="assets/ui/ability_phoenix_E.png" alt="Phoenix E" width="20"> <img src="assets/ui/ability_phoenix_X.png" alt="Phoenix X" width="20"> |
 | ![Killjoy portrait](assets/agents/killjoy/killjoy_portrait.png) | ![Killjoy idle sprite](assets/agents/killjoy/killjoy_idle.png) | Killjoy | Sentinel | <img src="assets/ui/ability_killjoy_C.png" alt="Killjoy C" width="20"> <img src="assets/ui/ability_killjoy_Q.png" alt="Killjoy Q" width="20"> <img src="assets/ui/ability_killjoy_E.png" alt="Killjoy E" width="20"> <img src="assets/ui/ability_killjoy_X.png" alt="Killjoy X" width="20"> |
+| ![Breach portrait](assets/agents/breach/breach_portrait.png) | ![Breach idle sprite](assets/agents/breach/breach_idle.png) | Breach | Initiator | <img src="assets/ui/ability_breach_C.png" alt="Breach C" width="20"> <img src="assets/ui/ability_breach_Q.png" alt="Breach Q" width="20"> <img src="assets/ui/ability_breach_E.png" alt="Breach E" width="20"> <img src="assets/ui/ability_breach_X.png" alt="Breach X" width="20"> |
+| ![Reyna portrait](assets/agents/reyna/reyna_portrait.png) | ![Reyna idle sprite](assets/agents/reyna/reyna_idle.png) | Reyna | Duelist | <img src="assets/ui/ability_reyna_C.png" alt="Reyna C" width="20"> <img src="assets/ui/ability_reyna_Q.png" alt="Reyna Q" width="20"> <img src="assets/ui/ability_reyna_E.png" alt="Reyna E" width="20"> <img src="assets/ui/ability_reyna_X.png" alt="Reyna X" width="20"> |
+| ![Miks portrait](assets/agents/miks/miks_portrait.png) | ![Miks idle sprite](assets/agents/miks/miks_idle.png) | Miks | Controller | <img src="assets/ui/ability_miks_C.png" alt="Miks C" width="20"> <img src="assets/ui/ability_miks_Q.png" alt="Miks Q" width="20"> <img src="assets/ui/ability_miks_E.png" alt="Miks E" width="20"> <img src="assets/ui/ability_miks_X.png" alt="Miks X" width="20"> |
+| ![Waylay portrait](assets/agents/waylay/waylay_portrait.png) | ![Waylay idle sprite](assets/agents/waylay/waylay_idle.png) | Waylay | Duelist | <img src="assets/ui/ability_waylay_C.png" alt="Waylay C" width="20"> <img src="assets/ui/ability_waylay_Q.png" alt="Waylay Q" width="20"> <img src="assets/ui/ability_waylay_E.png" alt="Waylay E" width="20"> <img src="assets/ui/ability_waylay_X.png" alt="Waylay X" width="20"> |
+| ![Gekko portrait](assets/agents/gekko/gekko_portrait.png) | ![Gekko idle sprite](assets/agents/gekko/gekko_idle.png) | Gekko | Initiator | <img src="assets/ui/ability_gekko_C.png" alt="Gekko C" width="20"> <img src="assets/ui/ability_gekko_Q.png" alt="Gekko Q" width="20"> <img src="assets/ui/ability_gekko_E.png" alt="Gekko E" width="20"> <img src="assets/ui/ability_gekko_X.png" alt="Gekko X" width="20"> |
+| ![Chamber portrait](assets/agents/chamber/chamber_portrait.png) | ![Chamber idle sprite](assets/agents/chamber/chamber_idle.png) | Chamber | Sentinel | <img src="assets/ui/ability_chamber_C.png" alt="Chamber C" width="20"> <img src="assets/ui/ability_chamber_Q.png" alt="Chamber Q" width="20"> <img src="assets/ui/ability_chamber_E.png" alt="Chamber E" width="20"> <img src="assets/ui/ability_chamber_X.png" alt="Chamber X" width="20"> |
+| ![Raze portrait](assets/agents/raze/raze_portrait.png) | ![Raze idle sprite](assets/agents/raze/raze_idle.png) | Raze | Duelist | <img src="assets/ui/ability_raze_C.png" alt="Raze C" width="20"> <img src="assets/ui/ability_raze_Q.png" alt="Raze Q" width="20"> <img src="assets/ui/ability_raze_E.png" alt="Raze E" width="20"> <img src="assets/ui/ability_raze_X.png" alt="Raze X" width="20"> |
+| ![Skye portrait](assets/agents/skye/skye_portrait.png) | ![Skye idle sprite](assets/agents/skye/skye_idle.png) | Skye | Initiator | <img src="assets/ui/ability_skye_C.png" alt="Skye C" width="20"> <img src="assets/ui/ability_skye_Q.png" alt="Skye Q" width="20"> <img src="assets/ui/ability_skye_E.png" alt="Skye E" width="20"> <img src="assets/ui/ability_skye_X.png" alt="Skye X" width="20"> |
+| ![KAY/O portrait](assets/agents/kayo/kayo_portrait.png) | ![KAY/O idle sprite](assets/agents/kayo/kayo_idle.png) | KAY/O | Initiator | <img src="assets/ui/ability_kayo_C.png" alt="KAY/O C" width="20"> <img src="assets/ui/ability_kayo_Q.png" alt="KAY/O Q" width="20"> <img src="assets/ui/ability_kayo_E.png" alt="KAY/O E" width="20"> <img src="assets/ui/ability_kayo_X.png" alt="KAY/O X" width="20"> |
+| ![Viper portrait](assets/agents/viper/viper_portrait.png) | ![Viper idle sprite](assets/agents/viper/viper_idle.png) | Viper | Controller | <img src="assets/ui/ability_viper_C.png" alt="Viper C" width="20"> <img src="assets/ui/ability_viper_Q.png" alt="Viper Q" width="20"> <img src="assets/ui/ability_viper_E.png" alt="Viper E" width="20"> <img src="assets/ui/ability_viper_X.png" alt="Viper X" width="20"> |
+| ![Neon portrait](assets/agents/neon/neon_portrait.png) | ![Neon idle sprite](assets/agents/neon/neon_idle.png) | Neon | Duelist | <img src="assets/ui/ability_neon_C.png" alt="Neon C" width="20"> <img src="assets/ui/ability_neon_Q.png" alt="Neon Q" width="20"> <img src="assets/ui/ability_neon_E.png" alt="Neon E" width="20"> <img src="assets/ui/ability_neon_X.png" alt="Neon X" width="20"> |
+| ![Yoru portrait](assets/agents/yoru/yoru_portrait.png) | ![Yoru idle sprite](assets/agents/yoru/yoru_idle.png) | Yoru | Duelist | <img src="assets/ui/ability_yoru_C.png" alt="Yoru C" width="20"> <img src="assets/ui/ability_yoru_Q.png" alt="Yoru Q" width="20"> <img src="assets/ui/ability_yoru_E.png" alt="Yoru E" width="20"> <img src="assets/ui/ability_yoru_X.png" alt="Yoru X" width="20"> |
+| ![Fade portrait](assets/agents/fade/fade_portrait.png) | ![Fade idle sprite](assets/agents/fade/fade_idle.png) | Fade | Initiator | <img src="assets/ui/ability_fade_C.png" alt="Fade C" width="20"> <img src="assets/ui/ability_fade_Q.png" alt="Fade Q" width="20"> <img src="assets/ui/ability_fade_E.png" alt="Fade E" width="20"> <img src="assets/ui/ability_fade_X.png" alt="Fade X" width="20"> |
+| ![Harbor portrait](assets/agents/harbor/harbor_portrait.png) | ![Harbor idle sprite](assets/agents/harbor/harbor_idle.png) | Harbor | Controller | <img src="assets/ui/ability_harbor_C.png" alt="Harbor C" width="20"> <img src="assets/ui/ability_harbor_Q.png" alt="Harbor Q" width="20"> <img src="assets/ui/ability_harbor_E.png" alt="Harbor E" width="20"> <img src="assets/ui/ability_harbor_X.png" alt="Harbor X" width="20"> |
+| ![Deadlock portrait](assets/agents/deadlock/deadlock_portrait.png) | ![Deadlock idle sprite](assets/agents/deadlock/deadlock_idle.png) | Deadlock | Sentinel | <img src="assets/ui/ability_deadlock_C.png" alt="Deadlock C" width="20"> <img src="assets/ui/ability_deadlock_Q.png" alt="Deadlock Q" width="20"> <img src="assets/ui/ability_deadlock_E.png" alt="Deadlock E" width="20"> <img src="assets/ui/ability_deadlock_X.png" alt="Deadlock X" width="20"> |
+| ![Vyse portrait](assets/agents/vyse/vyse_portrait.png) | ![Vyse idle sprite](assets/agents/vyse/vyse_idle.png) | Vyse | Sentinel | <img src="assets/ui/ability_vyse_C.png" alt="Vyse C" width="20"> <img src="assets/ui/ability_vyse_Q.png" alt="Vyse Q" width="20"> <img src="assets/ui/ability_vyse_E.png" alt="Vyse E" width="20"> <img src="assets/ui/ability_vyse_X.png" alt="Vyse X" width="20"> |
+| ![Iso portrait](assets/agents/iso/iso_portrait.png) | ![Iso idle sprite](assets/agents/iso/iso_idle.png) | Iso | Duelist | <img src="assets/ui/ability_iso_C.png" alt="Iso C" width="20"> <img src="assets/ui/ability_iso_Q.png" alt="Iso Q" width="20"> <img src="assets/ui/ability_iso_E.png" alt="Iso E" width="20"> <img src="assets/ui/ability_iso_X.png" alt="Iso X" width="20"> |
+| ![Clove portrait](assets/agents/clove/clove_portrait.png) | ![Clove idle sprite](assets/agents/clove/clove_idle.png) | Clove | Controller | <img src="assets/ui/ability_clove_C.png" alt="Clove C" width="20"> <img src="assets/ui/ability_clove_Q.png" alt="Clove Q" width="20"> <img src="assets/ui/ability_clove_E.png" alt="Clove E" width="20"> <img src="assets/ui/ability_clove_X.png" alt="Clove X" width="20"> |
+| ![Tejo portrait](assets/agents/tejo/tejo_portrait.png) | ![Tejo idle sprite](assets/agents/tejo/tejo_idle.png) | Tejo | Initiator | <img src="assets/ui/ability_tejo_C.png" alt="Tejo C" width="20"> <img src="assets/ui/ability_tejo_Q.png" alt="Tejo Q" width="20"> <img src="assets/ui/ability_tejo_E.png" alt="Tejo E" width="20"> <img src="assets/ui/ability_tejo_X.png" alt="Tejo X" width="20"> |
+| ![Veto portrait](assets/agents/veto/veto_portrait.png) | ![Veto idle sprite](assets/agents/veto/veto_idle.png) | Veto | Sentinel | <img src="assets/ui/ability_veto_C.png" alt="Veto C" width="20"> <img src="assets/ui/ability_veto_Q.png" alt="Veto Q" width="20"> <img src="assets/ui/ability_veto_E.png" alt="Veto E" width="20"> <img src="assets/ui/ability_veto_X.png" alt="Veto X" width="20"> |
+| ![Astra portrait](assets/agents/astra/astra_portrait.png) | ![Astra idle sprite](assets/agents/astra/astra_idle.png) | Astra | Controller | <img src="assets/ui/ability_astra_C.png" alt="Astra C" width="20"> <img src="assets/ui/ability_astra_Q.png" alt="Astra Q" width="20"> <img src="assets/ui/ability_astra_E.png" alt="Astra E" width="20"> <img src="assets/ui/ability_astra_X.png" alt="Astra X" width="20"> |
+| ![Hush portrait](assets/agents/hush/hush_portrait.png) | ![Hush idle sprite](assets/agents/hush/hush_idle.png) | Hush | Duelist | <img src="assets/ui/ability_hush_C.png" alt="Hush C" width="20"> <img src="assets/ui/ability_hush_Q.png" alt="Hush Q" width="20"> <img src="assets/ui/ability_hush_E.png" alt="Hush E" width="20"> <img src="assets/ui/ability_hush_X.png" alt="Hush X" width="20"> |
 
 ### Weapons and armor
 

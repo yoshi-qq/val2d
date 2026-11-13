@@ -27,10 +27,11 @@ FALLBACK: dict[str, dict[str, Any]] = {
     "suppress": {"no_abilities": True}, "detain": {"speed": 0.0}, "deaf": {"deaf": True},
     "stim": {"fire_rate": 1.12, "reload": 0.8, "positive": True},
 }
-MULTIPLY = ("speed", "dash_speed", "damage_taken", "damage_dealt", "fire_rate", "reload", "equip", "recovery")
+MULTIPLY = ("speed", "dash_speed", "damage_taken", "damage_dealt", "fire_rate", "reload", "equip", "recovery", "gravity")
 ADD = ("spread_add", "hp_per_second")
-LOWEST = ("sight_range", "seen_within")
-FLAGS = ("blind", "deaf", "no_abilities", "no_fire", "revealed", "lethal", "positive")
+LOWEST = ("sight_range", "seen_within", "move_speed")
+FLAGS = ("blind", "deaf", "no_abilities", "no_fire", "revealed", "lethal", "positive", "intangible", "invisible",
+         "no_contacts", "no_interact", "downed", "forced_crouch", "jam_primary")
 KNOWN = set(MULTIPLY) | set(ADD) | set(LOWEST) | set(FLAGS) | {"decay", "decay_regen", "icon", "note"}
 
 
@@ -75,7 +76,7 @@ def apply_status(m: Match, p: PlayerState, status: str, seconds: float) -> None:
         return
     if seconds <= 0 or not p.alive:
         return
-    if p.immune_until > m.time and not table[status].get("positive"):
+    if (p.immune_until > m.time or m.deathmatch_spawn_protected(p)) and not table[status].get("positive"):
         return
     if table[status].get("blind"):
         p.blind_until = max(p.blind_until, m.time + seconds)
@@ -106,6 +107,8 @@ def lowest(m: Match, p: PlayerState, key: str) -> float | None:
 
 
 def flag(m: Match, p: PlayerState, key: str) -> bool:
+    if p.dm_ghost and key in ("intangible", "no_contacts"):
+        return True
     return any(mods.get(key) for mods in active(m, p))
 
 
@@ -113,7 +116,11 @@ def speed_factor(m: Match, p: PlayerState) -> float:
     return max(0.0, mult(m, p, "speed"))
 
 
-def _heal_whole(m: Match, p: PlayerState, amount: float) -> None:
+def _heal_whole(m: Match, p: PlayerState, amount: float, *, healer: int | None = None,
+                ends_at: float | None = None) -> None:
+    if m.mode == "deathmatch" and healer is not None and healer != p.pid and amount > 0 and p.hp < m._hp:
+        end = m.time if ends_at is None else ends_at
+        p.dm_healed_by[healer] = max(end, p.dm_healed_by.get(healer, 0.0))
     p.hp_frac += amount
     whole = int(p.hp_frac)
     p.hp_frac -= whole
@@ -124,26 +131,35 @@ def tick_player(m: Match, p: PlayerState, dt: float) -> None:
     """Healing over time, decay, health per second and reveal from statuses."""
     if not p.alive:
         return
+    if p.overheal_until <= m.time:
+        p.overheal = 0
     if p.heal_left > 0:
         amount = min(p.heal_left, p.heal_rate * dt)
         p.heal_left -= amount
-        _heal_whole(m, p, amount)
+        remaining = p.heal_left / p.heal_rate if p.heal_rate > 0 else 0
+        _heal_whole(m, p, amount, healer=p.dm_heal_source, ends_at=m.time + remaining)
+        if p.heal_left <= 0:
+            p.dm_heal_source = None
     decay = [mods for mods in active(m, p) if mods.get("decay")]
-    if decay:
+    if decay and not flag(m, p, "intangible"):
         drain = max(float(d["decay"]) for d in decay) * dt
         before = p.hp + p.hp_frac
         after = max(1.0, before - drain)
         p.decay_pool += before - after
         p.hp, p.hp_frac = int(after), after - int(after)
-    elif p.decay_pool > 0:
-        regen = max((float(d.get("decay_regen", 10.0)) for d in defs(m).values() if d.get("decay")), default=10.0)
-        back = min(p.decay_pool, regen * dt)
+    elif p.decay_pool > 0 and not (has(m, p, "viper_decay_hold") or has(m, p, "clove_decay_hold")):
+        regen = (25.0 if "viper_toxin" in p.status else
+                 max((float(d.get("decay_regen", 10.0)) for name, d in defs(m).items()
+                      if name != "viper_toxin" and d.get("decay")), default=10.0))
+        back = min(p.decay_pool, p.passive_state.get("decay_recovery_rate", regen) * dt)
         p.decay_pool -= back
+        if p.decay_pool <= 0:
+            p.passive_state.pop("decay_recovery_rate", None)
         _heal_whole(m, p, back)
     per_second = add(m, p, "hp_per_second")
     if per_second > 0:
         _heal_whole(m, p, per_second * dt)
-    elif per_second < 0:
+    elif per_second < 0 and not flag(m, p, "intangible"):
         p.status_drain = getattr(p, "status_drain", 0.0) - per_second * dt
         whole = int(p.status_drain)
         if whole:

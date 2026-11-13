@@ -1,0 +1,25 @@
+from gameplay.kit.dsl import ability, agent, on, step, thing
+
+AGENT = agent(
+    "Harbor", role="Controller", order=14, sprites={"ability_poses": True},
+    C=ability("Storm Surge", target="throw", range=25, radius=6, preview="zone", price=200,
+              landing_preview=True, bot="offense", sound="cast_whoosh",
+              desc="Throw a whirlpool that briefly nearsights and slows everyone in its radius.",
+              place=thing("blast", lasts=0.65, thrown=True, sprite="harbor_storm",
+                          triggers=[on("expire", [step("harbor_storm_land")])])),
+    Q=ability("High Tide", target="self", preview="wall", length=60, range=60, price=300,
+              bot="offense", sound="cast_whoosh",
+              desc="Send out a water wall. Hold fire to steer, or press secondary fire to stop it early.",
+              do=[step("harbor_tide")]),
+    E=ability("Cove", target="aim_free", range=80, radius=4.6, preview="smoke", start=1, recharge=30,
+              tactical=True, shadow_targeting=True, aim_equip=0.6, alt={"under_deck": True},
+              instant_with_status="harbor_cove_ready", free_with_status="harbor_cove_ready",
+              bot="place", sound="cast_deploy",
+              desc="Aim with the cursor or map. Press E to place a water smoke and press E again to shield it.",
+              do=[step("harbor_cove")]),
+    X=ability("Reckoning", target="self", preview="wave", length=42, width=21, cost=7,
+              instant_with_status="harbor_wave_ready", free_with_status="harbor_wave_ready",
+              bot="offense", sound="cast_whoosh",
+              desc="Launch a wave that slows and nearsights enemies. Press X again to hold it in place for seven seconds.",
+              do=[step("harbor_reckoning")]),
+)

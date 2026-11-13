@@ -44,6 +44,7 @@ WALLS: dict[str, dict] = {
     "ascent_roof": dict(tile="maps/ascent/tiles/roof.png", pen=3, sight=True, height=2),
     # open window (B Main): blocks walking, not sight or shots. Placeholder tile until the design session draws a frame.
     "ascent_window": dict(tile="maps/ascent/tiles/window_sill.png", pen=0, sight=False, height=2, low=True),
+    "ascent_b_main_panel": dict(tile="maps/ascent/tiles/metal.png", pen=3, sight=True, height=2),
 }
 
 FLOORS: dict[str, str] = {
@@ -116,11 +117,19 @@ OBJECTS: dict[str, dict] = {
     "ascent_site_door": dict(tile="maps/ascent/props/site_door_closed.png",
                             open_tile="maps/ascent/props/site_door_open.png", size=(2.5, 0.5),
                             broken_tile="maps/ascent/props/site_door_broken.png",
-                            blocks=True, pen=3, sight=True, height=2, door=True, hp=500),
+                            blocks=True, pen=3, sight=True, height=2, door=True, hp=500, reopenable=False),
     "ascent_glass": dict(tile="maps/common/window_glass.png", size=(3, 0.4),
                          blocks=True, pen=0, sight=False, height=2, hp=1),
     "ascent_mid_panel": dict(tile="maps/ascent/props/mid_panel.png", size=(2, 0.35),
                              blocks=True, pen=3, sight=True, height=2, hp=400),
+    "haven_garage_panel": dict(tile="maps/ascent/props/mid_panel.png", size=(0.24, 2),
+                               blocks=True, pen=3, sight=True, height=2, hp=400),
+    "abyss_door": dict(tile="maps/ascent/props/mid_panel.png", size=(2, 0.35),
+                       blocks=True, pen=3, sight=True, height=2, hp=120),
+    "summit_drop_wall": dict(tile="maps/common/wall_stone.png", size=(4, 0.5),
+                             blocks=True, pen=3, sight=True, height=2, door=True),
+    "summit_wall_switch": dict(tile="maps/ascent/props/door_switch.png", size=(0.75, 0.625),
+                               blocks=True, pen=3, sight=False, height=2, hp=125),
     "ascent_brick_pallet": dict(tile="maps/ascent/props/brick_pallet.png", size=(1.8, 3.7),
                                 blocks=True, pen=2, sight=True, height=1),
     "ascent_bench": dict(tile="maps/ascent/props/bench.png", size=(2.3, 0.8),

@@ -32,7 +32,7 @@ def walk(m: Match, pid: int, facing: float, seconds: float, jump: bool = False) 
 def test_levels_of_the_main_areas() -> None:
     w = load_map("ascent")
     at = lambda x, top: w.ground_height(Vec(x, w.height - top))  # noqa: E731
-    assert at(110, 52) == 2.0 and at(110, 40) == 1.0 and at(110, 31) == 4.0  # A front above the site, Heaven
+    assert at(110, 52) == 2.0 and at(110, 40) == 3.0 and at(110, 31) == 6.0  # A front, raised plant floor, Heaven
     assert at(92, 52) == 2.0 and at(95, 37) == 3.0                           # A Tree below the Garden landing
     assert at(64, 65) == 1.0 and at(64, 55) == 2.0 and at(76, 75) == 2.0     # courtyard, Mid Bottom, Catwalk
     assert at(20, 35) == 0.0 and at(30, 47) == 1.0 and at(55, 38) == 2.0     # B site below B Lane, Market
@@ -80,26 +80,29 @@ def test_stairs_climb_and_heaven_needs_its_stairs() -> None:
     m, pid = setup()
     p = m.players[pid]
     place(m, pid, 110, 52)
-    walk(m, pid, 0.0, 1.5)  # north down the A site stairs
-    assert p.ground == 1.0 and m.world.callout_at(p.pos) == "A Site"
-    walk(m, pid, 180.0, 1.5)  # and back up
+    walk(m, pid, 0.0, 1.5)  # north up the A site stairs
+    assert p.ground == 3.0 and m.world.callout_at(p.pos) == "A Site"
+    walk(m, pid, 180.0, 1.5)  # and back down
     assert p.ground == 2.0
     place(m, pid, 115, 36)
     walk(m, pid, 0.0, 1.5, jump=True)  # runs under the Heaven deck without jumping onto it
-    assert p.ground == 1.0 and m.world.deck_at(p.pos) is not None
+    assert p.ground == 3.0 and m.world.deck_at(p.pos) is not None
     place(m, pid, 101.5, 19)
     walk(m, pid, 180.0, 2.0)  # south up the Heaven stairs
-    assert p.ground == 4.0
+    assert p.ground == 6.0
 
 
-def test_b_main_windows_stop_walking_but_not_sight() -> None:
+def test_b_main_high_windows_do_not_open_a_route_or_sightline_at_floor_height() -> None:
     m, pid = setup()
     p = m.players[pid]
     place(m, pid, 26.5, 52)
     walk(m, pid, 0.0, 1.5, jump=True)  # north into the west window
     assert m.world.height - p.pos.y > 50.0 and m.world.callout_at(p.pos) == "B Main"
-    windows = [w for w in m.world.walls if w.material == "ascent_window" and w.rect.center.x < 40]
-    assert len(windows) == 2 and all(w.low and not w.blocks_sight for w in windows)
+    for x in (26.5, 32.5):
+        assert not m._line_clear(Vec(x, m.world.height - 52), Vec(x, m.world.height - 47), 1)
+    place(m, pid, 41, 52)
+    walk(m, pid, 0.0, 0.8)
+    assert m.world.height - p.pos.y < 49
 
 
 def test_deck_separates_players_and_allows_drop_to_site() -> None:
@@ -107,8 +110,8 @@ def test_deck_separates_players_and_allows_drop_to_site() -> None:
     upper = m.players[pid]
     lower = m.add_player("B", 1, "jett")
     place(m, pid, 114, 32)
-    place(m, lower.pid, 114, 32, reach=1)
-    assert (upper.ground, lower.ground) == (4, 1)
+    place(m, lower.pid, 114, 32, reach=3)
+    assert (upper.ground, lower.ground) == (6, 3)
     assert m.world.callout_at(upper.pos, upper.level) == "A Rafters"
     assert m.world.callout_at(lower.pos, lower.level) == "A Hell"
     assert not m.can_see(upper, lower) and not m.line_of_fire(lower, upper)
@@ -118,19 +121,19 @@ def test_deck_separates_players_and_allows_drop_to_site() -> None:
     lower.z, lower.vz = 1, 14
     for _ in range(12):
         m.tick(1 / 64, {})
-    assert lower.ground == 1 and lower.z <= 1.4
+    assert lower.ground == 3 and lower.z <= 1.4
     walk(m, pid, 180, 1.2)
-    assert upper.ground == 1 and m.world.height - upper.pos.y > 34
+    assert upper.ground == 3 and m.world.height - upper.pos.y > 34
 
 
 def test_bot_paths_reach_both_deck_surfaces() -> None:
     world = load_map("ascent")
     grid = grid_for(world)
     target = Vec(114, world.height - 32)
-    assert grid.cell(target, 1) != grid.cell(target, 4)
-    assert grid.path(world.spawns[0][2], target, goal_ground=1)
-    assert grid.path(world.spawns[1][2], target, goal_ground=4)
-    assert not grid.line_free(target, target, 1, 4)
+    assert grid.cell(target, 3) != grid.cell(target, 6)
+    assert grid.path(world.spawns[0][2], target, goal_ground=3)
+    assert grid.path(world.spawns[1][2], target, goal_ground=6)
+    assert not grid.line_free(target, target, 3, 6)
 
 
 def test_lobby_approaches_are_walkable_in_both_directions() -> None:
@@ -193,8 +196,8 @@ def test_crate_on_a_raised_floor_is_still_cover() -> None:
     site = w.site_at
     dice = [wl for wl in w.walls if wl.material == "obj:ascent_radianite_crate" and site(wl.rect.center)
             and site(wl.rect.center).name == "A"]
-    assert dice and all(wl.top == 2.0 for wl in dice)  # one level above the A site floor
-    assert w.ground_height(dice[0].rect.center) == 2.0
+    assert dice and all(wl.top == 4.0 for wl in dice)  # one level above the A site floor
+    assert w.ground_height(dice[0].rect.center) == 4.0
 
 
 def test_bots_reach_every_area() -> None:
@@ -231,6 +234,7 @@ def test_ascent_switch_door_and_breakables_reset_each_round() -> None:
     assert not m._toggle_door(player)
     player.pos = door.switch
     assert m._toggle_door(player) and m.wall_active(door)
+    assert not m._toggle_door(player) and m.wall_active(door)
 
     # Fire directly into the closed door from A Tree.
     place(m, pid, 99, 52.5)

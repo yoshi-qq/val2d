@@ -28,15 +28,20 @@ class Wall:
     hp: int = 0
     switch: Vec | None = None
     on_deck: bool = False
+    reopenable: bool = True
+    ceiling: float | None = None
+    movement_only: bool = False
 
     @property
     def full(self) -> bool:
         """Full-height walls are taller than every floor level: never climbed, seen or shot over."""
-        return self.height >= FULL_HEIGHT
+        return self.ceiling is None and self.height >= FULL_HEIGHT
 
     @property
     def top(self) -> float:
         """Absolute level of the top edge (infinite for full walls)."""
+        if self.ceiling is not None:
+            return self.ceiling
         return float("inf") if self.full else self.base + self.height
 
 
@@ -62,10 +67,12 @@ class Platform:
 
 @dataclass(frozen=True)
 class Deck:
-    """Walkable overhead floor with open space beneath it."""
+    """Walkable overhead floor with an optional solid volume beneath it."""
     rect: Rect
     level: float
     lower: float
+    closed_below: bool = False
+    walkable: bool = True
 
     @property
     def underside(self) -> float:
@@ -76,6 +83,26 @@ class Deck:
 class Site:
     name: str
     rect: Rect
+    upper: tuple[Rect, ...] = ()
+    ground_extra: tuple[Rect, ...] = ()
+
+    @property
+    def plant_rects(self) -> tuple[Rect, ...]:
+        return (self.rect, *self.ground_extra, *self.upper)
+
+
+@dataclass(frozen=True)
+class Zipline:
+    start: Vec
+    end: Vec
+    level: float
+    reach: float
+    speed: float
+    lower: float | None = None
+
+    def progress(self, point: Vec) -> float:
+        axis = self.end - self.start
+        return max(0.0, min(1.0, (point - self.start).dot(axis) / axis.dot(axis)))
 
 
 @dataclass
@@ -102,15 +129,32 @@ class WorldMap:
     decks: list[Deck] = field(default_factory=list)
     teleporters: list[tuple[Rect, Vec]] = field(default_factory=list)  # one-way entry area and destination
     lock_spawn_during_buy: bool = True  # maps with complete barriers can use them as the buy-phase boundary
+    orbs: list[Vec] = field(default_factory=list)
+    drop_zones: list[tuple[Rect, Vec]] = field(default_factory=list)
+    drop_wall_links: dict[Rect, Rect] = field(default_factory=dict)
+    buy_teleporters: set[Rect] = field(default_factory=set)
+    automatic_doors: dict[Rect, Rect] = field(default_factory=dict)
+    timed_doors: dict[Rect, float] = field(default_factory=dict)
+    quiet_landings: list[Rect] = field(default_factory=list)
+    lintels: list[tuple[Rect, float, float]] = field(default_factory=list)
+    ziplines: list[Zipline] = field(default_factory=list)
 
     def deck_at(self, p: Vec) -> Deck | None:
         return next((deck for deck in self.decks if deck.rect.contains(p)), None)
 
+    def smoke_target_heights(self, point: Vec, under_deck: bool, lift: float) -> tuple[float, float]:
+        ground = self.ground_height(point, -float("inf") if under_deck else float("inf"))
+        if under_deck and (deck := self.deck_at(point)) is not None:
+            lift = min(lift, max(0.0, deck.underside - ground))
+        return ground, ground + lift
+
     def ground_height(self, p: Vec, reach: float = float("inf")) -> float:
         """Height of the surface under a point in levels: platforms at their level, low cover one level above the
         floor it stands on, ramps rising evenly from their low end to the level they lead onto."""
+        if self.drop_zones and self.drop_recovery(p) is not None:
+            return -8.0
         deck = self.deck_at(p) if self.decks else None
-        if deck is not None and reach < deck.level:
+        if deck is not None and (not deck.walkable or reach < deck.level):
             return deck.lower
         h = deck.level if deck is not None else 0.0
         for pl in self.platforms:
@@ -126,6 +170,10 @@ class WorldMap:
                 t = along / span if span > 0 else 1.0
                 h = max(h, low + (top - low) * ((1.0 - t) if high_at_min else t))
         return h
+
+    def drop_recovery(self, p: Vec) -> Vec | None:
+        """Safe edge to return the spike to after it falls into a death drop."""
+        return next((safe for rect, safe in self.drop_zones if rect.contains(p)), None)
 
     def low_walls(self) -> list[Wall]:
         """Solid walls lower than full height (crates, platform sides); cached until the wall list changes."""
@@ -168,13 +216,24 @@ class WorldMap:
         return int(self.ground_height(p, reach) + 0.5)
 
     def deck_blocks(self, a: Vec, a_height: float, b: Vec, b_height: float) -> bool:
-        """A segment crossing a deck within its footprint cannot see or shoot through it."""
+        """Test sight and shots against horizontal slabs and doorway lintels."""
         for deck in self.decks:
             slab = (deck.underside + deck.level) / 2
             if min(a_height, b_height) < slab < max(a_height, b_height):
                 t = (slab - a_height) / (b_height - a_height)
                 if deck.rect.contains(a + (b - a) * t):
                     return True
+        for rect, bottom, top in self.lintels:
+            interval = rect.ray_interval(a, b - a)
+            if interval is None:
+                continue
+            enter, leave = max(0.0, interval[0]), min(1.0, interval[1])
+            if enter > leave:
+                continue
+            rise = b_height - a_height
+            low, high = sorted((a_height + rise * enter, a_height + rise * leave))
+            if low <= top and high >= bottom:
+                return True
         return False
 
     def floor_material(self, p: Vec) -> str:
@@ -190,10 +249,12 @@ class WorldMap:
 
     def site_at(self, p: Vec, level: float | None = None) -> Site | None:
         deck = self.deck_at(p) if self.decks and level is not None else None
-        if deck is not None and level >= deck.level:
-            return None
+        upper = deck is not None and level >= int(deck.level + 0.5)
         for s in self.sites:
-            if s.rect.contains(p):
+            if (upper or level is None) and any(rect.contains(p) for rect in s.upper):
+                return s
+            if (not upper and (s.rect.contains(p) or any(rect.contains(p) for rect in s.ground_extra))
+                    and (not s.upper or level is None or level <= self.floor_level(p, level))):
                 return s
         return None
 
@@ -271,7 +332,10 @@ def _rect(v: list[float]) -> Rect:
 
 
 DEFAULT_MAP = "ascent"
-PLAYABLE_MAP_KEYS = (DEFAULT_MAP,)
+PLAYABLE_MAP_KEYS = (
+    DEFAULT_MAP, "bind", "haven", "split", "icebox", "breeze", "fracture",
+    "pearl", "lotus", "sunset", "abyss", "corrode", "summit",
+)
 LEGACY_MAP_ART = {"werkhof": "workyard", "gasse": "alley", "hafen": "harbour"}
 LEGACY_WALL_MATERIAL = {"werkhof_thick": "workyard_thick", "werkhof_thin": "workyard_thin"}
 
@@ -333,9 +397,12 @@ def parse_map(key: str, raw: dict) -> WorldMap:
         base = mats.get(mat, {})
         if mat and not base:
             warnings.warn(f"Map {key}: unknown wall material {mat!r}")
+        ceiling = wl.get("ceiling")
         m.walls.append(Wall(_rect(wl["rect"]), int(wl.get("pen", base.get("pen", 2))), bool(wl.get("sight", base.get("sight", True))),
                             int(wl.get("height", base.get("height", 2))), mat,
-                            low=bool(wl.get("low", base.get("low", False)))))  # low: seen and shot through (open window)
+                            low=bool(wl.get("low", base.get("low", False))),
+                            base=float(wl.get("deck_level", 0)), on_deck="deck_level" in wl,
+                            ceiling=float(ceiling) if ceiling is not None else None))
     objects, decals = load_things()
     for kind, table, target in (("objects", objects, m.objects), ("decals", decals, m.decals)):
         for item in raw.get(kind, []):
@@ -344,6 +411,10 @@ def parse_map(key: str, raw: dict) -> WorldMap:
                 continue
             target.append(thing)
             spec = table[thing.key]
+            if kind == "objects" and spec.get("door") and "trigger" in item:
+                m.automatic_doors[thing.rect] = _rect(item["trigger"])
+            if kind == "objects" and spec.get("door") and "close_after" in item:
+                m.timed_doors[thing.rect] = float(item["close_after"])
             if kind == "objects" and spec.get("blocks"):
                 rect = thing.rect
                 share = float(spec.get("trunk", 1.0))
@@ -353,10 +424,13 @@ def parse_map(key: str, raw: dict) -> WorldMap:
                     rect = Rect(c.x - hw, c.y - hh, c.x + hw, c.y + hh)
                 height_m = prop_heights().get(thing.key)
                 low = height_m is not None and height_m < head_height()
+                ceiling = item.get("ceiling")
                 m.walls.append(Wall(rect, int(spec.get("pen", 1)), bool(spec.get("sight", True)) and not low,
                                     int(spec.get("height", 2)), "obj:" + thing.key, bool(spec.get("buy_phase_only", False)),
                                     bool(spec.get("door", False)), low=low, hp=int(spec.get("hp", 0)),
-                                    switch=Vec(*item["switch"]) if "switch" in item else None))
+                                    switch=Vec(*item["switch"]) if "switch" in item else None,
+                                    reopenable=bool(spec.get("reopenable", True)),
+                                    ceiling=float(ceiling) if ceiling is not None else None))
             elif kind == "objects" and spec.get("sight_only"):
                 m.walls.append(Wall(thing.rect, 0, True, 2, "obj:" + thing.key, False, False, False))
     m.practice_targets = [(Vec(*t["pos"]), float(t.get("move", 0.0))) for t in raw.get("practice_targets", [])]
@@ -368,7 +442,9 @@ def parse_map(key: str, raw: dict) -> WorldMap:
         m.walls.append(Wall(_rect(b), 1, False, 1))
     m.platforms = [Platform(_rect(p["rect"]), float(p.get("level", 1)), str(p.get("mat", ""))) if isinstance(p, dict)
                    else Platform(_rect(p)) for p in raw.get("platforms", [])]
-    m.decks = [Deck(_rect(d["rect"]), float(d["level"]), float(d["lower"])) for d in raw.get("decks", [])]
+    m.decks = [Deck(_rect(d["rect"]), float(d["level"]), float(d["lower"]), bool(d.get("closed_below")),
+                    bool(d.get("walkable", True)))
+               for d in raw.get("decks", [])]
     # cover stands on the floor under it: a crate on a raised site is one level above that site
     m.walls = [replace(wl, base=_floor_under(m.platforms, wl.rect)) if not wl.full else wl for wl in m.walls]
     for i, wall in enumerate(m.walls):
@@ -376,6 +452,8 @@ def parse_map(key: str, raw: dict) -> WorldMap:
         if deck is not None:
             m.walls[i] = replace(wall, base=deck.level, on_deck=True)
     m.walls += [Wall(pl.rect, 1, False, 1, PLATFORM, base=float(pl.level - 1)) for pl in m.platforms]
+    m.walls += [Wall(deck.rect, 3, material="container", ceiling=deck.level)
+                for deck in m.decks if deck.closed_below]
     m.ramps = []
     for i, r in enumerate(raw.get("ramps", [])):
         if isinstance(r, dict):
@@ -385,8 +463,20 @@ def parse_map(key: str, raw: dict) -> WorldMap:
                                float(r.get("low", 0.0)), float(r.get("high", 1.0)))
         else:
             m.ramps.append(_rect(r))
-    m.sites = [Site(s["name"], _rect(s["rect"])) for s in raw.get("sites", [])]
+    m.sites = [Site(s["name"], _rect(s["rect"]), tuple(_rect(r) for r in s.get("upper", [])),
+                    tuple(_rect(r) for r in s.get("ground_extra", [])))
+               for s in raw.get("sites", [])]
     m.teleporters = [(_rect(t["entry"]), Vec(*t["exit"])) for t in raw.get("teleporters", [])]
+    m.buy_teleporters = {_rect(t["entry"]) for t in raw.get("teleporters", []) if t.get("during_buy")}
+    m.ziplines = [Zipline(Vec(*z["start"]), Vec(*z["end"]), float(z["level"]), float(z["reach"]), float(z["speed"]),
+                         float(z["lower"]) if "lower" in z else None)
+                  for z in raw.get("ziplines", [])]
+    m.orbs = [Vec(*point) for point in raw.get("orbs", [])]
+    m.quiet_landings = [_rect(bounds) for bounds in raw.get("quiet_landings", [])]
+    m.lintels = [(_rect(item["rect"]), float(item["bottom"]), float(item["top"]))
+                 for item in raw.get("lintels", [])]
+    m.drop_zones = [(_rect(zone["rect"]), Vec(*zone["recovery"])) for zone in raw.get("drop_zones", [])]
+    m.drop_wall_links = {_rect(link["switch"]): _rect(link["wall"]) for link in raw.get("drop_wall_links", [])}
     m.spawns = {int(t): [Vec(*p) for p in pts] for t, pts in raw.get("spawns", {}).items()}
     m.spawn_zones = {int(t): _rect(r) for t, r in raw.get("spawn_zones", {}).items()}
     m.lock_spawn_during_buy = bool(raw.get("lock_spawn_during_buy", True))

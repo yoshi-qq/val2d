@@ -19,5 +19,6 @@ AGENT = agent("Phoenix", role="Duelist", order=-2, sprites={"ability_poses": Tru
              range=8, fuse=0.55, blind=1.5, cone=105, curve_angle=-45, desc="Left click curves the flash left.",
              alt={"name": "Curve right", "curve_angle": 45}, sprite="phoenix_curveball"),
     X=ability("Run It Back", target="self", cost=7, bot="buff",
+              cast_radius=0, cast_announcement={"ally": "cast_fire", "enemy": "cast_burst"},
               place=thing("zone", lasts=10, radius=0.6, sprite="phoenix_run_it_back_marker", return_on_lethal=True)),
 )

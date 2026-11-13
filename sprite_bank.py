@@ -213,8 +213,10 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
         patch = mat_tile(floor_mats.get(mat, ""))
         if patch is not None:
             _tile_rect(surf, patch, to_px(rect))
+    for rect, _ in world.drop_zones:
+        pygame.draw.rect(surf, (17, 23, 35), to_px(rect))
     layers: list[tuple[str, pygame.Rect]] = []
-    layers += [("site_border", to_px(s.rect)) for s in world.sites]
+    layers += [("site_border", to_px(rect)) for site in world.sites for rect in (site.rect, *site.ground_extra)]
     # platform look: its own floor material, "floor" = keep the floor art under it, empty = the shared platform tile
     layers += [(f"floor:{p.mat}" if p.mat else "platform", to_px(p.rect)) for p in world.platforms if p.mat != "floor"]
     layers += [("ramp", to_px(r)) for r in world.ramps]
@@ -233,6 +235,7 @@ def build_map_surface(world: object, bank: SpriteBank, scale: float) -> pygame.S
         else:
             name = "wall_thin" if wall.penetration <= 1 else "wall"
         layers.append((name, to_px(wall.rect)))
+    layers += [("site_border", to_px(rect)) for site in world.sites for rect in site.upper]
     for name, rect in layers:
         if name.startswith("floor:"):
             t = mat_tile(floor_mats.get(name[6:], ""))
